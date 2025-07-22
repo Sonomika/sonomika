@@ -2,6 +2,18 @@ export type LayerType = 'image' | 'video' | 'shader' | 'p5' | 'three';
 export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten' | 'color-dodge' | 'color-burn' | 'hard-light' | 'soft-light' | 'difference' | 'exclusion';
 export type TransitionType = 'cut' | 'fade' | 'fade-through-black';
 
+export interface Asset {
+  id: string;
+  name: string;
+  type: 'image' | 'video' | 'shader' | 'p5js' | 'threejs';
+  path: string;
+  filePath?: string; // Actual file path on disk
+  base64Data?: string; // For persistence
+  size: number;
+  date: string;
+  file?: File;
+}
+
 export interface LayerParamValue {
   value: number | boolean | string;
   min?: number;
@@ -58,4 +70,5 @@ export interface AppState {
   previewMode: 'composition' | 'layer';
   transitionType: TransitionType;
   transitionDuration: number;
+  assets: Asset[];
 } 

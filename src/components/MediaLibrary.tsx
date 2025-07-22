@@ -1,336 +1,409 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useStore } from '../store/store';
-
-interface MediaAsset {
-  id: string;
-  name: string;
-  type: 'image' | 'video' | 'shader' | 'p5js' | 'threejs';
-  path: string;
-  thumbnail?: string;
-  metadata?: {
-    width?: number;
-    height?: number;
-    duration?: number;
-    size?: number;
-  };
-  tags: string[];
-  createdAt: Date;
-}
 
 interface MediaLibraryProps {
   onClose: () => void;
-  onAssetSelect?: (asset: MediaAsset) => void;
+  isEmbedded?: boolean;
 }
 
-export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, onAssetSelect }) => {
-  const [assets, setAssets] = useState<MediaAsset[]>([]);
-  const [filterType, setFilterType] = useState<'all' | 'image' | 'video' | 'shader' | 'p5js' | 'threejs'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
+export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded = false }) => {
+  const { assets, addAsset, removeAsset } = useStore() as any;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedAsset, setSelectedAsset] = useState<any>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    loadAssets();
-  }, []);
-
-  const loadAssets = () => {
-    try {
-      const savedAssets = localStorage.getItem('vj-media-assets');
-      if (savedAssets) {
-        const parsedAssets = JSON.parse(savedAssets);
-        // Convert createdAt strings back to Date objects
-        const assetsWithDates = parsedAssets.map((asset: any) => ({
-          ...asset,
-          createdAt: new Date(asset.createdAt)
-        }));
-        setAssets(assetsWithDates);
-      }
-    } catch (error) {
-      console.error('Failed to load media assets:', error);
-    }
+  // Handle drag start for assets
+  const handleDragStart = (e: React.DragEvent, asset: any) => {
+    console.log('🎯 Starting drag for asset:', asset);
+    console.log('🎯 Asset type:', asset.type);
+    console.log('🎯 Asset name:', asset.name);
+    
+    const assetData = JSON.stringify(asset);
+    console.log('🎯 Setting drag data:', assetData);
+    
+    e.dataTransfer.setData('application/json', assetData);
+    e.dataTransfer.effectAllowed = 'copy';
+    
+    console.log('🎯 Drag data set successfully');
+    console.log('🎯 DataTransfer types after set:', e.dataTransfer.types);
+    console.log('🎯 DataTransfer items after set:', e.dataTransfer.items);
   };
 
-  const saveAssets = (newAssets: MediaAsset[]) => {
-    try {
-      localStorage.setItem('vj-media-assets', JSON.stringify(newAssets));
-      setAssets(newAssets);
-    } catch (error) {
-      console.error('Failed to save media assets:', error);
-    }
-  };
-
+  // Handle file import
   const handleFileImport = async (files: FileList) => {
-    setIsImporting(true);
+    console.log('Importing files:', files.length, 'files');
     
-    const newAssets: MediaAsset[] = [];
+    // Check if we're in Electron environment
+    const isElectron = !!(window as any).electron || !!(window as any).require;
+    console.log('Is Electron environment:', isElectron);
     
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const asset = await createAssetFromFile(file);
-      if (asset) {
-        newAssets.push(asset);
+    for (const file of Array.from(files)) {
+      console.log('Processing file:', file.name, file.type, file.size);
+      
+      // Check if asset already exists
+      const existingAsset = assets.find((asset: any) => asset.name === file.name);
+      if (existingAsset) {
+        console.log('Asset already exists:', file.name);
+        setDuplicateWarning(`"${file.name}" already exists in library`);
+        setTimeout(() => setDuplicateWarning(''), 3000); // Clear warning after 3 seconds
+        continue; // Skip this file
       }
-    }
-    
-    if (newAssets.length > 0) {
-      saveAssets([...assets, ...newAssets]);
-    }
-    
-    setIsImporting(false);
-  };
-
-  const createAssetFromFile = async (file: File): Promise<MediaAsset | null> => {
-    const id = generateId();
-    const type = getAssetType(file);
-    
-    if (!type) return null;
-
-    const asset: MediaAsset = {
-      id,
-      name: file.name,
-      type,
-      path: URL.createObjectURL(file),
-      tags: [],
-      createdAt: new Date(),
-      metadata: {
-        size: file.size,
-      },
-    };
-
-    // Generate thumbnail for images and videos
-    if (type === 'image' || type === 'video') {
+      
       try {
-        const thumbnail = await generateThumbnail(file, type);
-        asset.thumbnail = thumbnail;
+        // Get the file path using our resolver function
+        let filePath = resolveFilePath(file);
+        
+        if (!filePath) {
+          // Fallback to other methods
+          if (file.path) {
+            filePath = file.path;
+            console.log('Found file path:', filePath);
+          } else if (file.webkitRelativePath) {
+            filePath = file.webkitRelativePath;
+            console.log('Found webkit path:', filePath);
+          } else if (isElectron) {
+            // In Electron, try to get the path from the file object
+            console.log('File object properties:', Object.keys(file));
+            console.log('File object:', file);
+            
+            // Try to access the path property directly
+            if ((file as any).path) {
+              filePath = (file as any).path;
+              console.log('Found path via direct access:', filePath);
+            }
+          }
+        }
+        
+        // Create a blob URL for immediate use
+        const blobURL = URL.createObjectURL(file);
+        console.log('Created blob URL:', blobURL, 'for file:', file.name);
+        
+        // Convert to base64 for persistence (only for smaller files to avoid quota issues)
+        let base64Data = '';
+        if (file.size < 10 * 1024 * 1024) { // Only for files smaller than 10MB
+          try {
+            base64Data = await fileToBase64(file);
+            console.log('Converted file to base64 for persistence');
+          } catch (error) {
+            console.error('Failed to convert file to base64:', error);
+          }
+        }
+        
+        const asset = {
+          id: `asset-${Date.now()}-${Math.random()}`,
+          name: file.name,
+          type: file.type.startsWith('image/') ? 'image' : 'video',
+          path: filePath ? `file://${filePath}` : blobURL, // Use file path if available, otherwise blob URL
+          filePath: filePath, // Store actual file path if available
+          base64Data: base64Data, // Store base64 for persistence (small files only)
+          file: file, // Keep file object for blob URL recreation
+          size: file.size,
+          date: new Date().toLocaleDateString()
+        };
+        
+        addAsset(asset);
+        console.log('Imported asset:', asset);
+        
       } catch (error) {
-        console.error('Failed to generate thumbnail:', error);
+        console.error('Error processing file:', file.name, error);
       }
     }
-
-    return asset;
   };
 
-  const getAssetType = (file: File): MediaAsset['type'] | null => {
-    const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const videoTypes = ['video/mp4', 'video/webm', 'video/ogg'];
-    const shaderTypes = ['.frag', '.vert', '.glsl'];
-    const p5jsTypes = ['.js'];
-    const threejsTypes = ['.js'];
-
-    if (imageTypes.includes(file.type)) return 'image';
-    if (videoTypes.includes(file.type)) return 'video';
-    if (shaderTypes.some(ext => file.name.toLowerCase().endsWith(ext))) return 'shader';
-    if (p5jsTypes.some(ext => file.name.toLowerCase().endsWith(ext))) return 'p5js';
-    if (threejsTypes.some(ext => file.name.toLowerCase().endsWith(ext))) return 'threejs';
-    
-    return null;
-  };
-
-  const generateThumbnail = async (file: File, type: 'image' | 'video'): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      const video = document.createElement('video');
-
-      canvas.width = 200;
-      canvas.height = 150;
-
-      if (type === 'image') {
-        img.onload = () => {
-          const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
-          const x = (canvas.width - img.width * scale) / 2;
-          const y = (canvas.height - img.height * scale) / 2;
-          
-          ctx?.drawImage(img, x, y, img.width * scale, img.height * scale);
-          resolve(canvas.toDataURL());
-        };
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
-      } else if (type === 'video') {
-        video.onloadeddata = () => {
-          ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL());
-        };
-        video.onerror = reject;
-        video.src = URL.createObjectURL(file);
-        video.currentTime = 1; // Seek to 1 second for thumbnail
+  // Convert base64 data back to blob URL when loading persisted assets
+  const convertBase64ToBlobURL = (base64Data: string, type: string) => {
+    try {
+      // Remove the data URL prefix if present
+      const base64WithoutPrefix = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+      
+      // Validate base64 data
+      if (!base64WithoutPrefix || base64WithoutPrefix.length === 0) {
+        console.error('Invalid base64 data');
+        return null;
       }
+      
+      // Decode base64 to binary
+      const byteCharacters = atob(base64WithoutPrefix);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      
+      // Create blob with proper MIME type
+      const blob = new Blob([byteArray], { type });
+      
+      // Validate blob
+      if (blob.size === 0) {
+        console.error('Created blob is empty');
+        return null;
+      }
+      
+      const blobURL = URL.createObjectURL(blob);
+      
+      // Validate blob URL format
+      if (!blobURL.startsWith('blob:')) {
+        console.error('Invalid blob URL format:', blobURL);
+        return null;
+      }
+      
+      console.log('Successfully created blob URL:', blobURL, 'for type:', type, 'size:', byteArray.length);
+      return blobURL;
+    } catch (error) {
+      console.error('Error converting base64 to blob URL:', error);
+      return null;
+    }
+  };
+
+  // Function to resolve file path in Electron environment
+  const resolveFilePath = (file: File): string => {
+    const isElectron = !!(window as any).electron || !!(window as any).require;
+    
+    if (!isElectron) {
+      return '';
+    }
+    
+    try {
+      // In Electron, we can use Node.js path module
+      const path = (window as any).require('path');
+      
+      // Try different ways to get the file path
+      if ((file as any).path) {
+        const resolvedPath = path.resolve((file as any).path);
+        console.log('Resolved file path:', resolvedPath);
+        return resolvedPath;
+      }
+      
+      // If no path property, try to construct from name (this is a fallback)
+      console.log('No path property found, using fallback');
+      return '';
+    } catch (error) {
+      console.error('Error resolving file path:', error);
+      return '';
+    }
+  };
+
+  // Function to convert file to base64 for persistence
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
+  };
+
+  // Process assets to ensure they have valid paths - use useMemo to prevent recreation
+  const processedAssets = useMemo(() => {
+    const processed = (assets || []).map((asset: any) => {
+      // If asset has a file path, use it directly (highest priority)
+      if (asset.filePath && asset.filePath.length > 0) {
+        console.log('Using file path for asset:', asset.name, asset.filePath);
+        return {
+          ...asset,
+          path: `file://${asset.filePath}` // Use file:// protocol for local files
+        };
+      }
+      
+      // If asset has a File object, create a fresh blob URL
+      if (asset.file && asset.file instanceof File) {
+        try {
+          const blobURL = URL.createObjectURL(asset.file);
+          console.log('Created fresh blob URL for asset:', asset.name, blobURL);
+          return {
+            ...asset,
+            path: blobURL
+          };
+        } catch (error) {
+          console.error('Failed to create blob URL for asset:', asset.name, error);
+        }
+      }
+      
+      // If asset has base64Data, try to recreate blob URL
+      if (asset.base64Data && !asset.path.startsWith('blob:')) {
+        const newPath = convertBase64ToBlobURL(asset.base64Data, asset.type === 'image' ? 'image/*' : 'video/*');
+        if (newPath) {
+          console.log('Recreated blob URL for asset:', asset.name, 'from:', asset.path, 'to:', newPath);
+          return {
+            ...asset,
+            path: newPath
+          };
+        } else {
+          console.error('Failed to recreate blob URL for asset:', asset.name);
+        }
+      }
+      
+      // If asset has a blob URL that's still valid, keep it
+      if (asset.path && asset.path.startsWith('blob:')) {
+        console.log('Asset already has blob URL:', asset.name, asset.path);
+        return asset;
+      }
+      
+      // If asset has a file:// path, keep it
+      if (asset.path && asset.path.startsWith('file://')) {
+        console.log('Asset already has file path:', asset.name, asset.path);
+        return asset;
+      }
+      
+      // If asset has no valid path, create a placeholder
+      if (!asset.path) {
+        console.warn('Asset has no path:', asset.name);
+        return {
+          ...asset,
+          path: `data:${asset.type === 'image' ? 'image/png' : 'video/mp4'};base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`
+        };
+      }
+      
+      return asset;
+    });
+
+    // Cleanup old blob URLs that are no longer needed
+    const currentBlobUrls = processed.map((asset: any) => asset.path).filter((path: string) => path.startsWith('blob:'));
+    console.log('Current blob URLs:', currentBlobUrls);
+
+    return processed;
+  }, [assets]); // Only recreate when assets change
+
+  // Cleanup old blob URLs when component unmounts or assets change
+  useEffect(() => {
+    const currentBlobUrls = processedAssets
+      .map((asset: any) => asset.path)
+      .filter((path: string) => path.startsWith('blob:'));
+    
+    console.log('Current blob URLs:', currentBlobUrls);
+    
+    // Return cleanup function
+    return () => {
+      // Note: We don't revoke URLs here as they might still be in use
+      // The browser will clean them up when the page is unloaded
+    };
+  }, [processedAssets]);
+
+  // Handle file drop
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleFileImport(e.dataTransfer.files);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.currentTarget.classList.add('drag-over');
+    setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('drag-over');
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.currentTarget.classList.remove('drag-over');
-    handleFileImport(e.dataTransfer.files);
+    setIsDragOver(false);
   };
 
-  const handleAssetClick = (asset: MediaAsset) => {
-    setSelectedAsset(asset);
-    if (onAssetSelect) {
-      onAssetSelect(asset);
+  // Handle import button click
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      handleFileImport(e.target.files);
     }
   };
 
-  const handleAssetDragStart = (e: React.DragEvent, asset: MediaAsset) => {
-    e.dataTransfer.setData('application/json', JSON.stringify(asset));
-    e.dataTransfer.effectAllowed = 'copy';
+  // Handle drop zone click
+  const handleDropZoneClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const filteredAssets = assets.filter(asset => {
+  // Filter assets based on search and type
+  const filteredAssets = processedAssets.filter((asset: any) => {
+    const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || asset.type === filterType;
-    const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         asset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesType && matchesSearch;
+    return matchesSearch && matchesType;
   });
 
-  const getTypeIcon = (type: MediaAsset['type']) => {
+  const getAssetIcon = (type: string) => {
     switch (type) {
-      case 'image': return '🖼️';
-      case 'video': return '🎥';
-      case 'shader': return '⚡';
-      case 'p5js': return '🎨';
-      case 'threejs': return '🔷';
-      default: return '📄';
+      case 'image':
+        return '🖼️';
+      case 'video':
+        return '🎥';
+      default:
+        return '📄';
     }
   };
 
-  const getTypeColor = (type: MediaAsset['type']) => {
-    switch (type) {
-      case 'image': return '#4CAF50';
-      case 'video': return '#2196F3';
-      case 'shader': return '#FF9800';
-      case 'p5js': return '#9C27B0';
-      case 'threejs': return '#00BCD4';
-      default: return '#757575';
-    }
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content media-library" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Media Library</h2>
-          <button className="close-button" onClick={onClose}>×</button>
-        </div>
+  const handleRemoveAsset = (assetId: string) => {
+    removeAsset(assetId);
+    console.log('Removed asset:', assetId);
+  };
 
-        <div className="media-library-content">
-          {/* Toolbar */}
-          <div className="media-toolbar">
-            <div className="search-bar">
-              <input
-                type="text"
-                placeholder="Search assets..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div className="filter-controls">
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value as any)}
-              >
-                <option value="all">All Types</option>
-                <option value="image">Images</option>
-                <option value="video">Videos</option>
-                <option value="shader">Shaders</option>
-                <option value="p5js">p5.js Sketches</option>
-                <option value="threejs">Three.js Modules</option>
-              </select>
-
-              <div className="view-toggle">
-                <button
-                  className={viewMode === 'grid' ? 'active' : ''}
-                  onClick={() => setViewMode('grid')}
-                >
-                  Grid
-                </button>
-                <button
-                  className={viewMode === 'list' ? 'active' : ''}
-                  onClick={() => setViewMode('list')}
-                >
-                  List
-                </button>
-              </div>
-            </div>
-
+  if (isEmbedded) {
+    return (
+      <div className="media-library-content embedded">
+        <div className="media-toolbar">
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search assets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="filter-controls">
+            <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+              <option value="all">All Types</option>
+              <option value="image">Images</option>
+              <option value="video">Videos</option>
+            </select>
+          </div>
+          <div className="view-toggle">
             <button
-              className="import-button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
+              className={viewMode === 'grid' ? 'active' : ''}
+              onClick={() => setViewMode('grid')}
             >
-              {isImporting ? 'Importing...' : 'Import Files'}
+              Grid
+            </button>
+            <button
+              className={viewMode === 'list' ? 'active' : ''}
+              onClick={() => setViewMode('list')}
+            >
+              List
             </button>
           </div>
+          <button className="import-button" onClick={handleImportClick}>Import</button>
+        </div>
 
-          {/* Drop Zone */}
-          <div
-            className="drop-zone"
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <div className="drop-zone-content">
-              <div className="drop-icon">📁</div>
-              <p>Drag and drop files here</p>
-              <p className="drop-hint">Supports: Images, Videos, Shaders, p5.js, Three.js</p>
-            </div>
+        {duplicateWarning && (
+          <div className="duplicate-warning">
+            ⚠️ {duplicateWarning}
           </div>
+        )}
 
-          {/* Assets Grid/List */}
-          <div className={`assets-container ${viewMode}`}>
-            {filteredAssets.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">📂</div>
-                <h3>No assets found</h3>
-                <p>Import some files to get started</p>
-              </div>
-            ) : (
-              filteredAssets.map(asset => (
-                <div
-                  key={asset.id}
-                  className={`asset-item ${selectedAsset?.id === asset.id ? 'selected' : ''}`}
-                  onClick={() => handleAssetClick(asset)}
-                  draggable
-                  onDragStart={(e) => handleAssetDragStart(e, asset)}
-                >
-                  <div className="asset-preview">
-                    {asset.thumbnail ? (
-                      <img src={asset.thumbnail} alt={asset.name} />
-                    ) : (
-                      <div className="asset-placeholder">
-                        {getTypeIcon(asset.type)}
-                      </div>
-                    )}
-                    <div className="asset-type-badge" style={{ backgroundColor: getTypeColor(asset.type) }}>
-                      {asset.type.toUpperCase()}
-                    </div>
-                  </div>
-                  
-                  <div className="asset-info">
-                    <div className="asset-name">{asset.name}</div>
-                    <div className="asset-meta">
-                      {asset.metadata?.size && (
-                        <span>{(asset.metadata.size / 1024 / 1024).toFixed(1)}MB</span>
-                      )}
-                      <span>{asset.createdAt.toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+        <div
+          className={`drop-zone ${isDragOver ? 'drag-over' : ''}`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={handleDropZoneClick}
+        >
+          <div className="drop-zone-content">
+            <div className="drop-icon">📁</div>
+            <div>Drop media files here</div>
+            <div className="drop-hint">or click to browse</div>
           </div>
         </div>
 
@@ -339,13 +412,183 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, onAssetSele
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,video/*,.frag,.vert,.glsl,.js"
-          onChange={(e) => e.target.files && handleFileImport(e.target.files)}
+          accept="image/*,video/*"
+          onChange={handleFileInputChange}
           style={{ display: 'none' }}
         />
+
+        <div className="assets-container">
+          {filteredAssets.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📁</div>
+              <h3>No assets found</h3>
+              <p>Import some media files to get started</p>
+              {assets && assets.length > 0 && (
+                <div className="warning-message">
+                  <p>⚠️ Assets were lost after refresh due to storage limits.</p>
+                  <p>Please re-import your media files.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            filteredAssets.map((asset: any) => (
+              <div
+                key={asset.id}
+                className={`asset-item ${selectedAsset?.id === asset.id ? 'selected' : ''}`}
+                onClick={() => setSelectedAsset(asset)}
+                draggable
+                onDragStart={(e) => handleDragStart(e, asset)}
+              >
+                <div className="asset-preview">
+                  {asset.type === 'image' ? (
+                    <img src={asset.path} alt={asset.name} />
+                  ) : (
+                    <div className="asset-placeholder">
+                      {getAssetIcon(asset.type)}
+                    </div>
+                  )}
+                  <div className="asset-type-badge">
+                    {asset.type.toUpperCase()}
+                  </div>
+                </div>
+                <div className="asset-info">
+                  <div className="asset-name">{asset.name}</div>
+                  <div className="asset-meta">
+                    <span>{formatFileSize(asset.size)}</span>
+                    <span>{asset.date}</span>
+                  </div>
+                </div>
+                <div className="asset-actions">
+                  <button className="delete-button" onClick={(e) => { e.stopPropagation(); handleRemoveAsset(asset.id); }}>🗑️</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="media-library-modal">
+      <div className="media-library-content">
+        <div className="media-library-header">
+          <h2>Media Library</h2>
+          <button onClick={onClose} className="close-button">×</button>
+        </div>
+
+        <div className="media-toolbar">
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search assets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="filter-controls">
+            <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+              <option value="all">All Types</option>
+              <option value="image">Images</option>
+              <option value="video">Videos</option>
+            </select>
+          </div>
+          <div className="view-toggle">
+            <button
+              className={viewMode === 'grid' ? 'active' : ''}
+              onClick={() => setViewMode('grid')}
+            >
+              Grid
+            </button>
+            <button
+              className={viewMode === 'list' ? 'active' : ''}
+              onClick={() => setViewMode('list')}
+            >
+              List
+            </button>
+          </div>
+          <button className="import-button" onClick={handleImportClick}>Import</button>
+        </div>
+
+        {duplicateWarning && (
+          <div className="duplicate-warning">
+            ⚠️ {duplicateWarning}
+          </div>
+        )}
+
+        <div
+          className={`drop-zone ${isDragOver ? 'drag-over' : ''}`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={handleDropZoneClick}
+        >
+          <div className="drop-zone-content">
+            <div className="drop-icon">📁</div>
+            <div>Drop media files here</div>
+            <div className="drop-hint">or click to browse</div>
+          </div>
+        </div>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*,video/*"
+          onChange={handleFileInputChange}
+          style={{ display: 'none' }}
+        />
+
+        <div className="assets-container">
+          {filteredAssets.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📁</div>
+              <h3>No assets found</h3>
+              <p>Import some media files to get started</p>
+              {assets && assets.length > 0 && (
+                <div className="warning-message">
+                  <p>⚠️ Assets were lost after refresh due to storage limits.</p>
+                  <p>Please re-import your media files.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            filteredAssets.map((asset: any) => (
+              <div
+                key={asset.id}
+                className={`asset-item ${selectedAsset?.id === asset.id ? 'selected' : ''}`}
+                onClick={() => setSelectedAsset(asset)}
+                draggable
+                onDragStart={(e) => handleDragStart(e, asset)}
+              >
+                <div className="asset-preview">
+                  {asset.type === 'image' ? (
+                    <img src={asset.path} alt={asset.name} />
+                  ) : (
+                    <div className="asset-placeholder">
+                      {getAssetIcon(asset.type)}
+                    </div>
+                  )}
+                  <div className="asset-type-badge">
+                    {asset.type.toUpperCase()}
+                  </div>
+                </div>
+                <div className="asset-info">
+                  <div className="asset-name">{asset.name}</div>
+                  <div className="asset-meta">
+                    <span>{formatFileSize(asset.size)}</span>
+                    <span>{asset.date}</span>
+                  </div>
+                </div>
+                <div className="asset-actions">
+                  <button className="delete-button" onClick={(e) => { e.stopPropagation(); handleRemoveAsset(asset.id); }}>🗑️</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
-};
-
-const generateId = () => Math.random().toString(36).substr(2, 9); 
+}; 

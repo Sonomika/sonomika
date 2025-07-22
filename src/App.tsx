@@ -1,150 +1,110 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from './store/store';
-import { MIDIManager } from './midi/MIDIManager';
-import { BPMManager } from './engine/BPMManager';
-import { KeyboardShortcuts } from './utils/KeyboardShortcuts';
-import { ProjectManager } from './utils/ProjectManager';
-import { Sidebar } from './components/Sidebar';
-import { CompositionScreen } from './components/CompositionScreen';
-import { LayerPreview } from './components/LayerPreview';
+import { LayerManager } from './components/LayerManager';
 import { ShortcutHelp } from './components/ShortcutHelp';
-import { AppState } from './store/types';
-
-type StoreActions = {
-  toggleSidebar: () => void;
-};
-
-type Store = AppState & StoreActions;
 
 export const App: React.FC = () => {
-  const store = useStore() as Store;
-  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
-  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+
+  // Get store state with error handling
+  let storeState: any = null;
+  try {
+    storeState = useStore();
+    console.log('Store loaded successfully:', storeState);
+  } catch (err) {
+    console.error('Error accessing store:', err);
+    setError('Failed to initialize application state');
+  }
 
   useEffect(() => {
-    try {
-      // Initialize managers
-      MIDIManager.getInstance();
-      BPMManager.getInstance();
-      KeyboardShortcuts.getInstance();
-
-      // Handle window resize
-      const handleResize = () => {
-        setDimensions({
-          width: window.innerWidth,
-          height: window.innerHeight
-        });
-      };
-
-      // Auto-save project state periodically
-      const autoSaveInterval = setInterval(() => {
-        try {
-          ProjectManager.getInstance().saveProject(store);
-        } catch (error) {
-          console.error('Error auto-saving project:', error);
-        }
-      }, 30000); // Save every 30 seconds
-
-      window.addEventListener('resize', handleResize);
-
-      // Save project state before unloading
-      const handleBeforeUnload = () => {
-        try {
-          ProjectManager.getInstance().saveProject(store);
-        } catch (error) {
-          console.error('Error saving project before unload:', error);
-        }
-      };
-      window.addEventListener('beforeunload', handleBeforeUnload);
-
-      // Add shortcut for help dialog
-      KeyboardShortcuts.getInstance().registerShortcut('?', {
-        handler: () => setShowShortcutHelp(prev => !prev),
-        description: 'Toggle keyboard shortcuts help',
-        category: 'Help',
-      });
-
+    console.log('App component mounted');
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      console.log('Setting loading to false');
       setIsLoading(false);
+    }, 1000);
 
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-        clearInterval(autoSaveInterval);
-        try {
-          BPMManager.getInstance().cleanup();
-          KeyboardShortcuts.getInstance().cleanup();
-        } catch (error) {
-          console.error('Error during cleanup:', error);
-        }
-      };
-    } catch (error) {
-      console.error('Error initializing app:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error occurred');
-      setIsLoading(false);
-    }
-  }, [store]);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl/Cmd + K for shortcut help
+      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        event.preventDefault();
+        setShowShortcutHelp(prev => !prev);
+      }
+      
+      // Escape to close shortcut help
+      if (event.key === 'Escape') {
+        setShowShortcutHelp(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  console.log('App render - isLoading:', isLoading, 'error:', error, 'storeState:', storeState);
 
   if (error) {
+    console.log('Rendering error screen');
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontSize: '18px',
-        color: 'white',
-        backgroundColor: '#1a1a1a',
-        padding: '20px',
-        textAlign: 'center'
-      }}>
-        <div>
-          <h2>Error Loading VJ Application</h2>
-          <p style={{ color: '#ff6b6b' }}>{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            style={{
-              marginTop: '20px',
-              padding: '10px 20px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            Reload Application
-          </button>
-        </div>
+      <div className="error-screen">
+        <h1>Error</h1>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()}>Reload App</button>
       </div>
     );
   }
 
   if (isLoading) {
+    console.log('Rendering loading state');
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontSize: '18px',
-        color: 'white',
-        backgroundColor: '#1a1a1a'
-      }}>
-        Loading VJ Application...
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <h2>Loading VJ Application...</h2>
+        <button onClick={() => setIsLoading(false)}>Skip Loading</button>
       </div>
     );
   }
 
+  console.log('Rendering main app');
   return (
-    <div className="app-container">
-      <Sidebar />
-      <div className="main-content">
-        <CompositionScreen dimensions={dimensions} />
-        <LayerPreview dimensions={dimensions} />
-      </div>
-      {showShortcutHelp && <ShortcutHelp onClose={() => setShowShortcutHelp(false)} />}
+    <div className="app" style={{ backgroundColor: '#1a1a1a', color: 'white', height: '100vh', overflow: 'hidden' }}>
+      {/* Debug button */}
+      <button 
+        style={{
+          position: 'fixed',
+          top: '10px',
+          right: '10px',
+          zIndex: 9999,
+          background: '#00bcd4',
+          color: 'white',
+          border: 'none',
+          padding: '5px 10px',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+        onClick={() => {
+          console.log('Debug button clicked');
+          console.log('Store state:', storeState);
+          console.log('Current scene:', storeState?.scenes?.find((s: any) => s.id === storeState?.currentSceneId));
+        }}
+      >
+        Debug
+      </button>
+      
+      {/* Main Layer Manager Interface */}
+      <LayerManager onClose={() => {}} />
+      
+      {/* Shortcut Help Modal */}
+      {showShortcutHelp && (
+        <ShortcutHelp onClose={() => setShowShortcutHelp(false)} />
+      )}
     </div>
   );
 }; 

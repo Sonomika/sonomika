@@ -1,163 +1,237 @@
-import React from 'react';
-import {
-  DndContext,
-  DragOverlay,
-  useDroppable,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
+import React, { useState } from 'react';
 import { useStore } from '../store/store';
-import { Column, Layer, AppState } from '../store/types';
+import { LayerEditor } from './LayerEditor';
 
-type StoreActions = {
-  reorderLayers: (columnId: string, startIndex: number, endIndex: number) => void;
-  moveBetweenColumns: (
-    sourceColumnId: string,
-    destinationColumnId: string,
-    sourceIndex: number,
-    destinationIndex: number
-  ) => void;
-  setSelectedLayer: (layerId: string | null) => void;
-};
-
-type Store = AppState & StoreActions;
-
-interface DraggableLayerProps {
-  layer: Layer;
-  index: number;
-  columnId: string;
+interface LayerListProps {
+  onClose: () => void;
 }
 
-const DraggableLayer: React.FC<DraggableLayerProps> = ({ layer, index, columnId }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: layer.id,
-    data: {
-      type: 'layer',
-      index,
-      columnId,
-    },
-  });
+export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
+  const { scenes, currentSceneId, updateScene } = useStore() as any;
+  const [selectedLayer, setSelectedLayer] = useState<any>(null);
+  const [showLayerEditor, setShowLayerEditor] = useState(false);
 
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-      }
-    : undefined;
+  const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
 
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`layer-item ${layer.locked ? 'locked' : ''}`}
-      {...attributes}
-      {...listeners}
-    >
-      <div className="layer-info">
-        <span className="layer-type">{layer.type}</span>
-        <span className="layer-name">{layer.name}</span>
-      </div>
-      <div className="layer-status">
-        {layer.solo && <span className="status-indicator solo">S</span>}
-        {layer.mute && <span className="status-indicator mute">M</span>}
-        {layer.locked && <span className="status-indicator locked">L</span>}
-      </div>
-    </div>
-  );
-};
-
-interface Props {
-  column: Column;
-}
-
-export const LayerList: React.FC<Props> = ({ column }) => {
-  const {
-    selectedLayerId,
-    reorderLayers,
-    moveBetweenColumns,
-    setSelectedLayer,
-  } = useStore() as Store;
-
-  const { setNodeRef } = useDroppable({
-    id: column.id,
-  });
-
-  const handleDragStart = (event: any) => {
-    const { active } = event;
-    setSelectedLayer(active.id);
+  const handleEditLayer = (layer: any) => {
+    setSelectedLayer(layer);
+    setShowLayerEditor(true);
   };
 
-  const handleDragOver = (event: any) => {
-    const { active, over } = event;
-    if (!over) return;
+  const handleDeleteLayer = (layerId: string) => {
+    if (!currentScene) return;
 
-    const activeData = active.data.current;
-    const overData = over.data.current;
+    const updatedColumns = currentScene.columns.map((column: any) => ({
+      ...column,
+      layers: column.layers.filter((layer: any) => layer.id !== layerId)
+    }));
 
-    if (activeData.columnId !== overData.columnId) {
-      moveBetweenColumns(
-        activeData.columnId,
-        overData.columnId,
-        activeData.index,
-        overData.index
-      );
+    updateScene(currentSceneId, { columns: updatedColumns });
+  };
+
+  const handleToggleLayer = (layerId: string) => {
+    if (!currentScene) return;
+
+    const updatedColumns = currentScene.columns.map((column: any) => ({
+      ...column,
+      layers: column.layers.map((layer: any) => 
+        layer.id === layerId 
+          ? { ...layer, enabled: !layer.enabled }
+          : layer
+      )
+    }));
+
+    updateScene(currentSceneId, { columns: updatedColumns });
+  };
+
+  const handleLayerUpdate = (layerId: string, updates: any) => {
+    if (!currentScene) return;
+
+    const updatedColumns = currentScene.columns.map((column: any) => ({
+      ...column,
+      layers: column.layers.map((layer: any) => 
+        layer.id === layerId 
+          ? { ...layer, ...updates }
+          : layer
+      )
+    }));
+
+    updateScene(currentSceneId, { columns: updatedColumns });
+  };
+
+  const getLayerIcon = (type: string) => {
+    switch (type) {
+      case 'image':
+        return '🖼️';
+      case 'video':
+        return '🎥';
+      case 'effect':
+        return '✨';
+      case 'shader':
+        return '🔮';
+      case 'p5js':
+        return '🎨';
+      case 'threejs':
+        return '🌐';
+      default:
+        return '📄';
     }
   };
 
-  const handleDragEnd = (event: any) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeData = active.data.current;
-    const overData = over.data.current;
-
-    if (activeData.columnId === overData.columnId) {
-      if (activeData.index !== overData.index) {
-        reorderLayers(activeData.columnId, activeData.index, overData.index);
-      }
+  const getLayerTypeName = (type: string) => {
+    switch (type) {
+      case 'image':
+        return 'Image';
+      case 'video':
+        return 'Video';
+      case 'effect':
+        return 'Effect';
+      case 'shader':
+        return 'Shader';
+      case 'p5js':
+        return 'p5.js';
+      case 'threejs':
+        return 'Three.js';
+      default:
+        return type;
     }
   };
 
-  return (
-    <DndContext
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext
-        items={column.layers.map(layer => layer.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <div ref={setNodeRef} className="layer-list">
-          {column.layers.map((layer, index) => (
-            <DraggableLayer
-              key={layer.id}
-              layer={layer}
-              index={index}
-              columnId={column.id}
-            />
-          ))}
-        </div>
-      </SortableContext>
-
-      <DragOverlay>
-        {selectedLayerId && (
-          <div className="layer-item dragging">
-            {column.layers.find(l => l.id === selectedLayerId)?.name}
+  if (!currentScene) {
+    return (
+      <div className="layer-list-modal">
+        <div className="layer-list-content">
+          <div className="layer-list-header">
+            <h2>Layer List</h2>
+            <button onClick={onClose} className="close-button">×</button>
           </div>
-        )}
-      </DragOverlay>
-    </DndContext>
+          <div className="layer-list-body">
+            <p>No scene selected.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const allLayers: any[] = [];
+  currentScene.columns.forEach((column: any, columnIndex: number) => {
+    column.layers.forEach((layer: any) => {
+      allLayers.push({
+        ...layer,
+        columnIndex,
+        columnName: column.name || `Column ${columnIndex + 1}`
+      });
+    });
+  });
+
+  return (
+    <>
+      <div className="layer-list-modal">
+        <div className="layer-list-content">
+          <div className="layer-list-header">
+            <h2>Layer List - {currentScene.name}</h2>
+            <button onClick={onClose} className="close-button">×</button>
+          </div>
+
+          <div className="layer-list-body">
+            {allLayers.length === 0 ? (
+              <div className="empty-layers">
+                <div className="empty-icon">📄</div>
+                <h3>No Layers</h3>
+                <p>Add layers using the sidebar buttons.</p>
+              </div>
+            ) : (
+              <div className="layers-container">
+                {allLayers.map((layer) => (
+                  <div
+                    key={layer.id}
+                    className={`layer-item ${!layer.enabled ? 'disabled' : ''}`}
+                  >
+                    <div className="layer-info">
+                      <div className="layer-icon">
+                        {getLayerIcon(layer.type)}
+                      </div>
+                      <div className="layer-details">
+                        <div className="layer-name">
+                          {layer.name || 'Unnamed Layer'}
+                        </div>
+                        <div className="layer-meta">
+                          {getLayerTypeName(layer.type)} • Column {layer.columnIndex + 1}
+                          {layer.asset?.name && ` • ${layer.asset.name}`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="layer-controls">
+                      <button
+                        className="layer-toggle"
+                        onClick={() => handleToggleLayer(layer.id)}
+                        title={layer.enabled ? 'Disable Layer' : 'Enable Layer'}
+                      >
+                        {layer.enabled ? '👁️' : '👁️‍🗨️'}
+                      </button>
+                      
+                      <button
+                        className="layer-edit"
+                        onClick={() => handleEditLayer(layer)}
+                        title="Edit Layer"
+                      >
+                        ✎
+                      </button>
+                      
+                      <button
+                        className="layer-delete"
+                        onClick={() => handleDeleteLayer(layer.id)}
+                        title="Delete Layer"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+
+                    <div className="layer-properties">
+                      <div className="property">
+                        <span className="property-label">Opacity:</span>
+                        <span className="property-value">
+                          {Math.round((layer.opacity || 1) * 100)}%
+                        </span>
+                      </div>
+                      <div className="property">
+                        <span className="property-label">Scale:</span>
+                        <span className="property-value">
+                          {layer.scale || 1}
+                        </span>
+                      </div>
+                      <div className="property">
+                        <span className="property-label">Rotation:</span>
+                        <span className="property-value">
+                          {layer.rotation || 0}°
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="layer-list-footer">
+            <div className="layer-stats">
+              <span>Total Layers: {allLayers.length}</span>
+              <span>Enabled: {allLayers.filter(l => l.enabled).length}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showLayerEditor && selectedLayer && (
+        <LayerEditor
+          layer={selectedLayer}
+          onClose={() => {
+            setShowLayerEditor(false);
+            setSelectedLayer(null);
+          }}
+        />
+      )}
+    </>
   );
 }; 
