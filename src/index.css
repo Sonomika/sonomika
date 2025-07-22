@@ -15,7 +15,8 @@
   --preview-height: 200px;
   --border-color: #333333;
   --hover-color: #2a2a2a;
-  --active-color: #333333;
+  --active-color: #3a3a3a;
+  --taskbar-height: 0px;
 }
 
 * {
@@ -27,13 +28,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background-color: var(--background);
   color: var(--on-background);
-  line-height: 1.5;
   overflow: hidden;
-  font-weight: 400;
+  height: 100vh;
+  /* Account for Windows taskbar */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+#root {
+  height: 100vh;
+  /* Account for Windows taskbar */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Loading spinner animation */
@@ -185,10 +196,23 @@ body {
 
 /* Layer preview */
 .layer-preview {
-  height: var(--preview-height);
+  width: 100%;
+  aspect-ratio: 16/9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-color: var(--surface);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0.5rem;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.layer-preview-image,
+.layer-preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
 }
 
 /* Sidebar sections */
@@ -416,8 +440,46 @@ body {
 /* Layer controls */
 .layer-controls {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.layer-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.layer-controls .control-btn {
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0.125rem;
+  font-size: 0.7rem;
+  border: 1px solid var(--border-color);
+  background-color: var(--surface);
+  color: var(--on-surface);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.layer-controls .control-btn:hover {
+  background-color: var(--hover-color);
+  border-color: var(--primary-color);
+}
+
+.layer-controls .control-btn:active {
+  background-color: var(--active-color);
 }
 
 .add-layer-button {
@@ -1828,8 +1890,46 @@ body {
 
 .layer-controls {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.layer-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.layer-controls .control-btn {
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0.125rem;
+  font-size: 0.7rem;
+  border: 1px solid var(--border-color);
+  background-color: var(--surface);
+  color: var(--on-surface);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.layer-controls .control-btn:hover {
+  background-color: var(--hover-color);
+  border-color: var(--primary-color);
+}
+
+.layer-controls .control-btn:active {
+  background-color: var(--active-color);
 }
 
 .layer-toggle,
@@ -2192,6 +2292,9 @@ body {
   flex-shrink: 0;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .layer-manager-media-library::before {
@@ -2210,6 +2313,8 @@ body {
   flex-direction: column;
   padding: 0.5rem;
   background-color: #2a2a2a;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .layer-manager-media-library .media-toolbar {
@@ -2428,6 +2533,69 @@ body {
   font-size: 0.8rem;
 }
 
+/* Bottom Tabs */
+.bottom-tabs {
+  display: flex;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab-button {
+  background-color: transparent;
+  color: var(--on-surface);
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+  background-color: var(--hover-color);
+  color: var(--on-surface);
+}
+
+.tab-button.active {
+  background-color: var(--primary-color);
+  color: var(--on-primary);
+  border-bottom-color: var(--primary-color);
+}
+
+.tab-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tab-content > * {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) var(--surface);
+}
+
+.tab-content > *::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tab-content > *::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+.tab-content > *::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.tab-content > *::-webkit-scrollbar-thumb:hover {
+  background: var(--hover-color);
+}
+
 /* Grid Container */
 .grid-container {
   display: flex;
@@ -2514,10 +2682,47 @@ body {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.5rem;
-  border-right: 1px solid #444;
-  min-width: 225px;
-  background-color: #333;
+  padding: 0.25rem;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  width: 0;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.layer-controls-group {
+  display: flex;
+  align-items: center;
+    gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.layer-controls .control-btn {
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0.125rem;
+  font-size: 0.7rem;
+  border: 1px solid var(--border-color);
+  background-color: var(--surface);
+  color: var(--on-surface);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.layer-controls .control-btn:hover {
+  background-color: var(--hover-color);
+  border-color: var(--primary-color);
+}
+
+.layer-controls .control-btn:active {
+  background-color: var(--active-color);
 }
 
 .layer-indicators {
@@ -2537,13 +2742,6 @@ body {
   text-align: center;
   min-width: 15px;
   border: 1px solid #666;
-}
-
-.layer-controls-group {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-right: 0.5rem;
 }
 
 .layer-special-controls {
@@ -2608,7 +2806,7 @@ body {
   border-right: 1px solid #444;
   min-width: 75px;
   min-height: 50px;
-  padding: 0.5rem;
+  padding: 0;
   background-color: #333;
   transition: background-color 0.2s;
 }
@@ -2630,8 +2828,8 @@ body {
   height: 100%;
   cursor: pointer;
   transition: all 0.2s ease;
-  border-radius: 4px;
-  padding: 0.5rem;
+  border-radius: 0;
+  padding: 0;
 }
 
 .column-header:hover {
@@ -2695,7 +2893,7 @@ body {
 .grid-cell {
   flex: 1;
   border-right: 1px solid #444;
-  padding: 0.5rem;
+  padding: 0;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -2741,8 +2939,10 @@ body {
   width: 100%;
   height: 100%;
   justify-content: center;
-  padding: 0.25rem;
+  padding: 0;
+  margin: 0;
   transition: all 0.2s ease;
+  min-height: 80px;
 }
 
 .layer-content:hover {
@@ -2782,7 +2982,7 @@ body {
 }
 
 .layer-asset {
-  width: 100%;
+    width: 100%;
   max-width: 60px;
   max-height: 50px;
   overflow: hidden;
@@ -3019,15 +3219,13 @@ body {
 
 /* Preview Window - Bottom Left */
 .preview-window {
-  width: 30%;
   background-color: var(--surface);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* 16:9 aspect ratio container */
-  aspect-ratio: 16/9;
-  max-height: 100%;
+  flex-shrink: 0;
+  flex-grow: 0;
 }
 
 .preview-header {
@@ -3081,6 +3279,14 @@ body {
   background-color: #1a1a1a;
   position: relative;
   overflow: hidden;
+  min-height: 0;
+}
+
+.preview-content > * {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  aspect-ratio: inherit;
 }
 
 .preview-placeholder {
@@ -3297,7 +3503,7 @@ body {
 .layer-options-panel .count-display {
   min-width: 40px;
   text-align: center;
-  padding: 0.5rem;
+    padding: 0.5rem;
   background-color: #333;
   border: 1px solid #444;
   border-radius: 3px;
@@ -3342,4 +3548,360 @@ body {
   flex-shrink: 0;
   box-shadow: none;
   position: relative;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.composition-settings {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background-color: var(--secondary-variant);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.composition-info {
+  font-size: 0.8rem;
+  color: var(--on-surface);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.global-controls,
+.app-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.preview-full-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  aspect-ratio: inherit;
+}
+
+.preview-video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  aspect-ratio: inherit;
+}
+
+/* Main App Container */
+.App {
+  height: calc(100vh - var(--taskbar-height));
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background);
+  color: var(--on-background);
+  overflow: hidden;
+}
+
+/* Layer Preview Styles */
+.layer-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.layer-preview {
+  width: 100%;
+  aspect-ratio: 16/9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.layer-preview-image,
+.layer-preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.layer-preview-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: var(--surface);
+  border: 2px dashed var(--border-color);
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-surface);
+  font-size: 0.8rem;
+}
+
+.layer-name {
+  font-size: 0.75rem;
+  color: var(--on-surface);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-weight: 500;
+  margin: 0;
+  padding: 0;
+}
+
+/* MIDI Mapper Styles */
+.midi-mapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--background);
+  color: var(--on-background);
+  font-family: 'Inter', sans-serif;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Top Section: MIDI Mappings List */
+.midi-mappings-section {
+  flex: 1;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mappings-header {
+  background-color: var(--surface);
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.device-selector {
+  background-color: var(--surface);
+  color: var(--on-surface);
+  border: 1px solid var(--border-color);
+  padding: 0.25rem 0.5rem;
+  border-radius: 2px;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  min-width: 120px;
+}
+
+.device-selector:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.mappings-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.mapping-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mapping-entry:hover {
+  background-color: var(--hover-color);
+}
+
+.mapping-entry.active {
+  background-color: #00bcd4;
+  color: #000;
+}
+
+.mapping-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.mapping-note {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.mapping-entry.active .mapping-note {
+  color: #000;
+}
+
+/* Middle Section: MIDI Settings */
+.midi-settings-section {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--surface);
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.settings-row:last-child {
+  margin-bottom: 0;
+}
+
+.settings-row label {
+  width: 80px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--on-surface);
+  flex-shrink: 0;
+}
+
+.setting-dropdown {
+  flex: 1;
+  background-color: var(--background);
+  color: var(--on-background);
+  border: 1px solid var(--border-color);
+  padding: 0.25rem 0.5rem;
+  border-radius: 2px;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  min-width: 150px;
+}
+
+.setting-dropdown:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+/* Lower Section: MIDI Out Velocity */
+.midi-velocity-section {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--surface);
+  overflow-y: auto;
+  max-height: 200px;
+}
+
+.midi-velocity-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+/* Bottom Section: Help */
+.midi-help-section {
+  background-color: var(--surface);
+  border-top: 1px solid var(--border-color);
+  overflow-y: auto;
+  max-height: 150px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) var(--surface);
+}
+
+.midi-help-section::-webkit-scrollbar,
+.midi-settings-section::-webkit-scrollbar,
+.midi-velocity-section::-webkit-scrollbar,
+.mappings-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.midi-help-section::-webkit-scrollbar-track,
+.midi-settings-section::-webkit-scrollbar-track,
+.midi-velocity-section::-webkit-scrollbar-track,
+.mappings-list::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+.midi-help-section::-webkit-scrollbar-thumb,
+.midi-settings-section::-webkit-scrollbar-thumb,
+.midi-velocity-section::-webkit-scrollbar-thumb,
+.mappings-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.midi-help-section::-webkit-scrollbar-thumb:hover,
+.midi-settings-section::-webkit-scrollbar-thumb:hover,
+.midi-velocity-section::-webkit-scrollbar-thumb:hover,
+.mappings-list::-webkit-scrollbar-thumb:hover {
+  background: var(--hover-color);
+}
+
+.help-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--on-surface);
+}
+
+.help-close {
+  background: none;
+  border: none;
+  color: var(--on-surface);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+}
+
+.help-close:hover {
+  background-color: var(--hover-color);
+}
+
+.help-content {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--on-surface);
+  line-height: 1.4;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .midi-mapper {
+    font-size: 0.875rem;
+  }
+  
+  .settings-row label {
+    width: 60px;
+  }
+  
+  .setting-dropdown {
+    min-width: 120px;
+  }
+  
+  .mapping-name {
+    font-size: 0.8rem;
+  }
+  
+  .mapping-note {
+    font-size: 0.7rem;
+  }
 }

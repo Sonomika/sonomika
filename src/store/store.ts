@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { AppState, Scene, Column, Layer, MIDIMapping, Asset } from './types';
+import { AppState, Scene, Column, Layer, MIDIMapping, Asset, CompositionSettings } from './types';
 
 const createEmptyLayer = (type: Layer['type'] = 'p5'): Layer => ({
   id: uuidv4(),
@@ -51,6 +51,12 @@ const initialState: AppState = {
   transitionType: 'fade',
   transitionDuration: 500,
   assets: [],
+  compositionSettings: {
+    width: 1920,
+    height: 1080,
+    aspectRatio: '16:9',
+    frameRate: 30,
+  },
 };
 
 initialState.currentSceneId = initialState.scenes[0].id;
@@ -129,6 +135,10 @@ export const useStore = create<AppState>()(
           assets: [...state.assets, asset],
         };
       }),
+
+      updateCompositionSettings: (settings: Partial<CompositionSettings>) => set((state) => ({
+        compositionSettings: { ...state.compositionSettings, ...settings },
+      })),
 
       removeAsset: (assetId: string) => set((state) => ({
         assets: state.assets.filter(asset => asset.id !== assetId),

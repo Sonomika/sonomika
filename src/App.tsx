@@ -1,110 +1,118 @@
-import React, { useState, useEffect } from 'react';
-import { useStore } from './store/store';
+import { useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { LayerManager } from './components/LayerManager';
-import { ShortcutHelp } from './components/ShortcutHelp';
+import { MIDIMapper } from './components/MIDIMapper';
+import './index.css';
 
-export const App: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
 
-  // Get store state with error handling
-  let storeState: any = null;
-  try {
-    storeState = useStore();
-    console.log('Store loaded successfully:', storeState);
-  } catch (err) {
-    console.error('Error accessing store:', err);
-    setError('Failed to initialize application state');
+class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
   }
 
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ 
+          backgroundColor: '#000000', 
+          color: '#ffffff', 
+          height: '100vh', 
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <h1>Something went wrong!</h1>
+          <p>Error: {this.state.error?.message}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#ffffff',
+              color: '#000000',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Reload App
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function App() {
   useEffect(() => {
     console.log('App component mounted');
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      console.log('Setting loading to false');
-      setIsLoading(false);
-    }, 1000);
 
-    return () => clearTimeout(timer);
-  }, []);
+    // Detect Windows taskbar and adjust app height
+    const adjustForTaskbar = () => {
+      const viewportHeight = window.innerHeight;
+      const screenHeight = window.screen.height;
+      const taskbarHeight = screenHeight - viewportHeight;
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Ctrl/Cmd + K for shortcut help
-      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
-        event.preventDefault();
-        setShowShortcutHelp(prev => !prev);
-      }
-      
-      // Escape to close shortcut help
-      if (event.key === 'Escape') {
-        setShowShortcutHelp(false);
+      if (taskbarHeight > 0) {
+        // Taskbar detected, adjust the app
+        document.documentElement.style.setProperty('--taskbar-height', `${taskbarHeight}px`);
+        document.body.style.height = `calc(100vh - ${taskbarHeight}px)`;
+        document.getElementById('root')!.style.height = `calc(100vh - ${taskbarHeight}px)`;
+      } else {
+        // No taskbar detected, use full height
+        document.documentElement.style.setProperty('--taskbar-height', '0px');
+        document.body.style.height = '100vh';
+        document.getElementById('root')!.style.height = '100vh';
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    // Initial adjustment
+    adjustForTaskbar();
+
+    // Adjust on window resize
+    window.addEventListener('resize', adjustForTaskbar);
+
+    return () => {
+      window.removeEventListener('resize', adjustForTaskbar);
+    };
   }, []);
 
-  console.log('App render - isLoading:', isLoading, 'error:', error, 'storeState:', storeState);
+  console.log('App component rendering');
 
-  if (error) {
-    console.log('Rendering error screen');
-    return (
-      <div className="error-screen">
-        <h1>Error</h1>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Reload App</button>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    console.log('Rendering loading state');
-    return (
-      <div className="loading-screen">
-        <div className="loading-spinner"></div>
-        <h2>Loading VJ Application...</h2>
-        <button onClick={() => setIsLoading(false)}>Skip Loading</button>
-      </div>
-    );
-  }
-
-  console.log('Rendering main app');
   return (
-    <div className="app" style={{ backgroundColor: '#1a1a1a', color: 'white', height: '100vh', overflow: 'hidden' }}>
-      {/* Debug button */}
-      <button 
-        style={{
-          position: 'fixed',
-          top: '10px',
-          right: '10px',
-          zIndex: 9999,
-          background: '#00bcd4',
-          color: 'white',
-          border: 'none',
-          padding: '5px 10px',
-          borderRadius: '4px',
-          cursor: 'pointer'
-        }}
-        onClick={() => {
-          console.log('Debug button clicked');
-          console.log('Store state:', storeState);
-          console.log('Current scene:', storeState?.scenes?.find((s: any) => s.id === storeState?.currentSceneId));
-        }}
-      >
-        Debug
-      </button>
-      
-      {/* Main Layer Manager Interface */}
-      <LayerManager onClose={() => {}} />
-      
-      {/* Shortcut Help Modal */}
-      {showShortcutHelp && (
-        <ShortcutHelp onClose={() => setShowShortcutHelp(false)} />
-      )}
-    </div>
+    <ErrorBoundary>
+      <div style={{
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        height: '100vh',
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <h1>VJ App Test</h1>
+        <p>If you can see this, the app is working!</p>
+
+        <div style={{ flex: 1, marginTop: '20px' }}>
+          <LayerManager onClose={() => {}} />
+        </div>
+      </div>
+    </ErrorBoundary>
   );
-}; 
+}
+
+export default App; 

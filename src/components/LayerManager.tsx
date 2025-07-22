@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerOptions } from './LayerOptions';
+import { MIDIMapper } from './MIDIMapper';
 import { v4 as uuidv4 } from 'uuid';
 
 interface LayerManagerProps {
@@ -11,7 +12,9 @@ interface LayerManagerProps {
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene } = useStore() as any;
+  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings } = useStore() as any;
+  console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
+  
   const [selectedLayer, setSelectedLayer] = useState<any>(null);
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
   const [paneSizes, setPaneSizes] = useState({
@@ -23,6 +26,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [activeTab, setActiveTab] = useState<'media' | 'midi'>('media');
 
   console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);
 
@@ -499,7 +503,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             {topLayer.asset && (
               <div className="preview-asset-display">
                 {topLayer.asset.type === 'image' && (
-                  <img src={getAssetPath(topLayer.asset)} alt={topLayer.asset.name} className="preview-full-image" />
+                  <img 
+                    src={getAssetPath(topLayer.asset)} 
+                    alt={topLayer.asset.name} 
+                    className="preview-full-image"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                    }}
+                  />
                 )}
                 {topLayer.asset.type === 'video' && (
                   <div className="preview-video-display">
@@ -509,6 +522,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                       autoPlay={isPlaying}
                       loop={topLayer.loopMode === 'loop' || topLayer.loopMode === 'ping-pong'}
                       className="preview-video"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                      }}
                       onLoadStart={() => console.log('Video loading started:', getAssetPath(topLayer.asset))}
                       onLoadedData={() => console.log('Video data loaded:', getAssetPath(topLayer.asset))}
                       onError={(e) => {
@@ -713,6 +731,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 <button className="control-btn" title="Stop">⏹</button>
                 <button className="control-btn" title="Record">⏺</button>
               </div>
+              <div className="composition-settings">
+                <span className="composition-info">
+                  {compositionSettings.width}×{compositionSettings.height} ({compositionSettings.aspectRatio})
+                </span>
+                <button 
+                  className="control-btn" 
+                  title="Composition Settings"
+                  onClick={() => {
+                    // TODO: Open composition settings modal
+                    console.log('Composition settings clicked');
+                  }}
+                >
+                  ⚙️
+                </button>
+              </div>
               <div className="app-controls">
                 <button className="control-btn" title="Settings">⚙️</button>
                 <button className="control-btn" title="Help">?</button>
@@ -801,30 +834,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 </div>
 
                 <div className="layer-controls">
-                  <div className="layer-indicators">
-                    <span className="layer-indicator">A</span>
-                    <span className="layer-indicator">B</span>
+                  <div className="layer-controls-group">
+                    <button className="control-btn" title="Solo">S</button>
+                    <button className="control-btn" title="Mute">M</button>
+                    <button className="control-btn" title="Lock">L</button>
                   </div>
                   <div className="layer-controls-group">
-                    <button className="control-btn">X</button>
-                    <button className="control-btn">B</button>
-                    <button className="control-btn">S</button>
-                    <button className="control-btn">M</button>
-                    <button className="control-btn">A</button>
-                    <button className="control-btn">V</button>
-                    <select className="add-dropdown">
-                      <option>Add</option>
-                    </select>
+                    <button className="control-btn" title="Previous">⏮</button>
+                    <button className="control-btn" title="Play">▶</button>
+                    <button className="control-btn" title="Next">⏭</button>
                   </div>
-                  <div className="playback-controls">
-                    <button className="control-btn">⏮</button>
-                    <button className="control-btn">▶</button>
-                    <button className="control-btn">⏭</button>
-                    <button className="control-btn">🔁</button>
-                  </div>
-                  <div className="layer-special-controls">
-                    <button className="control-btn">T</button>
-                    <button className="control-btn">Alph</button>
+                  <div className="layer-controls-group">
+                    <button className="control-btn" title="Loop">🔁</button>
+                    <button className="control-btn" title="Transition">T</button>
+                    <button className="control-btn" title="Alpha">A</button>
                   </div>
                 </div>
 
@@ -886,72 +909,42 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                     >
                       {hasAsset ? (
                         <div className="layer-content">
-                          <div className="layer-header">
-                            <button 
-                              className="layer-play-btn" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleLayerPlay(layer.id);
-                              }}
-                              title="Play Layer"
-                            >
-                              ▶
-                            </button>
-                          </div>
-                          <div className="layer-name">
-                            {layer.name}
-                            <button 
-                              className="asset-delete-btn" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveAsset(column.id, layer.id);
-                              }}
-                              title={`Remove ${layer.asset.name}`}
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                          <div className="layer-asset">
+                          <div className="layer-preview">
                             {layer.asset.type === 'image' && (
-                              <div className="asset-preview-container">
-                                <img
-                                  src={getAssetPath(layer.asset)}
-                                  alt={layer.asset.name}
-                                  className="asset-thumbnail"
-                                  onLoad={() => {
-                                    console.log('✅ Image loaded successfully:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
-                                  }}
-                                  onError={(e) => {
-                                    console.error('❌ Failed to load image:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
-                                    e.currentTarget.style.display = 'none';
-                                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                                    if (fallback) {
-                                      fallback.style.display = 'flex';
-                                    }
-                                  }}
-                                />
-                                <div className="asset-fallback" style={{ display: 'none' }}>
-                                  <span>🖼️</span>
-                                  <span>{layer.asset.name}</span>
-                                </div>
-                              </div>
+                              <img
+                                src={getAssetPath(layer.asset)}
+                                alt={layer.asset.name}
+                                className="layer-preview-image"
+                                onLoad={() => {
+                                  console.log('✅ Image loaded successfully:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
+                                }}
+                                onError={(e) => {
+                                  console.error('❌ Failed to load image:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
+                                  e.currentTarget.style.display = 'none';
+                                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                  if (fallback) {
+                                    fallback.style.display = 'flex';
+                                  }
+                                }}
+                              />
                             )}
                             {layer.asset.type === 'video' && (
-                              <div className="video-thumbnail">
-                                <span>🎥</span>
-                                <span>{layer.asset.name}</span>
-                              </div>
+                              <video
+                                src={getAssetPath(layer.asset)}
+                                className="layer-preview-video"
+                                muted
+                                onLoadStart={() => console.log('Layer video loading:', layer.asset.name)}
+                                onLoadedData={() => console.log('Layer video loaded:', layer.asset.name)}
+                                onError={(e) => console.error('Layer video error:', layer.asset.name, e)}
+                              />
                             )}
                           </div>
+                          <div className="layer-name">{layer.asset.name}</div>
                         </div>
                       ) : (
-                        <div className="empty-cell">
-                          <span>empty</span>
-                          {isDragOver && (
-                            <div className="drop-indicator">
-                              <span>Drop here</span>
-                            </div>
-                          )}
+                        <div className="layer-content">
+                          <div className="layer-preview-placeholder"></div>
+                          <div className="layer-name">Empty</div>
                         </div>
                       )}
                     </div>
@@ -976,7 +969,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             style={{ height: `${paneSizes.mediaLibraryHeight}%` }}
           >
             {/* Preview Window - Bottom Left */}
-            <div className="preview-window">
+            <div 
+              className="preview-window"
+              style={{
+                aspectRatio: `${compositionSettings.width}/${compositionSettings.height}`,
+                maxWidth: '30%',
+                minWidth: '200px',
+              }}
+            >
               <div className="preview-header">
                 <h3>Preview</h3>
                 <div className="preview-controls">
@@ -992,7 +992,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   <button className="control-btn" title="Settings">⚙️</button>
                 </div>
               </div>
-              <div className="preview-content">
+              <div 
+                className="preview-content"
+                style={{
+                  aspectRatio: `${compositionSettings.width}/${compositionSettings.height}`,
+                }}
+              >
                 {renderPreviewContent()}
               </div>
             </div>
@@ -1005,9 +1010,32 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
               />
             </div>
 
-            {/* Media Library - Bottom Right */}
+            {/* Media Library / MIDI Mapper - Bottom Right */}
             <div className="layer-manager-media-library">
-              <MediaLibrary onClose={() => {}} isEmbedded={true} />
+              {/* Tab Navigation */}
+              <div className="bottom-tabs">
+                <button 
+                  className={`tab-button ${activeTab === 'media' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('media')}
+                >
+                  Media
+                </button>
+                <button 
+                  className={`tab-button ${activeTab === 'midi' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('midi')}
+                >
+                  MIDI
+                </button>
+              </div>
+              
+              {/* Tab Content */}
+              <div className="tab-content">
+                {activeTab === 'media' ? (
+                  <MediaLibrary onClose={() => {}} isEmbedded={true} />
+                ) : (
+                  <MIDIMapper />
+                )}
+              </div>
             </div>
           </div>
         </div>

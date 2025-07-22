@@ -60,6 +60,13 @@ export interface MIDIMapping {
   };
 }
 
+export interface CompositionSettings {
+  width: number;
+  height: number;
+  aspectRatio: string; // e.g., "16:9", "4:3", "1:1"
+  frameRate: number;
+}
+
 export interface AppState {
   scenes: Scene[];
   currentSceneId: string;
@@ -71,4 +78,5 @@ export interface AppState {
   transitionType: TransitionType;
   transitionDuration: number;
   assets: Asset[];
+  compositionSettings: CompositionSettings;
 } 
