@@ -82,15 +82,18 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         const blobURL = URL.createObjectURL(file);
         console.log('Created blob URL:', blobURL, 'for file:', file.name);
         
-        // Convert to base64 for persistence (only for smaller files to avoid quota issues)
+        // Convert to base64 for persistence (try for all files, but handle large files carefully)
         let base64Data = '';
-        if (file.size < 10 * 1024 * 1024) { // Only for files smaller than 10MB
-          try {
+        try {
+          if (file.size < 50 * 1024 * 1024) { // Try for files smaller than 50MB
             base64Data = await fileToBase64(file);
             console.log('Converted file to base64 for persistence');
-          } catch (error) {
-            console.error('Failed to convert file to base64:', error);
+          } else {
+            console.log('File too large for base64 conversion, will rely on file path:', file.size);
           }
+        } catch (error) {
+          console.error('Failed to convert file to base64:', error);
+          console.log('Will rely on file path for persistence');
         }
         
         const asset = {
@@ -202,6 +205,9 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
   // Process assets to ensure they have valid paths - use useMemo to prevent recreation
   const processedAssets = useMemo(() => {
+    console.log('Processing assets:', assets?.length || 0, 'assets');
+    console.log('Raw assets:', assets);
+    
     const processed = (assets || []).map((asset: any) => {
       // If asset has a file path, use it directly (highest priority)
       if (asset.filePath && asset.filePath.length > 0) {
@@ -240,6 +246,15 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         }
       }
       
+      // If asset has no base64Data but has a filePath, try to use the file path
+      if (!asset.base64Data && asset.filePath) {
+        console.log('Asset has file path but no base64 data:', asset.name, asset.filePath);
+        return {
+          ...asset,
+          path: `file://${asset.filePath}`
+        };
+      }
+      
       // If asset has a blob URL that's still valid, keep it
       if (asset.path && asset.path.startsWith('blob:')) {
         console.log('Asset already has blob URL:', asset.name, asset.path);
@@ -267,6 +282,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     // Cleanup old blob URLs that are no longer needed
     const currentBlobUrls = processed.map((asset: any) => asset.path).filter((path: string) => path.startsWith('blob:'));
     console.log('Current blob URLs:', currentBlobUrls);
+    console.log('Processed assets:', processed);
 
     return processed;
   }, [assets]); // Only recreate when assets change
@@ -327,16 +343,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     return matchesSearch && matchesType;
   });
 
-  const getAssetIcon = (type: string) => {
-    switch (type) {
-      case 'image':
-        return '🖼️';
-      case 'video':
-        return '🎥';
-      default:
-        return '📄';
-    }
-  };
+
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -401,7 +408,6 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           onClick={handleDropZoneClick}
         >
           <div className="drop-zone-content">
-            <div className="drop-icon">📁</div>
             <div>Drop media files here</div>
             <div className="drop-hint">or click to browse</div>
           </div>
@@ -420,7 +426,6 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         <div className="assets-container">
           {filteredAssets.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">📁</div>
               <h3>No assets found</h3>
               <p>Import some media files to get started</p>
               {assets && assets.length > 0 && (
@@ -444,7 +449,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                     <img src={asset.path} alt={asset.name} />
                   ) : (
                     <div className="asset-placeholder">
-                      {getAssetIcon(asset.type)}
+                      {asset.type.toUpperCase()}
                     </div>
                   )}
                   <div className="asset-type-badge">
@@ -524,7 +529,6 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           onClick={handleDropZoneClick}
         >
           <div className="drop-zone-content">
-            <div className="drop-icon">📁</div>
             <div>Drop media files here</div>
             <div className="drop-hint">or click to browse</div>
           </div>
@@ -543,7 +547,6 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         <div className="assets-container">
           {filteredAssets.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">📁</div>
               <h3>No assets found</h3>
               <p>Import some media files to get started</p>
               {assets && assets.length > 0 && (
@@ -567,7 +570,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                     <img src={asset.path} alt={asset.name} />
                   ) : (
                     <div className="asset-placeholder">
-                      {getAssetIcon(asset.type)}
+                      {asset.type.toUpperCase()}
                     </div>
                   )}
                   <div className="asset-type-badge">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerOptions } from './LayerOptions';
+import { v4 as uuidv4 } from 'uuid';
 
 interface LayerManagerProps {
   onClose: () => void;
@@ -330,8 +331,29 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         
         const column = currentScene.columns.find((col: any) => col.id === columnId);
         if (!column) {
-          console.error('❌ Column not found:', columnId);
-          return;
+          // Handle placeholder columns like "column-3" by auto-creating a real column
+          const placeholderMatch = /^column-(\d+)$/.exec(columnId);
+          if (placeholderMatch) {
+            const colIndex = parseInt(placeholderMatch[1], 10) - 1;
+            const newColumn = {
+              id: uuidv4(),
+              name: `Column ${colIndex + 1}`,
+              layers: [],
+            };
+            const updatedColumns = [...currentScene.columns];
+            // Ensure array is large enough
+            while (updatedColumns.length <= colIndex) {
+              updatedColumns.push({ id: uuidv4(), name: `Column ${updatedColumns.length + 1}`, layers: [] });
+            }
+            updatedColumns[colIndex] = newColumn;
+            updateScene(currentSceneId, { columns: updatedColumns });
+            console.log('🆕 Auto-created column for drop:', newColumn);
+            // continue with the newly created column
+            currentScene.columns = updatedColumns;
+          } else {
+            console.error('❌ Column not found and not a placeholder:', columnId);
+            return;
+          }
         }
         
         console.log('🟢 Found column:', column);
@@ -417,18 +439,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     }
   };
 
-  const getLayerIcon = (type: string) => {
-    switch (type) {
-      case 'image':
-        return '🖼️';
-      case 'video':
-        return '🎥';
-      case 'effect':
-        return '✨';
-      default:
-        return '📄';
-    }
-  };
+
 
   const getLayerTypeName = (type: string) => {
     switch (type) {
@@ -448,7 +459,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     if (!previewContent) {
       return (
         <div className="preview-placeholder">
-          <div className="preview-icon">🎬</div>
           <p>No preview available</p>
           <small>Select a layer to see preview</small>
         </div>
@@ -467,7 +477,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
               <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
             </div>
             <div className="preview-placeholder">
-              <div className="preview-icon">📁</div>
               <p>No media content</p>
               <small>Add media to layers to see preview</small>
             </div>
@@ -485,7 +494,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           </div>
           <div className="preview-main-content">
             <div className="preview-layer-info">
-              <div className="preview-layer-icon">{getLayerIcon(topLayer.type)}</div>
               <div className="preview-layer-name">{topLayer.name}</div>
             </div>
             {topLayer.asset && (
@@ -541,7 +549,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
               <h5>Other Layers ({layersWithContent.length - 1})</h5>
               {layersWithContent.slice(1).map((layer: any, index: number) => (
                 <div key={layer.id} className="preview-layer-item">
-                  <div className="preview-layer-icon">{getLayerIcon(layer.type)}</div>
                   <div className="preview-layer-name">{layer.name}</div>
                   {layer.asset && (
                     <div className="preview-layer-asset">
@@ -573,7 +580,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           </div>
           <div className="preview-layer-content">
             <div className="preview-layer-info">
-              <div className="preview-layer-icon">{getLayerIcon(previewContent.layer.type)}</div>
               <div className="preview-layer-name">{previewContent.layer.name}</div>
             </div>
             {previewContent.asset && (
@@ -630,7 +636,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
     return (
       <div className="preview-placeholder">
-        <div className="preview-icon">🎬</div>
         <p>Preview not available</p>
       </div>
     );
@@ -663,13 +668,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   }
 
   // Ensure we have at least 10 columns
-  const columns = currentScene.columns.slice(0, 10);
+  const columns = [...currentScene.columns];
+  let columnsAdded = 0;
   while (columns.length < 10) {
-    columns.push({
-      id: `column-${columns.length + 1}`,
-      name: `Column ${columns.length + 1}`,
-      layers: []
-    });
+    columns.push({ id: uuidv4(), name: `Column ${columns.length + 1}`, layers: [] });
+    columnsAdded++;
+  }
+  // Persist newly-added columns once
+  if (columnsAdded > 0) {
+    console.log('➕ Added', columnsAdded, 'columns to scene', currentSceneId);
+    updateScene(currentSceneId, { columns });
   }
 
   try {
@@ -751,14 +759,38 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   </select>
                 </div>
               </div>
-              {columns.map((column: any, index: number) => (
-                <div key={column.id} className="column-cell">
-                  <div className="column-header">
-                    <h4>Column {index + 1}</h4>
-                    <button className="play-btn" onClick={() => handleColumnPlay(column.id)}>▶</button>
+              {columns.map((column: any, index: number) => {
+                const isColumnPlaying = previewContent?.type === 'column' && previewContent?.columnId === column.id;
+                return (
+                  <div key={column.id} className="column-cell">
+                    <div 
+                      className={`column-header ${isColumnPlaying ? 'playing' : ''}`}
+                      onClick={() => {
+                        if (isColumnPlaying) {
+                          handleStop();
+                        } else {
+                          handleColumnPlay(column.id);
+                        }
+                      }}
+                    >
+                      <h4>Column {index + 1}</h4>
+                      <button 
+                        className={`play-btn ${isColumnPlaying ? 'stop' : 'play'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isColumnPlaying) {
+                            handleStop();
+                          } else {
+                            handleColumnPlay(column.id);
+                          }
+                        }}
+                      >
+                        {isColumnPlaying ? '⏹' : '▶'}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Layer Rows */}
@@ -810,6 +842,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   const cellId = `${column.id}-${layerNum}`;
                   const isDragOver = dragOverCell === cellId;
                   
+                  // Debug logging for assets
+                  if (hasAsset) {
+                    console.log('🎨 Rendering asset in cell:', cellId);
+                    console.log('🎨 Asset:', layer.asset);
+                    console.log('🎨 Asset path:', getAssetPath(layer.asset));
+                  }
+                  
                   // Debug logging for column 1, layer 3 specifically
                   if (colIndex === 0 && layerNum === 3) {
                     console.log('🔍 Rendering Column 1, Layer 3 cell:');
@@ -848,7 +887,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                       {hasAsset ? (
                         <div className="layer-content">
                           <div className="layer-header">
-                            <div className="layer-icon">{getLayerIcon(layer.type)}</div>
                             <button 
                               className="layer-play-btn" 
                               onClick={(e) => {
@@ -875,11 +913,28 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                           </div>
                           <div className="layer-asset">
                             {layer.asset.type === 'image' && (
+                              <div className="asset-preview-container">
                                 <img
                                   src={getAssetPath(layer.asset)}
                                   alt={layer.asset.name}
                                   className="asset-thumbnail"
+                                  onLoad={() => {
+                                    console.log('✅ Image loaded successfully:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
+                                  }}
+                                  onError={(e) => {
+                                    console.error('❌ Failed to load image:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
+                                    e.currentTarget.style.display = 'none';
+                                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                    if (fallback) {
+                                      fallback.style.display = 'flex';
+                                    }
+                                  }}
                                 />
+                                <div className="asset-fallback" style={{ display: 'none' }}>
+                                  <span>🖼️</span>
+                                  <span>{layer.asset.name}</span>
+                                </div>
+                              </div>
                             )}
                             {layer.asset.type === 'video' && (
                               <div className="video-thumbnail">

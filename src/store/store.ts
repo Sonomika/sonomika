@@ -24,42 +24,21 @@ const createEmptyColumn = (): Column => ({
 const createEmptyScene = (): Scene => ({
   id: uuidv4(),
   name: 'New Scene',
-  columns: [createEmptyColumn()],
+  columns: Array.from({ length: 10 }, () => createEmptyColumn()),
   globalEffects: [],
 });
 
-const createDefaultScenes = (): Scene[] => [
-  {
+const createDefaultScenes = (): Scene[] => {
+  console.log('🔧 Creating default scenes');
+  const templateNames = ['Intro', 'Build Up', 'Drop', 'Breakdown', 'Outro'];
+  const scenes = templateNames.map(name => ({
     id: uuidv4(),
-    name: 'Intro',
-    columns: [createEmptyColumn()],
+    name,
+    columns: Array.from({ length: 10 }, () => createEmptyColumn()),
     globalEffects: [],
-  },
-  {
-    id: uuidv4(),
-    name: 'Build Up',
-    columns: [createEmptyColumn()],
-    globalEffects: [],
-  },
-  {
-    id: uuidv4(),
-    name: 'Drop',
-    columns: [createEmptyColumn()],
-    globalEffects: [],
-  },
-  {
-    id: uuidv4(),
-    name: 'Breakdown',
-    columns: [createEmptyColumn()],
-    globalEffects: [],
-  },
-  {
-    id: uuidv4(),
-    name: 'Outro',
-    columns: [createEmptyColumn()],
-    globalEffects: [],
-  },
-];
+  }));
+  return scenes;
+};
 
 const initialState: AppState = {
   scenes: createDefaultScenes(),
@@ -78,7 +57,7 @@ initialState.currentSceneId = initialState.scenes[0].id;
 
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
       addScene: () => set((state) => {
@@ -143,9 +122,13 @@ export const useStore = create<AppState>()(
 
       setTransitionDuration: (duration: number) => set({ transitionDuration: duration }),
 
-      addAsset: (asset: Asset) => set((state) => ({
-        assets: [...state.assets, asset],
-      })),
+      addAsset: (asset: Asset) => set((state) => {
+        console.log('Adding asset to store:', asset.name, asset.id);
+        console.log('Current assets count:', state.assets.length);
+        return {
+          assets: [...state.assets, asset],
+        };
+      }),
 
       removeAsset: (assetId: string) => set((state) => ({
         assets: state.assets.filter(asset => asset.id !== assetId),
@@ -195,21 +178,27 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'vj-app-storage',
-      partialize: (state) => ({
-        assets: state.assets
-          .filter(asset => asset.size < 5 * 1024 * 1024) // Only persist assets smaller than 5MB
-          .map(asset => ({
+      partialize: (state) => {
+        console.log('Persisting state with assets:', state.assets.length);
+        return {
+          assets: state.assets.map(asset => ({
             ...asset,
             file: undefined, // Exclude File object from persistence
-            base64Data: asset.size < 1 * 1024 * 1024 ? asset.base64Data : undefined // Only include base64 for files < 1MB
+            // Keep base64 data for all files to ensure persistence
+            base64Data: asset.base64Data || undefined
           })),
-        scenes: state.scenes,
-        currentSceneId: state.currentSceneId,
-        bpm: state.bpm,
-        midiMappings: state.midiMappings,
-        transitionType: state.transitionType,
-        transitionDuration: state.transitionDuration,
-      }),
+          scenes: state.scenes,
+          currentSceneId: state.currentSceneId,
+          bpm: state.bpm,
+          midiMappings: state.midiMappings,
+          transitionType: state.transitionType,
+          transitionDuration: state.transitionDuration,
+        };
+      },
+      onRehydrateStorage: () => (state) => {
+        console.log('Store rehydrated with assets:', state?.assets?.length || 0);
+        console.log('Rehydrated assets:', state?.assets);
+      },
     }
   )
 ); 

@@ -59,24 +59,7 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
     updateScene(currentSceneId, { columns: updatedColumns });
   };
 
-  const getLayerIcon = (type: string) => {
-    switch (type) {
-      case 'image':
-        return '🖼️';
-      case 'video':
-        return '🎥';
-      case 'effect':
-        return '✨';
-      case 'shader':
-        return '🔮';
-      case 'p5js':
-        return '🎨';
-      case 'threejs':
-        return '🌐';
-      default:
-        return '📄';
-    }
-  };
+
 
   const getLayerTypeName = (type: string) => {
     switch (type) {
@@ -136,7 +119,6 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
           <div className="layer-list-body">
             {allLayers.length === 0 ? (
               <div className="empty-layers">
-                <div className="empty-icon">📄</div>
                 <h3>No Layers</h3>
                 <p>Add layers using the sidebar buttons.</p>
               </div>
@@ -148,9 +130,6 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
                     className={`layer-item ${!layer.enabled ? 'disabled' : ''}`}
                   >
                     <div className="layer-info">
-                      <div className="layer-icon">
-                        {getLayerIcon(layer.type)}
-                      </div>
                       <div className="layer-details">
                         <div className="layer-name">
                           {layer.name || 'Unnamed Layer'}

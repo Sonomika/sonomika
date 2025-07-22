@@ -53,7 +53,6 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         </div>
         <div className="layer-options-content">
           <div className="no-layer-selected">
-            <div className="icon">🎛️</div>
             <h3>No Layer Selected</h3>
             <p>Select a layer to configure options</p>
           </div>

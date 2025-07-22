@@ -226,7 +226,7 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({ layer, width, height, on
             />
           ) : (
             <div className="empty-state">
-              <div className="upload-icon">📁</div>
+      
               <p>Drop an image here or click to browse</p>
             </div>
           )}

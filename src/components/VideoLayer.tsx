@@ -308,7 +308,7 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
             />
           ) : (
             <div className="empty-state">
-              <div className="upload-icon">🎥</div>
+      
               <p>Drop a video here or click to browse</p>
             </div>
           )}
