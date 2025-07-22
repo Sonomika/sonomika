@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
+import { LayerOptions } from './LayerOptions';
 
 interface LayerManagerProps {
   onClose: () => void;
@@ -218,6 +219,39 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     }
   };
 
+  const handleUpdateLayer = (layerId: string, updatedLayer: any) => {
+    if (currentScene) {
+      // Create a deep copy of the current scene
+      const updatedScene = JSON.parse(JSON.stringify(currentScene));
+      
+      // Find the layer in any column
+      let layerFound = false;
+      for (const column of updatedScene.columns) {
+        const layer = column.layers.find((layer: any) => layer.id === layerId);
+        if (layer) {
+          // Update the layer with new options
+          Object.assign(layer, updatedLayer);
+          layerFound = true;
+          console.log('Updated layer options:', layerId, updatedLayer);
+          break;
+        }
+      }
+      
+      if (layerFound) {
+        // Update the entire scene
+        updateScene(currentScene.id, updatedScene);
+        
+        // Update selected layer if it's the same one
+        if (selectedLayer && selectedLayer.id === layerId) {
+          setSelectedLayer(updatedLayer);
+        }
+        
+        // Force component refresh
+        setRefreshTrigger(prev => prev + 1);
+      }
+    }
+  };
+
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
@@ -317,7 +351,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             name: `Layer ${layerNum}`,
             type: 'media',
             columnId: columnId,
-            layerNum: layerNum
+            layerNum: layerNum,
+            loopMode: 'none', // Default loop mode
+            loopCount: 1,
+            reverseEnabled: false,
+            pingPongEnabled: false
           };
           
           if (!column.layers) {
@@ -336,17 +374,30 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         if (isVideo && layer.asset && layer.asset.type === 'video') {
           console.log('🟢 Replacing existing video in layer:', layer.id);
           layer.asset = asset;
+          // Auto-set video to loop mode
+          layer.loopMode = 'loop';
+          console.log('🟢 Auto-set video to loop mode');
         } else if (isVideo && layer.asset) {
           // If layer has a non-video asset, replace it
           console.log('🟢 Replacing non-video asset with video in layer:', layer.id);
           layer.asset = asset;
+          // Auto-set video to loop mode
+          layer.loopMode = 'loop';
+          console.log('🟢 Auto-set video to loop mode');
         } else if (!isVideo && layer.asset && layer.asset.type === 'video') {
           // If dropping non-video on video layer, replace video
           console.log('🟢 Replacing video with non-video asset in layer:', layer.id);
           layer.asset = asset;
+          // Reset loop mode for non-video
+          layer.loopMode = 'none';
         } else {
           // Normal case - just set the asset
           layer.asset = asset;
+          // Auto-set video to loop mode if it's a video
+          if (isVideo) {
+            layer.loopMode = 'loop';
+            console.log('🟢 Auto-set video to loop mode');
+          }
         }
         
         console.log('🟢 Layer after asset assignment:', layer);
@@ -448,6 +499,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                       src={getAssetPath(topLayer.asset)} 
                       controls 
                       autoPlay={isPlaying}
+                      loop={topLayer.loopMode === 'loop' || topLayer.loopMode === 'ping-pong'}
                       className="preview-video"
                       onLoadStart={() => console.log('Video loading started:', getAssetPath(topLayer.asset))}
                       onLoadedData={() => console.log('Video data loaded:', getAssetPath(topLayer.asset))}
@@ -535,6 +587,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                       src={getAssetPath(previewContent.asset)} 
                       controls 
                       autoPlay={isPlaying}
+                      loop={previewContent.layer.loopMode === 'loop' || previewContent.layer.loopMode === 'ping-pong'}
                       className="preview-video"
                       onLoadStart={() => console.log('Video loading started:', getAssetPath(previewContent.asset))}
                       onLoadedData={() => console.log('Video data loaded:', getAssetPath(previewContent.asset))}
@@ -862,7 +915,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             <div className="resize-indicator">⋮⋮</div>
           </div>
 
-          {/* Bottom Section with Preview and Media Library */}
+          {/* Bottom Section with Preview, Layer Options, and Media Library */}
           <div 
             className="bottom-section"
             style={{ height: `${paneSizes.mediaLibraryHeight}%` }}
@@ -887,6 +940,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
               <div className="preview-content">
                 {renderPreviewContent()}
               </div>
+            </div>
+
+            {/* Layer Options - Bottom Center */}
+            <div className="layer-options-panel">
+              <LayerOptions 
+                selectedLayer={selectedLayer}
+                onUpdateLayer={handleUpdateLayer}
+              />
             </div>
 
             {/* Media Library - Bottom Right */}

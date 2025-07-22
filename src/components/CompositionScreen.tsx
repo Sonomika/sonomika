@@ -272,7 +272,8 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
     const video = document.createElement('video');
     video.src = layer.asset.path;
     video.muted = layer.muted || true;
-    video.loop = layer.loop || false;
+    // Use loopMode to determine if video should loop
+    video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
     video.crossOrigin = 'anonymous';
 
     video.onloadeddata = () => {

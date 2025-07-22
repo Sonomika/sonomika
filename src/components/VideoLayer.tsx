@@ -48,7 +48,7 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => {
-      if (layer.loop) {
+      if (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong') {
         video.currentTime = 0;
         video.play();
       } else {
@@ -69,7 +69,7 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [layer.loop, onUpdate]);
+  }, [layer.loopMode, onUpdate]);
 
   // BPM sync effect
   useEffect(() => {
