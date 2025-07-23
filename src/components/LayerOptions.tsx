@@ -11,6 +11,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const [loopCount, setLoopCount] = useState(selectedLayer?.loopCount || 1);
   const [reverseEnabled, setReverseEnabled] = useState(selectedLayer?.reverseEnabled || false);
   const [pingPongEnabled, setPingPongEnabled] = useState(selectedLayer?.pingPongEnabled || false);
+  const [blendMode, setBlendMode] = useState(selectedLayer?.blendMode || 'add');
+  const [opacity, setOpacity] = useState(selectedLayer?.opacity || 1.0);
 
   // Sync local state with selectedLayer when it changes
   React.useEffect(() => {
@@ -19,6 +21,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       setLoopCount(selectedLayer.loopCount || 1);
       setReverseEnabled(selectedLayer.reverseEnabled || false);
       setPingPongEnabled(selectedLayer.pingPongEnabled || false);
+      setBlendMode(selectedLayer.blendMode || 'add');
+      setOpacity(selectedLayer.opacity || 1.0);
     }
   }, [selectedLayer]);
 
@@ -41,6 +45,26 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       onUpdateLayer(selectedLayer.id, {
         ...selectedLayer,
         loopCount: count
+      });
+    }
+  };
+
+  const handleBlendModeChange = (mode: string) => {
+    setBlendMode(mode);
+    if (selectedLayer) {
+      onUpdateLayer(selectedLayer.id, {
+        ...selectedLayer,
+        blendMode: mode
+      });
+    }
+  };
+
+  const handleOpacityChange = (value: number) => {
+    setOpacity(value);
+    if (selectedLayer) {
+      onUpdateLayer(selectedLayer.id, {
+        ...selectedLayer,
+        opacity: value
       });
     }
   };
@@ -125,6 +149,68 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         )}
 
         <div className="option-group">
+          <h4>Blend Mode</h4>
+          <div className="option-control">
+            <div className="blend-mode-buttons">
+              <button
+                className={`blend-btn ${blendMode === 'add' ? 'active' : ''}`}
+                onClick={() => handleBlendModeChange('add')}
+                title="Add - Brightens overlapping areas"
+              >
+                Add
+              </button>
+              <button
+                className={`blend-btn ${blendMode === 'multiply' ? 'active' : ''}`}
+                onClick={() => handleBlendModeChange('multiply')}
+                title="Multiply - Darkens overlapping areas"
+              >
+                Multiply
+              </button>
+              <button
+                className={`blend-btn ${blendMode === 'screen' ? 'active' : ''}`}
+                onClick={() => handleBlendModeChange('screen')}
+                title="Screen - Lightens overlapping areas"
+              >
+                Screen
+              </button>
+              <button
+                className={`blend-btn ${blendMode === 'overlay' ? 'active' : ''}`}
+                onClick={() => handleBlendModeChange('overlay')}
+                title="Overlay - Combines multiply and screen"
+              >
+                Overlay
+              </button>
+              <button
+                className={`blend-btn ${blendMode === 'difference' ? 'active' : ''}`}
+                onClick={() => handleBlendModeChange('difference')}
+                title="Difference - Shows differences between layers"
+              >
+                Difference
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="option-group">
+          <h4>Opacity</h4>
+          <div className="option-control">
+            <div className="opacity-control">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={opacity}
+                onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
+                onInput={(e) => handleOpacityChange(parseFloat(e.currentTarget.value))}
+                className="opacity-slider"
+              />
+              <span className="opacity-value">{Math.round(opacity * 100)}%</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="option-group">
           <h4>Current Settings</h4>
           <div className="current-settings">
             <div className="setting-item">
@@ -140,6 +226,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
             <div className="setting-item">
               <span className="setting-label">Asset:</span>
               <span className="setting-value">{selectedLayer.asset?.name || 'None'}</span>
+            </div>
+            <div className="setting-item">
+              <span className="setting-label">Blend Mode:</span>
+              <span className="setting-value">{blendMode}</span>
+            </div>
+            <div className="setting-item">
+              <span className="setting-label">Opacity:</span>
+              <span className="setting-value">{Math.round(opacity * 100)}%</span>
             </div>
           </div>
         </div>

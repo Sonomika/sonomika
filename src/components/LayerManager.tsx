@@ -3,6 +3,8 @@ import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerOptions } from './LayerOptions';
 import { MIDIMapper } from './MIDIMapper';
+import { CanvasRenderer } from './CanvasRenderer';
+import { ColumnPreview } from './ColumnPreview';
 import { v4 as uuidv4 } from 'uuid';
 
 interface LayerManagerProps {
@@ -12,7 +14,7 @@ interface LayerManagerProps {
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings } = useStore() as any;
+  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings, bpm } = useStore() as any;
   console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
   
   const [selectedLayer, setSelectedLayer] = useState<any>(null);
@@ -29,6 +31,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'media' | 'midi'>('media');
 
   console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);
+  console.log('🎭 Preview state - previewContent:', previewContent, 'isPlaying:', isPlaying);
 
   // Helper function to get proper file path for Electron
   const getAssetPath = (asset: any) => {
@@ -75,15 +78,36 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
   // Handle column play button
   const handleColumnPlay = (columnId: string) => {
+    console.log('🎵 handleColumnPlay called with columnId:', columnId);
     const column = currentScene?.columns.find((col: any) => col.id === columnId);
+    console.log('🎵 Found column:', column);
+    
     if (column) {
       const layersWithContent = column.layers.filter((layer: any) => layer.asset);
-      console.log('Column layers with content:', layersWithContent);
+      console.log('🎵 Column layers with content:', layersWithContent);
+      console.log('🎵 Total layers in column:', column.layers.length);
       
       if (layersWithContent.length === 0) {
-        console.log('No layers with content in column:', columnId);
+        console.log('❌ No layers with content in column:', columnId);
+        // Show a helpful message in the preview
+        setPreviewContent({
+          type: 'column',
+          columnId: columnId,
+          column: column,
+          layers: column.layers || [],
+          isEmpty: true
+        });
+        setIsPlaying(false); // Don't start playing if no content
         return;
       }
+      
+      console.log('🎵 Setting preview content for column:', columnId);
+      console.log('🎵 Preview content will be:', {
+        type: 'column',
+        columnId: columnId,
+        column: column,
+        layers: column.layers || []
+      });
       
       setPreviewContent({
         type: 'column',
@@ -92,7 +116,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         layers: column.layers || []
       });
       setIsPlaying(true);
-      console.log('Playing column:', columnId, column);
+      console.log('✅ Playing column:', columnId, column);
+    } else {
+      console.error('❌ Column not found:', columnId);
     }
   };
 
@@ -371,18 +397,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         );
         
         if (!layer) {
-          // Create a new layer
-          layer = {
-            id: `layer-${columnId}-${layerNum}-${Date.now()}`,
-            name: `Layer ${layerNum}`,
-            type: 'media',
-            columnId: columnId,
-            layerNum: layerNum,
-            loopMode: 'none', // Default loop mode
-            loopCount: 1,
-            reverseEnabled: false,
-            pingPongEnabled: false
-          };
+                  // Create a new layer
+        layer = {
+          id: `layer-${columnId}-${layerNum}-${Date.now()}`,
+          name: `Layer ${layerNum}`,
+          type: 'media',
+          columnId: columnId,
+          layerNum: layerNum,
+          loopMode: 'none', // Default loop mode
+          loopCount: 1,
+          reverseEnabled: false,
+          pingPongEnabled: false,
+          blendMode: 'add', // Default blend mode for stacking
+          opacity: 1.0 // Default opacity
+        };
           
           if (!column.layers) {
             column.layers = [];
@@ -393,13 +421,26 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           console.log('🟢 Found existing layer:', layer);
         }
         
-        // Check if this is a video asset
+        // Check asset type
         const isVideo = asset.type === 'video';
+        const isEffect = asset.isEffect || asset.type === 'p5js' || asset.type === 'threejs';
         
-        // If this is a video and the layer already has a video, replace it
-        if (isVideo && layer.asset && layer.asset.type === 'video') {
+        console.log('🟢 Asset type check - isVideo:', isVideo, 'isEffect:', isEffect, 'asset type:', asset.type);
+        
+        // Handle effects
+        if (isEffect) {
+          console.log('🟢 Dropping effect asset:', asset.name, 'type:', asset.type);
+          layer.asset = asset;
+          layer.type = 'effect'; // Set layer type to effect
+          layer.effectType = asset.type; // Store the effect type (p5js or threejs)
+          layer.effectFile = asset.filePath; // Store the effect file path
+          console.log('🟢 Set layer as effect:', layer);
+        }
+        // Handle videos
+        else if (isVideo && layer.asset && layer.asset.type === 'video') {
           console.log('🟢 Replacing existing video in layer:', layer.id);
           layer.asset = asset;
+          layer.type = 'video';
           // Auto-set video to loop mode
           layer.loopMode = 'loop';
           console.log('🟢 Auto-set video to loop mode');
@@ -407,6 +448,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           // If layer has a non-video asset, replace it
           console.log('🟢 Replacing non-video asset with video in layer:', layer.id);
           layer.asset = asset;
+          layer.type = 'video';
           // Auto-set video to loop mode
           layer.loopMode = 'loop';
           console.log('🟢 Auto-set video to loop mode');
@@ -414,11 +456,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           // If dropping non-video on video layer, replace video
           console.log('🟢 Replacing video with non-video asset in layer:', layer.id);
           layer.asset = asset;
+          layer.type = 'image';
           // Reset loop mode for non-video
           layer.loopMode = 'none';
         } else {
           // Normal case - just set the asset
           layer.asset = asset;
+          layer.type = asset.type === 'image' ? 'image' : 'video';
           // Auto-set video to loop mode if it's a video
           if (isVideo) {
             layer.loopMode = 'loop';
@@ -443,7 +487,79 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     }
   };
 
+  // Handle drag start from layer cells to enable drag-to-remove
+  const handleLayerDragStart = (e: React.DragEvent, layer: any, columnId: string) => {
+    if (!layer.asset) return;
+    
+    console.log('🎯 Starting drag from layer:', layer.name, 'asset:', layer.asset.name);
+    
+    // Set drag data for potential reordering (though we'll use it for removal)
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'layer-asset',
+      layer: layer,
+      columnId: columnId,
+      asset: layer.asset
+    }));
+    
+    e.dataTransfer.effectAllowed = 'move';
+    
+    // Show removal zone
+    document.body.classList.add('dragging');
+  };
 
+  // Handle drag over for removal zone
+  const handleRemoveZoneDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  // Handle drop in removal zone
+  const handleRemoveZoneDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    const dragData = e.dataTransfer.getData('application/json');
+    if (!dragData) return;
+    
+    try {
+      const data = JSON.parse(dragData);
+      
+      if (data.type === 'layer-asset') {
+        console.log('🗑️ Removing asset from layer:', data.layer.name, 'asset:', data.asset.name);
+        
+        // Find the current scene and column
+        const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+        if (!currentScene) return;
+        
+        const column = currentScene.columns.find((col: any) => col.id === data.columnId);
+        if (!column) return;
+        
+        // Find the layer and remove the asset
+        const layer = column.layers.find((l: any) => l.id === data.layer.id);
+        if (layer) {
+          layer.asset = null;
+          layer.type = 'media';
+          
+          console.log('🗑️ Asset removed from layer:', layer.name);
+          
+          // Update the scene
+          updateScene(currentSceneId, { columns: currentScene.columns });
+          
+          // Trigger a refresh
+          setRefreshTrigger(prev => prev + 1);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error processing removal drop:', error);
+    }
+    
+    // Hide removal zone
+    document.body.classList.remove('dragging');
+  };
+
+  // Handle drag end to hide removal zone
+  const handleDragEnd = () => {
+    document.body.classList.remove('dragging');
+  };
 
   const getLayerTypeName = (type: string) => {
     switch (type) {
@@ -453,6 +569,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         return 'Video';
       case 'effect':
         return 'Effect';
+      case 'p5js':
+        return 'p5.js Effect';
+      case 'threejs':
+        return 'Three.js Effect';
       default:
         return 'Unknown';
     }
@@ -460,7 +580,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
   // Render preview content
   const renderPreviewContent = () => {
+    console.log('🎨 renderPreviewContent called');
+    console.log('🎨 previewContent:', previewContent);
+    console.log('🎨 isPlaying:', isPlaying);
+    
     if (!previewContent) {
+      console.log('🎨 No preview content, showing placeholder');
       return (
         <div className="preview-placeholder">
           <p>No preview available</p>
@@ -470,123 +595,72 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     }
 
     if (previewContent.type === 'column') {
+      console.log('🎨 Rendering column preview');
       // Show the first layer with content as the main preview
       const layersWithContent = previewContent.layers.filter((layer: any) => layer.asset);
+      console.log('🎨 Layers with content:', layersWithContent);
       
-      if (layersWithContent.length === 0) {
+      // Check if this is an empty column
+      if (previewContent.isEmpty || layersWithContent.length === 0) {
+        console.log('🎨 No layers with content, showing empty column message');
         return (
           <div className="preview-column">
             <div className="preview-header-info">
               <h4>Column Preview</h4>
-              <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
+              <span className="preview-status">Empty</span>
             </div>
             <div className="preview-placeholder">
+              <div className="preview-icon">📁</div>
               <p>No media content</p>
-              <small>Add media to layers to see preview</small>
+              <small>Drag assets from the Media Library to layers to see preview</small>
+              <div className="preview-help">
+                <p><strong>How to add content:</strong></p>
+                <ol>
+                  <li>Open the Media Library (bottom right)</li>
+                  <li>Import or drag media files</li>
+                  <li>Drag assets from Media Library to layer cells</li>
+                  <li>Click the play button to preview</li>
+                </ol>
+              </div>
             </div>
           </div>
         );
       }
 
-      // Show the top layer as the main preview
-      const topLayer = layersWithContent[0];
-      return (
+      // Use the new ColumnPreview component for combined layer rendering
+      console.log('🎨 Rendering combined column preview with p5.js');
+      console.log('🎨 Column data:', previewContent.column);
+      console.log('🎨 Composition settings:', compositionSettings);
+      
+      const previewElement = (
         <div className="preview-column">
           <div className="preview-header-info">
-            <h4>Column Preview</h4>
+            <h4>Column Preview (Combined Layers)</h4>
             <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
           </div>
           <div className="preview-main-content">
-            <div className="preview-layer-info">
-              <div className="preview-layer-name">{topLayer.name}</div>
-            </div>
-            {topLayer.asset && (
-              <div className="preview-asset-display">
-                {topLayer.asset.type === 'image' && (
-                  <img 
-                    src={getAssetPath(topLayer.asset)} 
-                    alt={topLayer.asset.name} 
-                    className="preview-full-image"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                    }}
-                  />
-                )}
-                {topLayer.asset.type === 'video' && (
-                  <div className="preview-video-display">
-                    <video 
-                      src={getAssetPath(topLayer.asset)} 
-                      controls 
-                      autoPlay={isPlaying}
-                      loop={topLayer.loopMode === 'loop' || topLayer.loopMode === 'ping-pong'}
-                      className="preview-video"
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                      }}
-                      onLoadStart={() => console.log('Video loading started:', getAssetPath(topLayer.asset))}
-                      onLoadedData={() => console.log('Video data loaded:', getAssetPath(topLayer.asset))}
-                      onError={(e) => {
-                        console.error('Video error:', e, getAssetPath(topLayer.asset));
-                        // Show error message in preview with retry option
-                        const videoElement = e.target as HTMLVideoElement;
-                        const container = videoElement.parentElement;
-                        if (container) {
-                          const assetPath = getAssetPath(topLayer.asset);
-                          container.innerHTML = `
-                            <div class="video-error">
-                              <div class="error-icon">⚠️</div>
-                              <p>Video failed to load</p>
-                              <small>${topLayer.asset.name}</small>
-                              <p style="font-size: 0.8rem; margin-top: 0.5rem; color: #ccc;">
-                                Path: ${assetPath}
-                              </p>
-                              <p style="font-size: 0.8rem; margin-top: 0.5rem; color: #ccc;">
-                                This might be due to CSP restrictions or invalid file path.
-                              </p>
-                              <button onclick="window.location.reload()" style="margin-top: 10px; padding: 5px 10px; background: #00bcd4; border: none; border-radius: 4px; color: white; cursor: pointer;">Retry</button>
-                              <button onclick="this.parentElement.parentElement.innerHTML='<div style=\\'text-align: center; padding: 2rem; color: #ccc;\\'>Video unavailable</div>'" style="margin-top: 5px; padding: 5px 10px; background: #666; border: none; border-radius: 4px; color: white; cursor: pointer;">Dismiss</button>
-                            </div>
-                          `;
-                        }
-                      }}
-                      onCanPlay={() => console.log('Video can play:', getAssetPath(topLayer.asset))}
-                      onLoadedMetadata={() => console.log('Video metadata loaded:', getAssetPath(topLayer.asset))}
-                      onCanPlayThrough={() => console.log('Video can play through:', getAssetPath(topLayer.asset))}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
+            <ColumnPreview
+              column={previewContent.column}
+              width={compositionSettings.width}
+              height={compositionSettings.height}
+              isPlaying={isPlaying}
+              bpm={bpm}
+            />
           </div>
-          {layersWithContent.length > 1 && (
-            <div className="preview-layers-list">
-              <h5>Other Layers ({layersWithContent.length - 1})</h5>
-              {layersWithContent.slice(1).map((layer: any, index: number) => (
-                <div key={layer.id} className="preview-layer-item">
-                  <div className="preview-layer-name">{layer.name}</div>
-                  {layer.asset && (
-                    <div className="preview-layer-asset">
-                      {layer.asset.type === 'image' && (
-                        <img src={getAssetPath(layer.asset)} alt={layer.asset.name} className="preview-thumbnail" />
-                      )}
-                      {layer.asset.type === 'video' && (
-                        <div className="preview-video-thumbnail">
-                          <span>🎥</span>
-                          <span>{layer.asset.name}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="preview-layers-info">
+            <h5>Layers in Column:</h5>
+            {layersWithContent.map((layer: any, index: number) => (
+              <div key={layer.id} className="preview-layer-item">
+                <div className="preview-layer-name">{layer.name}</div>
+                <div className="preview-layer-asset-type">{layer.asset.type}</div>
+              </div>
+            ))}
+          </div>
         </div>
       );
+      
+      console.log('🎨 Returning column preview element:', previewElement);
+      return previewElement;
     }
 
     if (previewContent.type === 'layer') {
@@ -602,49 +676,18 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             </div>
             {previewContent.asset && (
               <div className="preview-asset-display">
-                {previewContent.asset.type === 'image' && (
-                  <img src={getAssetPath(previewContent.asset)} alt={previewContent.asset.name} className="preview-full-image" />
-                )}
-                {previewContent.asset.type === 'video' && (
-                  <div className="preview-video-display">
-                    <video 
-                      src={getAssetPath(previewContent.asset)} 
-                      controls 
-                      autoPlay={isPlaying}
-                      loop={previewContent.layer.loopMode === 'loop' || previewContent.layer.loopMode === 'ping-pong'}
-                      className="preview-video"
-                      onLoadStart={() => console.log('Video loading started:', getAssetPath(previewContent.asset))}
-                      onLoadedData={() => console.log('Video data loaded:', getAssetPath(previewContent.asset))}
-                      onError={(e) => {
-                        console.error('Video error:', e, getAssetPath(previewContent.asset));
-                        // Show error message in preview
-                        const videoElement = e.target as HTMLVideoElement;
-                        const container = videoElement.parentElement;
-                        if (container) {
-                          const assetPath = getAssetPath(previewContent.asset);
-                          container.innerHTML = `
-                            <div class="video-error">
-                              <div class="error-icon">⚠️</div>
-                              <p>Video failed to load</p>
-                              <small>${previewContent.asset.name}</small>
-                              <p style="font-size: 0.8rem; margin-top: 0.5rem; color: #ccc;">
-                                Path: ${assetPath}
-                              </p>
-                              <p style="font-size: 0.8rem; margin-top: 0.5rem; color: #ccc;">
-                                This might be due to CSP restrictions or invalid file path.
-                              </p>
-                              <button onclick="window.location.reload()" style="margin-top: 10px; padding: 5px 10px; background: #00bcd4; border: none; border-radius: 4px; color: white; cursor: pointer;">Retry</button>
-                              <button onclick="this.parentElement.parentElement.innerHTML='<div style=\\'text-align: center; padding: 2rem; color: #ccc;\\'>Video unavailable</div>'" style="margin-top: 5px; padding: 5px 10px; background: #666; border: none; border-radius: 4px; color: white; cursor: pointer;">Dismiss</button>
-                            </div>
-                          `;
-                        }
-                      }}
-                      onCanPlay={() => console.log('Video can play:', getAssetPath(previewContent.asset))}
-                      onLoadedMetadata={() => console.log('Video metadata loaded:', getAssetPath(previewContent.asset))}
-                      onCanPlayThrough={() => console.log('Video can play through:', getAssetPath(previewContent.asset))}
-                    />
-                  </div>
-                )}
+                <CanvasRenderer
+                  assets={[{
+                    type: previewContent.asset.type === 'image' ? 'image' : 
+                           previewContent.asset.type === 'video' ? 'video' : 'effect',
+                    asset: previewContent.asset,
+                    layer: previewContent.layer
+                  }]}
+                  width={compositionSettings.width}
+                  height={compositionSettings.height}
+                  bpm={bpm}
+                  isPlaying={isPlaying}
+                />
               </div>
             )}
           </div>
@@ -799,9 +842,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                     <div 
                       className={`column-header ${isColumnPlaying ? 'playing' : ''}`}
                       onClick={() => {
+                        console.log('🎵 Column header clicked for column:', column.id);
+                        console.log('🎵 Is column playing:', isColumnPlaying);
                         if (isColumnPlaying) {
+                          console.log('🎵 Stopping column playback from header');
                           handleStop();
                         } else {
+                          console.log('🎵 Starting column playback from header');
                           handleColumnPlay(column.id);
                         }
                       }}
@@ -810,10 +857,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                       <button 
                         className={`play-btn ${isColumnPlaying ? 'stop' : 'play'}`}
                         onClick={(e) => {
+                          console.log('🎵 Column play button clicked for column:', column.id);
+                          console.log('🎵 Event:', e);
+                          console.log('🎵 Is column playing:', isColumnPlaying);
                           e.stopPropagation();
                           if (isColumnPlaying) {
+                            console.log('🎵 Stopping column playback');
                             handleStop();
                           } else {
+                            console.log('🎵 Starting column playback');
                             handleColumnPlay(column.id);
                           }
                         }}
@@ -865,47 +917,17 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   const cellId = `${column.id}-${layerNum}`;
                   const isDragOver = dragOverCell === cellId;
                   
-                  // Debug logging for assets
-                  if (hasAsset) {
-                    console.log('🎨 Rendering asset in cell:', cellId);
-                    console.log('🎨 Asset:', layer.asset);
-                    console.log('🎨 Asset path:', getAssetPath(layer.asset));
-                  }
-                  
-                  // Debug logging for column 1, layer 3 specifically
-                  if (colIndex === 0 && layerNum === 3) {
-                    console.log('🔍 Rendering Column 1, Layer 3 cell:');
-                    console.log('🔍 Cell ID:', cellId);
-                    console.log('🔍 Column ID:', column.id);
-                    console.log('🔍 Layer Num:', layerNum);
-                    console.log('🔍 Has Asset:', hasAsset);
-                    console.log('🔍 Layer:', layer);
-                    console.log('🔍 Is Drag Over:', isDragOver);
-                  }
-                  
                   return (
                     <div
                       key={cellId}
                       className={`grid-cell ${hasAsset ? 'has-content' : 'empty'} ${selectedLayer?.id === layer?.id ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}`}
                       onClick={() => hasAsset && handleLayerClick(layer, column.id)}
-                      onDragOver={(e) => {
-                        if (colIndex === 0 && layerNum === 3) {
-                          console.log('🔵 Column 1, Layer 3 - Drag Over Event');
-                        }
-                        handleDragOver(e, cellId);
-                      }}
-                      onDragLeave={(e) => {
-                        if (colIndex === 0 && layerNum === 3) {
-                          console.log('🔴 Column 1, Layer 3 - Drag Leave Event');
-                        }
-                        handleDragLeave(e);
-                      }}
-                      onDrop={(e) => {
-                        if (colIndex === 0 && layerNum === 3) {
-                          console.log('🟢 Column 1, Layer 3 - Drop Event');
-                        }
-                        handleDrop(e, column.id, layerNum);
-                      }}
+                      onDragStart={(e) => hasAsset && handleLayerDragStart(e, layer, column.id)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(e) => handleDragOver(e, cellId)}
+                      onDragLeave={(e) => handleDragLeave(e)}
+                      onDrop={(e) => handleDrop(e, column.id, layerNum)}
+                      draggable={hasAsset}
                     >
                       {hasAsset ? (
                         <div className="layer-content">
@@ -938,8 +960,23 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                                 onError={(e) => console.error('Layer video error:', layer.asset.name, e)}
                               />
                             )}
+                            {(layer.asset.isEffect || layer.asset.type === 'p5js' || layer.asset.type === 'threejs') && (
+                              <div className="layer-preview-effect">
+                                <div className="effect-icon">
+                                  {layer.asset.type === 'p5js' ? '🎨' : '🎭'}
+                                </div>
+                                <div className="effect-type-badge">
+                                  {layer.asset.type.toUpperCase()}
+                                </div>
+                              </div>
+                            )}
                           </div>
                           <div className="layer-name">{layer.asset.name}</div>
+                          {layer.blendMode && layer.blendMode !== 'add' && (
+                            <div className="layer-blend-mode">
+                              {layer.blendMode}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="layer-content">
@@ -952,6 +989,18 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 })}
               </div>
             ))}
+          </div>
+
+          {/* Drag-to-Remove Zone */}
+          <div 
+            className="remove-zone"
+            onDragOver={handleRemoveZoneDragOver}
+            onDrop={handleRemoveZoneDrop}
+          >
+            <div className="remove-zone-content">
+              <div className="remove-zone-icon">🗑️</div>
+              <div className="remove-zone-text">Drag assets here to remove</div>
+            </div>
           </div>
 
           {/* Resize Handle */}
@@ -998,7 +1047,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   aspectRatio: `${compositionSettings.width}/${compositionSettings.height}`,
                 }}
               >
-                {renderPreviewContent()}
+                {(() => {
+                  console.log('🎭 Rendering preview content in preview window');
+                  const content = renderPreviewContent();
+                  console.log('🎭 Preview content rendered:', content);
+                  return content;
+                })()}
               </div>
             </div>
 
@@ -1042,13 +1096,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
       </div>
     );
   } catch (error) {
-    console.error('Error rendering LayerManager:', error);
+    console.error('❌ Error rendering LayerManager:', error);
     return (
       <div className="layer-manager-main">
         <div className="layer-manager-content">
-          <h2>Error Loading Layer Manager</h2>
-          <p>There was an error loading the Layer Manager. Please try refreshing the page.</p>
-          <button onClick={() => window.location.reload()}>Refresh</button>
+          <div className="layer-manager-header">
+            <h2>Error Loading Layer Manager</h2>
+            <p>Could not load the layer manager content.</p>
+            <button onClick={onClose} className="close-btn">Close</button>
+          </div>
         </div>
       </div>
     );

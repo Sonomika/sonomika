@@ -215,6 +215,37 @@ body {
   border-radius: 4px;
 }
 
+/* Layer Preview Effect Styles */
+.layer-preview-effect {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--surface);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.layer-preview-effect .effect-icon {
+  font-size: 24px;
+  opacity: 0.8;
+}
+
+.layer-preview-effect .effect-type-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background-color: var(--primary);
+  color: var(--on-primary);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 /* Sidebar sections */
 .sidebar-section {
   margin-bottom: 2rem;
@@ -937,6 +968,151 @@ body {
 .import-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Tab Navigation */
+.media-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--surface);
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  color: var(--on-surface);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+  background-color: var(--hover-color);
+}
+
+.tab-button.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background-color: var(--background);
+}
+
+/* Effects Tab Styles */
+.effects-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.effects-toolbar {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--surface);
+}
+
+.effect-category-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.category-button {
+  padding: 8px 16px;
+  background-color: var(--background);
+  border: 1px solid var(--border-color);
+  color: var(--on-background);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.category-button:hover {
+  background-color: var(--hover-color);
+}
+
+.category-button.active {
+  background-color: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+}
+
+.effects-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.effect-item {
+  background-color: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.effect-item:hover {
+  background-color: var(--hover-color);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.effect-preview {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80px;
+  background-color: var(--background);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.effect-icon {
+  font-size: 32px;
+  opacity: 0.8;
+}
+
+.effect-type-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: var(--primary);
+  color: var(--on-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.effect-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.effect-name {
+  font-weight: 600;
+  color: var(--on-surface);
+  font-size: 14px;
+}
+
+.effect-description {
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* Drop Zone */
@@ -3312,6 +3488,31 @@ body {
   color: #666;
 }
 
+.preview-help {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.preview-help p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.preview-help ol {
+  margin: 0;
+  padding-left: 1.5rem;
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.preview-help li {
+  margin-bottom: 0.25rem;
+}
+
 /* Layer Options Panel - Bottom Center */
 .layer-options-panel {
   width: 35%;
@@ -3592,6 +3793,150 @@ body {
   max-height: 100%;
   object-fit: contain;
   aspect-ratio: inherit;
+}
+
+.preview-effect-display {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  min-height: 200px;
+}
+
+.preview-effect-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+.preview-effect-icon {
+  font-size: 48px;
+  opacity: 0.8;
+}
+
+.preview-effect-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-effect-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.preview-effect-type {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.preview-effect-description {
+  font-size: 14px;
+  color: var(--on-surface-variant);
+  line-height: 1.4;
+  max-width: 200px;
+}
+
+/* Effect Renderer Styles */
+.effect-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--error);
+}
+
+.effect-error .error-icon {
+  font-size: 32px;
+}
+
+.effect-error .error-message {
+  font-size: 14px;
+  text-align: center;
+  max-width: 200px;
+}
+
+.effect-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--on-surface);
+}
+
+.effect-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top: 3px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.effect-loading .loading-text {
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Canvas Renderer Styles */
+.canvas-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--error);
+}
+
+.canvas-error .error-icon {
+  font-size: 32px;
+}
+
+.canvas-error .error-message {
+  font-size: 14px;
+  text-align: center;
+  max-width: 200px;
+}
+
+.canvas-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--on-surface);
+}
+
+.canvas-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top: 3px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.canvas-loading .loading-text {
+  font-size: 14px;
+  text-align: center;
 }
 
 /* Main App Container */
@@ -3904,4 +4249,240 @@ body {
   .mapping-note {
     font-size: 0.7rem;
   }
+}
+
+.column-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.p5-canvas-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p5-canvas-container canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.preview-status {
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+.preview-layers-info {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.preview-layers-info h5 {
+  margin: 0 0 0.5rem 0;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.preview-layer-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.preview-layer-item:last-child {
+  border-bottom: none;
+}
+
+.preview-layer-name {
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.preview-layer-asset-type {
+  color: #00bcd4;
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.remove-zone {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 100px;
+  background-color: rgba(255, 0, 0, 0.1);
+  border: 2px dashed #ff4444;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.remove-zone.drag-over {
+  opacity: 1;
+  background-color: rgba(255, 0, 0, 0.2);
+  border-color: #ff6666;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.remove-zone-content {
+  text-align: center;
+  color: #ff4444;
+}
+
+.remove-zone-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.remove-zone-text {
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+/* Improve grid cell drag styling */
+.grid-cell.has-content {
+  cursor: grab;
+}
+
+.grid-cell.has-content:active {
+  cursor: grabbing;
+}
+
+.grid-cell.has-content:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 10px rgba(0, 188, 212, 0.3);
+}
+
+/* Show remove zone when dragging */
+body.dragging .remove-zone {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Blend Mode Buttons */
+.blend-mode-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.blend-btn {
+  padding: 6px 12px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: #ccc;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  min-width: 60px;
+}
+
+.blend-btn:hover {
+  background: #3a3a3a;
+  border-color: #666;
+}
+
+.blend-btn.active {
+  background: #00bcd4;
+  color: #000;
+  border-color: #00bcd4;
+}
+
+/* Opacity Control */
+.opacity-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.opacity-slider {
+  flex: 1;
+  height: 6px;
+  background: #444;
+  border-radius: 3px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.opacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #00bcd4;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.opacity-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #00bcd4;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.opacity-value {
+  min-width: 40px;
+  text-align: right;
+  font-weight: bold;
+  color: #00bcd4;
+}
+
+/* Layer Blend Mode Indicator */
+.layer-blend-mode {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 188, 212, 0.9);
+  color: #000;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* Make layer content relative for absolute positioning */
+.layer-content {
+  position: relative;
 }
