@@ -4386,6 +4386,29 @@ body {
   box-shadow: 0 0 10px rgba(0, 188, 212, 0.3);
 }
 
+/* Layer reordering drag styles */
+.grid-cell.drag-over-layer {
+  background-color: rgba(255, 165, 0, 0.3);
+  border: 2px dashed #ffa500;
+  transform: scale(1.05);
+  position: relative;
+}
+
+.grid-cell.drag-over-layer::after {
+  content: "↕️ Reorder";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 165, 0, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 10;
+}
+
 /* Show remove zone when dragging */
 body.dragging .remove-zone {
   opacity: 1;
@@ -4485,4 +4508,192 @@ body.dragging .remove-zone {
 /* Make layer content relative for absolute positioning */
 .layer-content {
   position: relative;
+}
+
+/* Effects Browser */
+.effects-browser {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.effects-browser.embedded {
+  height: 100%;
+  border: none;
+}
+
+.effects-browser-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #444;
+}
+
+.effects-browser-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #00bcd4;
+}
+
+.effects-browser-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Search Bar */
+.search-bar {
+  padding: 12px 16px;
+  border-bottom: 1px solid #444;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.search-input::placeholder {
+  color: #888;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #00bcd4;
+}
+
+/* Effects Grid */
+.effects-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.effect-item {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.effect-item:hover {
+  background: #3a3a3a;
+  border-color: #666;
+  transform: translateY(-2px);
+}
+
+.effect-item.selected {
+  background: #00bcd4;
+  border-color: #00bcd4;
+  color: #000;
+}
+
+.effect-item.dragging {
+  opacity: 0.5;
+}
+
+.effect-icon {
+  font-size: 2rem;
+  min-width: 40px;
+  text-align: center;
+}
+
+.effect-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.effect-name {
+  font-weight: bold;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.effect-description {
+  font-size: 0.8rem;
+  color: #ccc;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.effect-category {
+  font-size: 0.7rem;
+  color: #00bcd4;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+/* Effect Details */
+.effect-details {
+  padding: 16px;
+  background: #2a2a2a;
+  border-top: 1px solid #444;
+}
+
+.effect-details h4 {
+  margin: 0 0 12px 0;
+  color: #00bcd4;
+  font-size: 1rem;
+}
+
+.effect-detail-item {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.effect-detail-item strong {
+  color: #00bcd4;
+}
+
+.effect-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.effect-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.effect-btn.primary {
+  background: #00bcd4;
+  color: #000;
+}
+
+.effect-btn.primary:hover {
+  background: #00a0b3;
+}
+
+.effect-btn.secondary {
+  background: #444;
+  color: #fff;
+}
+
+.effect-btn.secondary:hover {
+  background: #555;
 }

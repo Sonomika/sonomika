@@ -5,6 +5,7 @@ import { LayerOptions } from './LayerOptions';
 import { MIDIMapper } from './MIDIMapper';
 import { CanvasRenderer } from './CanvasRenderer';
 import { ColumnPreview } from './ColumnPreview';
+import { EffectsBrowser } from './EffectsBrowser';
 import { v4 as uuidv4 } from 'uuid';
 
 interface LayerManagerProps {
@@ -28,7 +29,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [activeTab, setActiveTab] = useState<'media' | 'midi'>('media');
+  const [activeTab, setActiveTab] = useState<'media' | 'effects' | 'midi'>('media');
+  const [draggedLayer, setDraggedLayer] = useState<any>(null);
+  const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
 
   console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);
   console.log('🎭 Preview state - previewContent:', previewContent, 'isPlaying:', isPlaying);
@@ -558,6 +561,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
   // Handle drag end to hide removal zone
   const handleDragEnd = () => {
+    setDragOverCell(null);
+    setDraggedLayer(null);
+    setDragOverLayer(null);
     document.body.classList.remove('dragging');
   };
 
@@ -575,6 +581,123 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         return 'Three.js Effect';
       default:
         return 'Unknown';
+    }
+  };
+
+  // Layer reordering handlers
+  const handleLayerReorderDragStart = (e: React.DragEvent, layer: any, columnId: string) => {
+    console.log('🔄 Starting layer reorder drag:', layer, 'from column:', columnId);
+    setDraggedLayer({ ...layer, sourceColumnId: columnId });
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'layer-reorder',
+      layer: layer,
+      sourceColumnId: columnId
+    }));
+    e.dataTransfer.effectAllowed = 'move';
+    document.body.classList.add('dragging');
+  };
+
+  const handleLayerReorderDragOver = (e: React.DragEvent, targetColumnId: string, targetLayerNum: number) => {
+    e.preventDefault();
+    if (draggedLayer) {
+      const targetCellId = `${targetColumnId}-${targetLayerNum}`;
+      setDragOverLayer(targetCellId);
+    }
+  };
+
+  const handleLayerReorderDrop = (e: React.DragEvent, targetColumnId: string, targetLayerNum: number) => {
+    e.preventDefault();
+    
+    if (!draggedLayer) return;
+    
+    console.log('🔄 Dropping layer reorder:', {
+      draggedLayer,
+      targetColumnId,
+      targetLayerNum
+    });
+
+    try {
+      const dragData = e.dataTransfer.getData('application/json');
+      if (!dragData) return;
+      
+      const data = JSON.parse(dragData);
+      if (data.type !== 'layer-reorder') return;
+
+      const { layer: draggedLayerData, sourceColumnId } = data;
+      
+      // Allow moving layers between columns
+      console.log('🔄 Moving layer between columns:', sourceColumnId, '->', targetColumnId);
+
+      // Find the source column and target column
+      const sourceColumn = currentScene.columns.find((col: any) => col.id === sourceColumnId);
+      const targetColumn = currentScene.columns.find((col: any) => col.id === targetColumnId);
+      
+      if (!sourceColumn || !targetColumn) return;
+
+      // Find the source layer in the source column
+      const sourceLayerIndex = sourceColumn.layers.findIndex((l: any) => l.id === draggedLayerData.id);
+      if (sourceLayerIndex === -1) return;
+
+      const sourceLayer = sourceColumn.layers[sourceLayerIndex];
+
+      // Don't allow dropping on the same layer position if moving within the same column
+      if (sourceColumnId === targetColumnId) {
+        const sourceLayerNum = sourceLayer.layerNum || parseInt(sourceLayer.name.replace('Layer ', ''));
+        if (sourceLayerNum === targetLayerNum) {
+          console.log('❌ Cannot drop on same layer position');
+          return;
+        }
+      }
+
+      // Create new layers array for target column
+      const newTargetLayers = [...targetColumn.layers];
+      
+      // Find the target layer to determine insertion position
+      const targetLayerIndex = newTargetLayers.findIndex((l: any) => {
+        const layerNum = l.layerNum || parseInt(l.name.replace('Layer ', ''));
+        return layerNum === targetLayerNum;
+      });
+
+      // Update the dragged layer's layer number and column
+      const updatedLayer = {
+        ...sourceLayer,
+        layerNum: targetLayerNum,
+        name: `Layer ${targetLayerNum}`
+      };
+
+      // Insert at the target position in target column
+      if (targetLayerIndex === -1) {
+        // Target layer doesn't exist, add at the end
+        newTargetLayers.push(updatedLayer);
+      } else {
+        // Insert before the target layer
+        newTargetLayers.splice(targetLayerIndex, 0, updatedLayer);
+      }
+
+      // Remove from source column (if different from target)
+      let newSourceLayers = [...sourceColumn.layers];
+      if (sourceColumnId !== targetColumnId) {
+        newSourceLayers.splice(sourceLayerIndex, 1);
+      } else {
+        // Same column reordering - remove from current position
+        newSourceLayers.splice(sourceLayerIndex, 1);
+      }
+
+      // Update the scene with the new layers
+      const updatedColumns = currentScene.columns.map((col: any) => {
+        if (col.id === targetColumnId) {
+          return { ...col, layers: newTargetLayers };
+        } else if (col.id === sourceColumnId) {
+          return { ...col, layers: newSourceLayers };
+        }
+        return col;
+      });
+
+      updateScene(currentSceneId, { columns: updatedColumns });
+      console.log('✅ Layer moved successfully');
+      
+    } catch (error) {
+      console.error('❌ Error reordering layer:', error);
     }
   };
 
@@ -916,17 +1039,48 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   const hasAsset = layer && layer.asset;
                   const cellId = `${column.id}-${layerNum}`;
                   const isDragOver = dragOverCell === cellId;
+                  const isDragOverLayer = dragOverLayer === cellId;
                   
                   return (
                     <div
                       key={cellId}
-                      className={`grid-cell ${hasAsset ? 'has-content' : 'empty'} ${selectedLayer?.id === layer?.id ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}`}
+                      className={`grid-cell ${hasAsset ? 'has-content' : 'empty'} ${selectedLayer?.id === layer?.id ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''} ${isDragOverLayer ? 'drag-over-layer' : ''}`}
                       onClick={() => hasAsset && handleLayerClick(layer, column.id)}
-                      onDragStart={(e) => hasAsset && handleLayerDragStart(e, layer, column.id)}
+                      onDragStart={(e) => {
+                        if (hasAsset) {
+                          // Always use layer reordering for existing layers
+                          handleLayerReorderDragStart(e, layer, column.id);
+                        }
+                      }}
                       onDragEnd={handleDragEnd}
-                      onDragOver={(e) => handleDragOver(e, cellId)}
+                      onDragOver={(e) => {
+                        // Handle both asset dropping and layer reordering
+                        handleDragOver(e, cellId);
+                        if (draggedLayer && draggedLayer.sourceColumnId === column.id) {
+                          handleLayerReorderDragOver(e, column.id, layerNum);
+                        }
+                      }}
                       onDragLeave={(e) => handleDragLeave(e)}
-                      onDrop={(e) => handleDrop(e, column.id, layerNum)}
+                      onDrop={(e) => {
+                        // Check if this is a layer reorder (from existing layer) or asset drop (from Media/Effects)
+                        const dragData = e.dataTransfer.getData('application/json');
+                        if (dragData) {
+                          try {
+                            const data = JSON.parse(dragData);
+                            if (data.type === 'layer-reorder') {
+                              handleLayerReorderDrop(e, column.id, layerNum);
+                            } else {
+                              handleDrop(e, column.id, layerNum);
+                            }
+                          } catch (error) {
+                            // Fallback to asset drop
+                            handleDrop(e, column.id, layerNum);
+                          }
+                        } else {
+                          // Fallback to asset drop
+                          handleDrop(e, column.id, layerNum);
+                        }
+                      }}
                       draggable={hasAsset}
                     >
                       {hasAsset ? (
@@ -1075,6 +1229,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   Media
                 </button>
                 <button 
+                  className={`tab-button ${activeTab === 'effects' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('effects')}
+                >
+                  Effects
+                </button>
+                <button 
                   className={`tab-button ${activeTab === 'midi' ? 'active' : ''}`}
                   onClick={() => setActiveTab('midi')}
                 >
@@ -1086,6 +1246,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
               <div className="tab-content">
                 {activeTab === 'media' ? (
                   <MediaLibrary onClose={() => {}} isEmbedded={true} />
+                ) : activeTab === 'effects' ? (
+                  <EffectsBrowser />
                 ) : (
                   <MIDIMapper />
                 )}

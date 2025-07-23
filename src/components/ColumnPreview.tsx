@@ -72,7 +72,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         });
         
         frameCount++;
-        p.clear();
+        // Clear with black background to prevent blue flash
+        p.background(0);
         
         // Render layers from bottom to top (layer 3, 2, 1)
         const sortedLayers = [...column.layers].sort((a, b) => {
@@ -152,6 +153,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
           video.autoplay = true;
           video.playsInline = true;
           
+          // Set background color to prevent blue flash
+          video.style.backgroundColor = '#000000';
+          
           video.addEventListener('loadeddata', () => {
             console.log('✅ Video loaded:', path);
             // Start playing the video
@@ -164,6 +168,21 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
           video.addEventListener('error', (error) => {
             console.error('❌ Video load error:', error);
             reject(error);
+          });
+          
+          // Prevent blue flash on loop by handling seeking and ended events
+          video.addEventListener('seeking', () => {
+            video.style.backgroundColor = '#000000';
+          });
+          
+          video.addEventListener('ended', () => {
+            // Ensure smooth loop transition
+            if (video.loop) {
+              video.currentTime = 0;
+              video.play().catch(error => {
+                console.warn('Video loop restart failed:', error);
+              });
+            }
           });
           
           video.load();
@@ -419,16 +438,82 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
       };
 
       const renderP5JSEffect = (p: p5, layer: any, frameCount: number) => {
-        // Example p5.js effect rendering
         const time = frameCount / 60; // Convert to seconds
+        const effectId = layer.asset.id || 'pulse';
         
         p.push();
         p.noStroke();
-        p.fill(255, 100, 100, (layer.opacity || 1) * 255);
         
-        // Animated circle effect
-        const size = 50 + Math.sin(time * 2) * 20;
-        p.ellipse(0, 0, size, size);
+        switch (effectId) {
+          case 'pulse':
+            // Circle pulse effect
+            p.fill(255, 100, 100, (layer.opacity || 1) * 255);
+            const circleSize = 50 + Math.sin(time * 2) * 20;
+            p.ellipse(0, 0, circleSize, circleSize);
+            break;
+            
+          case 'square-pulse':
+            // Square pulse effect
+            p.fill(100, 255, 100, (layer.opacity || 1) * 255);
+            const squareSize = 60 + Math.sin(time * 3) * 25;
+            p.rectMode(p.CENTER);
+            p.rect(0, 0, squareSize, squareSize);
+            break;
+            
+          case 'wave':
+            // Wave effect
+            p.fill(100, 100, 255, (layer.opacity || 1) * 255);
+            for (let i = 0; i < 10; i++) {
+              const waveSize = 30 + Math.sin(time * 2 + i * 0.5) * 15;
+              p.ellipse(i * 20 - 90, 0, waveSize, waveSize);
+            }
+            break;
+            
+          case 'particles':
+            // Particle system
+            p.fill(255, 255, 100, (layer.opacity || 1) * 255);
+            for (let i = 0; i < 20; i++) {
+              const x = Math.sin(time + i * 0.3) * 50;
+              const y = Math.cos(time + i * 0.3) * 50;
+              const size = 5 + Math.sin(time * 2 + i) * 3;
+              p.ellipse(x, y, size, size);
+            }
+            break;
+            
+          case 'geometric':
+            // Geometric pattern
+            p.fill(255, 100, 255, (layer.opacity || 1) * 255);
+            p.rectMode(p.CENTER);
+            for (let i = 0; i < 4; i++) {
+              p.push();
+              p.rotate(time + i * p.PI / 2);
+              const rectSize = 40 + Math.sin(time * 2) * 10;
+              p.rect(0, 0, rectSize, rectSize);
+              p.pop();
+            }
+            break;
+            
+          case 'audio-reactive':
+            // Audio reactive effect (placeholder)
+            p.fill(255, 150, 50, (layer.opacity || 1) * 255);
+            const audioSize = 40 + Math.sin(time * 4) * 15;
+            p.ellipse(0, 0, audioSize, audioSize);
+            break;
+            
+          case 'color-pulse':
+            // Color pulse effect
+            const hue = (time * 50) % 360;
+            p.fill(p.color(`hsla(${hue}, 100%, 50%, ${layer.opacity || 1})`));
+            const colorSize = 45 + Math.sin(time * 2.5) * 20;
+            p.ellipse(0, 0, colorSize, colorSize);
+            break;
+            
+          default:
+            // Default circle effect
+            p.fill(255, 100, 100, (layer.opacity || 1) * 255);
+            const defaultSize = 50 + Math.sin(time * 2) * 20;
+            p.ellipse(0, 0, defaultSize, defaultSize);
+        }
         
         p.pop();
       };

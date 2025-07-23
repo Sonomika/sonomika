@@ -6,21 +6,7 @@ interface MediaLibraryProps {
   isEmbedded?: boolean;
 }
 
-// Effect categories and their effects
-const EFFECT_CATEGORIES = {
-  p5js: [
-    { name: 'Circle Pulse', file: 'CirclePulse.ts', description: 'Pulsing circle effect' },
-    { name: 'Color Pulse', file: 'ColorPulse.ts', description: 'Color pulsing effect' },
-    { name: 'Geometric Pattern', file: 'GeometricPattern.ts', description: 'Geometric pattern generation' },
-    { name: 'Particle System', file: 'ParticleSystem.ts', description: 'Particle system effect' },
-    { name: 'Waveform', file: 'Waveform.ts', description: 'Audio waveform visualization' },
-    { name: 'Audio Reactive', file: 'AudioReactive.ts', description: 'Audio reactive effects' },
-  ],
-  threejs: [
-    { name: 'Test Effect', file: 'TestEffect.ts', description: 'Basic test effect' },
-    { name: 'Transition Effect', file: 'TransitionEffect.ts', description: 'Transition effects' },
-  ]
-};
+
 
 export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded = false }) => {
   const { assets, addAsset, removeAsset } = useStore() as any;
@@ -30,8 +16,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'media' | 'effects'>('media');
-  const [effectCategory, setEffectCategory] = useState<'p5js' | 'threejs'>('p5js');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle drag start for assets
@@ -51,34 +36,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     console.log('🎯 DataTransfer items after set:', e.dataTransfer.items);
   };
 
-  // Handle drag start for effects
-  const handleEffectDragStart = (e: React.DragEvent, effect: any) => {
-    console.log('🎯 Starting drag for effect:', effect);
-    console.log('🎯 Effect type:', effect.category);
-    console.log('🎯 Effect name:', effect.name);
-    
-    // Create effect asset data for drag
-    const effectAsset = {
-      id: `effect-${Date.now()}-${Math.random()}`,
-      name: effect.name,
-      type: effect.category, // p5js or threejs
-      path: `effects/${effect.file}`,
-      filePath: `src/effects/${effect.file}`,
-      size: 0,
-      date: new Date().toLocaleDateString(),
-      description: effect.description,
-      category: effect.category,
-      isEffect: true
-    };
-    
-    const assetData = JSON.stringify(effectAsset);
-    console.log('🎯 Setting drag data for effect:', assetData);
-    
-    e.dataTransfer.setData('application/json', assetData);
-    e.dataTransfer.effectAllowed = 'copy';
-    
-    console.log('🎯 Effect drag data set successfully');
-  };
+
 
   // Handle file import
   const handleFileImport = async (files: FileList) => {
@@ -403,40 +361,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     console.log('Removed asset:', assetId);
   };
 
-  // Handle effect loading
-  const handleLoadEffect = async (effectName: string, effectFile: string, effectType: 'p5js' | 'threejs') => {
-    console.log('Loading effect:', effectName, effectFile, effectType);
-    
-    try {
-      // Check if effect already exists
-      const existingAsset = assets.find((asset: any) => asset.name === effectName);
-      if (existingAsset) {
-        console.log('Effect already exists:', effectName);
-        setDuplicateWarning(`"${effectName}" already exists in library`);
-        setTimeout(() => setDuplicateWarning(''), 3000);
-        return;
-      }
 
-      // Create effect asset
-      const effectAsset = {
-        id: `effect-${Date.now()}-${Math.random()}`,
-        name: effectName,
-        type: effectType,
-        path: `effects/${effectFile}`,
-        filePath: `src/effects/${effectFile}`,
-        size: 0, // Effects don't have file size
-        date: new Date().toLocaleDateString(),
-        description: EFFECT_CATEGORIES[effectType].find(e => e.name === effectName)?.description || '',
-        category: effectType
-      };
-
-      addAsset(effectAsset);
-      console.log('Loaded effect:', effectAsset);
-      
-    } catch (error) {
-      console.error('Error loading effect:', effectName, error);
-    }
-  };
 
   const renderMediaTab = () => (
     <>
@@ -552,73 +477,12 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     </>
   );
 
-  const renderEffectsTab = () => (
-    <div className="effects-content">
-      <div className="effects-toolbar">
-        <div className="effect-category-toggle">
-          <button
-            className={`category-button ${effectCategory === 'p5js' ? 'active' : ''}`}
-            onClick={() => setEffectCategory('p5js')}
-          >
-            p5.js
-          </button>
-          <button
-            className={`category-button ${effectCategory === 'threejs' ? 'active' : ''}`}
-            onClick={() => setEffectCategory('threejs')}
-          >
-            Three.js
-          </button>
-        </div>
-      </div>
 
-                  <div className="effects-grid">
-              {EFFECT_CATEGORIES[effectCategory].map((effect) => (
-                <div
-                  key={effect.name}
-                  className="effect-item"
-                  onClick={() => handleLoadEffect(effect.name, effect.file, effectCategory)}
-                  draggable
-                  onDragStart={(e) => handleEffectDragStart(e, { ...effect, category: effectCategory })}
-                >
-                  <div className="effect-preview">
-                    <div className="effect-icon">
-                      {effectCategory === 'p5js' ? '🎨' : '🎭'}
-                    </div>
-                    <div className="effect-type-badge">
-                      {effectCategory.toUpperCase()}
-                    </div>
-                  </div>
-                  <div className="effect-info">
-                    <div className="effect-name">{effect.name}</div>
-                    <div className="effect-description">{effect.description}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-    </div>
-  );
 
   if (isEmbedded) {
     return (
       <div className="media-library-content embedded">
-        {/* Tab Navigation */}
-        <div className="media-tabs">
-          <button
-            className={`tab-button ${activeTab === 'media' ? 'active' : ''}`}
-            onClick={() => setActiveTab('media')}
-          >
-            Media
-          </button>
-          <button
-            className={`tab-button ${activeTab === 'effects' ? 'active' : ''}`}
-            onClick={() => setActiveTab('effects')}
-          >
-            Effects
-          </button>
-        </div>
-
-        {activeTab === 'media' && renderMediaTab()}
-        {activeTab === 'effects' && renderEffectsTab()}
+        {renderMediaTab()}
       </div>
     );
   }
@@ -631,24 +495,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           <button onClick={onClose} className="close-button">×</button>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="media-tabs">
-          <button
-            className={`tab-button ${activeTab === 'media' ? 'active' : ''}`}
-            onClick={() => setActiveTab('media')}
-          >
-            Media
-          </button>
-          <button
-            className={`tab-button ${activeTab === 'effects' ? 'active' : ''}`}
-            onClick={() => setActiveTab('effects')}
-          >
-            Effects
-          </button>
-        </div>
-
-        {activeTab === 'media' && renderMediaTab()}
-        {activeTab === 'effects' && renderEffectsTab()}
+        {renderMediaTab()}
       </div>
     </div>
   );

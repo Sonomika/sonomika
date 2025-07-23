@@ -174,11 +174,27 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
               });
             }
             
-            // Add event listeners for debugging
+            // Add event listeners for debugging and loop handling
             video.addEventListener('loadstart', () => console.log('🎬 Video loadstart:', asset.name));
             video.addEventListener('loadeddata', () => console.log('🎬 Video loadeddata:', asset.name));
             video.addEventListener('canplay', () => console.log('🎬 Video canplay:', asset.name));
             video.addEventListener('error', (e) => console.error('🎬 Video error:', asset.name, e));
+            
+            // Prevent blue flash on loop by setting background color
+            video.addEventListener('seeking', () => {
+              // Set video background to black to prevent blue flash
+              video.style.backgroundColor = '#000000';
+            });
+            
+            video.addEventListener('ended', () => {
+              // Ensure smooth loop transition
+              if (video.loop) {
+                video.currentTime = 0;
+                video.play().catch(error => {
+                  console.error('🎬 Failed to restart video on loop:', asset.name, error);
+                });
+              }
+            });
           } else if (asset.type === 'image') {
             const img = new Image();
             img.crossOrigin = 'anonymous';
@@ -236,8 +252,9 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Clear canvas
-      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+      // Clear canvas with black background to prevent blue flash
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
       // Render effects first (background)
       effectsRef.current.forEach((effect, assetId) => {
@@ -258,6 +275,9 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
           const video = videoRefs.current.get(asset.id);
           console.log('🎬 Rendering video:', asset.name, 'Asset ID:', asset.id, 'Video ref:', video, 'Ready state:', video?.readyState);
           if (video && video.readyState >= 2) { // HAVE_CURRENT_DATA
+            // Check if video is at the end and about to loop
+            const isNearEnd = video.currentTime >= video.duration - 0.1;
+            
             // Calculate aspect ratio to fit video properly
             const videoAspect = video.videoWidth / video.videoHeight;
             const canvasAspect = canvasWidth / canvasHeight;
@@ -278,9 +298,14 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
               drawY = 0;
             }
             
-            console.log('🎬 Drawing video:', asset.name, 'Dimensions:', drawWidth, drawHeight, drawX, drawY);
-            ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-            hasRenderedContent = true;
+            // Only draw if video is not at the very end (prevents flash)
+            if (!isNearEnd || video.currentTime > 0) {
+              console.log('🎬 Drawing video:', asset.name, 'Dimensions:', drawWidth, drawHeight, drawX, drawY);
+              ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+              hasRenderedContent = true;
+            } else {
+              console.log('🎬 Skipping video frame near end to prevent flash:', asset.name);
+            }
           } else {
             console.log('🎬 Video not ready:', asset.name, 'Ready state:', video?.readyState);
           }
