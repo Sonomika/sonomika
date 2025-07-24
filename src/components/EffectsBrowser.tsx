@@ -66,6 +66,38 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       description: 'Color cycling pulse effect',
       category: 'Color',
       icon: '🌈'
+    },
+    {
+      id: 'global-datamosh',
+      name: 'Global Datamosh',
+      type: 'global',
+      description: 'Applies datamosh effect to the entire composition',
+      category: 'Global',
+      icon: '🌐'
+    },
+    {
+      id: 'video-slice',
+      name: 'Video Slice',
+      type: 'global',
+      description: 'Slices video into horizontal strips with offset',
+      category: 'Global',
+      icon: '✂️'
+    },
+    {
+      id: 'video-glitch-blocks',
+      name: 'Video Glitch Blocks',
+      type: 'global',
+      description: 'Creates random glitch blocks with color shifts',
+      category: 'Global',
+      icon: '🔲'
+    },
+    {
+      id: 'video-wave-slice',
+      name: 'Video Wave Slice',
+      type: 'global',
+      description: 'Creates wave-like slicing distortion',
+      category: 'Global',
+      icon: '🌊'
     }
   ];
 
@@ -86,6 +118,119 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       isEffect: true
     }));
     e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleAddToLayer = () => {
+    if (!selectedEffect) {
+      console.log('No effect selected');
+      return;
+    }
+
+    console.log('Adding effect to layer:', selectedEffect);
+    
+    // Create a draggable effect object that can be dropped on layers
+    const effectData = {
+      ...selectedEffect,
+      isEffect: true,
+      type: 'effect',
+      name: selectedEffect.name,
+      filePath: `effects/${selectedEffect.id === 'global-datamosh' ? 'GlobalDatamoshEffect' : selectedEffect.id}.ts`
+    };
+
+    // Show a message to the user
+    alert(`Effect "${selectedEffect.name}" is ready to be added to a layer.\n\nTo add this effect:\n1. Drag the effect from the grid above to a layer\n2. Or drag the effect from the "Add to Layer" button to a layer`);
+  };
+
+  const handlePreview = () => {
+    if (!selectedEffect) {
+      console.log('No effect selected');
+      return;
+    }
+
+    console.log('Previewing effect:', selectedEffect);
+    
+    // Create a preview window or modal
+    const previewWindow = window.open('', '_blank', 'width=800,height=600');
+    if (previewWindow) {
+      previewWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Effect Preview: ${selectedEffect.name}</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 20px;
+              background: #1a1a1a;
+              color: #fff;
+              font-family: Arial, sans-serif;
+            }
+            .preview-container {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 20px;
+            }
+            .effect-info {
+              text-align: center;
+              background: #2a2a2a;
+              padding: 20px;
+              border-radius: 8px;
+              border: 1px solid #444;
+            }
+            .effect-icon {
+              font-size: 48px;
+              margin-bottom: 10px;
+            }
+            .effect-name {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 10px;
+              color: #00bcd4;
+            }
+            .effect-description {
+              font-size: 16px;
+              color: #ccc;
+              margin-bottom: 10px;
+            }
+            .effect-category {
+              font-size: 12px;
+              color: #888;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .preview-canvas {
+              border: 2px solid #444;
+              border-radius: 8px;
+              background: #000;
+            }
+            .preview-message {
+              text-align: center;
+              color: #888;
+              font-style: italic;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="preview-container">
+            <div class="effect-info">
+              <div class="effect-icon">${selectedEffect.icon}</div>
+              <div class="effect-name">${selectedEffect.name}</div>
+              <div class="effect-description">${selectedEffect.description}</div>
+              <div class="effect-category">${selectedEffect.category}</div>
+            </div>
+            <canvas id="previewCanvas" class="preview-canvas" width="600" height="400"></canvas>
+            <div class="preview-message">
+              Effect preview canvas - actual effect rendering would be implemented here
+            </div>
+          </div>
+        </body>
+        </html>
+      `);
+      previewWindow.document.close();
+    } else {
+      alert(`Effect Preview: ${selectedEffect.name}\n\nType: ${selectedEffect.type}\nCategory: ${selectedEffect.category}\nDescription: ${selectedEffect.description}`);
+    }
   };
 
   return (
@@ -146,8 +291,20 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
               <strong>Description:</strong> {selectedEffect.description}
             </div>
             <div className="effect-actions">
-              <button className="effect-btn primary">Add to Layer</button>
-              <button className="effect-btn secondary">Preview</button>
+              <button 
+                className="effect-btn primary" 
+                onClick={handleAddToLayer}
+                title="Add this effect to a layer"
+              >
+                Add to Layer
+              </button>
+              <button 
+                className="effect-btn secondary" 
+                onClick={handlePreview}
+                title="Preview this effect"
+              >
+                Preview
+              </button>
             </div>
           </div>
         )}

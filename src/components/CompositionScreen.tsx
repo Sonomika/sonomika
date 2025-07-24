@@ -2,6 +2,10 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useStore } from '../store/store';
 import { RenderLoop } from '../utils/RenderLoop';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor';
+import { GlobalDatamoshEffect } from '../effects/GlobalDatamoshEffect';
+import { VideoSliceEffect } from '../effects/VideoSliceEffect';
+import { VideoGlitchBlocksEffect } from '../effects/VideoGlitchBlocksEffect';
+import { VideoWaveSliceEffect } from '../effects/VideoWaveSliceEffect';
 
 interface CompositionScreenProps {
   className?: string;
@@ -55,6 +59,20 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
 
       // Render scene layers
       renderScene(ctx, currentScene, displayWidth, displayHeight, deltaTime);
+
+      // Apply global effects
+      applyGlobalEffects(ctx, currentScene, displayWidth, displayHeight, deltaTime);
+
+      // Debug: Check if canvas has content
+      const imageData = ctx.getImageData(0, 0, displayWidth, displayHeight);
+      let hasContent = false;
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        if (imageData.data[i] !== 0 || imageData.data[i + 1] !== 0 || imageData.data[i + 2] !== 0) {
+          hasContent = true;
+          break;
+        }
+      }
+      console.log('🎨 Canvas has content after rendering:', hasContent);
 
       // Update performance metrics
       performanceMonitor.recordFrame();
@@ -114,6 +132,126 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
 
     // Composite final result to main canvas
     ctx.drawImage(tempCanvas, 0, 0);
+  };
+
+  const applyGlobalEffects = (
+    ctx: CanvasRenderingContext2D,
+    scene: any,
+    width: number,
+    height: number,
+    deltaTime: number
+  ) => {
+    if (!scene || !scene.globalEffects || scene.globalEffects.length === 0) {
+      console.log('🌐 No global effects to apply');
+      return;
+    }
+
+    console.log('🌐 Applying global effects:', scene.globalEffects);
+    console.log('🌐 Canvas dimensions:', width, 'x', height);
+
+    // Apply each enabled global effect slot
+    scene.globalEffects.forEach((effectSlot: any) => {
+      if (!effectSlot.enabled) {
+        console.log('🌐 Effect slot disabled:', effectSlot.effectId);
+        return;
+      }
+      
+      console.log('🌐 Processing enabled effect slot:', effectSlot);
+      
+      try {
+        if (effectSlot.effectId === 'global-datamosh') {
+          console.log('🌐 Applying global datamosh effect');
+          
+          console.log('🌐 Creating GlobalDatamoshEffect instance');
+          const effect = new GlobalDatamoshEffect(width, height);
+          
+          // Apply effect slot parameters
+          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
+            console.log('🌐 Applying effect parameters:', effectSlot.params);
+            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
+              effect.setParameter(key, param.value);
+            });
+          } else {
+            // Set default parameters for visible effect
+            console.log('🌐 Using default parameters');
+            effect.setParameter('glitchIntensity', 0.5);
+            effect.setParameter('blockSize', 32);
+            effect.setParameter('temporalOffset', 3);
+            effect.setParameter('spatialOffset', 20);
+            effect.setParameter('colorShift', 10);
+          }
+          
+          console.log('🌐 Processing canvas with datamosh effect');
+          effect.processCanvas(ctx.canvas, ctx);
+          console.log('🌐 Datamosh effect applied successfully');
+        } else if (effectSlot.effectId === 'video-slice') {
+          console.log('🌐 Applying video slice effect');
+          
+          const effect = new VideoSliceEffect(width, height);
+          
+          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
+            console.log('🌐 Applying effect parameters:', effectSlot.params);
+            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
+              effect.setParameter(key, param.value);
+            });
+          } else {
+            console.log('🌐 Using default parameters');
+            effect.setParameter('sliceHeight', 30);
+            effect.setParameter('offsetAmount', 80);
+            effect.setParameter('sliceCount', 0);
+          }
+          
+          console.log('🌐 Processing canvas with video slice effect');
+          effect.processCanvas(ctx.canvas, ctx);
+          console.log('🌐 Video slice effect applied successfully');
+        } else if (effectSlot.effectId === 'video-glitch-blocks') {
+          console.log('🌐 Applying video glitch blocks effect');
+          
+          const effect = new VideoGlitchBlocksEffect(width, height);
+          
+          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
+            console.log('🌐 Applying effect parameters:', effectSlot.params);
+            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
+              effect.setParameter(key, param.value);
+            });
+          } else {
+            console.log('🌐 Using default parameters');
+            effect.setParameter('blockSize', 32);
+            effect.setParameter('glitchIntensity', 0.4);
+            effect.setParameter('colorShift', 8);
+          }
+          
+          console.log('🌐 Processing canvas with glitch blocks effect');
+          effect.processCanvas(ctx.canvas, ctx);
+          console.log('🌐 Video glitch blocks effect applied successfully');
+        } else if (effectSlot.effectId === 'video-wave-slice') {
+          console.log('🌐 Applying video wave slice effect');
+          
+          const effect = new VideoWaveSliceEffect(width, height);
+          
+          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
+            console.log('🌐 Applying effect parameters:', effectSlot.params);
+            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
+              effect.setParameter(key, param.value);
+            });
+          } else {
+            console.log('🌐 Using default parameters');
+            effect.setParameter('waveAmplitude', 40);
+            effect.setParameter('waveFrequency', 0.03);
+            effect.setParameter('sliceHeight', 4);
+            effect.setParameter('colorShift', 5);
+          }
+          
+          console.log('🌐 Processing canvas with wave slice effect');
+          effect.processCanvas(ctx.canvas, ctx);
+          console.log('🌐 Video wave slice effect applied successfully');
+        } else {
+          console.log('🌐 Unknown effect ID:', effectSlot.effectId);
+        }
+      } catch (error) {
+        console.error('🌐 Error applying global effect:', effectSlot.effectId, error);
+      }
+    });
   };
 
   const renderLayer = (
@@ -268,15 +406,34 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
   ) => {
     if (!layer.asset || !layer.asset.path) return;
 
-    // Create a video element for rendering
-    const video = document.createElement('video');
-    video.src = layer.asset.path;
-    video.muted = layer.muted || true;
-    // Use loopMode to determine if video should loop
-    video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
-    video.crossOrigin = 'anonymous';
+    // Get or create video element for this layer
+    let video = layer._videoElement;
+    if (!video) {
+      video = document.createElement('video');
+      video.src = layer.asset.path;
+      video.muted = layer.muted || true;
+      video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
+      video.crossOrigin = 'anonymous';
+      video.autoplay = layer.autoplay || true;
+      
+      // Store video element on layer for reuse
+      layer._videoElement = video;
+      
+      // Handle video events
+      video.addEventListener('ended', () => {
+        if (layer.loopMode === 'ping-pong') {
+          video.currentTime = 0;
+          video.play();
+        }
+      });
+      
+      video.addEventListener('error', (e: Event) => {
+        console.error('Video error:', e);
+      });
+    }
 
-    video.onloadeddata = () => {
+    // Check if video is ready to play
+    if (video.readyState >= 2) { // HAVE_CURRENT_DATA
       // Calculate aspect ratio and fit mode
       const { fitMode = 'cover', position = { x: 0.5, y: 0.5 } } = layer;
       
@@ -314,12 +471,25 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
           break;
       }
 
+      // Draw video frame to canvas
       ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-    };
-
-    // Start playing if autoplay is enabled
-    if (layer.autoplay) {
-      video.play();
+      
+      console.log('🎬 Video frame drawn to canvas:', {
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        drawWidth,
+        drawHeight,
+        drawX,
+        drawY
+      });
+    } else {
+      // Video not ready, show placeholder
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = 'white';
+      ctx.font = '14px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Loading Video...', width / 2, height / 2);
     }
   };
 

@@ -7,6 +7,7 @@ interface ColumnPreviewProps {
   height: number;
   isPlaying: boolean;
   bpm: number;
+  globalEffects?: any[];
 }
 
 export const ColumnPreview: React.FC<ColumnPreviewProps> = ({ 
@@ -14,7 +15,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
   width, 
   height, 
   isPlaying, 
-  bpm 
+  bpm,
+  globalEffects = []
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const p5InstanceRef = useRef<p5 | null>(null);
@@ -104,6 +106,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
             renderEffectLayer(p, layer, frameCount);
           }
         });
+
+        // Apply global effects after all layers are rendered
+        applyGlobalEffects(p, frameCount);
       };
 
       const loadLayerAssets = async () => {
@@ -518,6 +523,277 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         p.pop();
       };
 
+      const applyGlobalEffects = (p: p5, frameCount: number) => {
+        if (!globalEffects || globalEffects.length === 0) return;
+
+        // Find the active global effect
+        const activeEffect = globalEffects.find((effect: any) => effect.enabled);
+        if (!activeEffect) return;
+
+        console.log('🎨 Applying global effect to p5.js canvas:', activeEffect.effectId);
+
+        // Get the current canvas as an image
+        const canvas = p.canvas as any;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Apply the effect based on type
+        switch (activeEffect.effectId) {
+          case 'video-slice':
+            applyVideoSliceEffect(p, frameCount, activeEffect);
+            break;
+          case 'video-glitch-blocks':
+            applyVideoGlitchBlocksEffect(p, frameCount, activeEffect);
+            break;
+          case 'video-wave-slice':
+            applyVideoWaveSliceEffect(p, frameCount, activeEffect);
+            break;
+          case 'global-datamosh':
+            applyGlobalDatamoshEffect(p, frameCount, activeEffect);
+            break;
+          default:
+            console.log('🎨 Unknown global effect:', activeEffect.effectId);
+        }
+      };
+
+      const applyVideoSliceEffect = (p: p5, frameCount: number, effect: any) => {
+        const sliceHeight = effect.params?.sliceHeight?.value || 30;
+        const offsetAmount = effect.params?.offsetAmount?.value || 80;
+        const timeOffset = frameCount * 0.15;
+
+        // Get canvas data
+        const canvas = (p as any).canvas;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const slices = Math.floor(height / sliceHeight);
+
+        // Process each slice
+        for (let i = 0; i < slices; i++) {
+          const y = i * sliceHeight;
+          const offsetX = Math.sin(timeOffset + i * 0.2) * offsetAmount;
+          
+          // Get slice data
+          const sliceData = new Uint8ClampedArray(sliceHeight * width * 4);
+          for (let sy = 0; sy < sliceHeight; sy++) {
+            for (let sx = 0; sx < width; sx++) {
+              const srcIndex = ((y + sy) * width + sx) * 4;
+              const dstIndex = (sy * width + sx) * 4;
+              sliceData[dstIndex] = data[srcIndex];
+              sliceData[dstIndex + 1] = data[srcIndex + 1];
+              sliceData[dstIndex + 2] = data[srcIndex + 2];
+              sliceData[dstIndex + 3] = data[srcIndex + 3];
+            }
+          }
+
+          // Clear original slice area
+          for (let sy = 0; sy < sliceHeight; sy++) {
+            for (let sx = 0; sx < width; sx++) {
+              const index = ((y + sy) * width + sx) * 4;
+              data[index] = 0;
+              data[index + 1] = 0;
+              data[index + 2] = 0;
+              data[index + 3] = 0;
+            }
+          }
+
+          // Draw slice with offset
+          const drawX = Math.max(0, Math.min(width - 1, offsetX));
+          for (let sy = 0; sy < sliceHeight; sy++) {
+            for (let sx = 0; sx < width; sx++) {
+              const srcIndex = (sy * width + sx) * 4;
+              const dstIndex = ((y + sy) * width + (sx + drawX)) * 4;
+              if (dstIndex >= 0 && dstIndex < data.length - 3) {
+                data[dstIndex] = sliceData[srcIndex];
+                data[dstIndex + 1] = sliceData[srcIndex + 1];
+                data[dstIndex + 2] = sliceData[srcIndex + 2];
+                data[dstIndex + 3] = sliceData[srcIndex + 3];
+              }
+            }
+          }
+        }
+
+        // Put the processed data back
+        ctx.putImageData(imageData, 0, 0);
+      };
+
+      const applyVideoGlitchBlocksEffect = (p: p5, frameCount: number, effect: any) => {
+        const blockSize = effect.params?.blockSize?.value || 32;
+        const glitchIntensity = effect.params?.glitchIntensity?.value || 0.4;
+        const colorShift = effect.params?.colorShift?.value || 8;
+
+        const canvas = (p as any).canvas;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        // Create glitch blocks
+        const blocksX = Math.floor(width / blockSize);
+        const blocksY = Math.floor(height / blockSize);
+
+        for (let by = 0; by < blocksY; by++) {
+          for (let bx = 0; bx < blocksX; bx++) {
+            if (Math.random() < glitchIntensity) {
+              const offsetX = (Math.random() - 0.5) * blockSize * 2;
+              const offsetY = (Math.random() - 0.5) * blockSize * 2;
+
+              // Copy block with offset
+              for (let y = 0; y < blockSize; y++) {
+                for (let x = 0; x < blockSize; x++) {
+                  const srcX = bx * blockSize + x;
+                  const srcY = by * blockSize + y;
+                  const dstX = Math.floor(srcX + offsetX);
+                  const dstY = Math.floor(srcY + offsetY);
+
+                  if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height &&
+                      dstX >= 0 && dstX < width && dstY >= 0 && dstY < height) {
+                    const srcIndex = (srcY * width + srcX) * 4;
+                    const dstIndex = (dstY * width + dstX) * 4;
+
+                    // Apply color shift
+                    data[dstIndex] = Math.min(255, data[srcIndex] + colorShift);
+                    data[dstIndex + 1] = data[srcIndex + 1];
+                    data[dstIndex + 2] = Math.max(0, data[srcIndex + 2] - colorShift);
+                    data[dstIndex + 3] = data[srcIndex + 3];
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+      };
+
+      const applyVideoWaveSliceEffect = (p: p5, frameCount: number, effect: any) => {
+        const waveAmplitude = effect.params?.waveAmplitude?.value || 40;
+        const waveFrequency = effect.params?.waveFrequency?.value || 0.03;
+        const sliceHeight = effect.params?.sliceHeight?.value || 4;
+        const colorShift = effect.params?.colorShift?.value || 5;
+
+        const canvas = (p as any).canvas;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const slices = Math.floor(height / sliceHeight);
+
+        for (let i = 0; i < slices; i++) {
+          const y = i * sliceHeight;
+          const waveOffset = Math.sin(frameCount * waveFrequency + i * 0.1) * waveAmplitude;
+
+          // Get slice data
+          const sliceData = new Uint8ClampedArray(sliceHeight * width * 4);
+          for (let sy = 0; sy < sliceHeight; sy++) {
+            for (let sx = 0; sx < width; sx++) {
+              const srcIndex = ((y + sy) * width + sx) * 4;
+              const dstIndex = (sy * width + sx) * 4;
+              sliceData[dstIndex] = data[srcIndex];
+              sliceData[dstIndex + 1] = data[srcIndex + 1];
+              sliceData[dstIndex + 2] = data[srcIndex + 2];
+              sliceData[dstIndex + 3] = data[srcIndex + 3];
+            }
+          }
+
+          // Clear original slice area
+          for (let sy = 0; sy < sliceHeight; sy++) {
+            for (let sx = 0; sx < width; sx++) {
+              const index = ((y + sy) * width + sx) * 4;
+              data[index] = 0;
+              data[index + 1] = 0;
+              data[index + 2] = 0;
+              data[index + 3] = 0;
+            }
+          }
+
+          // Draw slice with wave offset
+          for (let sy = 0; sy < sliceHeight; sy++) {
+            for (let sx = 0; sx < width; sx++) {
+              const srcIndex = (sy * width + sx) * 4;
+              const dstX = Math.floor(sx + waveOffset);
+              const dstY = y + sy;
+
+              if (dstX >= 0 && dstX < width && dstY >= 0 && dstY < height) {
+                const dstIndex = (dstY * width + dstX) * 4;
+                data[dstIndex] = Math.min(255, sliceData[srcIndex] + colorShift);
+                data[dstIndex + 1] = sliceData[srcIndex + 1];
+                data[dstIndex + 2] = Math.max(0, sliceData[srcIndex + 2] - colorShift);
+                data[dstIndex + 3] = sliceData[srcIndex + 3];
+              }
+            }
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+      };
+
+      // Static variable for storing previous frame data
+      let previousFrameData: Uint8ClampedArray | null = null;
+
+      const applyGlobalDatamoshEffect = (p: p5, frameCount: number, effect: any) => {
+        const glitchIntensity = effect.params?.glitchIntensity?.value || 0.5;
+        const blockSize = effect.params?.blockSize?.value || 32;
+        const temporalOffset = effect.params?.temporalOffset?.value || 3;
+        const spatialOffset = effect.params?.spatialOffset?.value || 20;
+        const colorShift = effect.params?.colorShift?.value || 10;
+
+        const canvas = (p as any).canvas;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        // Store previous frame data for temporal borrowing
+        if (!previousFrameData) {
+          previousFrameData = new Uint8ClampedArray(data.length);
+        }
+
+        // Copy current frame to previous frame
+        for (let i = 0; i < data.length; i++) {
+          previousFrameData[i] = data[i];
+        }
+
+        // Apply datamosh effect
+        const blocksX = Math.floor(width / blockSize);
+        const blocksY = Math.floor(height / blockSize);
+
+        for (let by = 0; by < blocksY; by++) {
+          for (let bx = 0; bx < blocksX; bx++) {
+            if (Math.random() < glitchIntensity) {
+              // Borrow from previous frame
+              for (let y = 0; y < blockSize; y++) {
+                for (let x = 0; x < blockSize; x++) {
+                  const srcX = bx * blockSize + x;
+                  const srcY = by * blockSize + y;
+                  const dstX = srcX + (Math.random() - 0.5) * spatialOffset;
+                  const dstY = srcY + (Math.random() - 0.5) * spatialOffset;
+
+                  if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height &&
+                      dstX >= 0 && dstX < width && dstY >= 0 && dstY < height) {
+                    const srcIndex = (srcY * width + srcX) * 4;
+                    const dstIndex = (dstY * width + dstX) * 4;
+
+                    // Use previous frame data with color shift
+                    data[dstIndex] = Math.min(255, previousFrameData[srcIndex] + colorShift);
+                    data[dstIndex + 1] = previousFrameData[srcIndex + 1];
+                    data[dstIndex + 2] = Math.max(0, previousFrameData[srcIndex + 2] - colorShift);
+                    data[dstIndex + 3] = previousFrameData[srcIndex + 3];
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+      };
+
       const renderGenericEffect = (p: p5, layer: any, frameCount: number) => {
         // Generic effect rendering
         const time = frameCount / 60;
@@ -543,7 +819,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         p5InstanceRef.current = null;
       }
     };
-  }, [column, width, height, isPlaying, bpm, layerHash]);
+  }, [column, width, height, isPlaying, bpm, layerHash, globalEffects]);
 
   return (
     <div className="column-preview">

@@ -42,11 +42,18 @@ export interface Column {
   midiChannel?: number;
 }
 
+export interface GlobalEffectSlot {
+  id: string;
+  effectId: string;
+  enabled: boolean;
+  params: Record<string, LayerParamValue>;
+}
+
 export interface Scene {
   id: string;
   name: string;
   columns: Column[];
-  globalEffects: string[];
+  globalEffects: GlobalEffectSlot[];
 }
 
 export interface MIDIMapping {

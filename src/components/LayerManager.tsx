@@ -768,6 +768,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
               height={compositionSettings.height}
               isPlaying={isPlaying}
               bpm={bpm}
+              globalEffects={currentScene?.globalEffects || []}
             />
           </div>
           <div className="preview-layers-info">
@@ -864,6 +865,36 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     updateScene(currentSceneId, { columns });
   }
 
+  // Migrate global effects to new format if needed
+  if (currentScene.globalEffects) {
+    let effectsMigrated = false;
+    const migratedEffects = currentScene.globalEffects.map((effect: any) => {
+      if (typeof effect === 'string') {
+        // Old format: just a string ID
+        effectsMigrated = true;
+        return {
+          id: uuidv4(),
+          effectId: effect,
+          enabled: true,
+          params: {}
+        };
+      } else if (!effect.id) {
+        // New format but missing ID
+        effectsMigrated = true;
+        return {
+          ...effect,
+          id: uuidv4()
+        };
+      }
+      return effect;
+    });
+
+    if (effectsMigrated) {
+      console.log('🔄 Migrating global effects to new format');
+      updateScene(currentSceneId, { globalEffects: migratedEffects });
+    }
+  }
+
   try {
     console.log('LayerManager about to render main content');
     
@@ -891,32 +922,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
               </div>
             </div>
             
-            <div className="header-right">
-              <div className="global-controls">
-                <button className="control-btn" title="Play">▶</button>
-                <button className="control-btn" title="Stop">⏹</button>
-                <button className="control-btn" title="Record">⏺</button>
-              </div>
-              <div className="composition-settings">
-                <span className="composition-info">
-                  {compositionSettings.width}×{compositionSettings.height} ({compositionSettings.aspectRatio})
-                </span>
-                <button 
-                  className="control-btn" 
-                  title="Composition Settings"
-                  onClick={() => {
-                    // TODO: Open composition settings modal
-                    console.log('Composition settings clicked');
-                  }}
-                >
-                  ⚙️
-                </button>
-              </div>
-              <div className="app-controls">
-                <button className="control-btn" title="Settings">⚙️</button>
-                <button className="control-btn" title="Help">?</button>
-              </div>
-            </div>
+
             
             {/* Standalone Clear Button for better visibility */}
             <button className="clear-layers-standalone" onClick={handleClearLayers}>
@@ -928,36 +934,99 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           </div>
 
           <div className="layer-manager-body" style={{ height: `${paneSizes.gridHeight}%` }}>
+            {/* Global Effects Row */}
+            <div className="global-effects-row">
+              <div className="row-header">
+                <h3>Global Effects</h3>
+              </div>
+              <div 
+                className="global-effects-content"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.add('drag-over');
+                }}
+                onDragLeave={(e) => {
+                  e.currentTarget.classList.remove('drag-over');
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.remove('drag-over');
+                  
+                  try {
+                    const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                    if (data.isEffect) {
+                      console.log('🌐 Adding global effect:', data);
+                      
+                      // Create a new effect slot
+                      const newEffectSlot = {
+                        id: uuidv4(),
+                        effectId: data.id || data.name,
+                        enabled: true,
+                        params: {}
+                      };
+                      
+                      // Add the effect slot to the scene's global effects
+                      // Disable all existing effects and enable only the new one
+                      const currentGlobalEffects = currentScene?.globalEffects || [];
+                      const updatedEffects = [
+                        ...currentGlobalEffects.map((effect: any) => ({ ...effect, enabled: false })),
+                        newEffectSlot
+                      ];
+                      updateScene(currentSceneId, { globalEffects: updatedEffects });
+                      console.log('🌐 Global effects updated:', updatedEffects);
+                    }
+                  } catch (error) {
+                    console.error('Error adding global effect:', error);
+                  }
+                }}
+              >
+                <div className="global-effects-list">
+                  {currentScene?.globalEffects?.map((effectSlot: any, index: number) => (
+                    <div key={effectSlot.id || `effect-${index}`} className="global-effect-item">
+                      <div className="effect-slot-controls">
+                        <input
+                          type="checkbox"
+                          checked={effectSlot.enabled}
+                          onChange={(e) => {
+                            // If enabling this effect, disable all others
+                            const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
+                              ...slot,
+                              enabled: i === index ? e.target.checked : false
+                            }));
+                            updateScene(currentSceneId, { globalEffects: updatedEffects });
+                          }}
+                          title="Enable/disable effect (only one can be active at a time)"
+                        />
+                        <span className="effect-name">{effectSlot.effectId}</span>
+                      </div>
+                      <button 
+                        className="remove-effect-btn"
+                        onClick={() => {
+                          const updatedEffects = currentScene.globalEffects.filter((_: any, i: number) => i !== index);
+                          updateScene(currentSceneId, { globalEffects: updatedEffects });
+                        }}
+                        title="Remove effect"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {(!currentScene?.globalEffects || currentScene.globalEffects.length === 0) && (
+                    <div className="no-global-effects">
+                      <span>No global effects applied</span>
+                      <small>Drag effects from the Effects tab to apply globally (only one active at a time)</small>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Composition Row */}
             <div className="composition-row">
               <div className="row-header">
                 <h3>Composition</h3>
               </div>
-              <div className="composition-controls">
-                <button className="control-btn">X</button>
-                <button className="control-btn">B</button>
-                <button className="control-btn">M</button>
-                <button className="control-btn">S</button>
-                <div className="playback-controls">
-                  <button className="control-btn">⏮</button>
-                  <button className="control-btn">▶</button>
-                  <button className="control-btn">⏭</button>
-                  <button className="control-btn">🔁</button>
-                </div>
-              </div>
-              <div className="composition-nested">
-                <div className="nested-controls">
-                  <button className="control-btn">X</button>
-                  <button className="control-btn">B</button>
-                  <button className="control-btn">S</button>
-                  <button className="control-btn">M</button>
-                  <button className="control-btn">A</button>
-                  <button className="control-btn">V</button>
-                  <select className="add-dropdown">
-                    <option>Add</option>
-                  </select>
-                </div>
-              </div>
+
               {columns.map((column: any, index: number) => {
                 const isColumnPlaying = previewContent?.type === 'column' && previewContent?.columnId === column.id;
                 return (
@@ -1008,23 +1077,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   <h3>Layer {layerNum}</h3>
                 </div>
 
-                <div className="layer-controls">
-                  <div className="layer-controls-group">
-                    <button className="control-btn" title="Solo">S</button>
-                    <button className="control-btn" title="Mute">M</button>
-                    <button className="control-btn" title="Lock">L</button>
-                  </div>
-                  <div className="layer-controls-group">
-                    <button className="control-btn" title="Previous">⏮</button>
-                    <button className="control-btn" title="Play">▶</button>
-                    <button className="control-btn" title="Next">⏭</button>
-                  </div>
-                  <div className="layer-controls-group">
-                    <button className="control-btn" title="Loop">🔁</button>
-                    <button className="control-btn" title="Transition">T</button>
-                    <button className="control-btn" title="Alpha">A</button>
-                  </div>
-                </div>
+
 
                 {/* Column Cells for this Layer */}
                 {columns.map((column: any, colIndex: number) => {
