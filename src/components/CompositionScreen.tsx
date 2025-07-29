@@ -1,622 +1,351 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/store';
-import { RenderLoop } from '../utils/RenderLoop';
-import { PerformanceMonitor } from '../utils/PerformanceMonitor';
-import { GlobalDatamoshEffect } from '../effects/GlobalDatamoshEffect';
-import { GlobalStrobeEffect } from '../effects/GlobalStrobeEffect';
-import { VideoSliceEffect } from '../effects/VideoSliceEffect';
-import { VideoGlitchBlocksEffect } from '../effects/VideoGlitchBlocksEffect';
-import { VideoWaveSliceEffect } from '../effects/VideoWaveSliceEffect';
 
 interface CompositionScreenProps {
   className?: string;
 }
 
+// PURE COMPOSITION RENDERER - No React in render loop
+class PureCompositionRenderer {
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private animationId: number | null = null;
+  private isRunning = false;
+  
+  // Pure composition state management (no React refs)
+  private videoElements = new Map<string, HTMLVideoElement>();
+  private imageElements = new Map<string, HTMLImageElement>();
+  private lastFrames = new Map<string, ImageData>();
+  private scene: any = null;
+  private bpm: number = 120;
+  
+  constructor(canvas: HTMLCanvasElement, width: number, height: number) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+    this.canvas.width = width;
+    this.canvas.height = height;
+    
+    // NUCLEAR CANVAS SETUP - Force black background
+    this.ctx.fillStyle = '#000000';
+    this.ctx.fillRect(0, 0, width, height);
+    this.canvas.style.backgroundColor = '#000000';
+  }
+  
+  // PURE COMPOSITION VIDEO MANAGEMENT - No React dependencies
+  addVideo(layerId: string, asset: any, layer: any): void {
+    const video = document.createElement('video');
+    video.src = asset.path || asset.filePath;
+    video.muted = true;
+    video.loop = true;
+    video.autoplay = true;
+    video.crossOrigin = 'anonymous';
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.style.backgroundColor = '#000000';
+    
+    // NUCLEAR VIDEO MONITORING - Pure composition event handling
+    video.addEventListener('timeupdate', () => {
+      const currentTime = video.currentTime;
+      const duration = video.duration;
+      
+      // NUCLEAR OPTION: Force restart video before it ends
+      if (currentTime >= duration - 0.05 && (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong')) {
+        console.log('🎬 NUCLEAR PURE COMPOSITION: Force restarting video before end:', layer.name, 'Time:', currentTime, 'Duration:', duration);
+        
+        // Immediately restart the video
+        video.currentTime = 0;
+        video.play().catch((error: any) => {
+          console.error('🎬 Failed to restart video:', layer.name, error);
+        });
+      }
+      
+      // NUCLEAR DEBUGGING: Log every timeupdate during loop transitions
+      if (currentTime >= duration - 0.1) {
+        console.log('🎬 NUCLEAR PURE COMPOSITION DEBUG: Video near end:', layer.name, 'Time:', currentTime, 'Duration:', duration, 'Diff:', duration - currentTime);
+      }
+    });
+    
+    video.addEventListener('ended', () => {
+      console.log('🎬 NUCLEAR PURE COMPOSITION: Video ended event:', layer.name);
+    });
+    
+    this.videoElements.set(layerId, video);
+  }
+  
+  // PURE COMPOSITION RENDER LOOP - No React, no virtual DOM
+  startRenderLoop(): void {
+    if (this.isRunning) return;
+    this.isRunning = true;
+    
+    const render = () => {
+      if (!this.isRunning) return;
+      
+      // NUCLEAR CANVAS CLEARING - Pure composition operations
+      this.ctx.fillStyle = '#000000';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      
+      if (!this.scene || !this.scene.columns) {
+        this.animationId = requestAnimationFrame(render);
+        return;
+      }
+      
+      // PURE COMPOSITION SCENE RENDERING - Direct operations, no React
+      this.scene.columns.forEach((column: any, columnIndex: number) => {
+        if (!column.layers) return;
+        
+        // Calculate column position (3 columns across screen)
+        const columnWidth = this.canvas.width / 3;
+        const columnX = columnIndex * columnWidth;
+        
+        // Render layers in this column
+        column.layers.forEach((layer: any, layerIndex: number) => {
+          if (!layer.enabled) return;
+          
+          // Calculate layer position within column
+          const layerHeight = this.canvas.height / 3;
+          const layerY = layerIndex * layerHeight;
+          
+          // Apply layer opacity
+          this.ctx.globalAlpha = layer.opacity || 1.0;
+          
+          // Render layer content
+          this.renderLayer(layer, columnX, layerY, columnWidth, layerHeight);
+        });
+      });
+      
+      this.animationId = requestAnimationFrame(render);
+    };
+    
+    render();
+  }
+  
+  // PURE COMPOSITION LAYER RENDERING - No React dependencies
+  private renderLayer(layer: any, x: number, y: number, width: number, height: number): void {
+    if (!layer || !layer.type) return;
+    
+    // Save context state
+    this.ctx.save();
+    
+    // Apply layer transformations
+    this.ctx.translate(x + width / 2, y + height / 2);
+    this.ctx.scale(layer.scale || 1, layer.scale || 1);
+    this.ctx.rotate((layer.rotation || 0) * Math.PI / 180);
+    this.ctx.translate(-width / 2, -height / 2);
+    
+    // Render based on layer type
+    switch (layer.type) {
+      case 'video':
+        this.renderVideoLayer(layer, width, height);
+        break;
+      case 'image':
+        this.renderImageLayer(layer, width, height);
+        break;
+      default:
+        // Default placeholder
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        this.ctx.fillRect(0, 0, width, height);
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.strokeRect(0, 0, width, height);
+        break;
+    }
+    
+    // Restore context state
+    this.ctx.restore();
+  }
+  
+  // PURE COMPOSITION VIDEO RENDERING - No React dependencies
+  private renderVideoLayer(layer: any, width: number, height: number): void {
+    if (!layer.asset || !layer.asset.path) return;
+    
+    // Get or create video element for this layer
+    let video = this.videoElements.get(layer.id);
+    if (!video) {
+      video = document.createElement('video');
+      video.src = layer.asset.path;
+      video.muted = layer.muted || true;
+      video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
+      video.crossOrigin = 'anonymous';
+      video.autoplay = layer.autoplay || true;
+      video.playsInline = true;
+      video.preload = 'auto';
+      video.style.backgroundColor = '#000000';
+      
+      // Store video element for reuse
+      this.videoElements.set(layer.id, video);
+    }
+    
+    // NUCLEAR VIDEO DRAWING - Always draw video if ready
+    if (video.readyState >= 2) {
+      // Calculate aspect ratio and fit mode
+      const { fitMode = 'cover', position = { x: 0.5, y: 0.5 } } = layer;
+      
+      let drawWidth = width;
+      let drawHeight = height;
+      let drawX = 0;
+      let drawY = 0;
+      
+      const videoAspect = video.videoWidth / video.videoHeight;
+      const layerAspect = width / height;
+      
+      switch (fitMode) {
+        case 'cover':
+          if (videoAspect > layerAspect) {
+            drawHeight = width / videoAspect;
+            drawY = (height - drawHeight) * position.y;
+          } else {
+            drawWidth = height * videoAspect;
+            drawX = (width - drawWidth) * position.x;
+          }
+          break;
+        
+        case 'contain':
+          if (videoAspect > layerAspect) {
+            drawWidth = height * videoAspect;
+            drawX = (width - drawWidth) * position.x;
+          } else {
+            drawHeight = width / videoAspect;
+            drawY = (height - drawHeight) * position.y;
+          }
+          break;
+        
+        case 'stretch':
+          // Use full layer size
+          break;
+      }
+      
+      // Draw video frame to canvas
+      this.ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+      
+      console.log('🎬 NUCLEAR PURE COMPOSITION: Drew video frame:', layer.name, 'Time:', video.currentTime, 'Duration:', video.duration);
+    } else {
+      // Video not ready, show black
+      this.ctx.fillStyle = '#000000';
+      this.ctx.fillRect(0, 0, width, height);
+      console.log('🎬 NUCLEAR PURE COMPOSITION: Video not ready, drawing black for:', layer.name);
+    }
+  }
+  
+  // PURE COMPOSITION IMAGE RENDERING - No React dependencies
+  private renderImageLayer(layer: any, width: number, height: number): void {
+    if (!layer.asset || !layer.asset.path) return;
+    
+    // For now, just draw a placeholder
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    this.ctx.fillRect(0, 0, width, height);
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    this.ctx.strokeRect(0, 0, width, height);
+  }
+  
+  stopRenderLoop(): void {
+    this.isRunning = false;
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
+  }
+  
+  // PURE COMPOSITION STATE MANAGEMENT - No React dependencies
+  setScene(scene: any): void {
+    this.scene = scene;
+    
+    // Add videos for new scene
+    if (scene && scene.columns) {
+      scene.columns.forEach((column: any) => {
+        if (column.layers) {
+          column.layers.forEach((layer: any) => {
+            if (layer.asset && layer.asset.type === 'video') {
+              this.addVideo(layer.id, layer.asset, layer);
+            }
+          });
+        }
+      });
+    }
+  }
+  
+  setBPM(bpm: number): void {
+    this.bpm = bpm;
+  }
+  
+  // PURE COMPOSITION CLEANUP - No React dependencies
+  destroy(): void {
+    this.stopRenderLoop();
+    this.videoElements.forEach(video => {
+      video.pause();
+      video.src = '';
+      video.load();
+    });
+    this.videoElements.clear();
+    this.lastFrames.clear();
+  }
+}
+
+// React wrapper - Only for initialization, not rendering
 export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className = '' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<PureCompositionRenderer | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showPerformance, setShowPerformance] = useState(false);
-  const fpsRef = useRef(0);
-  const frameTimeRef = useRef(0);
   
   const { currentSceneId, scenes, bpm } = useStore() as any;
   const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
 
+  // React only handles initialization, not rendering
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
-
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
-
-    // Set canvas size to match container
+    
+    // Create pure composition renderer
+    const rect = container.getBoundingClientRect();
+    const width = rect.width * window.devicePixelRatio;
+    const height = rect.height * window.devicePixelRatio;
+    
+    rendererRef.current = new PureCompositionRenderer(canvas, width, height);
+    
+    // Set initial scene
+    if (currentScene) {
+      rendererRef.current.setScene(currentScene);
+    }
+    
+    // Start render loop
+    rendererRef.current.startRenderLoop();
+    
+    // Handle resize
     const resizeCanvas = () => {
-      const rect = container.getBoundingClientRect();
-      const newWidth = rect.width * window.devicePixelRatio;
-      const newHeight = rect.height * window.devicePixelRatio;
+      const newRect = container.getBoundingClientRect();
+      const newWidth = newRect.width * window.devicePixelRatio;
+      const newHeight = newRect.height * window.devicePixelRatio;
       
-      // Only resize if dimensions actually changed
       if (canvas.width !== newWidth || canvas.height !== newHeight) {
         canvas.width = newWidth;
         canvas.height = newHeight;
-        canvas.style.width = `${rect.width}px`;
-        canvas.style.height = `${rect.height}px`;
-        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        canvas.style.width = `${newRect.width}px`;
+        canvas.style.height = `${newRect.height}px`;
       }
     };
-
-    resizeCanvas();
     
-    // Debounced resize handler to prevent excessive resizing
-    let resizeTimeout: number;
-    const debouncedResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = window.setTimeout(resizeCanvas, 100);
-    };
+    window.addEventListener('resize', resizeCanvas);
     
-    window.addEventListener('resize', debouncedResize);
-
-    // Initialize render loop
-    const renderLoop = RenderLoop.getInstance();
-    const performanceMonitor = PerformanceMonitor.getInstance();
-
-    const render = (deltaTime: number) => {
-      if (!ctx || !currentScene) return;
-
-      const { width, height } = canvas;
-      const displayWidth = width / window.devicePixelRatio;
-      const displayHeight = height / window.devicePixelRatio;
-
-      // Clear canvas
-      ctx.clearRect(0, 0, displayWidth, displayHeight);
-
-      // Render scene layers
-      renderScene(ctx, currentScene, displayWidth, displayHeight, deltaTime);
-
-      // Apply global effects
-      applyGlobalEffects(ctx, currentScene, displayWidth, displayHeight, deltaTime);
-
-      // Debug: Check if canvas has content
-      const imageData = ctx.getImageData(0, 0, displayWidth, displayHeight);
-      let hasContent = false;
-      for (let i = 0; i < imageData.data.length; i += 4) {
-        if (imageData.data[i] !== 0 || imageData.data[i + 1] !== 0 || imageData.data[i + 2] !== 0) {
-          hasContent = true;
-          break;
-        }
-      }
-      console.log('🎨 Canvas has content after rendering:', hasContent);
-
-      // Update performance metrics
-      performanceMonitor.recordFrame();
-      const metrics = performanceMonitor.getMetrics();
-      fpsRef.current = metrics.fps;
-      frameTimeRef.current = metrics.frameTime;
-    };
-
-    renderLoop.addCallback(render);
-
     return () => {
-      renderLoop.removeCallback(render);
-      window.removeEventListener('resize', debouncedResize);
-      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', resizeCanvas);
+      rendererRef.current?.destroy();
     };
-  }, [currentSceneId, currentScene, bpm]);
+  }, [currentSceneId]);
 
-  const renderScene = (
-    ctx: CanvasRenderingContext2D,
-    scene: any,
-    width: number,
-    height: number,
-    deltaTime: number
-  ) => {
-    if (!scene || !scene.columns) return;
-
-    // Create a temporary canvas for compositing
-    const tempCanvas = document.createElement('canvas');
-          const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-    if (!tempCtx) return;
-
-    tempCanvas.width = width;
-    tempCanvas.height = height;
-
-    // Render each column
-    scene.columns.forEach((column: any, columnIndex: number) => {
-      if (!column.layers) return;
-
-      // Calculate column position (3 columns across screen)
-      const columnWidth = width / 3;
-      const columnX = columnIndex * columnWidth;
-
-      // Render layers in this column
-      column.layers.forEach((layer: any, layerIndex: number) => {
-        if (!layer.enabled) return;
-
-        // Calculate layer position within column
-        const layerHeight = height / 3;
-        const layerY = layerIndex * layerHeight;
-
-        // Apply layer opacity
-        tempCtx.globalAlpha = layer.opacity || 1.0;
-
-        // Render layer content
-        renderLayer(tempCtx, layer, columnX, layerY, columnWidth, layerHeight, deltaTime);
-      });
-    });
-
-    // Composite final result to main canvas
-    ctx.drawImage(tempCanvas, 0, 0);
-  };
-
-  const applyGlobalEffects = (
-    ctx: CanvasRenderingContext2D,
-    scene: any,
-    width: number,
-    height: number,
-    deltaTime: number
-  ) => {
-    if (!scene || !scene.globalEffects || scene.globalEffects.length === 0) {
-      console.log('🌐 No global effects to apply');
-      return;
+  // React only handles scene changes
+  useEffect(() => {
+    if (rendererRef.current && currentScene) {
+      rendererRef.current.setScene(currentScene);
     }
+  }, [currentScene]);
 
-    console.log('🌐 Applying global effects:', scene.globalEffects);
-    console.log('🌐 Canvas dimensions:', width, 'x', height);
-
-    // Apply each enabled global effect slot
-    scene.globalEffects.forEach((effectSlot: any) => {
-      if (!effectSlot.enabled) {
-        console.log('🌐 Effect slot disabled:', effectSlot.effectId);
-        return;
-      }
-      
-      console.log('🌐 Processing enabled effect slot:', effectSlot);
-      
-      try {
-        if (effectSlot.effectId === 'global-datamosh') {
-          console.log('🌐 Applying global datamosh effect');
-          
-          console.log('🌐 Creating GlobalDatamoshEffect instance');
-          const effect = new GlobalDatamoshEffect(width, height);
-          
-          // Apply effect slot parameters
-          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
-            console.log('🌐 Applying effect parameters:', effectSlot.params);
-            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
-              effect.setParameter(key, param.value);
-            });
-          } else {
-            // Set default parameters for visible effect
-            console.log('🌐 Using default parameters');
-            effect.setParameter('glitchIntensity', 0.5);
-            effect.setParameter('blockSize', 32);
-            effect.setParameter('temporalOffset', 3);
-            effect.setParameter('spatialOffset', 20);
-            effect.setParameter('colorShift', 10);
-          }
-          
-          console.log('🌐 Processing canvas with datamosh effect');
-          effect.processCanvas(ctx.canvas, ctx);
-          console.log('🌐 Datamosh effect applied successfully');
-        } else if (effectSlot.effectId === 'video-slice') {
-          console.log('🌐 Applying video slice effect');
-          
-          const effect = new VideoSliceEffect(width, height);
-          
-          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
-            console.log('🌐 Applying effect parameters:', effectSlot.params);
-            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
-              effect.setParameter(key, param.value);
-            });
-          } else {
-            console.log('🌐 Using default parameters');
-            effect.setParameter('sliceHeight', 30);
-            effect.setParameter('offsetAmount', 80);
-            effect.setParameter('sliceCount', 0);
-          }
-          
-          console.log('🌐 Processing canvas with video slice effect');
-          effect.processCanvas(ctx.canvas, ctx);
-          console.log('🌐 Video slice effect applied successfully');
-        } else if (effectSlot.effectId === 'video-glitch-blocks') {
-          console.log('🌐 Applying video glitch blocks effect');
-          
-          const effect = new VideoGlitchBlocksEffect(width, height);
-          
-          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
-            console.log('🌐 Applying effect parameters:', effectSlot.params);
-            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
-              effect.setParameter(key, param.value);
-            });
-          } else {
-            console.log('🌐 Using default parameters');
-            effect.setParameter('blockSize', 32);
-            effect.setParameter('glitchIntensity', 0.4);
-            effect.setParameter('colorShift', 8);
-          }
-          
-          console.log('🌐 Processing canvas with glitch blocks effect');
-          effect.processCanvas(ctx.canvas, ctx);
-          console.log('🌐 Video glitch blocks effect applied successfully');
-        } else if (effectSlot.effectId === 'video-wave-slice') {
-          console.log('🌐 Applying video wave slice effect');
-          
-          const effect = new VideoWaveSliceEffect(width, height);
-          
-          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
-            console.log('🌐 Applying effect parameters:', effectSlot.params);
-            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
-              effect.setParameter(key, param.value);
-            });
-          } else {
-            console.log('🌐 Using default parameters');
-            effect.setParameter('waveAmplitude', 40);
-            effect.setParameter('waveFrequency', 0.03);
-            effect.setParameter('sliceHeight', 4);
-            effect.setParameter('colorShift', 5);
-          }
-          
-          console.log('🌐 Processing canvas with wave slice effect');
-          effect.processCanvas(ctx.canvas, ctx);
-          console.log('🌐 Video wave slice effect applied successfully');
-        } else if (effectSlot.effectId === 'global-strobe') {
-          console.log('🌐 Applying global strobe effect');
-          
-          const effect = new GlobalStrobeEffect(width, height);
-          
-          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
-            console.log('🌐 Applying effect parameters:', effectSlot.params);
-            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
-              effect.setParameter(key, param.value);
-            });
-          } else {
-            console.log('🌐 Using default parameters');
-            effect.setParameter('strobeFrequency', 10);
-            effect.setParameter('strobeIntensity', 0.5);
-            effect.setParameter('strobeColor', '#ffffff');
-            effect.setParameter('strobeMode', 'flash');
-          }
-          
-          console.log('🌐 Processing canvas with strobe effect');
-          effect.processCanvas(ctx.canvas, ctx);
-          console.log('🌐 Global strobe effect applied successfully');
-        } else {
-          console.log('🌐 Unknown effect ID:', effectSlot.effectId);
-        }
-      } catch (error) {
-        console.error('🌐 Error applying global effect:', effectSlot.effectId, error);
-      }
-    });
-  };
-
-  const renderLayer = (
-    ctx: CanvasRenderingContext2D,
-    layer: any,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    deltaTime: number
-  ) => {
-    if (!layer || !layer.type) return;
-
-    // Save context state
-    ctx.save();
-
-    // Apply layer transformations
-    ctx.translate(x + width / 2, y + height / 2);
-    ctx.scale(layer.scale || 1, layer.scale || 1);
-    ctx.rotate((layer.rotation || 0) * Math.PI / 180);
-    ctx.translate(-width / 2, -height / 2);
-
-    // Render based on layer type
-    switch (layer.type) {
-      case 'effect':
-        renderEffectLayer(ctx, layer, width, height, deltaTime);
-        break;
-      case 'image':
-        renderImageLayer(ctx, layer, width, height);
-        break;
-      case 'video':
-        renderVideoLayer(ctx, layer, width, height);
-        break;
-      case 'shader':
-        renderShaderLayer(ctx, layer, width, height, deltaTime);
-        break;
-      case 'p5js':
-        renderP5JSLayer(ctx, layer, width, height, deltaTime);
-        break;
-      case 'threejs':
-        renderThreeJSLayer(ctx, layer, width, height, deltaTime);
-        break;
-      default:
-        // Default placeholder
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.fillRect(0, 0, width, height);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.strokeRect(0, 0, width, height);
-        break;
+  // React only handles BPM changes
+  useEffect(() => {
+    if (rendererRef.current) {
+      rendererRef.current.setBPM(bpm);
     }
-
-    // Restore context state
-    ctx.restore();
-  };
-
-  const renderEffectLayer = (
-    ctx: CanvasRenderingContext2D,
-    layer: any,
-    width: number,
-    height: number,
-    deltaTime: number
-  ) => {
-    if (!layer.effect) return;
-
-    // Create a temporary canvas for the effect
-    const effectCanvas = document.createElement('canvas');
-            const effectCtx = effectCanvas.getContext('2d', { willReadFrequently: true });
-    if (!effectCtx) return;
-
-    effectCanvas.width = width;
-    effectCanvas.height = height;
-
-    // Set up the effect context
-    layer.effect.setCanvas(effectCanvas);
-    layer.effect.setBPM(bpm);
-
-    // Render the effect
-    layer.effect.render(deltaTime);
-
-    // Composite the effect result
-    ctx.drawImage(effectCanvas, 0, 0);
-  };
-
-  const renderImageLayer = (
-    ctx: CanvasRenderingContext2D,
-    layer: any,
-    width: number,
-    height: number
-  ) => {
-    if (!layer.asset || !layer.asset.path) return;
-
-    const img = new Image();
-    img.onload = () => {
-      // Calculate aspect ratio and fit mode
-      const { fitMode = 'cover', position = { x: 0.5, y: 0.5 } } = layer;
-      
-      let drawWidth = width;
-      let drawHeight = height;
-      let drawX = 0;
-      let drawY = 0;
-
-      const imgAspect = img.naturalWidth / img.naturalHeight;
-      const layerAspect = width / height;
-
-      switch (fitMode) {
-        case 'cover':
-          if (imgAspect > layerAspect) {
-            drawHeight = width / imgAspect;
-            drawY = (height - drawHeight) * position.y;
-          } else {
-            drawWidth = height * imgAspect;
-            drawX = (width - drawWidth) * position.x;
-          }
-          break;
-        
-        case 'contain':
-          if (imgAspect > layerAspect) {
-            drawWidth = height * imgAspect;
-            drawX = (width - drawWidth) * position.x;
-          } else {
-            drawHeight = width / imgAspect;
-            drawY = (height - drawHeight) * position.y;
-          }
-          break;
-        
-        case 'stretch':
-          // Use full layer size
-          break;
-        
-        case 'tile':
-          // Tile the image
-          const tileWidth = img.naturalWidth;
-          const tileHeight = img.naturalHeight;
-          for (let y = 0; y < height; y += tileHeight) {
-            for (let x = 0; x < width; x += tileWidth) {
-              ctx.drawImage(img, x, y, tileWidth, tileHeight);
-            }
-          }
-          return;
-      }
-
-      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-    };
-    img.src = layer.asset.path;
-  };
-
-  const renderVideoLayer = (
-    ctx: CanvasRenderingContext2D,
-    layer: any,
-    width: number,
-    height: number
-  ) => {
-    if (!layer.asset || !layer.asset.path) return;
-
-    // NUCLEAR DEBUGGING: Log video rendering
-    console.log('🎬 COMPOSITION: Rendering video layer:', layer.name, 'Asset:', layer.asset.name);
-
-          // Get or create video element for this layer
-      let video = layer._videoElement;
-      if (!video) {
-        video = document.createElement('video');
-        video.src = layer.asset.path;
-        video.muted = layer.muted || true;
-        video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
-        video.crossOrigin = 'anonymous';
-        video.autoplay = layer.autoplay || true;
-        video.playsInline = true;
-        video.preload = 'auto';
-        video.style.backgroundColor = '#000000';
-        
-        // Store video element on layer for reuse
-        layer._videoElement = video;
-        
-        // NUCLEAR VIDEO MONITORING - Prevent video from ever ending
-        video.addEventListener('timeupdate', () => {
-          const currentTime = video.currentTime;
-          const duration = video.duration;
-          
-          // NUCLEAR OPTION: Force restart video before it ends
-          if (currentTime >= duration - 0.05 && (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong')) {
-            console.log('🎬 NUCLEAR COMPOSITION: Force restarting video before end:', layer.name, 'Time:', currentTime, 'Duration:', duration);
-            
-            // Immediately restart the video
-            video.currentTime = 0;
-            video.play().catch((error: any) => {
-              console.error('🎬 Failed to restart video:', layer.name, error);
-            });
-          }
-          
-          // NUCLEAR DEBUGGING: Log every timeupdate during loop transitions
-          if (currentTime >= duration - 0.1) {
-            console.log('🎬 NUCLEAR COMPOSITION DEBUG: Video near end:', layer.name, 'Time:', currentTime, 'Duration:', duration, 'Diff:', duration - currentTime);
-          }
-        });
-        
-        // Handle video events
-        video.addEventListener('ended', () => {
-          console.log('🎬 COMPOSITION: Video ended event:', layer.name);
-          if (layer.loopMode === 'ping-pong') {
-            // Use a small delay to ensure smooth transition
-            setTimeout(() => {
-              video.currentTime = 0;
-              video.play();
-            }, 16);
-          }
-        });
-        
-        video.addEventListener('error', (e: Event) => {
-          console.error('Video error:', e);
-        });
-      }
-
-    // Check if video is ready to play
-    if (video.readyState >= 2) { // HAVE_CURRENT_DATA
-      // Calculate aspect ratio and fit mode
-      const { fitMode = 'cover', position = { x: 0.5, y: 0.5 } } = layer;
-      
-      let drawWidth = width;
-      let drawHeight = height;
-      let drawX = 0;
-      let drawY = 0;
-
-      const videoAspect = video.videoWidth / video.videoHeight;
-      const layerAspect = width / height;
-
-      switch (fitMode) {
-        case 'cover':
-          if (videoAspect > layerAspect) {
-            drawHeight = width / videoAspect;
-            drawY = (height - drawHeight) * position.y;
-          } else {
-            drawWidth = height * videoAspect;
-            drawX = (width - drawWidth) * position.x;
-          }
-          break;
-        
-        case 'contain':
-          if (videoAspect > layerAspect) {
-            drawWidth = height * videoAspect;
-            drawX = (width - drawWidth) * position.x;
-          } else {
-            drawHeight = width / videoAspect;
-            drawY = (height - drawHeight) * position.y;
-          }
-          break;
-        
-        case 'stretch':
-          // Use full layer size
-          break;
-      }
-
-      // NUCLEAR VIDEO DRAWING - Always draw video if ready
-      if (video.readyState >= 2) {
-        // ALWAYS draw the video, even if it's at the end
-        ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-        
-        console.log('🎬 NUCLEAR COMPOSITION: Drew video frame:', layer.name, 'Time:', video.currentTime, 'Duration:', video.duration, {
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          drawWidth,
-          drawHeight,
-          drawX,
-          drawY
-        });
-      } else {
-        // Video not ready, show black
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, width, height);
-        console.log('🎬 NUCLEAR COMPOSITION: Video not ready, drawing black for:', layer.name);
-      }
-    } else {
-      // Video not ready, show placeholder
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      ctx.fillRect(0, 0, width, height);
-      ctx.fillStyle = 'white';
-      ctx.font = '14px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('Loading Video...', width / 2, height / 2);
-    }
-  };
-
-  const renderShaderLayer = (
-    ctx: CanvasRenderingContext2D,
-    layer: any,
-    width: number,
-    height: number,
-    deltaTime: number
-  ) => {
-    // GLSL shader rendering will be implemented with WebGL
-    ctx.fillStyle = 'rgba(255, 0, 255, 0.3)';
-    ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = 'white';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Shader Layer', width / 2, height / 2);
-  };
-
-  const renderP5JSLayer = (
-    ctx: CanvasRenderingContext2D,
-    layer: any,
-    width: number,
-    height: number,
-    deltaTime: number
-  ) => {
-    // p5.js sketch rendering will be implemented
-    ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
-    ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = 'white';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('p5.js Layer', width / 2, height / 2);
-  };
-
-  const renderThreeJSLayer = (
-    ctx: CanvasRenderingContext2D,
-    layer: any,
-    width: number,
-    height: number,
-    deltaTime: number
-  ) => {
-    // Three.js module rendering will be implemented
-    ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
-    ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = 'white';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Three.js Layer', width / 2, height / 2);
-  };
+  }, [bpm]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -632,6 +361,7 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
     setShowPerformance(!showPerformance);
   };
 
+  // React only provides the container and controls, not the rendering
   return (
     <div 
       ref={containerRef}
@@ -646,18 +376,6 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
       {/* Performance overlay */}
       {showPerformance && (
         <div className="performance-overlay">
-          <div className="performance-metric">
-            <span className="metric-label">FPS:</span>
-            <span className={`metric-value ${fpsRef.current >= 55 ? 'good' : fpsRef.current >= 30 ? 'warning' : 'bad'}`}>
-              {Math.round(fpsRef.current)}
-            </span>
-          </div>
-          <div className="performance-metric">
-            <span className="metric-label">Frame Time:</span>
-            <span className={`metric-value ${frameTimeRef.current <= 16.67 ? 'good' : frameTimeRef.current <= 33 ? 'warning' : 'bad'}`}>
-              {frameTimeRef.current.toFixed(1)}ms
-            </span>
-          </div>
           <div className="performance-metric">
             <span className="metric-label">BPM:</span>
             <span className="metric-value">{bpm}</span>
