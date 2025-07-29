@@ -33,12 +33,29 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--background);
+  background-color: #000000 !important;
   color: var(--on-background);
   overflow: hidden;
   height: 100vh;
   /* Account for Windows taskbar */
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Force black background on all elements to prevent any blue flash */
+* {
+  background-color: #000000 !important;
+}
+
+/* Exception for specific elements that need different backgrounds */
+.sidebar,
+.layer-manager-media-library,
+.media-library,
+.effects-browser,
+.layer-options-panel,
+.modal-content,
+.layer-editor-content,
+.layer-list-content {
+  background-color: var(--surface) !important;
 }
 
 #root {

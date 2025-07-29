@@ -98,6 +98,14 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       description: 'Creates wave-like slicing distortion',
       category: 'Global',
       icon: '🌊'
+    },
+    {
+      id: 'global-strobe',
+      name: 'Global Strobe',
+      type: 'global',
+      description: 'Applies strobing/flashing effect to the entire composition',
+      category: 'Global',
+      icon: '⚡'
     }
   ];
 

@@ -10,7 +10,7 @@ interface EffectRendererProps {
   isPlaying?: boolean;
 }
 
-export const EffectRenderer: React.FC<EffectRendererProps> = ({
+export const EffectRenderer: React.FC<EffectRendererProps> = React.memo(({
   effectType,
   effectName,
   effectFile,
@@ -186,4 +186,4 @@ export const EffectRenderer: React.FC<EffectRendererProps> = ({
       }}
     />
   );
-}; 
+}); 

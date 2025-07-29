@@ -12,7 +12,7 @@ interface CanvasRendererProps {
   isPlaying?: boolean;
 }
 
-export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
+export const CanvasRenderer: React.FC<CanvasRendererProps> = React.memo(({
   assets,
   width,
   height,
@@ -56,10 +56,18 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     return asset.path || '';
   };
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const animationRef = useRef<number>();
   const effectsRef = useRef<Map<string, any>>(new Map());
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const imageRefs = useRef<Map<string, HTMLImageElement>>(new Map());
+  const bufferCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const bufferCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const lastFrameRef = useRef<Map<string, ImageData>>(new Map());
+  const videoStateRef = useRef<Map<string, { isLooping: boolean, lastValidTime: number }>>(new Map());
+  const doubleVideoRefs = useRef<Map<string, { primary: HTMLVideoElement, secondary: HTMLVideoElement }>>(new Map());
+  const frameBufferRef = useRef<Map<string, ImageData[]>>(new Map());
+  const loopTransitionRef = useRef<Map<string, boolean>>(new Map());
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
@@ -107,14 +115,20 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         }
 
         console.log('🎬 Canvas found, getting context...');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
+        ctxRef.current = canvas.getContext('2d');
+        if (!ctxRef.current) {
           console.error('🎬 Failed to get 2D context');
           setError('Failed to get 2D context');
           return;
         }
 
         console.log('🎬 Canvas context obtained successfully');
+
+        // Create buffer canvas for video rendering optimization
+        bufferCanvasRef.current = document.createElement('canvas');
+        bufferCanvasRef.current.width = canvasWidth;
+        bufferCanvasRef.current.height = canvasHeight;
+        bufferCtxRef.current = bufferCanvasRef.current.getContext('2d');
 
         // Load all effects
         const effectAssets = assets.filter(asset => 
@@ -155,44 +169,161 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
 
         for (const { asset, layer } of mediaAssets) {
           if (asset.type === 'video') {
-            const video = document.createElement('video');
+            // Create double video elements for seamless looping
+            const primaryVideo = document.createElement('video');
+            const secondaryVideo = document.createElement('video');
+            
             // Use the same asset path resolution as LayerManager
             const assetPath = getAssetPath(asset);
-            console.log('🎬 Creating video element for:', asset.name, 'Path:', assetPath);
-            video.src = assetPath;
-            video.muted = true;
-            video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
-            video.autoplay = isPlaying;
-            video.crossOrigin = 'anonymous';
-            videoRefs.current.set(asset.id, video);
-            console.log('🎬 Video element created:', asset.name, 'Video element:', video);
+            console.log('🎬 Creating double video elements for:', asset.name, 'Path:', assetPath);
             
-            // Try to start playing the video
+            // Configure primary video
+            primaryVideo.src = assetPath;
+            primaryVideo.muted = true;
+            primaryVideo.loop = true; // Enable native looping as backup
+            primaryVideo.autoplay = isPlaying;
+            primaryVideo.crossOrigin = 'anonymous';
+            primaryVideo.playsInline = true;
+            primaryVideo.preload = 'auto';
+            primaryVideo.style.backgroundColor = '#000000';
+            
+            // Configure secondary video (backup for seamless loop)
+            secondaryVideo.src = assetPath;
+            secondaryVideo.muted = true;
+            secondaryVideo.loop = true; // Enable native looping
+            secondaryVideo.autoplay = false;
+            secondaryVideo.crossOrigin = 'anonymous';
+            secondaryVideo.playsInline = true;
+            secondaryVideo.preload = 'auto';
+            secondaryVideo.style.backgroundColor = '#000000';
+            
+            // Pre-load secondary video to ensure it's ready
+            secondaryVideo.load();
+            
+            // Store both videos
+            videoRefs.current.set(asset.id, primaryVideo);
+            doubleVideoRefs.current.set(asset.id, { primary: primaryVideo, secondary: secondaryVideo });
+            
+            // IMMEDIATE CLONING: Create a third video element as backup
+            const backupVideo = document.createElement('video');
+            backupVideo.src = assetPath;
+            backupVideo.muted = true;
+            backupVideo.loop = true; // Enable native looping
+            backupVideo.autoplay = false;
+            backupVideo.crossOrigin = 'anonymous';
+            backupVideo.playsInline = true;
+            backupVideo.preload = 'auto';
+            backupVideo.style.backgroundColor = '#000000';
+            backupVideo.load();
+            
+            // Store backup video in the double video refs
+            const currentDouble = doubleVideoRefs.current.get(asset.id);
+            if (currentDouble) {
+              // Replace secondary with backup, keep primary
+              currentDouble.secondary = backupVideo;
+            }
+            console.log('🎬 Video elements created:', asset.name, 'Primary:', primaryVideo, 'Secondary:', secondaryVideo);
+            
+            // Try to start playing the primary video
             if (isPlaying) {
-              video.play().catch(error => {
+              primaryVideo.play().catch(error => {
                 console.error('🎬 Failed to start video playback:', asset.name, error);
               });
             }
             
             // Add event listeners for debugging and loop handling
-            video.addEventListener('loadstart', () => console.log('🎬 Video loadstart:', asset.name));
-            video.addEventListener('loadeddata', () => console.log('🎬 Video loadeddata:', asset.name));
-            video.addEventListener('canplay', () => console.log('🎬 Video canplay:', asset.name));
-            video.addEventListener('error', (e) => console.error('🎬 Video error:', asset.name, e));
+            primaryVideo.addEventListener('loadstart', () => console.log('🎬 Video loadstart:', asset.name));
+            primaryVideo.addEventListener('loadeddata', () => console.log('🎬 Video loadeddata:', asset.name));
+            primaryVideo.addEventListener('canplay', () => console.log('🎬 Video canplay:', asset.name));
+            primaryVideo.addEventListener('error', (e) => console.error('🎬 Video error:', asset.name, e));
             
-            // Prevent blue flash on loop by setting background color
-            video.addEventListener('seeking', () => {
-              // Set video background to black to prevent blue flash
-              video.style.backgroundColor = '#000000';
+            // Advanced loop handling to prevent blue flash
+            primaryVideo.addEventListener('seeking', () => {
+              primaryVideo.style.backgroundColor = '#000000';
+              // Mark as not looping during seek
+              videoStateRef.current.set(asset.id, { isLooping: false, lastValidTime: primaryVideo.currentTime });
             });
             
-            video.addEventListener('ended', () => {
-              // Ensure smooth loop transition
-              if (video.loop) {
-                video.currentTime = 0;
-                video.play().catch(error => {
-                  console.error('🎬 Failed to restart video on loop:', asset.name, error);
+            primaryVideo.addEventListener('ended', () => {
+              if (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong') {
+                // Mark as looping and in transition
+                videoStateRef.current.set(asset.id, { isLooping: true, lastValidTime: primaryVideo.duration });
+                loopTransitionRef.current.set(asset.id, true);
+                
+                // Immediately preserve the last frame if we have it
+                const frames = frameBufferRef.current.get(asset.id);
+                if (frames && frames.length > 0) {
+                  lastFrameRef.current.set(asset.id, frames[frames.length - 1]);
+                }
+                
+                // Switch to secondary video for seamless loop
+                const doubleVideo = doubleVideoRefs.current.get(asset.id);
+                if (doubleVideo) {
+                  // Start secondary video immediately
+                  doubleVideo.secondary.currentTime = 0;
+                  doubleVideo.secondary.play().catch(error => {
+                    console.error('🎬 Failed to start secondary video:', asset.name, error);
+                  });
+                  
+                  // Switch references
+                  videoRefs.current.set(asset.id, doubleVideo.secondary);
+                  doubleVideoRefs.current.set(asset.id, { 
+                    primary: doubleVideo.secondary, 
+                    secondary: doubleVideo.primary 
+                  });
+                  
+                  // Reset transition after a few frames
+                  setTimeout(() => {
+                    loopTransitionRef.current.set(asset.id, false);
+                  }, 100); // 100ms should be enough for the transition
+                }
+              }
+            });
+            
+                        // NUCLEAR VIDEO MONITORING - Prevent video from ever ending
+            primaryVideo.addEventListener('timeupdate', () => {
+              const currentTime = primaryVideo.currentTime;
+              const duration = primaryVideo.duration;
+              
+              // NUCLEAR OPTION: Force restart video before it ends
+              if (currentTime >= duration - 0.05 && (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong')) {
+                console.log('🎬 NUCLEAR: Force restarting video before end:', asset.name, 'Time:', currentTime, 'Duration:', duration);
+                
+                // Immediately restart the video
+                primaryVideo.currentTime = 0;
+                primaryVideo.play().catch(error => {
+                  console.error('🎬 Failed to restart video:', asset.name, error);
                 });
+                
+                // Mark as transitioning
+                loopTransitionRef.current.set(asset.id, true);
+                videoStateRef.current.set(asset.id, { isLooping: true, lastValidTime: currentTime });
+                
+                // Reset transition after a few frames
+                setTimeout(() => {
+                  loopTransitionRef.current.set(asset.id, false);
+                }, 100);
+              }
+              
+              // NUCLEAR DEBUGGING: Log every timeupdate during loop transitions
+              if (currentTime >= duration - 0.1) {
+                console.log('🎬 NUCLEAR DEBUG: Video near end:', asset.name, 'Time:', currentTime, 'Duration:', duration, 'Diff:', duration - currentTime);
+              }
+              
+              // Detect if we're in a loop transition
+              if (currentTime < 0.1 && (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong')) {
+                // We just looped - keep the looping state for a few frames
+                videoStateRef.current.set(asset.id, { isLooping: true, lastValidTime: currentTime });
+                loopTransitionRef.current.set(asset.id, true);
+                
+                // Reset transition after a few frames
+                setTimeout(() => {
+                  loopTransitionRef.current.set(asset.id, false);
+                }, 150);
+              } else if (currentTime > 0.1 && currentTime < duration - 0.1) {
+                // Normal playback - not looping
+                videoStateRef.current.set(asset.id, { isLooping: false, lastValidTime: currentTime });
+                loopTransitionRef.current.set(asset.id, false);
               }
             });
           } else if (asset.type === 'image') {
@@ -249,12 +380,19 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
       lastTime = currentTime;
 
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
+      const ctx = ctxRef.current;
       if (!ctx) return;
 
-      // Clear canvas with black background to prevent blue flash
+      // NUCLEAR CANVAS CLEARING - Force black background everywhere
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      
+      // Set canvas background color to prevent any blue flash
+      if (canvasRef.current) {
+        canvasRef.current.style.backgroundColor = '#000000';
+        // Force the canvas element itself to have black background
+        canvasRef.current.style.setProperty('background-color', '#000000', 'important');
+      }
 
       // Render effects first (background)
       effectsRef.current.forEach((effect, assetId) => {
@@ -269,14 +407,31 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
 
       // Render videos and images on top
       let hasRenderedContent = false;
-      console.log('🎬 Canvas animation loop - assets:', assets.length, 'videoRefs:', videoRefs.current.size, 'imageRefs:', imageRefs.current.size);
+      // Performance: Only log every 60 frames (once per second at 60fps)
+      if (Math.random() < 0.016) {
+        console.log('🎬 Canvas animation loop - assets:', assets.length, 'videoRefs:', videoRefs.current.size, 'imageRefs:', imageRefs.current.size);
+      }
       assets.forEach(({ type, asset, layer }) => {
         if (type === 'video') {
           const video = videoRefs.current.get(asset.id);
-          console.log('🎬 Rendering video:', asset.name, 'Asset ID:', asset.id, 'Video ref:', video, 'Ready state:', video?.readyState);
+          console.log('🎬 Rendering video:', asset.name, 'Asset ID:', asset.id, 'Video ref:', video, 'Ready state:', video?.readyState, 'Current time:', video?.currentTime, 'Duration:', video?.duration);
+          
+          // NUCLEAR DEBUGGING: Log every frame during loop transitions
+          const videoState = videoStateRef.current.get(asset.id) || { isLooping: false, lastValidTime: 0 };
+          const isNearEnd = video && video.currentTime >= (video.duration || 0) - 0.05;
+          const isLooping = videoState.isLooping;
+          const isInTransition = loopTransitionRef.current.get(asset.id) || false;
+          
+          if (isNearEnd || isLooping || isInTransition) {
+            console.log('🎬 LOOP DEBUG:', asset.name, 'Near end:', isNearEnd, 'Looping:', isLooping, 'Transition:', isInTransition, 'Time:', video?.currentTime, 'Duration:', video?.duration);
+          }
+          
           if (video && video.readyState >= 2) { // HAVE_CURRENT_DATA
-            // Check if video is at the end and about to loop
-            const isNearEnd = video.currentTime >= video.duration - 0.1;
+                        // Ultra-aggressive loop detection and seamless rendering
+            const videoState = videoStateRef.current.get(asset.id) || { isLooping: false, lastValidTime: 0 };
+            const isNearEnd = video.currentTime >= video.duration - 0.05; // Much tighter threshold
+            const isLooping = videoState.isLooping;
+            const isInTransition = loopTransitionRef.current.get(asset.id) || false;
             
             // Calculate aspect ratio to fit video properly
             const videoAspect = video.videoWidth / video.videoHeight;
@@ -298,14 +453,60 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
               drawY = 0;
             }
             
-            // Only draw if video is not at the very end (prevents flash)
-            if (!isNearEnd || video.currentTime > 0) {
-              console.log('🎬 Drawing video:', asset.name, 'Dimensions:', drawWidth, drawHeight, drawX, drawY);
-              ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-              hasRenderedContent = true;
-            } else {
-              console.log('🎬 Skipping video frame near end to prevent flash:', asset.name);
+            // Performance: Only log video rendering occasionally
+            if (Math.random() < 0.01) {
+              console.log('🎬 Drawing video:', asset.name, 'Time:', video.currentTime, 'Duration:', video.duration, 'Looping:', isLooping, 'Transition:', isInTransition);
             }
+            
+            // NUCLEAR VIDEO RENDERING - Always render something, never show blank
+            if (bufferCtxRef.current) {
+              bufferCtxRef.current.clearRect(0, 0, canvasWidth, canvasHeight);
+              
+              // NUCLEAR STRATEGY: Always render video if available, regardless of state
+              if (video.readyState >= 2) {
+                // ALWAYS draw the video, even if it's at the end
+                bufferCtxRef.current.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+                
+                // Store frame continuously for backup
+                const imageData = bufferCtxRef.current.getImageData(0, 0, canvasWidth, canvasHeight);
+                lastFrameRef.current.set(asset.id, imageData);
+                
+                console.log('🎬 NUCLEAR: Drew video frame:', asset.name, 'Time:', video.currentTime, 'Duration:', video.duration);
+              }
+              // NUCLEAR FALLBACK: Use last frame if video not ready
+              else if (lastFrameRef.current.has(asset.id)) {
+                const lastFrame = lastFrameRef.current.get(asset.id);
+                if (lastFrame) {
+                  bufferCtxRef.current.putImageData(lastFrame, 0, 0);
+                  console.log('🎬 NUCLEAR: Using last frame for:', asset.name);
+                }
+              }
+              // NUCLEAR EMERGENCY: Pure black if nothing else works
+              else {
+                bufferCtxRef.current.fillStyle = '#000000';
+                bufferCtxRef.current.fillRect(0, 0, canvasWidth, canvasHeight);
+                console.log('🎬 NUCLEAR: Drawing black for:', asset.name);
+              }
+              
+              ctx.drawImage(bufferCanvasRef.current!, 0, 0);
+            } else {
+              // Direct rendering fallback with same nuclear logic
+              if (video.readyState >= 2) {
+                ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+                console.log('🎬 NUCLEAR: Direct video draw:', asset.name);
+              } else if (lastFrameRef.current.has(asset.id)) {
+                const lastFrame = lastFrameRef.current.get(asset.id);
+                if (lastFrame) {
+                  ctx.putImageData(lastFrame, 0, 0);
+                  console.log('🎬 NUCLEAR: Direct last frame for:', asset.name);
+                }
+              } else {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                console.log('🎬 NUCLEAR: Direct black for:', asset.name);
+              }
+            }
+            hasRenderedContent = true;
           } else {
             console.log('🎬 Video not ready:', asset.name, 'Ready state:', video?.readyState);
           }
@@ -362,6 +563,39 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      
+      // Clean up video elements to prevent memory leaks
+      videoRefs.current.forEach(video => {
+        video.pause();
+        video.src = '';
+        video.load();
+      });
+      videoRefs.current.clear();
+      
+      // Clean up double video elements
+      doubleVideoRefs.current.forEach(({ primary, secondary }) => {
+        primary.pause();
+        primary.src = '';
+        primary.load();
+        secondary.pause();
+        secondary.src = '';
+        secondary.load();
+      });
+      doubleVideoRefs.current.clear();
+      
+      // Clean up buffer canvas
+      if (bufferCanvasRef.current) {
+        bufferCanvasRef.current.width = 0;
+        bufferCanvasRef.current.height = 0;
+        bufferCanvasRef.current = null;
+        bufferCtxRef.current = null;
+      }
+      
+      // Clean up last frame storage
+      lastFrameRef.current.clear();
+      videoStateRef.current.clear();
+      frameBufferRef.current.clear();
+      loopTransitionRef.current.clear();
     };
   }, [isLoaded, isPlaying, assets, canvasWidth, canvasHeight]);
 
@@ -380,6 +614,18 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         });
       } else {
         video.pause();
+      }
+    });
+    
+    // Also update double video elements
+    doubleVideoRefs.current.forEach(({ primary, secondary }, assetId) => {
+      if (isPlaying) {
+        primary.play().catch(error => {
+          console.error('Failed to start primary video playback:', assetId, error);
+        });
+      } else {
+        primary.pause();
+        secondary.pause();
       }
     });
   }, [isPlaying]);
@@ -424,16 +670,26 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
   }
   
   return (
-    <canvas
-      ref={canvasRef}
-      width={canvasWidth}
-      height={canvasHeight}
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'block',
-        backgroundColor: 'transparent',
-      }}
-    />
+    <div style={{ 
+      width: '100%', 
+      height: '100%', 
+      backgroundColor: '#000000',
+      position: 'relative'
+    }}>
+      <canvas
+        ref={canvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block',
+          backgroundColor: '#000000',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+        }}
+      />
+    </div>
   );
-}; 
+}); 

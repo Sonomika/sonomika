@@ -3,6 +3,7 @@ import { useStore } from '../store/store';
 import { RenderLoop } from '../utils/RenderLoop';
 import { PerformanceMonitor } from '../utils/PerformanceMonitor';
 import { GlobalDatamoshEffect } from '../effects/GlobalDatamoshEffect';
+import { GlobalStrobeEffect } from '../effects/GlobalStrobeEffect';
 import { VideoSliceEffect } from '../effects/VideoSliceEffect';
 import { VideoGlitchBlocksEffect } from '../effects/VideoGlitchBlocksEffect';
 import { VideoWaveSliceEffect } from '../effects/VideoWaveSliceEffect';
@@ -16,8 +17,8 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showPerformance, setShowPerformance] = useState(false);
-  const [fps, setFps] = useState(0);
-  const [frameTime, setFrameTime] = useState(0);
+  const fpsRef = useRef(0);
+  const frameTimeRef = useRef(0);
   
   const { currentSceneId, scenes, bpm } = useStore() as any;
   const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
@@ -27,21 +28,35 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
     const container = containerRef.current;
     if (!canvas || !container) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
     // Set canvas size to match container
     const resizeCanvas = () => {
       const rect = container.getBoundingClientRect();
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = rect.height * window.devicePixelRatio;
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      const newWidth = rect.width * window.devicePixelRatio;
+      const newHeight = rect.height * window.devicePixelRatio;
+      
+      // Only resize if dimensions actually changed
+      if (canvas.width !== newWidth || canvas.height !== newHeight) {
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      }
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    
+    // Debounced resize handler to prevent excessive resizing
+    let resizeTimeout: number;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(resizeCanvas, 100);
+    };
+    
+    window.addEventListener('resize', debouncedResize);
 
     // Initialize render loop
     const renderLoop = RenderLoop.getInstance();
@@ -77,15 +92,16 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
       // Update performance metrics
       performanceMonitor.recordFrame();
       const metrics = performanceMonitor.getMetrics();
-      setFps(metrics.fps);
-      setFrameTime(metrics.frameTime);
+      fpsRef.current = metrics.fps;
+      frameTimeRef.current = metrics.frameTime;
     };
 
     renderLoop.addCallback(render);
 
     return () => {
       renderLoop.removeCallback(render);
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(resizeTimeout);
     };
   }, [currentSceneId, currentScene, bpm]);
 
@@ -100,7 +116,7 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
 
     // Create a temporary canvas for compositing
     const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
+          const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
     if (!tempCtx) return;
 
     tempCanvas.width = width;
@@ -245,6 +261,27 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
           console.log('🌐 Processing canvas with wave slice effect');
           effect.processCanvas(ctx.canvas, ctx);
           console.log('🌐 Video wave slice effect applied successfully');
+        } else if (effectSlot.effectId === 'global-strobe') {
+          console.log('🌐 Applying global strobe effect');
+          
+          const effect = new GlobalStrobeEffect(width, height);
+          
+          if (effectSlot.params && Object.keys(effectSlot.params).length > 0) {
+            console.log('🌐 Applying effect parameters:', effectSlot.params);
+            Object.entries(effectSlot.params).forEach(([key, param]: [string, any]) => {
+              effect.setParameter(key, param.value);
+            });
+          } else {
+            console.log('🌐 Using default parameters');
+            effect.setParameter('strobeFrequency', 10);
+            effect.setParameter('strobeIntensity', 0.5);
+            effect.setParameter('strobeColor', '#ffffff');
+            effect.setParameter('strobeMode', 'flash');
+          }
+          
+          console.log('🌐 Processing canvas with strobe effect');
+          effect.processCanvas(ctx.canvas, ctx);
+          console.log('🌐 Global strobe effect applied successfully');
         } else {
           console.log('🌐 Unknown effect ID:', effectSlot.effectId);
         }
@@ -318,7 +355,7 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
 
     // Create a temporary canvas for the effect
     const effectCanvas = document.createElement('canvas');
-    const effectCtx = effectCanvas.getContext('2d');
+            const effectCtx = effectCanvas.getContext('2d', { willReadFrequently: true });
     if (!effectCtx) return;
 
     effectCanvas.width = width;
@@ -406,31 +443,63 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
   ) => {
     if (!layer.asset || !layer.asset.path) return;
 
-    // Get or create video element for this layer
-    let video = layer._videoElement;
-    if (!video) {
-      video = document.createElement('video');
-      video.src = layer.asset.path;
-      video.muted = layer.muted || true;
-      video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
-      video.crossOrigin = 'anonymous';
-      video.autoplay = layer.autoplay || true;
-      
-      // Store video element on layer for reuse
-      layer._videoElement = video;
-      
-      // Handle video events
-      video.addEventListener('ended', () => {
-        if (layer.loopMode === 'ping-pong') {
-          video.currentTime = 0;
-          video.play();
-        }
-      });
-      
-      video.addEventListener('error', (e: Event) => {
-        console.error('Video error:', e);
-      });
-    }
+    // NUCLEAR DEBUGGING: Log video rendering
+    console.log('🎬 COMPOSITION: Rendering video layer:', layer.name, 'Asset:', layer.asset.name);
+
+          // Get or create video element for this layer
+      let video = layer._videoElement;
+      if (!video) {
+        video = document.createElement('video');
+        video.src = layer.asset.path;
+        video.muted = layer.muted || true;
+        video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
+        video.crossOrigin = 'anonymous';
+        video.autoplay = layer.autoplay || true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        video.style.backgroundColor = '#000000';
+        
+        // Store video element on layer for reuse
+        layer._videoElement = video;
+        
+        // NUCLEAR VIDEO MONITORING - Prevent video from ever ending
+        video.addEventListener('timeupdate', () => {
+          const currentTime = video.currentTime;
+          const duration = video.duration;
+          
+          // NUCLEAR OPTION: Force restart video before it ends
+          if (currentTime >= duration - 0.05 && (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong')) {
+            console.log('🎬 NUCLEAR COMPOSITION: Force restarting video before end:', layer.name, 'Time:', currentTime, 'Duration:', duration);
+            
+            // Immediately restart the video
+            video.currentTime = 0;
+            video.play().catch((error: any) => {
+              console.error('🎬 Failed to restart video:', layer.name, error);
+            });
+          }
+          
+          // NUCLEAR DEBUGGING: Log every timeupdate during loop transitions
+          if (currentTime >= duration - 0.1) {
+            console.log('🎬 NUCLEAR COMPOSITION DEBUG: Video near end:', layer.name, 'Time:', currentTime, 'Duration:', duration, 'Diff:', duration - currentTime);
+          }
+        });
+        
+        // Handle video events
+        video.addEventListener('ended', () => {
+          console.log('🎬 COMPOSITION: Video ended event:', layer.name);
+          if (layer.loopMode === 'ping-pong') {
+            // Use a small delay to ensure smooth transition
+            setTimeout(() => {
+              video.currentTime = 0;
+              video.play();
+            }, 16);
+          }
+        });
+        
+        video.addEventListener('error', (e: Event) => {
+          console.error('Video error:', e);
+        });
+      }
 
     // Check if video is ready to play
     if (video.readyState >= 2) { // HAVE_CURRENT_DATA
@@ -471,17 +540,25 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
           break;
       }
 
-      // Draw video frame to canvas
-      ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-      
-      console.log('🎬 Video frame drawn to canvas:', {
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-        drawWidth,
-        drawHeight,
-        drawX,
-        drawY
-      });
+      // NUCLEAR VIDEO DRAWING - Always draw video if ready
+      if (video.readyState >= 2) {
+        // ALWAYS draw the video, even if it's at the end
+        ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+        
+        console.log('🎬 NUCLEAR COMPOSITION: Drew video frame:', layer.name, 'Time:', video.currentTime, 'Duration:', video.duration, {
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          drawWidth,
+          drawHeight,
+          drawX,
+          drawY
+        });
+      } else {
+        // Video not ready, show black
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, width, height);
+        console.log('🎬 NUCLEAR COMPOSITION: Video not ready, drawing black for:', layer.name);
+      }
     } else {
       // Video not ready, show placeholder
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -571,14 +648,14 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
         <div className="performance-overlay">
           <div className="performance-metric">
             <span className="metric-label">FPS:</span>
-            <span className={`metric-value ${fps >= 55 ? 'good' : fps >= 30 ? 'warning' : 'bad'}`}>
-              {Math.round(fps)}
+            <span className={`metric-value ${fpsRef.current >= 55 ? 'good' : fpsRef.current >= 30 ? 'warning' : 'bad'}`}>
+              {Math.round(fpsRef.current)}
             </span>
           </div>
           <div className="performance-metric">
             <span className="metric-label">Frame Time:</span>
-            <span className={`metric-value ${frameTime <= 16.67 ? 'good' : frameTime <= 33 ? 'warning' : 'bad'}`}>
-              {frameTime.toFixed(1)}ms
+            <span className={`metric-value ${frameTimeRef.current <= 16.67 ? 'good' : frameTimeRef.current <= 33 ? 'warning' : 'bad'}`}>
+              {frameTimeRef.current.toFixed(1)}ms
             </span>
           </div>
           <div className="performance-metric">

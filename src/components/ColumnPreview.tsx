@@ -10,7 +10,7 @@ interface ColumnPreviewProps {
   globalEffects?: any[];
 }
 
-export const ColumnPreview: React.FC<ColumnPreviewProps> = ({ 
+export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({ 
   column, 
   width, 
   height, 
@@ -20,6 +20,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const p5InstanceRef = useRef<p5 | null>(null);
+  const sortedLayersCache = useRef<{ layers: any[], hash: string } | null>(null);
 
   // Create a hash of layer properties to detect changes
   const layerHash = column ? JSON.stringify(column.layers.map((layer: any) => ({
@@ -41,7 +42,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
     const sketch = (p: p5) => {
       let layers: any[] = [];
       let images: Map<string, p5.Image> = new Map();
+      let preScaledImages: Map<string, p5.Image> = new Map();
       let videos: Map<string, HTMLVideoElement> = new Map();
+      let videoFrameCallbacks: Map<string, number> = new Map();
       let frameCount = 0;
 
       p.setup = () => {
@@ -64,25 +67,63 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
           return;
         }
         
-        // Resume all videos when playing
-        videos.forEach(video => {
+        // Resume all videos when playing and set up frame callbacks
+        videos.forEach((video, videoId) => {
           if (video.paused) {
             video.play().catch(error => {
               console.warn('Video play failed:', error);
             });
           }
+          
+                  // NUCLEAR VIDEO MONITORING - Prevent video from reaching the end
+        if (video.currentTime >= video.duration - 0.05 && video.loop) {
+          console.log('🎬 NUCLEAR COLUMN PREVIEW: Force restarting video before end:', videoId, 'Time:', video.currentTime, 'Duration:', video.duration);
+          
+          // Immediately restart the video
+          video.currentTime = 0;
+          video.play().catch((error: any) => {
+            console.error('🎬 Failed to restart video:', videoId, error);
+          });
+        }
+        
+        // Set up requestVideoFrameCallback if available for performance
+        if ('requestVideoFrameCallback' in video && !videoFrameCallbacks.has(videoId)) {
+          const callbackId = (video as any).requestVideoFrameCallback(() => {
+            // Video frame is ready, trigger a redraw
+            p.redraw();
+            // Re-register the callback for the next frame
+            if (videoFrameCallbacks.has(videoId)) {
+              videoFrameCallbacks.set(videoId, (video as any).requestVideoFrameCallback(() => {
+                p.redraw();
+              }));
+            }
+          });
+          videoFrameCallbacks.set(videoId, callbackId);
+        }
         });
         
         frameCount++;
-        // Clear with black background to prevent blue flash
+        // NUCLEAR CLEARING - Force black background to prevent blue flash
         p.background(0);
         
+        // NUCLEAR DEBUGGING: Log frame rendering
+        if (frameCount % 60 === 0) { // Log every 60 frames (once per second at 60fps)
+          console.log('🎬 COLUMN PREVIEW: Frame:', frameCount, 'Videos:', videos.size, 'Is playing:', isPlaying);
+        }
+        
         // Render layers from bottom to top (layer 3, 2, 1)
-        const sortedLayers = [...column.layers].sort((a, b) => {
-          const aNum = parseInt(a.name.replace('Layer ', ''));
-          const bNum = parseInt(b.name.replace('Layer ', ''));
-          return bNum - aNum; // Descending order (3, 2, 1)
-        });
+        // Cache sorted layers to avoid sorting on every frame
+        if (!sortedLayersCache.current || sortedLayersCache.current.hash !== layerHash) {
+          sortedLayersCache.current = {
+            layers: [...column.layers].sort((a: any, b: any) => {
+              const aNum = parseInt(a.name.replace('Layer ', ''));
+              const bNum = parseInt(b.name.replace('Layer ', ''));
+              return bNum - aNum; // Descending order (3, 2, 1)
+            }),
+            hash: layerHash
+          };
+        }
+        const sortedLayers = sortedLayersCache.current.layers;
 
         // console.log('🎨 Rendering layers:', sortedLayers.map(l => l.name));
 
@@ -124,6 +165,20 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
             try {
               const img = await loadImage(asset.path);
               images.set(asset.id, img);
+              
+              // Create pre-scaled version for common display sizes
+              const commonSizes = [
+                { width: 640, height: 480 },
+                { width: 1280, height: 720 },
+                { width: 1920, height: 1080 }
+              ];
+              
+              commonSizes.forEach(size => {
+                const scaledKey = `${asset.id}_${size.width}x${size.height}`;
+                const scaledImg = createPreScaledImage(img, size.width, size.height);
+                preScaledImages.set(scaledKey, scaledImg);
+              });
+              
               console.log(`✅ Image loaded for layer ${layer.name}:`, asset.name);
             } catch (error) {
               console.error(`❌ Failed to load image for layer ${layer.name}:`, error);
@@ -149,6 +204,13 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         });
       };
 
+      const createPreScaledImage = (originalImg: p5.Image, targetWidth: number, targetHeight: number): p5.Image => {
+        // Create a pre-scaled image to avoid runtime resampling
+        const scaledImg = p.createImage(targetWidth, targetHeight);
+        scaledImg.copy(originalImg, 0, 0, originalImg.width, originalImg.height, 0, 0, targetWidth, targetHeight);
+        return scaledImg;
+      };
+
       const loadVideo = (path: string): Promise<HTMLVideoElement> => {
         return new Promise((resolve, reject) => {
           const video = document.createElement('video');
@@ -170,6 +232,31 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
             resolve(video);
           });
           
+          // NUCLEAR VIDEO EVENT MONITORING - Track all video events
+          video.addEventListener('ended', () => {
+            console.log('🎬 NUCLEAR COLUMN PREVIEW: Video ended event for:', path);
+            // Ensure smooth loop transition
+            if (video.loop) {
+              // Use a small delay to ensure smooth transition
+              setTimeout(() => {
+                video.currentTime = 0;
+                video.play().catch(error => {
+                  console.warn('Video loop restart failed:', error);
+                });
+              }, 16); // One frame delay for smooth transition
+            }
+          });
+          
+          video.addEventListener('timeupdate', () => {
+            const currentTime = video.currentTime;
+            const duration = video.duration;
+            
+            // NUCLEAR DEBUGGING: Log every timeupdate during loop transitions
+            if (currentTime >= duration - 0.1) {
+              console.log('🎬 NUCLEAR COLUMN PREVIEW DEBUG: Video near end:', path, 'Time:', currentTime, 'Duration:', duration, 'Diff:', duration - currentTime);
+            }
+          });
+          
           video.addEventListener('error', (error) => {
             console.error('❌ Video load error:', error);
             reject(error);
@@ -178,16 +265,6 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
           // Prevent blue flash on loop by handling seeking and ended events
           video.addEventListener('seeking', () => {
             video.style.backgroundColor = '#000000';
-          });
-          
-          video.addEventListener('ended', () => {
-            // Ensure smooth loop transition
-            if (video.loop) {
-              video.currentTime = 0;
-              video.play().catch(error => {
-                console.warn('Video loop restart failed:', error);
-              });
-            }
           });
           
           video.load();
@@ -337,19 +414,33 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
           }
         }
         
-        // Render video using p5.js - create a video element and draw it
-        if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+        // NUCLEAR VIDEO RENDERING - Always render video if ready
+        // Use frame callback if available, otherwise fall back to readyState check
+        const hasFrameCallback = videoFrameCallbacks.has(video.id);
+        if (video.readyState >= 2 || hasFrameCallback) { // HAVE_CURRENT_DATA
           try {
+            // NUCLEAR DEBUGGING: Log video rendering
+            if (frameCount % 60 === 0) {
+              console.log('🎬 COLUMN PREVIEW: Rendering video:', layer.name, 'Time:', video.currentTime, 'Duration:', video.duration);
+            }
+            
+            // NUCLEAR LOOP DETECTION: Check if video is near end
+            const isNearEnd = video.currentTime >= video.duration - 0.1;
+            if (isNearEnd && frameCount % 60 === 0) {
+              console.log('🎬 NUCLEAR COLUMN PREVIEW: Video near end:', layer.name, 'Time:', video.currentTime, 'Duration:', video.duration, 'Diff:', video.duration - video.currentTime);
+            }
+            
             // Use p5.js to create an image from the video
             const videoImg = p.createImage(video.videoWidth, video.videoHeight);
             
             // Get the video data and create an image
             const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
+            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
             tempCanvas.width = video.videoWidth;
             tempCanvas.height = video.videoHeight;
             
             if (tempCtx) {
+              // NUCLEAR VIDEO DRAWING - Always draw video if ready
               tempCtx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
               
               // Convert canvas to image data
@@ -368,20 +459,16 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
             }
           } catch (error) {
             console.error('Error rendering video in p5.js:', error);
-            // Fallback to placeholder
-            p.fill(100, 100, 255, (layer.opacity || 1) * 255);
+            // NUCLEAR FALLBACK: Black rectangle instead of blue
+            p.fill(0, 0, 0, (layer.opacity || 1) * 255);
             p.rect(-drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-            p.fill(255);
-            p.textAlign(p.CENTER, p.CENTER);
-            p.text('VIDEO ERROR', 0, 0);
+            console.log('🎬 NUCLEAR COLUMN PREVIEW: Video error, drawing black for:', layer.name);
           }
         } else {
-          // Video not ready yet, show loading placeholder
-          p.fill(100, 100, 255, (layer.opacity || 1) * 255);
+          // NUCLEAR FALLBACK: Black rectangle instead of blue loading
+          p.fill(0, 0, 0, (layer.opacity || 1) * 255);
           p.rect(-drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-          p.fill(255);
-          p.textAlign(p.CENTER, p.CENTER);
-          p.text('LOADING...', 0, 0);
+          console.log('🎬 NUCLEAR COLUMN PREVIEW: Video not ready, drawing black for:', layer.name);
         }
         p.pop();
       };
@@ -533,8 +620,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         console.log('🎨 Applying global effect to p5.js canvas:', activeEffect.effectId);
 
         // Get the current canvas as an image
-        const canvas = p.canvas as any;
-        const ctx = canvas.getContext('2d');
+        const canvas = (p as any)._renderer?.canvas;
+        const ctx = canvas?.getContext('2d', { willReadFrequently: true });
         if (!ctx) return;
 
         // Apply the effect based on type
@@ -551,6 +638,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
           case 'global-datamosh':
             applyGlobalDatamoshEffect(p, frameCount, activeEffect);
             break;
+          case 'global-strobe':
+            applyGlobalStrobeEffect(p, frameCount, activeEffect);
+            break;
           default:
             console.log('🎨 Unknown global effect:', activeEffect.effectId);
         }
@@ -562,8 +652,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         const timeOffset = frameCount * 0.15;
 
         // Get canvas data
-        const canvas = (p as any).canvas;
-        const ctx = canvas.getContext('2d');
+        const canvas = (p as any)._renderer?.canvas;
+        const ctx = canvas?.getContext('2d', { willReadFrequently: true });
         if (!ctx) return;
 
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -624,8 +714,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         const glitchIntensity = effect.params?.glitchIntensity?.value || 0.4;
         const colorShift = effect.params?.colorShift?.value || 8;
 
-        const canvas = (p as any).canvas;
-        const ctx = canvas.getContext('2d');
+        const canvas = (p as any)._renderer?.canvas;
+        const ctx = canvas?.getContext('2d', { willReadFrequently: true });
         if (!ctx) return;
 
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -676,7 +766,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         const colorShift = effect.params?.colorShift?.value || 5;
 
         const canvas = (p as any).canvas;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) return;
 
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -743,7 +833,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         const colorShift = effect.params?.colorShift?.value || 10;
 
         const canvas = (p as any).canvas;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) return;
 
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -794,6 +884,71 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
         ctx.putImageData(imageData, 0, 0);
       };
 
+      const applyGlobalStrobeEffect = (p: p5, frameCount: number, effect: any) => {
+        const strobeFrequency = effect.params?.strobeFrequency?.value || 10;
+        const strobeIntensity = effect.params?.strobeIntensity?.value || 0.5;
+        const strobeColor = effect.params?.strobeColor?.value || '#ffffff';
+        const strobeMode = effect.params?.strobeMode?.value || 'flash';
+
+        // Non-blocking strobe effect - don't interfere with video timing
+        const currentTime = performance.now();
+        
+        // Skip first frame to avoid initial flash
+        if (!(p as any).strobeHasStarted) {
+          (p as any).strobeHasStarted = true;
+          (p as any).strobeStartTime = currentTime;
+          return; // Don't apply strobe on first frame
+        }
+        
+        const strobePeriod = 1000 / strobeFrequency; // Convert Hz to milliseconds
+        const timeInPeriod = (currentTime % strobePeriod) / strobePeriod;
+        
+        // Calculate strobe intensity based on time
+        const strobeActive = timeInPeriod < strobeIntensity;
+        
+        if (strobeActive) {
+          // Apply strobe effect directly to the main canvas context
+          // This prevents interference with video playback timing
+          const canvas = (p as any)._renderer?.canvas;
+          const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+          if (!ctx) return;
+          
+          const width = canvas.width;
+          const height = canvas.height;
+          
+          switch (strobeMode) {
+            case 'flash':
+              // Zero-latency flash effect - pure overlay rendering
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+              ctx.fillRect(0, 0, width, height);
+              ctx.restore();
+              break;
+            case 'color':
+              // Zero-latency color strobe - pure overlay rendering
+              const hex = strobeColor.replace('#', '');
+              const r = parseInt(hex.substr(0, 2), 16);
+              const g = parseInt(hex.substr(2, 2), 16);
+              const b = parseInt(hex.substr(4, 2), 16);
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
+              ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.4)`;
+              ctx.fillRect(0, 0, width, height);
+              ctx.restore();
+              break;
+            case 'invert':
+              // Zero-latency invert strobe - pure overlay rendering
+              ctx.save();
+              ctx.globalCompositeOperation = 'difference';
+              ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+              ctx.fillRect(0, 0, width, height);
+              ctx.restore();
+              break;
+          }
+        }
+      };
+
       const renderGenericEffect = (p: p5, layer: any, frameCount: number) => {
         // Generic effect rendering
         const time = frameCount / 60;
@@ -831,4 +986,4 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
       )}
     </div>
   );
-}; 
+}); 
