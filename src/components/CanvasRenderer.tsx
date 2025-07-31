@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import * as THREE from 'three';
 
 interface CanvasRendererProps {
   assets: Array<{
@@ -12,20 +14,304 @@ interface CanvasRendererProps {
   isPlaying?: boolean;
 }
 
-export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
-  assets,
-  width,
-  height,
-  bpm = 120,
-  isPlaying = false
-}) => {
-  console.log('🎬 CanvasRenderer props:', { assets, width, height, bpm, isPlaying });
-  console.log('🎬 Assets count:', assets.length);
-  assets.forEach((asset, index) => {
-    console.log(`🎬 Asset ${index}:`, asset);
+// Video texture component for R3F
+const VideoTexture: React.FC<{ 
+  video: HTMLVideoElement; 
+  opacity: number; 
+  blendMode: string;
+  effects?: any;
+}> = ({ video, opacity, blendMode, effects }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+
+  useEffect(() => {
+    if (video) {
+      const videoTexture = new THREE.VideoTexture(video);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      videoTexture.format = THREE.RGBAFormat;
+      setTexture(videoTexture);
+    }
+  }, [video]);
+
+  useFrame(() => {
+    if (texture) {
+      texture.needsUpdate = true;
+    }
   });
-  
-  // Helper function to get proper file path for Electron (same as LayerManager)
+
+  if (!texture) return null;
+
+  return (
+    <mesh ref={meshRef}>
+      <planeGeometry args={[2, 2]} />
+      <meshBasicMaterial 
+        map={texture} 
+        transparent 
+        opacity={opacity}
+        blending={getBlendMode(blendMode)}
+      />
+    </mesh>
+  );
+};
+
+// Image texture component for R3F
+const ImageTexture: React.FC<{ 
+  image: HTMLImageElement; 
+  opacity: number; 
+  blendMode: string;
+  effects?: any;
+}> = ({ image, opacity, blendMode, effects }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const [texture, setTexture] = useState<THREE.Texture | null>(null);
+
+  useEffect(() => {
+    if (image) {
+      const imageTexture = new THREE.Texture(image);
+      imageTexture.minFilter = THREE.LinearFilter;
+      imageTexture.magFilter = THREE.LinearFilter;
+      setTexture(imageTexture);
+    }
+  }, [image]);
+
+  if (!texture) return null;
+
+  return (
+    <mesh ref={meshRef}>
+      <planeGeometry args={[2, 2]} />
+      <meshBasicMaterial 
+        map={texture} 
+        transparent 
+        opacity={opacity}
+        blending={getBlendMode(blendMode)}
+      />
+    </mesh>
+  );
+};
+
+// Effect component for R3F
+const EffectLayer: React.FC<{ 
+  asset: any;
+  layer: any; 
+  frameCount: number;
+}> = ({ asset, layer, frameCount }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const time = frameCount / 60;
+
+  // Simple animated effects for now
+  useFrame(() => {
+    if (meshRef.current) {
+      const effectId = asset.asset.id || 'pulse';
+      switch (effectId) {
+        case 'pulse':
+        case 'circle-pulse':
+          const scale = 1 + Math.sin(time * 2) * 0.2;
+          meshRef.current.scale.setScalar(scale);
+          break;
+        case 'rotation':
+          meshRef.current.rotation.z = time * 2;
+          break;
+        case 'particles':
+        case 'particle-system':
+          // Simple pulsing for particle effect
+          const pulse = Math.sin(time * 3) * 0.3 + 0.7;
+          meshRef.current.scale.setScalar(pulse);
+          break;
+      }
+    }
+  });
+
+  const geometry = useMemo(() => {
+    const effectId = asset.asset.id || 'pulse';
+    switch (effectId) {
+      case 'square-pulse':
+        return new THREE.BoxGeometry(1, 1, 1);
+      case 'wave':
+        return new THREE.SphereGeometry(0.5, 16, 16);
+      case 'particles':
+      case 'particle-system':
+        return new THREE.SphereGeometry(0.3, 16, 16);
+      default:
+        return new THREE.SphereGeometry(0.5, 16, 16);
+    }
+  }, [asset.asset.id]);
+
+  const material = useMemo(() => {
+    const effectId = asset.asset.id || 'pulse';
+    let color = new THREE.Color(0xff6666);
+    
+    switch (effectId) {
+      case 'color-pulse':
+        const hue = (time * 50) % 1;
+        color.setHSL(hue, 1, 0.5);
+        break;
+      case 'square-pulse':
+        color.setHex(0x66ff66);
+        break;
+      case 'wave':
+        color.setHex(0x6666ff);
+        break;
+      case 'particles':
+      case 'particle-system':
+        color.setHex(0xffff00);
+        break;
+      case 'circle-pulse':
+        color.setHex(0x0000ff);
+        break;
+    }
+
+    return new THREE.MeshBasicMaterial({ 
+      color, 
+      transparent: true, 
+      opacity: layer.opacity || 1,
+      blending: getBlendMode(layer.blendMode || 'add')
+    });
+  }, [asset.asset.id, layer.opacity, layer.blendMode, time]);
+
+  return (
+    <mesh ref={meshRef} geometry={geometry} material={material} />
+  );
+};
+
+// Main scene component for R3F
+const CanvasScene: React.FC<{
+  assets: Array<{
+    type: 'image' | 'video' | 'effect';
+    asset: any;
+    layer: any;
+  }>;
+  isPlaying: boolean;
+  frameCount: number;
+}> = ({ assets, isPlaying, frameCount }) => {
+  const { camera } = useThree();
+  const [loadedAssets, setLoadedAssets] = useState<{
+    images: Map<string, HTMLImageElement>;
+    videos: Map<string, HTMLVideoElement>;
+  }>({ images: new Map(), videos: new Map() });
+
+  // Load assets
+  useEffect(() => {
+    const loadAssets = async () => {
+      const newImages = new Map<string, HTMLImageElement>();
+      const newVideos = new Map<string, HTMLVideoElement>();
+
+      for (const assetData of assets) {
+        const { asset, layer } = assetData;
+        
+        if (assetData.type === 'image') {
+          try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = getAssetPath(asset);
+            });
+            newImages.set(asset.id, img);
+            console.log(`✅ Image loaded:`, asset.name);
+          } catch (error) {
+            console.error(`❌ Failed to load image:`, error);
+          }
+        } else if (assetData.type === 'video') {
+          try {
+            const video = document.createElement('video');
+            video.src = getAssetPath(asset);
+            video.muted = true;
+            video.loop = true;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.style.backgroundColor = '#000000';
+            
+            await new Promise((resolve, reject) => {
+              video.addEventListener('loadeddata', resolve);
+              video.addEventListener('error', reject);
+              video.load();
+            });
+            
+            newVideos.set(asset.id, video);
+            console.log(`✅ Video loaded:`, asset.name);
+          } catch (error) {
+            console.error(`❌ Failed to load video:`, error);
+          }
+        }
+      }
+
+      setLoadedAssets({ images: newImages, videos: newVideos });
+    };
+
+    loadAssets();
+  }, [assets]);
+
+  // Handle play/pause
+  useEffect(() => {
+    loadedAssets.videos.forEach(video => {
+      if (isPlaying) {
+        video.play().catch(console.warn);
+      } else {
+        video.pause();
+      }
+    });
+  }, [isPlaying, loadedAssets.videos]);
+
+  // Set up camera
+  useEffect(() => {
+    camera.position.z = 2;
+  }, [camera]);
+
+  return (
+    <>
+      {/* Background */}
+      <color attach="background" args={[0, 0, 0]} />
+      
+      {/* Render assets */}
+      {assets.map((assetData, index) => {
+        const { type, asset, layer } = assetData;
+        const key = `${asset.id}-${index}`;
+
+        if (type === 'image') {
+          const img = loadedAssets.images.get(asset.id);
+          if (img) {
+            return (
+              <ImageTexture
+                key={key}
+                image={img}
+                opacity={layer.opacity || 1}
+                blendMode={layer.blendMode || 'add'}
+                effects={layer.effects}
+              />
+            );
+          }
+        } else if (type === 'video') {
+          const video = loadedAssets.videos.get(asset.id);
+          if (video) {
+            return (
+              <VideoTexture
+                key={key}
+                video={video}
+                opacity={layer.opacity || 1}
+                blendMode={layer.blendMode || 'add'}
+                effects={layer.effects}
+              />
+            );
+          }
+        } else if (type === 'effect') {
+          return (
+            <EffectLayer
+              key={key}
+              asset={assetData}
+              layer={layer}
+              frameCount={frameCount}
+            />
+          );
+        }
+
+        return null;
+      })}
+    </>
+  );
+};
+
+// Helper function to get proper file path for Electron
   const getAssetPath = (asset: any) => {
     if (!asset) return '';
     console.log('getAssetPath called with asset:', asset);
@@ -55,14 +341,55 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     console.log('Using fallback path:', asset.path);
     return asset.path || '';
   };
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
-  const effectsRef = useRef<Map<string, any>>(new Map());
-  const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
-  const imageRefs = useRef<Map<string, HTMLImageElement>>(new Map());
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [canvasReady, setCanvasReady] = useState(false);
+
+// Helper function to convert blend modes
+const getBlendMode = (blendMode: string): THREE.Blending => {
+  switch (blendMode) {
+    case 'add':
+      return THREE.AdditiveBlending;
+    case 'multiply':
+      return THREE.MultiplyBlending;
+    case 'screen':
+      return THREE.CustomBlending;
+    case 'overlay':
+      return THREE.CustomBlending;
+    default:
+      return THREE.AdditiveBlending;
+  }
+};
+
+export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
+  assets,
+  width,
+  height,
+  bpm = 120,
+  isPlaying = false
+}) => {
+  console.log('🎬 CanvasRenderer props:', { assets, width, height, bpm, isPlaying });
+  console.log('🎬 Assets count:', assets.length);
+  assets.forEach((asset, index) => {
+    console.log(`🎬 Asset ${index}:`, asset);
+  });
+  
+  const [frameCount, setFrameCount] = useState(0);
+
+  // Animation frame counter
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    let animationId: number;
+    const animate = () => {
+      setFrameCount(prev => prev + 1);
+      animationId = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [isPlaying]);
 
   // Ensure we have valid dimensions
   const canvasWidth = Math.max(width, 640);
@@ -70,370 +397,26 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
   
   console.log('🎬 Canvas dimensions - input:', { width, height }, 'calculated:', { canvasWidth, canvasHeight });
 
-  // Check if canvas is ready
-  useEffect(() => {
-    const checkCanvas = () => {
-      if (canvasRef.current) {
-        console.log('Canvas element is ready');
-        setCanvasReady(true);
-      } else {
-        console.log('Canvas not ready yet, retrying...');
-        setTimeout(checkCanvas, 50);
-      }
-    };
-    checkCanvas();
-  }, []);
-
-  useEffect(() => {
-    const loadEffects = async () => {
-      try {
-        console.log('🎬 Loading effects for canvas:', assets.length, 'assets');
-        console.log('🎬 Canvas ref:', canvasRef.current);
-        console.log('🎬 Canvas ready state:', canvasReady);
-        
-        // Wait for canvas to be available
-        let attempts = 0;
-        while (!canvasRef.current && attempts < 100) {
-          await new Promise(resolve => setTimeout(resolve, 20));
-          attempts++;
-          console.log('🎬 Waiting for canvas, attempt:', attempts);
-        }
-        
-        const canvas = canvasRef.current;
-        if (!canvas) {
-          console.error('🎬 Canvas not found after waiting');
-          setError('Canvas not found');
-          return;
-        }
-
-        console.log('🎬 Canvas found, getting context...');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          console.error('🎬 Failed to get 2D context');
-          setError('Failed to get 2D context');
-          return;
-        }
-
-        console.log('🎬 Canvas context obtained successfully');
-
-        // Load all effects
-        const effectAssets = assets.filter(asset => 
-          asset.type === 'effect' || 
-          asset.asset.isEffect || 
-          asset.asset.type === 'p5js' || 
-          asset.asset.type === 'threejs'
-        );
-        
-        console.log('🎬 Effect assets to load:', effectAssets.length);
-
-        for (const { asset } of effectAssets) {
-          try {
-            const effectFile = asset.filePath?.split('/').pop() || asset.path?.split('/').pop() || 'ColorPulse.ts';
-            console.log('🎬 Loading effect:', asset.name, effectFile, asset.type);
-            
-            // Dynamic import
-            const effectModule = await import(`../effects/${effectFile}`);
-            const EffectClass = effectModule.default || effectModule[asset.name.replace(/\s+/g, '')];
-            
-            if (EffectClass) {
-              const effect = new EffectClass(canvasWidth, canvasHeight);
-              effect.setBPM(bpm);
-              effectsRef.current.set(asset.id, effect);
-              console.log('🎬 Effect loaded successfully:', asset.name);
-            }
-          } catch (error) {
-            console.error('🎬 Error loading effect:', asset.name, error);
-          }
-        }
-
-        // Load videos and images
-        const mediaAssets = assets.filter(asset => 
-          asset.type === 'video' || asset.type === 'image'
-        );
-
-        console.log('🎬 Media assets to load:', mediaAssets.map(({ asset }) => ({ name: asset.name, id: asset.id, type: asset.type })));
-
-        for (const { asset, layer } of mediaAssets) {
-          if (asset.type === 'video') {
-            const video = document.createElement('video');
-            // Use the same asset path resolution as LayerManager
-            const assetPath = getAssetPath(asset);
-            console.log('🎬 Creating video element for:', asset.name, 'Path:', assetPath);
-            video.src = assetPath;
-            video.muted = true;
-            video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
-            video.autoplay = isPlaying;
-            video.crossOrigin = 'anonymous';
-            videoRefs.current.set(asset.id, video);
-            console.log('🎬 Video element created:', asset.name, 'Video element:', video);
-            
-            // Try to start playing the video
-            if (isPlaying) {
-              video.play().catch(error => {
-                console.error('🎬 Failed to start video playback:', asset.name, error);
-              });
-            }
-            
-            // Add event listeners for debugging and loop handling
-            video.addEventListener('loadstart', () => console.log('🎬 Video loadstart:', asset.name));
-            video.addEventListener('loadeddata', () => console.log('🎬 Video loadeddata:', asset.name));
-            video.addEventListener('canplay', () => console.log('🎬 Video canplay:', asset.name));
-            video.addEventListener('error', (e) => console.error('🎬 Video error:', asset.name, e));
-            
-            // Prevent blue flash on loop by setting background color
-            video.addEventListener('seeking', () => {
-              // Set video background to black to prevent blue flash
-              video.style.backgroundColor = '#000000';
-            });
-            
-            video.addEventListener('ended', () => {
-              // Ensure smooth loop transition
-              if (video.loop) {
-                video.currentTime = 0;
-                video.play().catch(error => {
-                  console.error('🎬 Failed to restart video on loop:', asset.name, error);
-                });
-              }
-            });
-          } else if (asset.type === 'image') {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            // Use the same asset path resolution as LayerManager
-            const assetPath = getAssetPath(asset);
-            img.src = assetPath;
-            imageRefs.current.set(asset.id, img);
-            console.log('🎬 Image loaded:', asset.name, 'Path:', assetPath);
-            
-            // Add event listeners for debugging
-            img.addEventListener('load', () => console.log('🎬 Image loaded successfully:', asset.name));
-            img.addEventListener('error', (e) => console.error('🎬 Image error:', asset.name, e));
-          }
-        }
-
-        setIsLoaded(true);
-        setError(null);
-        console.log('🎬 Canvas loading completed successfully');
-
-      } catch (error) {
-        console.error('🎬 Error loading effects:', error);
-        setError(`Error loading effects: ${error}`);
-      }
-    };
-
-    if (canvasReady) {
-      loadEffects();
-    }
-
-    return () => {
-      effectsRef.current.forEach(effect => {
-        effect.cleanup?.();
-      });
-      effectsRef.current.clear();
-      videoRefs.current.clear();
-      imageRefs.current.clear();
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-      }, [assets, canvasWidth, canvasHeight, bpm, canvasReady]);
-
-  useEffect(() => {
-    if (!isLoaded || !isPlaying) return;
-
-    let lastTime = performance.now();
-
-    const animate = (currentTime: number) => {
-      if (!canvasRef.current) return;
-
-      const deltaTime = (currentTime - lastTime) / 1000;
-      lastTime = currentTime;
-
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // Clear canvas with black background to prevent blue flash
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-      // Render effects first (background)
-      effectsRef.current.forEach((effect, assetId) => {
-        try {
-          effect.render(deltaTime);
-          // Draw effect canvas onto main canvas
-          ctx.drawImage(effect.canvas, 0, 0, canvasWidth, canvasHeight);
-        } catch (error) {
-          console.error('Error rendering effect:', error);
-        }
-      });
-
-      // Render videos and images on top
-      let hasRenderedContent = false;
-      console.log('🎬 Canvas animation loop - assets:', assets.length, 'videoRefs:', videoRefs.current.size, 'imageRefs:', imageRefs.current.size);
-      assets.forEach(({ type, asset, layer }) => {
-        if (type === 'video') {
-          const video = videoRefs.current.get(asset.id);
-          console.log('🎬 Rendering video:', asset.name, 'Asset ID:', asset.id, 'Video ref:', video, 'Ready state:', video?.readyState);
-          if (video && video.readyState >= 2) { // HAVE_CURRENT_DATA
-            // Check if video is at the end and about to loop
-            const isNearEnd = video.currentTime >= video.duration - 0.1;
-            
-            // Calculate aspect ratio to fit video properly
-            const videoAspect = video.videoWidth / video.videoHeight;
-            const canvasAspect = canvasWidth / canvasHeight;
-            
-            let drawWidth, drawHeight, drawX, drawY;
-            
-            if (videoAspect > canvasAspect) {
-              // Video is wider than canvas
-              drawWidth = canvasWidth;
-              drawHeight = canvasWidth / videoAspect;
-              drawX = 0;
-              drawY = (canvasHeight - drawHeight) / 2;
-            } else {
-              // Video is taller than canvas
-              drawHeight = canvasHeight;
-              drawWidth = canvasHeight * videoAspect;
-              drawX = (canvasWidth - drawWidth) / 2;
-              drawY = 0;
-            }
-            
-            // Only draw if video is not at the very end (prevents flash)
-            if (!isNearEnd || video.currentTime > 0) {
-              console.log('🎬 Drawing video:', asset.name, 'Dimensions:', drawWidth, drawHeight, drawX, drawY);
-              ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-              hasRenderedContent = true;
-            } else {
-              console.log('🎬 Skipping video frame near end to prevent flash:', asset.name);
-            }
-          } else {
-            console.log('🎬 Video not ready:', asset.name, 'Ready state:', video?.readyState);
-          }
-        } else if (type === 'image') {
-          const img = imageRefs.current.get(asset.id);
-          console.log('🎬 Rendering image:', asset.name, 'Image ref:', img, 'Complete:', img?.complete);
-          if (img && img.complete) {
-            // Calculate aspect ratio to fit image properly
-            const imgAspect = img.naturalWidth / img.naturalHeight;
-            const canvasAspect = canvasWidth / canvasHeight;
-            
-            let drawWidth, drawHeight, drawX, drawY;
-            
-            if (imgAspect > canvasAspect) {
-              // Image is wider than canvas
-              drawWidth = canvasWidth;
-              drawHeight = canvasWidth / imgAspect;
-              drawX = 0;
-              drawY = (canvasHeight - drawHeight) / 2;
-            } else {
-              // Image is taller than canvas
-              drawHeight = canvasHeight;
-              drawWidth = canvasHeight * imgAspect;
-              drawX = (canvasWidth - drawWidth) / 2;
-              drawY = 0;
-            }
-            
-            console.log('🎬 Drawing image:', asset.name, 'Dimensions:', drawWidth, drawHeight, drawX, drawY);
-            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-            hasRenderedContent = true;
-          } else {
-            console.log('🎬 Image not ready:', asset.name, 'Complete:', img?.complete);
-          }
-        }
-      });
-
-      // Show placeholder if no content was rendered
-      if (!hasRenderedContent && assets.length > 0) {
-        console.log('🎬 No content rendered, showing placeholder');
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        ctx.fillStyle = 'white';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Loading content...', canvasWidth / 2, canvasHeight / 2);
-      }
-
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [isLoaded, isPlaying, assets, canvasWidth, canvasHeight]);
-
-  useEffect(() => {
-    effectsRef.current.forEach(effect => {
-      effect.setBPM(bpm);
-    });
-  }, [bpm]);
-
-  // Update video play state when isPlaying changes
-  useEffect(() => {
-    videoRefs.current.forEach((video, assetId) => {
-      if (isPlaying) {
-        video.play().catch(error => {
-          console.error('Failed to start video playback:', assetId, error);
-        });
-      } else {
-        video.pause();
-      }
-    });
-  }, [isPlaying]);
-
-  useEffect(() => {
-    effectsRef.current.forEach(effect => {
-      effect.resize(canvasWidth, canvasHeight);
-    });
-  }, [canvasWidth, canvasHeight]);
-
-  if (error) {
     return (
-      <div className="canvas-error">
-        <div className="error-icon">⚠️</div>
-        <div className="error-message">{error}</div>
+    <div className="canvas-renderer">
+      <div className="renderer-header-info">
+        <h4>Canvas Renderer (React Three Fiber)</h4>
+        <span className="renderer-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
       </div>
-    );
-  }
-
-  if (!isLoaded) {
-    return (
-      <div className="canvas-loading">
-        <div className="loading-spinner"></div>
-        <div className="loading-text">Loading canvas...</div>
+      <div className="renderer-main-content">
+        <div style={{ width: '100%', height: '100%', backgroundColor: '#000000' }}>
+          <Canvas
+            camera={{ position: [0, 0, 2], fov: 75 }}
+            style={{ width: '100%', height: '100%' }}
+          >
+            <CanvasScene 
+              assets={assets} 
+              isPlaying={isPlaying} 
+              frameCount={frameCount}
+            />
+          </Canvas>
+        </div>
       </div>
-    );
-  }
-
-  console.log('🎬 Rendering canvas with dimensions:', canvasWidth, canvasHeight);
-  console.log('🎬 Canvas ref:', canvasRef.current);
-  console.log('🎬 Is loaded:', isLoaded);
-  console.log('🎬 Error:', error);
-  
-  if (canvasWidth <= 0 || canvasHeight <= 0) {
-    console.error('🎬 Invalid canvas dimensions:', canvasWidth, canvasHeight);
-    return (
-      <div className="canvas-error">
-        <div className="error-icon">⚠️</div>
-        <div className="error-message">Invalid canvas dimensions</div>
       </div>
-    );
-  }
-  
-  return (
-    <canvas
-      ref={canvasRef}
-      width={canvasWidth}
-      height={canvasHeight}
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'block',
-        backgroundColor: 'transparent',
-      }}
-    />
   );
 }; 

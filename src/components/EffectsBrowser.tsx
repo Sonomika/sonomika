@@ -9,15 +9,16 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   const [selectedEffect, setSelectedEffect] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Sample effects data
+  // Sample effects data organized by type
   const effects = [
+    // p5.js Effects
     {
       id: 'pulse',
       name: 'Pulse Effect',
       type: 'p5js',
       description: 'Animated pulsing circle effect',
       category: 'Animation',
-      icon: '🎨'
+      icon: '●'
     },
     {
       id: 'square-pulse',
@@ -25,7 +26,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       type: 'p5js',
       description: 'Animated pulsing square effect',
       category: 'Animation',
-      icon: '⬜'
+      icon: '■'
     },
     {
       id: 'wave',
@@ -33,7 +34,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       type: 'p5js',
       description: 'Animated wave pattern',
       category: 'Animation',
-      icon: '🌊'
+      icon: '~'
     },
     {
       id: 'particles',
@@ -41,7 +42,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       type: 'p5js',
       description: 'Dynamic particle system',
       category: 'Animation',
-      icon: '✨'
+      icon: '•'
     },
     {
       id: 'geometric',
@@ -49,7 +50,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       type: 'p5js',
       description: 'Geometric shape animations',
       category: 'Animation',
-      icon: '🔷'
+      icon: '◆'
     },
     {
       id: 'audio-reactive',
@@ -57,7 +58,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       type: 'p5js',
       description: 'Audio-driven visual effects',
       category: 'Audio',
-      icon: '🎵'
+      icon: '♪'
     },
     {
       id: 'color-pulse',
@@ -65,47 +66,92 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       type: 'p5js',
       description: 'Color cycling pulse effect',
       category: 'Color',
-      icon: '🌈'
+      icon: '◉'
+    },
+    // Three.js Effects
+    {
+      id: 'r3f-pulse',
+      name: 'R3F Pulse',
+      type: 'threejs',
+      description: 'React Three Fiber pulse effect',
+      category: 'Animation',
+      icon: '●'
     },
     {
-      id: 'global-datamosh',
-      name: 'Global Datamosh',
-      type: 'global',
-      description: 'Applies datamosh effect to the entire composition',
-      category: 'Global',
-      icon: '🌐'
+      id: 'r3f-circle-pulse',
+      name: 'R3F Circle Pulse',
+      type: 'threejs',
+      description: 'React Three Fiber circle pulse',
+      category: 'Animation',
+      icon: '◉'
     },
+    {
+      id: 'r3f-particle-system',
+      name: 'R3F Particle System',
+      type: 'threejs',
+      description: 'React Three Fiber particle system',
+      category: 'Animation',
+      icon: '•'
+    },
+    {
+      id: 'r3f-color-pulse',
+      name: 'R3F Color Pulse',
+      type: 'threejs',
+      description: 'React Three Fiber color pulse',
+      category: 'Color',
+      icon: '◉'
+    },
+    // Video Processing Effects
     {
       id: 'video-slice',
       name: 'Video Slice',
-      type: 'global',
+      type: 'video',
       description: 'Slices video into horizontal strips with offset',
-      category: 'Global',
-      icon: '✂️'
+      category: 'Video',
+      icon: '◢'
     },
     {
       id: 'video-glitch-blocks',
       name: 'Video Glitch Blocks',
-      type: 'global',
+      type: 'video',
       description: 'Creates random glitch blocks with color shifts',
-      category: 'Global',
-      icon: '🔲'
+      category: 'Video',
+      icon: '◣'
     },
     {
       id: 'video-wave-slice',
       name: 'Video Wave Slice',
-      type: 'global',
+      type: 'video',
       description: 'Creates wave-like slicing distortion',
-      category: 'Global',
-      icon: '🌊'
+      category: 'Video',
+      icon: '◤'
+    },
+    {
+      id: 'global-datamosh',
+      name: 'Global Datamosh',
+      type: 'video',
+      description: 'Applies datamosh effect to the entire composition',
+      category: 'Video',
+      icon: '◐'
     }
   ];
 
   const filteredEffects = effects.filter(effect =>
     effect.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     effect.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    effect.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
     effect.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Group effects by type
+  const effectsByType = filteredEffects.reduce((groups, effect) => {
+    const type = effect.type;
+    if (!groups[type]) {
+      groups[type] = [];
+    }
+    groups[type].push(effect);
+    return groups;
+  }, {} as Record<string, typeof effects>);
 
   const handleEffectSelect = (effect: any) => {
     setSelectedEffect(effect);
@@ -254,22 +300,28 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
           />
         </div>
 
-        {/* Effects Grid */}
-        <div className="effects-grid">
-          {filteredEffects.map((effect) => (
-            <div
-              key={effect.id}
-              className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
-              onClick={() => handleEffectSelect(effect)}
-              draggable
-              onDragStart={(e) => handleEffectDrag(e, effect)}
-            >
-              <div className="effect-icon">{effect.icon}</div>
-              <div className="effect-info">
-                <div className="effect-name">{effect.name}</div>
-                <div className="effect-description">{effect.description}</div>
-                <div className="effect-category">{effect.category}</div>
+        {/* Effects List Grouped by Type */}
+        <div className="effects-list">
+          {Object.entries(effectsByType).map(([type, typeEffects]) => (
+            <div key={type} className="effects-type-group">
+              <div className="effects-type-header">
+                <h4>{type === 'p5js' ? 'p5.js' : type === 'threejs' ? 'Three.js' : type === 'video' ? 'Video' : type}</h4>
               </div>
+              {typeEffects.map((effect) => (
+                <div
+                  key={effect.id}
+                  className={`effect-list-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
+                  onClick={() => handleEffectSelect(effect)}
+                  draggable
+                  onDragStart={(e) => handleEffectDrag(e, effect)}
+                >
+                  <div className="effect-list-icon">{effect.icon}</div>
+                  <div className="effect-list-info">
+                    <div className="effect-list-name">{effect.name}</div>
+                    <div className="effect-list-category">{effect.category}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>

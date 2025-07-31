@@ -1050,6 +1050,89 @@ body {
   overflow-y: auto;
 }
 
+.effects-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.effect-list-item {
+  background-color: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+}
+
+.effect-list-item:hover {
+  background-color: var(--hover-color);
+  border-color: var(--primary);
+}
+
+.effect-list-item.selected {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+
+.effect-list-icon {
+  font-size: 20px;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.effect-list-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.effect-list-name {
+  font-weight: 600;
+  color: var(--on-surface);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.effect-list-category {
+  color: var(--on-surface-variant);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.effects-type-group {
+  margin-bottom: 16px;
+}
+
+.effects-type-header {
+  padding: 4px 12px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 2px;
+}
+
+.effects-type-header h4 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+  text-transform: none;
+  letter-spacing: 0.2px;
+}
+
 .effect-item {
   background-color: var(--surface);
   border: 1px solid var(--border-color);
@@ -4548,7 +4631,7 @@ body.dragging .remove-zone {
 
 /* Search Bar */
 .search-bar {
-  padding: 12px 16px;
+  padding: 4px 16px;
   border-bottom: 1px solid #444;
 }
 
