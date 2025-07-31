@@ -983,21 +983,22 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 <div className="global-effects-list">
                   {currentScene?.globalEffects?.map((effectSlot: any, index: number) => (
                     <div key={effectSlot.id || `effect-${index}`} className="global-effect-item">
-                      <div className="effect-slot-controls">
-                        <input
-                          type="checkbox"
-                          checked={effectSlot.enabled}
-                          onChange={(e) => {
-                            // If enabling this effect, disable all others
-                            const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
-                              ...slot,
-                              enabled: i === index ? e.target.checked : false
-                            }));
-                            updateScene(currentSceneId, { globalEffects: updatedEffects });
-                          }}
-                          title="Enable/disable effect (only one can be active at a time)"
-                        />
+                      <div 
+                        className="effect-slot-content"
+                        onClick={() => {
+                          // Toggle this effect on/off, disable all others
+                          const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
+                            ...slot,
+                            enabled: i === index ? !slot.enabled : false
+                          }));
+                          updateScene(currentSceneId, { globalEffects: updatedEffects });
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        title="Click to toggle effect on/off"
+                      >
+                        <div className="effect-slot-icon">✦</div>
                         <span className="effect-name">{effectSlot.effectId}</span>
+                        {effectSlot.enabled && <div className="effect-active-indicator">●</div>}
                       </div>
                       <button 
                         className="remove-effect-btn"
@@ -1013,8 +1014,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   ))}
                   {(!currentScene?.globalEffects || currentScene.globalEffects.length === 0) && (
                     <div className="no-global-effects">
-                      <span>No global effects applied</span>
-                      <small>Drag effects from the Effects tab to apply globally (only one active at a time)</small>
+                      <span>Empty slots</span>
+                      <small>Drag effects here to apply globally</small>
                     </div>
                   )}
                 </div>

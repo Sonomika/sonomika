@@ -11,6 +11,11 @@ import * as THREE from 'three';
         const GeometricPatternEffect = React.lazy(() => import('../effects/GeometricPatternEffect'));
         const AudioReactiveEffect = React.lazy(() => import('../effects/AudioReactiveEffect'));
         const ColorPulseEffect = React.lazy(() => import('../effects/ColorPulseEffect'));
+        
+        // Lazy load global effects
+        const GlobalStrobeEffect = React.lazy(() => import('../effects/GlobalStrobeEffect.tsx'));
+        const GlobalDatamoshEffect = React.lazy(() => import('../effects/GlobalDatamoshEffect.tsx'));
+        const GlobalVideoWaveSliceEffect = React.lazy(() => import('../effects/GlobalVideoWaveSliceEffect.tsx'));
 
 interface ColumnPreviewProps {
   column: any;
@@ -208,7 +213,8 @@ const ColumnScene: React.FC<{
   isPlaying: boolean;
   frameCount: number;
   bpm: number;
-}> = ({ column, isPlaying, frameCount, bpm }) => {
+  globalEffects?: any[];
+}> = ({ column, isPlaying, frameCount, bpm, globalEffects = [] }) => {
   const { camera } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -521,6 +527,69 @@ const ColumnScene: React.FC<{
           // Add other standalone effects here as needed
         });
 
+        // Apply global effects as post-processing layer
+        const activeGlobalEffect = globalEffects.find((effect: any) => effect.enabled);
+        
+        if (activeGlobalEffect) {
+          console.log('🌐 Applying global effect:', activeGlobalEffect.effectId);
+          
+          // Create a post-processing effect that affects all layers
+          const globalEffectKey = `global-effect-${activeGlobalEffect.id}`;
+          
+          // Check for specific global effects
+          if (activeGlobalEffect.effectId === 'global-strobe' || activeGlobalEffect.effectId === 'Global Strobe') {
+            console.log('🌐 Rendering Global Strobe Effect');
+            renderedElements.push(
+              <Suspense key={globalEffectKey} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0xffffff} />
+                </mesh>
+              }>
+                <GlobalStrobeEffect bpm={bpm} />
+              </Suspense>
+            );
+          } else if (activeGlobalEffect.effectId === 'global-datamosh' || activeGlobalEffect.effectId === 'Global Datamosh') {
+            console.log('🌐 Rendering Global Datamosh Effect');
+            renderedElements.push(
+              <Suspense key={globalEffectKey} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0xffffff} />
+                </mesh>
+              }>
+                <GlobalDatamoshEffect bpm={bpm} />
+              </Suspense>
+            );
+          } else if (activeGlobalEffect.effectId === 'video-wave-slice' || activeGlobalEffect.effectId === 'Video Wave Slice') {
+            console.log('🌐 Rendering Global Video Wave Slice Effect');
+            renderedElements.push(
+              <Suspense key={globalEffectKey} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0xffffff} />
+                </mesh>
+              }>
+                <GlobalVideoWaveSliceEffect bpm={bpm} />
+              </Suspense>
+            );
+          } else {
+            // Generic global effect fallback
+            console.log('🌐 Rendering generic global effect:', activeGlobalEffect.effectId);
+            renderedElements.push(
+              <mesh key={globalEffectKey}>
+                <planeGeometry args={[2, 2]} />
+                <meshBasicMaterial 
+                  color={0xffffff} 
+                  transparent 
+                  opacity={0.1}
+                  blending={THREE.AdditiveBlending}
+                />
+              </mesh>
+            );
+          }
+        }
+
         return renderedElements;
       })()}
     </>
@@ -649,12 +718,13 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
           >
 
             
-            <ColumnScene 
-              column={column} 
-              isPlaying={isPlaying} 
-              frameCount={frameCount}
-              bpm={bpm}
-            />
+                    <ColumnScene 
+          column={column} 
+          isPlaying={isPlaying} 
+          frameCount={frameCount} 
+          bpm={bpm}
+          globalEffects={globalEffects}
+        />
           </Canvas>
         </div>
       </div>
