@@ -1,6 +1,6 @@
 export interface EffectParameter {
   name: string;
-  type: 'number' | 'boolean' | 'select';
+  type: 'number' | 'boolean' | 'select' | 'color';
   min?: number;
   max?: number;
   step?: number;
@@ -24,7 +24,7 @@ export abstract class BaseEffect {
     this.canvas = document.createElement('canvas');
     this.canvas.width = width;
     this.canvas.height = height;
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
 
     if (!this.ctx) {
       throw new Error('Failed to get 2D context');
