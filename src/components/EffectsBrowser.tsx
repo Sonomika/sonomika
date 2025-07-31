@@ -11,60 +11,52 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
 
   // Sample effects data organized by type
   const effects = [
-    // p5.js Effects
+    // Three.js Effects (converted from p5.js)
     {
-      id: 'pulse',
-      name: 'Pulse Effect',
-      type: 'p5js',
-      description: 'Animated pulsing circle effect',
+      id: 'circle-pulse-effect',
+      name: 'Circle Pulse Effect',
+      type: 'threejs',
+      description: 'Animated pulsing circle effect (Three.js)',
       category: 'Animation',
       icon: '●'
     },
     {
-      id: 'square-pulse',
-      name: 'Square Pulse',
-      type: 'p5js',
-      description: 'Animated pulsing square effect',
+      id: 'square-pulse-effect',
+      name: 'Square Pulse Effect',
+      type: 'threejs',
+      description: 'Animated pulsing square effect (Three.js)',
       category: 'Animation',
       icon: '■'
     },
     {
-      id: 'wave',
+      id: 'wave-effect',
       name: 'Wave Effect',
-      type: 'p5js',
-      description: 'Animated wave pattern',
+      type: 'threejs',
+      description: 'Animated wave pattern (Three.js)',
       category: 'Animation',
       icon: '~'
     },
     {
-      id: 'particles',
-      name: 'Particle System',
-      type: 'p5js',
-      description: 'Dynamic particle system',
-      category: 'Animation',
-      icon: '•'
-    },
-    {
-      id: 'geometric',
-      name: 'Geometric Pattern',
-      type: 'p5js',
-      description: 'Geometric shape animations',
+      id: 'geometric-pattern-effect',
+      name: 'Geometric Pattern Effect',
+      type: 'threejs',
+      description: 'Geometric shape animations (Three.js)',
       category: 'Animation',
       icon: '◆'
     },
     {
-      id: 'audio-reactive',
-      name: 'Audio Reactive',
-      type: 'p5js',
-      description: 'Audio-driven visual effects',
+      id: 'audio-reactive-effect',
+      name: 'Audio Reactive Effect',
+      type: 'threejs',
+      description: 'Audio-driven visual effects (Three.js)',
       category: 'Audio',
       icon: '♪'
     },
     {
-      id: 'color-pulse',
-      name: 'Color Pulse',
-      type: 'p5js',
-      description: 'Color cycling pulse effect',
+      id: 'color-pulse-effect',
+      name: 'Color Pulse Effect',
+      type: 'threejs',
+      description: 'Color cycling pulse effect (Three.js)',
       category: 'Color',
       icon: '◉'
     },
@@ -100,6 +92,22 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       description: 'React Three Fiber color pulse',
       category: 'Color',
       icon: '◉'
+    },
+    {
+      id: 'kaleidoscope',
+      name: 'Kaleidoscope Effect',
+      type: 'threejs',
+      description: 'Shader-based kaleidoscope with video input',
+      category: 'Video',
+      icon: '◈'
+    },
+    {
+      id: 'particle-effect',
+      name: 'Particle Effect',
+      type: 'threejs',
+      description: 'Animated particles moving in 3D space',
+      category: 'Animation',
+      icon: '✦'
     },
     // Video Processing Effects
     {

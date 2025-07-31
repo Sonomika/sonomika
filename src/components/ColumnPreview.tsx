@@ -1,6 +1,16 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+
+        // Lazy load effects
+        const KaleidoscopeEffect = React.lazy(() => import('../effects/KaleidoscopeEffect'));
+        const ParticleEffect = React.lazy(() => import('../effects/ParticleEffect'));
+        const CirclePulseEffect = React.lazy(() => import('../effects/CirclePulseEffect'));
+        const SquarePulseEffect = React.lazy(() => import('../effects/SquarePulseEffect'));
+        const WaveEffect = React.lazy(() => import('../effects/WaveEffect'));
+        const GeometricPatternEffect = React.lazy(() => import('../effects/GeometricPatternEffect'));
+        const AudioReactiveEffect = React.lazy(() => import('../effects/AudioReactiveEffect'));
+        const ColorPulseEffect = React.lazy(() => import('../effects/ColorPulseEffect'));
 
 interface ColumnPreviewProps {
   column: any;
@@ -41,6 +51,25 @@ const VideoTexture: React.FC<{
   if (!texture || video.readyState < 2) {
     console.log('Video not ready, readyState:', video.readyState);
     return null;
+  }
+
+  // Check if kaleidoscope effect is applied
+  const hasKaleidoscopeEffect = effects?.some((effect: any) => 
+    effect.id === 'kaleidoscope' || effect.name === 'Kaleidoscope Effect'
+  );
+
+  if (hasKaleidoscopeEffect) {
+    // Import and render KaleidoscopeEffect
+    return (
+      <Suspense fallback={
+        <mesh>
+          <planeGeometry args={[2, 2]} />
+          <meshBasicMaterial color={0xff0000} />
+        </mesh>
+      }>
+        <KaleidoscopeEffect videoTexture={texture} />
+      </Suspense>
+    );
   }
 
   return (
@@ -178,7 +207,8 @@ const ColumnScene: React.FC<{
   column: any;
   isPlaying: boolean;
   frameCount: number;
-}> = ({ column, isPlaying, frameCount }) => {
+  bpm: number;
+}> = ({ column, isPlaying, frameCount, bpm }) => {
   const { camera } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -305,59 +335,194 @@ const ColumnScene: React.FC<{
       {/* Background */}
       <color attach="background" args={[0, 0, 0]} />
       
-      {/* Debug: Always show a test cube to confirm R3F is working */}
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color={0x00ff00} />
-      </mesh>
+
       
-      {/* Render layers */}
-      {sortedLayers.map((layer, index) => {
-        if (!layer.asset) return null;
+      {/* Render all layers */}
+      {(() => {
+        // Find all video layers and effect layers
+        const videoLayers = sortedLayers.filter(layer => 
+          layer.asset && layer.asset.type === 'video'
+        );
+        const effectLayers = sortedLayers.filter(layer => 
+          layer.asset && (layer.asset.type === 'p5js' || layer.asset.type === 'effect' || layer.asset.type === 'threejs')
+        );
 
-        const asset = layer.asset;
-        const key = `${layer.id}-${index}`;
+        console.log('Video layers:', videoLayers.map(l => l.name));
+        console.log('Effect layers:', effectLayers.map(l => l.name));
+        console.log('All layers:', sortedLayers.map(l => ({ name: l.name, asset: l.asset?.name, type: l.asset?.type })));
 
-        console.log('Rendering layer:', layer.name, 'asset type:', asset.type);
+        const renderedElements: React.ReactElement[] = [];
 
-        if (asset.type === 'image') {
-          const img = assets.images.get(asset.id);
-          if (img) {
-            return (
-              <ImageTexture
-                key={key}
-                image={img}
-                opacity={layer.opacity || 1}
-                blendMode={layer.blendMode || 'add'}
-                effects={layer.effects}
-              />
+        // First, render video layers
+        videoLayers.forEach((videoLayer, index) => {
+          const video = assets.videos.get(videoLayer.asset.id);
+          if (!video) return;
+
+          const key = `video-${videoLayer.id}-${index}`;
+
+          // Check if there's a kaleidoscope effect layer that should be applied to this video
+          const kaleidoscopeEffectLayer = effectLayers.find(effectLayer => {
+            const effectAsset = effectLayer.asset;
+            return effectAsset && (
+              effectAsset.id === 'kaleidoscope' || 
+              effectAsset.name === 'Kaleidoscope Effect' ||
+              effectAsset.name === 'Kaleidoscope'
             );
-          }
-        } else if (asset.type === 'video') {
-          const video = assets.videos.get(asset.id);
-          if (video) {
-            return (
+          });
+
+          console.log('Video layer:', videoLayer.name, 'has kaleidoscope effect:', !!kaleidoscopeEffectLayer);
+
+          if (kaleidoscopeEffectLayer) {
+            // Apply kaleidoscope effect to the video
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0xff0000} />
+                </mesh>
+              }>
+                <KaleidoscopeEffect videoTexture={new THREE.VideoTexture(video)} />
+              </Suspense>
+            );
+          } else {
+            // Render normal video
+            renderedElements.push(
               <VideoTexture
                 key={key}
                 video={video}
-                opacity={layer.opacity || 1}
-                blendMode={layer.blendMode || 'add'}
-                effects={layer.effects}
+                opacity={videoLayer.opacity || 1}
+                blendMode={videoLayer.blendMode || 'add'}
+                effects={videoLayer.effects}
               />
             );
           }
-        } else if (asset.type === 'p5js' || asset.type === 'effect') {
-          return (
-            <EffectLayer
-              key={key}
-              layer={layer}
-              frameCount={frameCount}
-            />
-          );
-        }
+        });
 
-        return null;
-      })}
+        // Then, render standalone effects
+        effectLayers.forEach((effectLayer, index) => {
+          const effectAsset = effectLayer.asset;
+          if (!effectAsset) return;
+
+          const key = `effect-${effectLayer.id}-${index}`;
+
+          // Check for particle effect
+          console.log('Checking effect:', effectAsset.id, effectAsset.name);
+          if (effectAsset.id === 'particle-effect' || effectAsset.name === 'Particle Effect') {
+            console.log('Rendering standalone particle effect');
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0x00ff00} />
+                </mesh>
+              }>
+                <ParticleEffect count={1500} speed={0.8} size={0.03} spread={10} />
+              </Suspense>
+            );
+          }
+          // Also check for R3F Particle System
+          if (effectAsset.id === 'r3f-particle-system' || effectAsset.name === 'R3F Particle System') {
+            console.log('Rendering R3F particle system');
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0x00ff00} />
+                </mesh>
+              }>
+                <ParticleEffect count={1500} speed={0.8} size={0.03} spread={10} />
+              </Suspense>
+            );
+          }
+          // Check for Circle Pulse Effect
+          if (effectAsset.id === 'circle-pulse-effect' || effectAsset.name === 'Circle Pulse Effect') {
+            console.log('Rendering Circle Pulse Effect');
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0x00ff00} />
+                </mesh>
+              }>
+                <CirclePulseEffect size={0.8} speed={1.0} color="blue" bpm={bpm} />
+              </Suspense>
+            );
+          }
+          // Check for Square Pulse Effect
+          if (effectAsset.id === 'square-pulse-effect' || effectAsset.name === 'Square Pulse Effect') {
+            console.log('Rendering Square Pulse Effect');
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0x00ff00} />
+                </mesh>
+              }>
+                <SquarePulseEffect size={0.8} speed={1.0} color="red" bpm={bpm} />
+              </Suspense>
+            );
+          }
+          // Check for Wave Effect
+          if (effectAsset.id === 'wave-effect' || effectAsset.name === 'Wave Effect') {
+            console.log('Rendering Wave Effect');
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0x00ff00} />
+                </mesh>
+              }>
+                <WaveEffect amplitude={0.5} frequency={2.0} speed={1.0} color="cyan" bpm={bpm} />
+              </Suspense>
+            );
+          }
+          // Check for Geometric Pattern Effect
+          if (effectAsset.id === 'geometric-pattern-effect' || effectAsset.name === 'Geometric Pattern Effect') {
+            console.log('Rendering Geometric Pattern Effect');
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0x00ff00} />
+                </mesh>
+              }>
+                <GeometricPatternEffect pattern="spiral" speed={1.0} color="magenta" bpm={bpm} complexity={5} />
+              </Suspense>
+            );
+          }
+          // Check for Audio Reactive Effect
+          if (effectAsset.id === 'audio-reactive-effect' || effectAsset.name === 'Audio Reactive Effect') {
+            console.log('Rendering Audio Reactive Effect');
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0x00ff00} />
+                </mesh>
+              }>
+                <AudioReactiveEffect sensitivity={0.5} frequency={440} color="orange" bpm={bpm} mode="bars" />
+              </Suspense>
+            );
+          }
+          // Check for Color Pulse Effect
+          if (effectAsset.id === 'color-pulse-effect' || effectAsset.name === 'Color Pulse Effect') {
+            console.log('Rendering Color Pulse Effect');
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0x00ff00} />
+                </mesh>
+              }>
+                <ColorPulseEffect intensity={0.5} colorSpeed={0.1} autoColor={true} bpm={bpm} mode="gradient" />
+              </Suspense>
+            );
+          }
+          // Add other standalone effects here as needed
+        });
+
+        return renderedElements;
+      })()}
     </>
   );
 };
@@ -451,23 +616,23 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
 
   return (
     <div className="column-preview">
-      <div className="preview-header-info">
-        <h4>Column Preview (R3F)</h4>
-        <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
-      </div>
       <div className="preview-main-content">
         <div style={{ width: '100%', height: '100%', backgroundColor: '#000000', position: 'relative' }}>
-          {/* Fallback text to confirm component renders */}
+          {/* Debug indicator */}
           <div style={{
             position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            color: 'white',
+            top: '8px',
+            right: '8px',
+            color: 'rgba(255, 255, 255, 0.6)',
+            fontSize: '10px',
+            fontWeight: 'normal',
             zIndex: 1,
-            pointerEvents: 'none'
+            pointerEvents: 'none',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            padding: '2px 6px',
+            borderRadius: '3px'
           }}>
-            R3F Loading...
+            R3F
           </div>
           
           <Canvas
@@ -482,16 +647,13 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
               setError(`Canvas Error: ${error instanceof Error ? error.message : String(error)}`);
             }}
           >
-            {/* Simple test mesh to confirm R3F works */}
-            <mesh position={[0, 0, 0]}>
-              <sphereGeometry args={[0.5, 16, 16]} />
-              <meshBasicMaterial color={0x00ff00} />
-            </mesh>
+
             
             <ColumnScene 
               column={column} 
               isPlaying={isPlaying} 
               frameCount={frameCount}
+              bpm={bpm}
             />
           </Canvas>
         </div>
