@@ -32,7 +32,6 @@ function createWindow() {
     console.log("Setting CSP headers for URL:", details.url);
     const responseHeaders = {
       ...details.responseHeaders,
-      // Remove CSP headers entirely for development
       "Content-Security-Policy": []
     };
     console.log("CSP headers disabled for development");

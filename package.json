@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "build:watch": "tsc --watch",
     "dev": "vite",
-    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:electron": "concurrently \"vite\" \"wait-on tcp:localhost:5173 tcp:localhost:5174 tcp:localhost:5175 && electron .\"",
     "type-check": "tsc --noEmit"
   },
   "keywords": [

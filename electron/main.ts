@@ -34,14 +34,13 @@ function createWindow() {
     show: false, // Don't show until ready
   });
 
-  // Set CSP headers to allow local-file protocol
+  // Disable CSP entirely for development
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     console.log('Setting CSP headers for URL:', details.url);
     
-    // Temporarily disable CSP for development
+    // Remove CSP headers entirely for development
     const responseHeaders = {
       ...details.responseHeaders,
-      // Remove CSP headers entirely for development
       'Content-Security-Policy': []
     };
     

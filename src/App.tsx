@@ -1,6 +1,7 @@
-import { useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import { useEffect, Component, ErrorInfo, ReactNode, useState, useRef } from 'react';
 import { LayerManager } from './components/LayerManager';
 import { MIDIMapper } from './components/MIDIMapper';
+import { CanvasStreamManager } from './utils/CanvasStream';
 import './index.css';
 
 interface ErrorBoundaryState {
@@ -59,6 +60,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 }
 
 function App() {
+  const [isMirrorOpen, setIsMirrorOpen] = useState(false);
+  const streamManagerRef = useRef<CanvasStreamManager | null>(null);
+  const testCanvasRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
     console.log('App component mounted');
 
@@ -92,6 +97,107 @@ function App() {
     };
   }, []);
 
+  // Animate test canvas
+  useEffect(() => {
+    const canvas = testCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationId: number;
+    let time = 0;
+
+    const animate = () => {
+      time += 0.02;
+      
+      // Clear canvas
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw animated pattern
+      ctx.fillStyle = '#4444ff';
+      ctx.beginPath();
+      ctx.arc(
+        320 + Math.sin(time) * 100, 
+        240 + Math.cos(time) * 100, 
+        50, 
+        0, 
+        2 * Math.PI
+      );
+      ctx.fill();
+      
+      // Draw text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '24px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('VJ Mirror Test', 320, 240);
+      ctx.fillText(`Time: ${time.toFixed(1)}s`, 320, 280);
+      
+      animationId = requestAnimationFrame(animate);
+    };
+    
+    animate();
+    
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, []);
+
+  const handleMirrorToggle = async () => {
+    try {
+      if (isMirrorOpen) {
+        // Close mirror window
+        streamManagerRef.current?.closeMirrorWindow();
+        setIsMirrorOpen(false);
+      } else {
+        // Debug: List all canvases
+        const allCanvases = document.querySelectorAll('canvas');
+        console.log('All canvases found:', allCanvases.length);
+        allCanvases.forEach((canvas, index) => {
+          console.log(`Canvas ${index}:`, canvas, 'classes:', canvas.className, 'id:', canvas.id);
+        });
+        
+        // Find the main canvas element - try multiple selectors
+        let canvas = document.querySelector('.preview-content canvas') as HTMLCanvasElement;
+        
+        if (!canvas) {
+          canvas = document.querySelector('.canvas-renderer canvas') as HTMLCanvasElement;
+        }
+        
+        if (!canvas) {
+          canvas = document.querySelector('.composition-canvas') as HTMLCanvasElement;
+        }
+        
+        if (!canvas) {
+          canvas = document.querySelector('canvas') as HTMLCanvasElement;
+        }
+        
+        if (!canvas) {
+          canvas = document.getElementById('test-mirror-canvas') as HTMLCanvasElement;
+        }
+        
+        if (!canvas) {
+          console.error('No canvas found for streaming');
+          alert('No canvas found for streaming. Please make sure the VJ app is running with content.');
+          return;
+        }
+
+        console.log('Found canvas for streaming:', canvas);
+        
+        // Create stream manager and open mirror window
+        streamManagerRef.current = new CanvasStreamManager(canvas);
+        await streamManagerRef.current.openMirrorWindow();
+        setIsMirrorOpen(true);
+      }
+    } catch (error) {
+      console.error('Mirror window error:', error);
+      alert('Failed to open mirror window: ' + error);
+    }
+  };
+
   console.log('App component rendering');
 
   return (
@@ -104,10 +210,32 @@ function App() {
         display: 'flex',
         flexDirection: 'column'
       }}>
-        <h1>VJ App Test</h1>
+        <div className="app-header">
+          <h1>VJ App Test</h1>
+          <button
+            onClick={handleMirrorToggle}
+            className={`mirror-button ${isMirrorOpen ? 'active' : ''}`}
+          >
+            {isMirrorOpen ? 'Close Mirror' : 'Open Mirror'}
+          </button>
+        </div>
         <p>If you can see this, the app is working!</p>
 
-        <div style={{ flex: 1, marginTop: '20px' }}>
+        {/* Hidden test canvas for mirror streaming */}
+        <canvas 
+          ref={testCanvasRef}
+          id="test-mirror-canvas" 
+          width="640" 
+          height="480" 
+          style={{ 
+            position: 'absolute', 
+            top: '-9999px', 
+            left: '-9999px',
+            backgroundColor: '#000000'
+          }}
+        />
+
+        <div style={{ flex: 1, marginTop: '20px', height: 'calc(100vh - 120px)' }}>
           <LayerManager onClose={() => {}} />
         </div>
       </div>

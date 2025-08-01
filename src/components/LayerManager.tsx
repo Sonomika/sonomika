@@ -936,9 +936,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           <div className="layer-manager-body" style={{ height: `${paneSizes.gridHeight}%` }}>
             {/* Global Effects Row */}
             <div className="global-effects-row">
-              <div className="row-header">
-                <h3>Global Effects</h3>
-              </div>
               <div 
                 className="global-effects-content"
                 onDragOver={(e) => {
@@ -1024,9 +1021,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
             {/* Composition Row */}
             <div className="composition-row">
-              <div className="row-header">
-                <h3>Composition</h3>
-              </div>
 
               {columns.map((column: any, index: number) => {
                 const isColumnPlaying = previewContent?.type === 'column' && previewContent?.columnId === column.id;
@@ -1046,7 +1040,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                         }
                       }}
                     >
-                      <h4>Column {index + 1}</h4>
+                      <h4>{index + 1}</h4>
                       <button 
                         className={`play-btn ${isColumnPlaying ? 'stop' : 'play'}`}
                         onClick={(e) => {
@@ -1074,9 +1068,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             {/* Layer Rows */}
             {[3, 2, 1].map((layerNum) => (
               <div key={layerNum} className={`layer-row ${layerNum === 1 ? 'active' : ''}`}>
-                <div className="row-header">
-                  <h3>Layer {layerNum}</h3>
-                </div>
 
 
 
