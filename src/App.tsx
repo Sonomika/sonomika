@@ -1,8 +1,23 @@
 import { useEffect, Component, ErrorInfo, ReactNode, useState, useRef } from 'react';
 import { LayerManager } from './components/LayerManager';
-import { MIDIMapper } from './components/MIDIMapper';
 import { CanvasStreamManager } from './utils/CanvasStream';
+import { CustomTitleBar } from './components/CustomTitleBar';
 import './index.css';
+
+// Type declaration for the exposed API
+declare global {
+  interface Window {
+    electron?: {
+      minimize: () => void;
+      maximize: () => void;
+      close: () => void;
+      toggleMirror: () => void;
+      onToggleMirror: (callback: () => void) => void;
+      openMirrorWindow: () => void;
+      closeMirrorWindow: () => void;
+    };
+  }
+}
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -146,6 +161,15 @@ function App() {
     };
   }, []);
 
+  // Listen for menu toggle-mirror event
+  useEffect(() => {
+    if (window.electron) {
+      window.electron.onToggleMirror(() => {
+        handleMirrorToggle();
+      });
+    }
+  }, []);
+
   const handleMirrorToggle = async () => {
     try {
       if (isMirrorOpen) {
@@ -198,10 +222,40 @@ function App() {
     }
   };
 
+  const handleWindowMinimize = () => {
+    if (window.electron) {
+      window.electron.minimize();
+    }
+  };
+
+  const handleWindowMaximize = () => {
+    if (window.electron) {
+      window.electron.maximize();
+    }
+  };
+
+  const handleWindowClose = () => {
+    console.log('=== HANDLE WINDOW CLOSE CALLED ===');
+    console.log('window.electron available:', !!window.electron);
+    if (window.electron) {
+      console.log('Calling window.electron.close()');
+      window.electron.close();
+    } else {
+      console.log('window.electron is not available');
+    }
+  };
+
   console.log('App component rendering');
 
   return (
     <ErrorBoundary>
+      <CustomTitleBar
+        onMinimize={handleWindowMinimize}
+        onMaximize={handleWindowMaximize}
+        onClose={handleWindowClose}
+        onMirror={handleMirrorToggle}
+      />
+      
       <div style={{
         backgroundColor: '#000000',
         color: '#ffffff',
@@ -210,16 +264,9 @@ function App() {
         display: 'flex',
         flexDirection: 'column'
       }}>
-        <div className="app-header">
-          <h1>VJ App Test</h1>
-          <button
-            onClick={handleMirrorToggle}
-            className={`mirror-button ${isMirrorOpen ? 'active' : ''}`}
-          >
-            {isMirrorOpen ? 'Close Mirror' : 'Open Mirror'}
-          </button>
+        <div style={{ flex: 1, marginTop: '20px', height: 'calc(100vh - 120px)' }}>
+          <LayerManager onClose={() => {}} />
         </div>
-        <p>If you can see this, the app is working!</p>
 
         {/* Hidden test canvas for mirror streaming */}
         <canvas 
@@ -234,10 +281,6 @@ function App() {
             backgroundColor: '#000000'
           }}
         />
-
-        <div style={{ flex: 1, marginTop: '20px', height: 'calc(100vh - 120px)' }}>
-          <LayerManager onClose={() => {}} />
-        </div>
       </div>
     </ErrorBoundary>
   );

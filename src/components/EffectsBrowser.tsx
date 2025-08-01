@@ -290,84 +290,55 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   return (
     <div className={`effects-browser ${isEmbedded ? 'embedded' : ''}`}>
       <div className="effects-browser-header">
-        <h3>Effects Browser</h3>
+        <div className="effects-header-left">
+          <h3>Effects</h3>
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search effects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
+        </div>
         {!isEmbedded && onClose && (
           <button onClick={onClose} className="close-btn">×</button>
         )}
       </div>
 
       <div className="effects-browser-content">
-        {/* Search Bar */}
-        <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search effects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
-        </div>
-
         {/* Effects List Grouped by Type */}
         <div className="effects-list">
           {Object.entries(effectsByType).map(([type, typeEffects]) => (
             <div key={type} className="effects-type-group">
               <div className="effects-type-header">
                 <h4>{type === 'p5js' ? 'p5.js' : type === 'threejs' ? 'Three.js' : type === 'video' ? 'Video' : type}</h4>
+                <span className="effect-count">{typeEffects.length}</span>
               </div>
-              {typeEffects.map((effect) => (
-                <div
-                  key={effect.id}
-                  className={`effect-list-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
-                  onClick={() => handleEffectSelect(effect)}
-                  draggable
-                  onDragStart={(e) => handleEffectDrag(e, effect)}
-                >
-                  <div className="effect-list-icon">{effect.icon}</div>
-                  <div className="effect-list-info">
-                    <div className="effect-list-name">{effect.name}</div>
-                    <div className="effect-list-category">{effect.category}</div>
+              <div className="effects-type-grid">
+                {typeEffects.map((effect) => (
+                  <div
+                    key={effect.id}
+                    className={`effect-compact-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
+                    onClick={() => handleEffectSelect(effect)}
+                    draggable
+                    onDragStart={(e) => handleEffectDrag(e, effect)}
+                    title={effect.description}
+                  >
+                    <div className="effect-compact-icon">{effect.icon}</div>
+                    <div className="effect-compact-info">
+                      <div className="effect-compact-name">{effect.name}</div>
+                      <div className="effect-compact-category">{effect.category}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Selected Effect Details */}
-        {selectedEffect && (
-          <div className="effect-details">
-            <h4>Effect Details</h4>
-            <div className="effect-detail-item">
-              <strong>Name:</strong> {selectedEffect.name}
-            </div>
-            <div className="effect-detail-item">
-              <strong>Type:</strong> {selectedEffect.type}
-            </div>
-            <div className="effect-detail-item">
-              <strong>Category:</strong> {selectedEffect.category}
-            </div>
-            <div className="effect-detail-item">
-              <strong>Description:</strong> {selectedEffect.description}
-            </div>
-            <div className="effect-actions">
-              <button 
-                className="effect-btn primary" 
-                onClick={handleAddToLayer}
-                title="Add this effect to a layer"
-              >
-                Add to Layer
-              </button>
-              <button 
-                className="effect-btn secondary" 
-                onClick={handlePreview}
-                title="Preview this effect"
-              >
-                Preview
-              </button>
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );
