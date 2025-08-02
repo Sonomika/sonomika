@@ -28,7 +28,11 @@ try {
             electron_1.ipcRenderer.on('toggle-mirror', callback);
         },
         openMirrorWindow: () => electron_1.ipcRenderer.send('open-mirror-window'),
-        closeMirrorWindow: () => electron_1.ipcRenderer.send('close-mirror-window')
+        closeMirrorWindow: () => electron_1.ipcRenderer.send('close-mirror-window'),
+        sendCanvasData: (dataUrl) => {
+            console.log('Preload: sendCanvasData called');
+            electron_1.ipcRenderer.send('canvas-data', dataUrl);
+        }
     });
     console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
 }

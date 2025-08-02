@@ -35,6 +35,7 @@ const VideoTexture: React.FC<{
 }> = ({ video, opacity, blendMode, effects }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+  const [aspectRatio, setAspectRatio] = useState(16/9); // Default 16:9
 
   useEffect(() => {
     if (video) {
@@ -43,7 +44,27 @@ const VideoTexture: React.FC<{
       videoTexture.minFilter = THREE.LinearFilter;
       videoTexture.magFilter = THREE.LinearFilter;
       videoTexture.format = THREE.RGBAFormat;
+      videoTexture.generateMipmaps = false;
       setTexture(videoTexture);
+      
+      // Calculate aspect ratio when video metadata is loaded
+      const updateAspectRatio = () => {
+        if (video.videoWidth && video.videoHeight) {
+          const ratio = video.videoWidth / video.videoHeight;
+          console.log('Video aspect ratio:', ratio, 'Dimensions:', video.videoWidth, 'x', video.videoHeight);
+          console.log('Setting plane geometry to:', [ratio * 2, 2]);
+          setAspectRatio(ratio);
+        }
+      };
+      
+      video.addEventListener('loadedmetadata', updateAspectRatio);
+      if (video.readyState >= 1) {
+        updateAspectRatio();
+      }
+      
+      return () => {
+        video.removeEventListener('loadedmetadata', updateAspectRatio);
+      };
     }
   }, [video]);
 
@@ -68,7 +89,7 @@ const VideoTexture: React.FC<{
     return (
       <Suspense fallback={
         <mesh>
-          <planeGeometry args={[2, 2]} />
+          <planeGeometry args={[aspectRatio * 2, 2]} />
           <meshBasicMaterial color={0xff0000} />
         </mesh>
       }>
@@ -79,12 +100,14 @@ const VideoTexture: React.FC<{
 
   return (
     <mesh ref={meshRef}>
-      <planeGeometry args={[2, 2]} />
+      <planeGeometry args={[4, 2]} />
       <meshBasicMaterial 
         map={texture} 
         transparent 
         opacity={opacity}
         blending={getBlendMode(blendMode)}
+        side={THREE.DoubleSide}
+        alphaTest={0.1}
       />
     </mesh>
   );
@@ -99,6 +122,7 @@ const ImageTexture: React.FC<{
 }> = ({ image, opacity, blendMode, effects }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  const [aspectRatio, setAspectRatio] = useState(16/9); // Default 16:9
 
   useEffect(() => {
     if (image) {
@@ -106,6 +130,13 @@ const ImageTexture: React.FC<{
       imageTexture.minFilter = THREE.LinearFilter;
       imageTexture.magFilter = THREE.LinearFilter;
       setTexture(imageTexture);
+      
+      // Calculate aspect ratio
+      if (image.naturalWidth && image.naturalHeight) {
+        const ratio = image.naturalWidth / image.naturalHeight;
+        console.log('Image aspect ratio:', ratio, 'Dimensions:', image.naturalWidth, 'x', image.naturalHeight);
+        setAspectRatio(ratio);
+      }
     }
   }, [image]);
 
@@ -113,12 +144,13 @@ const ImageTexture: React.FC<{
 
   return (
     <mesh ref={meshRef}>
-      <planeGeometry args={[2, 2]} />
+      <planeGeometry args={[4, 2]} />
       <meshBasicMaterial 
         map={texture} 
         transparent 
         opacity={opacity}
         blending={getBlendMode(blendMode)}
+        side={THREE.DoubleSide}
       />
     </mesh>
   );
@@ -258,10 +290,18 @@ const ColumnScene: React.FC<{
           video.loop = true;
           video.autoplay = true;
           video.playsInline = true;
-            video.style.backgroundColor = '#000000';
+            // Remove black background to prevent black borders
+            video.style.backgroundColor = 'transparent';
             
-            await new Promise((resolve, reject) => {
-              video.addEventListener('loadeddata', resolve);
+            await new Promise<void>((resolve, reject) => {
+              video.addEventListener('loadeddata', () => {
+                console.log('Video loaded successfully:', asset.name);
+                console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+                console.log('Video aspect ratio:', video.videoWidth / video.videoHeight);
+                console.log('Video readyState:', video.readyState);
+                console.log('Video currentTime:', video.currentTime);
+                resolve();
+              });
               video.addEventListener('error', reject);
           video.load();
         });
@@ -293,7 +333,13 @@ const ColumnScene: React.FC<{
 
   // Set up camera
   useEffect(() => {
-    camera.position.z = 2;
+    camera.position.z = 1;
+    if ('fov' in camera) {
+      (camera as THREE.PerspectiveCamera).fov = 90;
+      camera.updateProjectionMatrix();
+    }
+    // Ensure camera is looking at the center
+    camera.lookAt(0, 0, 0);
   }, [camera]);
 
   // Sort layers from bottom to top
@@ -705,7 +751,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
           </div>
           
           <Canvas
-            camera={{ position: [0, 0, 2], fov: 75 }}
+            camera={{ position: [0, 0, 1], fov: 90 }}
             style={{ width: '100%', height: '100%' }}
             onCreated={({ gl }) => {
               console.log('R3F Canvas created successfully');

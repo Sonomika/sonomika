@@ -25,10 +25,10 @@ class PureCompositionRenderer {
     this.canvas.width = width;
     this.canvas.height = height;
     
-    // NUCLEAR CANVAS SETUP - Force black background
-    this.ctx.fillStyle = '#000000';
+    // NUCLEAR CANVAS SETUP - Force dark background
+    this.ctx.fillStyle = '#1a1a1a';
     this.ctx.fillRect(0, 0, width, height);
-    this.canvas.style.backgroundColor = '#000000';
+    this.canvas.style.backgroundColor = '#1a1a1a';
   }
   
   // PURE COMPOSITION VIDEO MANAGEMENT - No React dependencies
@@ -41,7 +41,7 @@ class PureCompositionRenderer {
     video.crossOrigin = 'anonymous';
     video.playsInline = true;
     video.preload = 'auto';
-    video.style.backgroundColor = '#000000';
+    video.style.backgroundColor = '#1a1a1a';
     
     // NUCLEAR VIDEO MONITORING - Pure composition event handling
     video.addEventListener('timeupdate', () => {
@@ -81,7 +81,7 @@ class PureCompositionRenderer {
       if (!this.isRunning) return;
       
       // NUCLEAR CANVAS CLEARING - Pure composition operations
-      this.ctx.fillStyle = '#000000';
+      this.ctx.fillStyle = '#1a1a1a';
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       
       if (!this.scene || !this.scene.columns) {
@@ -122,6 +122,11 @@ class PureCompositionRenderer {
   // PURE COMPOSITION LAYER RENDERING - No React dependencies
   private renderLayer(layer: any, x: number, y: number, width: number, height: number): void {
     if (!layer || !layer.type) return;
+    
+    // Debug layer dimensions
+    if (layer.type === 'video') {
+      console.log('🎬 Layer dimensions:', layer.name, 'Width:', width, 'Height:', height, 'Aspect:', width/height);
+    }
     
     // Save context state
     this.ctx.save();
@@ -168,7 +173,14 @@ class PureCompositionRenderer {
       video.autoplay = layer.autoplay || true;
       video.playsInline = true;
       video.preload = 'auto';
-      video.style.backgroundColor = '#000000';
+      video.style.backgroundColor = '#1a1a1a';
+      
+      // Debug video dimensions when loaded
+      video.addEventListener('loadedmetadata', () => {
+        if (video) {
+          console.log('🎬 Video loaded:', layer.name, 'Video dimensions:', video.videoWidth, 'x', video.videoHeight, 'Aspect:', video.videoWidth/video.videoHeight);
+        }
+      });
       
       // Store video element for reuse
       this.videoElements.set(layer.id, video);
@@ -176,8 +188,8 @@ class PureCompositionRenderer {
     
     // NUCLEAR VIDEO DRAWING - Always draw video if ready
     if (video.readyState >= 2) {
-      // Calculate aspect ratio and fit mode
-      const { fitMode = 'cover', position = { x: 0.5, y: 0.5 } } = layer;
+      // Calculate aspect ratio and fit mode - default to 'contain' to show full video
+      const { fitMode = 'contain', position = { x: 0.5, y: 0.5 } } = layer;
       
       let drawWidth = width;
       let drawHeight = height;
@@ -216,10 +228,10 @@ class PureCompositionRenderer {
       // Draw video frame to canvas
       this.ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
       
-      console.log('🎬 NUCLEAR PURE COMPOSITION: Drew video frame:', layer.name, 'Time:', video.currentTime, 'Duration:', video.duration);
+      console.log('🎬 NUCLEAR PURE COMPOSITION: Drew video frame:', layer.name, 'Time:', video.currentTime, 'Duration:', video.duration, 'FitMode:', fitMode, 'VideoAspect:', videoAspect, 'LayerAspect:', layerAspect);
     } else {
       // Video not ready, show black
-      this.ctx.fillStyle = '#000000';
+      this.ctx.fillStyle = '#1a1a1a';
       this.ctx.fillRect(0, 0, width, height);
       console.log('🎬 NUCLEAR PURE COMPOSITION: Video not ready, drawing black for:', layer.name);
     }
@@ -265,6 +277,15 @@ class PureCompositionRenderer {
   setBPM(bpm: number): void {
     this.bpm = bpm;
   }
+
+  resize(width: number, height: number): void {
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.ctx.fillStyle = '#1a1a1a';
+    this.ctx.fillRect(0, 0, width, height);
+    this.canvas.style.width = `${width}px`;
+    this.canvas.style.height = `${height}px`;
+  }
   
   // PURE COMPOSITION CLEANUP - No React dependencies
   destroy(): void {
@@ -298,10 +319,24 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
     
     // Create pure composition renderer
     const rect = container.getBoundingClientRect();
-    const width = rect.width * window.devicePixelRatio;
-    const height = rect.height * window.devicePixelRatio;
+    // Use 1920x1080 as base resolution but scale down to fit container
+    const baseWidth = 1920;
+    const baseHeight = 1080;
     
-    rendererRef.current = new PureCompositionRenderer(canvas, width, height);
+    // Calculate scale to fit the container while maintaining aspect ratio
+    const scaleX = rect.width / baseWidth;
+    const scaleY = rect.height / baseHeight;
+    const scale = Math.min(scaleX, scaleY);
+    
+    // Set canvas to 1920x1080 for high resolution
+    canvas.width = baseWidth;
+    canvas.height = baseHeight;
+    
+    // Scale the canvas style to fit the container
+    canvas.style.width = `${baseWidth * scale}px`;
+    canvas.style.height = `${baseHeight * scale}px`;
+    
+    rendererRef.current = new PureCompositionRenderer(canvas, baseWidth, baseHeight);
     
     // Set initial scene
     if (currentScene) {
@@ -314,14 +349,25 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
     // Handle resize
     const resizeCanvas = () => {
       const newRect = container.getBoundingClientRect();
-      const newWidth = newRect.width * window.devicePixelRatio;
-      const newHeight = newRect.height * window.devicePixelRatio;
+      const baseWidth = 1920;
+      const baseHeight = 1080;
       
-      if (canvas.width !== newWidth || canvas.height !== newHeight) {
-        canvas.width = newWidth;
-        canvas.height = newHeight;
-        canvas.style.width = `${newRect.width}px`;
-        canvas.style.height = `${newRect.height}px`;
+      // Calculate scale to fit the container while maintaining aspect ratio
+      const scaleX = newRect.width / baseWidth;
+      const scaleY = newRect.height / baseHeight;
+      const scale = Math.min(scaleX, scaleY);
+      
+      // Keep canvas at 1920x1080 resolution
+      canvas.width = baseWidth;
+      canvas.height = baseHeight;
+      
+      // Scale the canvas style to fit the container
+      canvas.style.width = `${baseWidth * scale}px`;
+      canvas.style.height = `${baseHeight * scale}px`;
+      
+      // Update renderer with new dimensions
+      if (rendererRef.current) {
+        rendererRef.current.resize(baseWidth, baseHeight);
       }
     };
     

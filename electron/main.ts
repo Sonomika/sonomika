@@ -69,6 +69,8 @@ function createWindow() {
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow!.show();
+    // Prevent background throttling
+    mainWindow!.webContents.setBackgroundThrottling(false);
   });
 
   // Check if we're in development mode
@@ -136,19 +138,28 @@ function createMirrorWindow() {
   }
 
   mirrorWindow = new BrowserWindow({
-    width: 1280,
-    height: 720,
+    width: 960, // 50% of 1920
+    height: 540, // 50% of 1080
     title: 'VJ Mirror Output',
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true,
+      contextIsolation: true, // Reverted to true
       webSecurity: false,
-      allowRunningInsecureContent: true
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, 'preload.js') // Ensure this is the main preload, not mirror-preload
     },
-    show: false
+    show: false,
+    resizable: false, // Prevent resizing to maintain aspect ratio
+    maximizable: false, // Prevent maximizing to maintain resolution
+    fullscreen: false, // Don't open in fullscreen mode
+    kiosk: false, // Allow escape from fullscreen
+    alwaysOnTop: true, // Keep mirror window on top
+    skipTaskbar: true, // Don't show in taskbar
+    focusable: true, // Allow focusing and moving the window
+    movable: true // Allow moving the window
   });
 
-  // Create HTML content for the mirror window
+  // Create HTML content for the mirror window with embedded script
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -166,10 +177,10 @@ function createMirrorWindow() {
           overflow: hidden;
           font-family: monospace;
         }
-        video {
-          max-width: 100%;
-          max-height: 100%;
-          object-fit: contain;
+        img {
+          width: 960px;
+          height: 540px;
+          object-fit: cover;
         }
         .mirror-info {
           position: absolute;
@@ -190,9 +201,9 @@ function createMirrorWindow() {
       </style>
     </head>
     <body>
-      <div class="mirror-info">VJ Mirror Output</div>
+      <div class="mirror-info">VJ Mirror Output (960x540)</div>
       <div id="no-stream" class="no-stream">Waiting for stream...</div>
-      <video id="mirror-video" autoplay muted style="display: none;"></video>
+      <img id="mirror-image" style="display: none;">
     </body>
     </html>
   `;
@@ -201,10 +212,26 @@ function createMirrorWindow() {
 
   mirrorWindow.once('ready-to-show', () => {
     mirrorWindow!.show();
+    // Center the window on screen
+    mirrorWindow!.center();
+    // Ensure app continues running but don't force focus
+    if (mainWindow) {
+      mainWindow.setAlwaysOnTop(false);
+    }
   });
 
   mirrorWindow.on('closed', () => {
     mirrorWindow = null;
+  });
+
+
+
+  // Add keyboard event listener to exit fullscreen with Escape
+  mirrorWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'Escape') {
+      mirrorWindow!.setFullScreen(false);
+      mirrorWindow!.close();
+    }
   });
 
   console.log('Mirror window created');
@@ -293,6 +320,10 @@ function createCustomMenu() {
 app.whenReady().then(() => {
   console.log('Electron app is ready');
   
+  // Prevent app from pausing when windows lose focus
+  app.commandLine.appendSwitch('disable-background-timer-throttling');
+  app.commandLine.appendSwitch('disable-renderer-backgrounding');
+  
   // Create custom menu
   createCustomMenu();
   
@@ -353,6 +384,29 @@ app.whenReady().then(() => {
 
   ipcMain.on('close-mirror-window', () => {
     closeMirrorWindow();
+  });
+
+  ipcMain.on('canvas-data', (event, dataUrl: string) => {
+    console.log('Main: canvas-data received, sending to mirror window');
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      // Use executeJavaScript to inject the image update logic
+      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
+      mirrorWindow.webContents.executeJavaScript(`
+        (function() {
+          const noStreamDiv = document.getElementById('no-stream');
+          const mirrorImage = document.getElementById('mirror-image');
+          
+          if (noStreamDiv && mirrorImage) {
+            noStreamDiv.style.display = 'none';
+            mirrorImage.src = '${escapedDataUrl}';
+            mirrorImage.style.display = 'block';
+            console.log('Mirror window: image updated successfully');
+          } else {
+            console.log('Mirror window: elements not found');
+          }
+        })();
+      `);
+    }
   });
   
   createWindow();

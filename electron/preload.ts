@@ -29,7 +29,11 @@ try {
       ipcRenderer.on('toggle-mirror', callback);
     },
     openMirrorWindow: () => ipcRenderer.send('open-mirror-window'),
-    closeMirrorWindow: () => ipcRenderer.send('close-mirror-window')
+    closeMirrorWindow: () => ipcRenderer.send('close-mirror-window'),
+    sendCanvasData: (dataUrl: string) => {
+      console.log('Preload: sendCanvasData called');
+      ipcRenderer.send('canvas-data', dataUrl);
+    }
   });
   
   console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
@@ -48,6 +52,7 @@ declare global {
       onToggleMirror: (callback: () => void) => void;
       openMirrorWindow: () => void;
       closeMirrorWindow: () => void;
+      sendCanvasData: (dataUrl: string) => void;
     };
   }
 } 

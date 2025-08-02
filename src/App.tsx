@@ -15,6 +15,7 @@ declare global {
       onToggleMirror: (callback: () => void) => void;
       openMirrorWindow: () => void;
       closeMirrorWindow: () => void;
+      sendCanvasData: (dataUrl: string) => void;
     };
   }
 }
@@ -77,7 +78,6 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
-  const testCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     console.log('App component mounted');
@@ -112,54 +112,7 @@ function App() {
     };
   }, []);
 
-  // Animate test canvas
-  useEffect(() => {
-    const canvas = testCanvasRef.current;
-    if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animationId: number;
-    let time = 0;
-
-    const animate = () => {
-      time += 0.02;
-      
-      // Clear canvas
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw animated pattern
-      ctx.fillStyle = '#4444ff';
-      ctx.beginPath();
-      ctx.arc(
-        320 + Math.sin(time) * 100, 
-        240 + Math.cos(time) * 100, 
-        50, 
-        0, 
-        2 * Math.PI
-      );
-      ctx.fill();
-      
-      // Draw text
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '24px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('VJ Mirror Test', 320, 240);
-      ctx.fillText(`Time: ${time.toFixed(1)}s`, 320, 280);
-      
-      animationId = requestAnimationFrame(animate);
-    };
-    
-    animate();
-    
-    return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-      }
-    };
-  }, []);
 
   // Listen for menu toggle-mirror event
   useEffect(() => {
@@ -245,6 +198,24 @@ function App() {
     }
   };
 
+  const handleNewSet = () => {
+    console.log('New Set clicked');
+    // TODO: Implement new set functionality
+    alert('New Set functionality coming soon!');
+  };
+
+  const handleSaveSet = () => {
+    console.log('Save Set clicked');
+    // TODO: Implement save set functionality
+    alert('Save Set functionality coming soon!');
+  };
+
+  const handleOpenSet = () => {
+    console.log('Open Set clicked');
+    // TODO: Implement open set functionality
+    alert('Open Set functionality coming soon!');
+  };
+
   console.log('App component rendering');
 
   return (
@@ -254,6 +225,9 @@ function App() {
         onMaximize={handleWindowMaximize}
         onClose={handleWindowClose}
         onMirror={handleMirrorToggle}
+        onNewSet={handleNewSet}
+        onSaveSet={handleSaveSet}
+        onOpenSet={handleOpenSet}
       />
       
       <div style={{
@@ -268,19 +242,7 @@ function App() {
           <LayerManager onClose={() => {}} />
         </div>
 
-        {/* Hidden test canvas for mirror streaming */}
-        <canvas 
-          ref={testCanvasRef}
-          id="test-mirror-canvas" 
-          width="640" 
-          height="480" 
-          style={{ 
-            position: 'absolute', 
-            top: '-9999px', 
-            left: '-9999px',
-            backgroundColor: '#000000'
-          }}
-        />
+
       </div>
     </ErrorBoundary>
   );

@@ -53,6 +53,7 @@ function createWindow() {
   });
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
+    mainWindow.webContents.setBackgroundThrottling(false);
   });
   const isDev = process.env.NODE_ENV === "development" || !electron.app.isPackaged;
   if (isDev) {
@@ -101,16 +102,37 @@ function createMirrorWindow() {
     return;
   }
   mirrorWindow = new electron.BrowserWindow({
-    width: 1280,
-    height: 720,
+    width: 960,
+    // 50% of 1920
+    height: 540,
+    // 50% of 1080
     title: "VJ Mirror Output",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      // Reverted to true
       webSecurity: false,
-      allowRunningInsecureContent: true
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, "preload.js")
+      // Ensure this is the main preload, not mirror-preload
     },
-    show: false
+    show: false,
+    resizable: false,
+    // Prevent resizing to maintain aspect ratio
+    maximizable: false,
+    // Prevent maximizing to maintain resolution
+    fullscreen: false,
+    // Don't open in fullscreen mode
+    kiosk: false,
+    // Allow escape from fullscreen
+    alwaysOnTop: true,
+    // Keep mirror window on top
+    skipTaskbar: true,
+    // Don't show in taskbar
+    focusable: true,
+    // Allow focusing and moving the window
+    movable: true
+    // Allow moving the window
   });
   const htmlContent = `
     <!DOCTYPE html>
@@ -129,10 +151,10 @@ function createMirrorWindow() {
           overflow: hidden;
           font-family: monospace;
         }
-        video {
-          max-width: 100%;
-          max-height: 100%;
-          object-fit: contain;
+        img {
+          width: 960px;
+          height: 540px;
+          object-fit: cover;
         }
         .mirror-info {
           position: absolute;
@@ -153,18 +175,28 @@ function createMirrorWindow() {
       </style>
     </head>
     <body>
-      <div class="mirror-info">VJ Mirror Output</div>
+      <div class="mirror-info">VJ Mirror Output (960x540)</div>
       <div id="no-stream" class="no-stream">Waiting for stream...</div>
-      <video id="mirror-video" autoplay muted style="display: none;"></video>
+      <img id="mirror-image" style="display: none;">
     </body>
     </html>
   `;
   mirrorWindow.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
   mirrorWindow.once("ready-to-show", () => {
     mirrorWindow.show();
+    mirrorWindow.center();
+    if (mainWindow) {
+      mainWindow.setAlwaysOnTop(false);
+    }
   });
   mirrorWindow.on("closed", () => {
     mirrorWindow = null;
+  });
+  mirrorWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.key === "Escape") {
+      mirrorWindow.setFullScreen(false);
+      mirrorWindow.close();
+    }
   });
   console.log("Mirror window created");
 }
@@ -247,6 +279,8 @@ function createCustomMenu() {
 }
 electron.app.whenReady().then(() => {
   console.log("Electron app is ready");
+  electron.app.commandLine.appendSwitch("disable-background-timer-throttling");
+  electron.app.commandLine.appendSwitch("disable-renderer-backgrounding");
   createCustomMenu();
   electron.protocol.registerFileProtocol("local-file", (request, callback) => {
     const filePath = request.url.replace("local-file://", "");
@@ -297,6 +331,27 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.on("close-mirror-window", () => {
     closeMirrorWindow();
+  });
+  electron.ipcMain.on("canvas-data", (event, dataUrl) => {
+    console.log("Main: canvas-data received, sending to mirror window");
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
+      mirrorWindow.webContents.executeJavaScript(`
+        (function() {
+          const noStreamDiv = document.getElementById('no-stream');
+          const mirrorImage = document.getElementById('mirror-image');
+          
+          if (noStreamDiv && mirrorImage) {
+            noStreamDiv.style.display = 'none';
+            mirrorImage.src = '${escapedDataUrl}';
+            mirrorImage.style.display = 'block';
+            console.log('Mirror window: image updated successfully');
+          } else {
+            console.log('Mirror window: elements not found');
+          }
+        })();
+      `);
+    }
   });
   createWindow();
   electron.app.on("activate", () => {

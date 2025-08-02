@@ -33,7 +33,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #000000 !important;
+  background-color: #1a1a1a !important;
   color: var(--on-background);
   overflow: hidden;
   height: 100vh;
@@ -41,9 +41,9 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Force black background on all elements to prevent any blue flash */
+/* Force dark background on all elements to prevent any blue flash */
 * {
-  background-color: #000000 !important;
+  background-color: #1a1a1a !important;
 }
 
 /* Exception for specific elements that need different backgrounds */
@@ -116,6 +116,11 @@ body {
   height: 100vh;
   background-color: #000;
   overflow: hidden;
+  /* Ensure 16:9 aspect ratio for the container */
+  aspect-ratio: 16/9;
+  max-height: 100vh;
+  max-width: calc(100vh * 16/9);
+  margin: 0 auto;
 }
 
 .composition-screen.fullscreen {
@@ -125,6 +130,10 @@ body {
   width: 100vw;
   height: 100vh;
   z-index: 1000;
+  /* Override aspect ratio for fullscreen */
+  aspect-ratio: unset;
+  max-width: unset;
+  max-height: unset;
 }
 
 .composition-canvas {
@@ -5131,7 +5140,8 @@ body.dragging .remove-zone {
 .title-bar-center {
   flex: 1;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  margin-left: 20px;
 }
 
 .menu-bar {
@@ -5159,8 +5169,70 @@ body.dragging .remove-zone {
   color: #ffffff;
 }
 
+.menu-item.active {
+  background-color: #555;
+  color: #ffffff;
+}
+
 .menu-icon {
   font-size: 14px;
+}
+
+/* Dropdown styles */
+.menu-item-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  margin-left: 3px;
+  transition: transform 0.2s ease;
+}
+
+.menu-item.active .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 150px;
+  z-index: 1001;
+  margin-top: 2px;
+  padding: 4px 0;
+}
+
+.dropdown-item {
+  background: none;
+  border: none;
+  color: #cccccc;
+  font-size: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s ease;
+  -webkit-app-region: no-drag;
+}
+
+.dropdown-item:hover {
+  background-color: #444;
+  color: #ffffff;
+}
+
+.dropdown-item .menu-icon {
+  font-size: 12px;
+  width: 16px;
+  text-align: center;
 }
 
 .title-bar-right {

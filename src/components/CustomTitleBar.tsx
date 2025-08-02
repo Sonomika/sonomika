@@ -1,18 +1,52 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface CustomTitleBarProps {
   onMinimize?: () => void;
   onMaximize?: () => void;
   onClose?: () => void;
   onMirror?: () => void;
+  onNewSet?: () => void;
+  onSaveSet?: () => void;
+  onOpenSet?: () => void;
 }
 
 export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onMinimize,
   onMaximize,
   onClose,
-  onMirror
+  onMirror,
+  onNewSet,
+  onSaveSet,
+  onOpenSet
 }) => {
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const fileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (fileMenuRef.current && !fileMenuRef.current.contains(event.target as Node)) {
+        setFileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleFileMenuClick = () => {
+    setFileMenuOpen(!fileMenuOpen);
+  };
+
+  const handleMenuItemClick = (action: (() => void) | undefined) => {
+    setFileMenuOpen(false);
+    if (action) {
+      action();
+    }
+  };
+
   return (
     <div className="custom-title-bar">
       <div className="title-bar-left">
@@ -22,15 +56,40 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
       <div className="title-bar-center">
         <div className="menu-bar">
           <button className="menu-item" onClick={onMirror}>
-            <span className="menu-icon">🪞</span>
             Mirror
           </button>
+          <div className="menu-item-dropdown" ref={fileMenuRef}>
+            <button 
+              className={`menu-item ${fileMenuOpen ? 'active' : ''}`} 
+              onClick={handleFileMenuClick}
+            >
+              File
+              <span className="dropdown-arrow">▼</span>
+            </button>
+            {fileMenuOpen && (
+              <div className="dropdown-menu">
+                <button 
+                  className="dropdown-item"
+                  onClick={() => handleMenuItemClick(onNewSet)}
+                >
+                  New Set
+                </button>
+                <button 
+                  className="dropdown-item"
+                  onClick={() => handleMenuItemClick(onSaveSet)}
+                >
+                  Save Set
+                </button>
+                <button 
+                  className="dropdown-item"
+                  onClick={() => handleMenuItemClick(onOpenSet)}
+                >
+                  Open Set
+                </button>
+              </div>
+            )}
+          </div>
           <button className="menu-item">
-            <span className="menu-icon">📁</span>
-            File
-          </button>
-          <button className="menu-item">
-            <span className="menu-icon">⚙️</span>
             Settings
           </button>
         </div>
