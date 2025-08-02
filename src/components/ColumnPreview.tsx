@@ -100,7 +100,7 @@ const VideoTexture: React.FC<{
 
   return (
     <mesh ref={meshRef}>
-      <planeGeometry args={[4, 2]} />
+      <planeGeometry args={[3.56, 2]} />
       <meshBasicMaterial 
         map={texture} 
         transparent 
@@ -755,11 +755,10 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
           justifyContent: 'center',
           transition: 'opacity 0.1s ease-in-out'
         }}>
-          {/* 16:9 aspect ratio container */}
+          {/* Full width container */}
           <div style={{
             width: '100%',
-            maxWidth: '100%',
-            aspectRatio: '16/9',
+            height: '100%',
             backgroundColor: '#000000',
             position: 'relative',
             overflow: 'hidden'

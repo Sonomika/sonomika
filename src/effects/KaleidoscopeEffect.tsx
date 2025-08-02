@@ -8,7 +8,7 @@ interface KaleidoscopeEffectProps {
 
 const KaleidoscopeEffect: React.FC<KaleidoscopeEffectProps> = ({ videoTexture }) => {
   const meshRef = useRef<THREE.Mesh>(null)
-  const [debugMode, setDebugMode] = useState(false) // Add debug mode
+  const [debugMode, setDebugMode] = useState(false) // Debug mode (disabled by default)
   
   // Debug: Check if video texture is received
   useEffect(() => {
@@ -152,8 +152,15 @@ const KaleidoscopeEffect: React.FC<KaleidoscopeEffectProps> = ({ videoTexture })
     }
   })
   
-  // Add keyboard shortcut to toggle debug mode (press 'D' key)
+  // Add keyboard shortcut to toggle debug mode (press 'D' key) - disabled by default
   useEffect(() => {
+    // Set to true to enable debug mode toggle
+    const enableDebugToggle = false;
+    
+    if (!enableDebugToggle) {
+      return; // Skip debug toggle if disabled
+    }
+    
     const handleKeyPress = (event: KeyboardEvent) => {
       if (event.key === 'd' || event.key === 'D') {
         setDebugMode(prev => !prev)

@@ -774,12 +774,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
       
       const previewElement = (
         <div className="preview-column">
-          <div className="preview-header-info">
-            <h4>Column Preview (Combined Layers)</h4>
-            <span className="preview-status">
-              {playingColumnId ? `Playing Column ${columns.findIndex((col: any) => col.id === playingColumnId) + 1}` : 'Stopped'}
-            </span>
-          </div>
           <div className="preview-main-content">
             <ColumnPreview
               column={previewContent.column}

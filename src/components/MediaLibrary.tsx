@@ -9,7 +9,7 @@ interface MediaLibraryProps {
 
 
 export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded = false }) => {
-  const { assets, addAsset, removeAsset } = useStore() as any;
+  const { assets, addAsset, removeAsset, updateAsset } = useStore() as any;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -18,6 +18,34 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   const [duplicateWarning, setDuplicateWarning] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasRestoredRef = useRef(false);
+
+  // Restore assets from base64Data when component mounts
+  useEffect(() => {
+    if (hasRestoredRef.current) return; // Already restored
+    
+    console.log('MediaLibrary: Checking for assets to restore...');
+    let hasRestored = false;
+    
+    assets.forEach((asset: any) => {
+      // If asset has base64Data but no valid path, restore the blob URL
+      if (asset.base64Data && (!asset.path || asset.path.startsWith('blob:'))) {
+        console.log('Restoring asset from base64Data:', asset.name);
+        const restoredBlobURL = convertBase64ToBlobURL(asset.base64Data, asset.type === 'image' ? 'image/*' : 'video/*');
+        if (restoredBlobURL) {
+          // Update the asset with the restored blob URL in the store
+          updateAsset(asset.id, { path: restoredBlobURL });
+          console.log('Asset restored successfully:', asset.name);
+          hasRestored = true;
+        }
+      }
+    });
+    
+    if (hasRestored) {
+      console.log('Asset restoration completed');
+      hasRestoredRef.current = true;
+    }
+  }, [assets, updateAsset]);
 
   // Handle drag start for assets
   const handleDragStart = (e: React.DragEvent, asset: any) => {

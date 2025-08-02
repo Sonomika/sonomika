@@ -8,10 +8,10 @@ interface EffectsBrowserProps {
 export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbedded = false }) => {
   const [selectedEffect, setSelectedEffect] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'effects' | 'overlays'>('effects');
 
-  // Sample effects data organized by type
-  const effects = [
-    // Three.js Effects (converted from p5.js)
+  // Regular effects (standalone animations)
+  const regularEffects = [
     {
       id: 'circle-pulse-effect',
       name: 'Circle Pulse Effect',
@@ -60,7 +60,6 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       category: 'Color',
       icon: '◉'
     },
-    // Three.js Effects
     {
       id: 'r3f-pulse',
       name: 'R3F Pulse',
@@ -78,21 +77,17 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       icon: '◉'
     },
     {
-      id: 'r3f-particle-system',
-      name: 'R3F Particle System',
-      type: 'threejs',
-      description: 'React Three Fiber particle system',
-      category: 'Animation',
-      icon: '•'
-    },
-    {
       id: 'r3f-color-pulse',
       name: 'R3F Color Pulse',
       type: 'threejs',
       description: 'React Three Fiber color pulse',
       category: 'Color',
       icon: '◉'
-    },
+    }
+  ];
+
+  // Overlay effects (applied to video/content)
+  const overlayEffects = [
     {
       id: 'kaleidoscope',
       name: 'Kaleidoscope Effect',
@@ -109,7 +104,14 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       category: 'Animation',
       icon: '✦'
     },
-    // Video Processing Effects
+    {
+      id: 'r3f-particle-system',
+      name: 'R3F Particle System',
+      type: 'threejs',
+      description: 'React Three Fiber particle system',
+      category: 'Animation',
+      icon: '•'
+    },
     {
       id: 'video-slice',
       name: 'Video Slice',
@@ -144,7 +146,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
     }
   ];
 
-  const filteredEffects = effects.filter(effect =>
+  // Get the appropriate effects array based on active tab
+  const currentEffects = activeTab === 'effects' ? overlayEffects : regularEffects;
+  
+  const filteredEffects = currentEffects.filter(effect =>
     effect.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     effect.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     effect.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -159,7 +164,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
     }
     groups[type].push(effect);
     return groups;
-  }, {} as Record<string, typeof effects>);
+  }, {} as Record<string, typeof currentEffects>);
 
   const handleEffectSelect = (effect: any) => {
     setSelectedEffect(effect);
@@ -305,6 +310,22 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
         {!isEmbedded && onClose && (
           <button onClick={onClose} className="close-btn">×</button>
         )}
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="effects-tabs">
+        <button 
+          className={`effects-tab ${activeTab === 'effects' ? 'active' : ''}`}
+          onClick={() => setActiveTab('effects')}
+        >
+          Effects
+        </button>
+        <button 
+          className={`effects-tab ${activeTab === 'overlays' ? 'active' : ''}`}
+          onClick={() => setActiveTab('overlays')}
+        >
+          Overlays
+        </button>
       </div>
 
       <div className="effects-browser-content">

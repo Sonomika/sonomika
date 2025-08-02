@@ -5,9 +5,9 @@ interface CustomTitleBarProps {
   onMaximize?: () => void;
   onClose?: () => void;
   onMirror?: () => void;
-  onNewSet?: () => void;
-  onSaveSet?: () => void;
-  onOpenSet?: () => void;
+  onNewPreset?: () => void;
+  onSavePreset?: () => void;
+  onLoadPreset?: () => void;
 }
 
 export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
@@ -15,9 +15,9 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onMaximize,
   onClose,
   onMirror,
-  onNewSet,
-  onSaveSet,
-  onOpenSet
+  onNewPreset,
+  onSavePreset,
+  onLoadPreset
 }) => {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
@@ -70,22 +70,23 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               <div className="dropdown-menu">
                 <button 
                   className="dropdown-item"
-                  onClick={() => handleMenuItemClick(onNewSet)}
+                  onClick={() => handleMenuItemClick(onNewPreset)}
                 >
-                  New Set
+                  New Preset
                 </button>
                 <button 
                   className="dropdown-item"
-                  onClick={() => handleMenuItemClick(onSaveSet)}
+                  onClick={() => handleMenuItemClick(onSavePreset)}
                 >
-                  Save Set
+                  Save Preset
                 </button>
                 <button 
                   className="dropdown-item"
-                  onClick={() => handleMenuItemClick(onOpenSet)}
+                  onClick={() => handleMenuItemClick(onLoadPreset)}
                 >
-                  Open Set
+                  Load Preset
                 </button>
+
               </div>
             )}
           </div>

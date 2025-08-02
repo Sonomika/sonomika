@@ -2,6 +2,8 @@ import { useEffect, Component, ErrorInfo, ReactNode, useState, useRef } from 're
 import { LayerManager } from './components/LayerManager';
 import { CanvasStreamManager } from './utils/CanvasStream';
 import { CustomTitleBar } from './components/CustomTitleBar';
+import { PresetModal } from './components/PresetModal';
+import { useStore } from './store/store';
 import './index.css';
 
 // Type declaration for the exposed API
@@ -78,6 +80,25 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
+  const { savePreset, loadPreset } = useStore();
+  const lastSaveRef = useRef<number>(0);
+  
+  // Modal states
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    type: 'save' | 'new' | 'load' | 'manage';
+    title: string;
+    message: string;
+    placeholder?: string;
+    defaultValue?: string;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    isOpen: false,
+    type: 'save',
+    title: '',
+    message: '',
+  });
 
   useEffect(() => {
     // Detect Windows taskbar and adjust app height
@@ -110,7 +131,56 @@ function App() {
     };
   }, []);
 
+  // Auto-save preset every 30 seconds (disabled by default)
+  useEffect(() => {
+    // Set to true to enable auto-backup
+    const enableAutoBackup = false;
+    
+    if (!enableAutoBackup) {
+      return; // Skip auto-backup if disabled
+    }
+    
+    const autoSaveInterval = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastSave = now - lastSaveRef.current;
+      
+      // Only save if it's been at least 30 seconds since last save
+      if (timeSinceLastSave >= 30000) {
+        const presetKey = savePreset(`auto-backup-${new Date().toISOString().slice(0, 19)}`);
+        if (presetKey) {
+          console.log('💾 Auto-saved preset:', presetKey);
+          lastSaveRef.current = now;
+        }
+      }
+    }, 30000); // Check every 30 seconds
 
+    return () => {
+      clearInterval(autoSaveInterval);
+    };
+  }, [savePreset]);
+
+  // Debug: Test persistence on mount (disabled by default)
+  useEffect(() => {
+    // Set to true to enable debug testing
+    const enableDebugTesting = false;
+    
+    if (!enableDebugTesting) {
+      return; // Skip debug testing if disabled
+    }
+    
+    console.log('🔧 App mounted - testing persistence...');
+    
+    // Test manual preset save
+    setTimeout(() => {
+      const testPresetKey = savePreset('debug-test-preset');
+      console.log('🧪 Test preset saved:', testPresetKey);
+      
+      // Check localStorage
+      const storageData = localStorage.getItem('vj-app-storage');
+      console.log('🧪 localStorage exists:', !!storageData);
+      console.log('🧪 localStorage size:', storageData?.length || 0, 'bytes');
+    }, 2000);
+  }, [savePreset]);
 
   // Listen for menu toggle-mirror event
   useEffect(() => {
@@ -133,7 +203,7 @@ function App() {
         
         if (!canvas) {
           console.error('No canvas found for streaming');
-          alert('No canvas found for streaming. Please make sure the VJ app is running with content.');
+          // Removed alert to reduce popups
           return;
         }
 
@@ -149,7 +219,7 @@ function App() {
         
         if (canvas.width === 0 || canvas.height === 0) {
           console.error('Canvas has zero dimensions, cannot stream');
-          alert('Canvas is not ready. Please wait for the preview to load and try again.');
+          // Removed alert to reduce popups
           return;
         }
         
@@ -160,7 +230,7 @@ function App() {
       }
     } catch (error) {
       console.error('Mirror window error:', error);
-      alert('Failed to open mirror window: ' + error);
+      // Removed alert to reduce popups
     }
   };
 
@@ -187,22 +257,93 @@ function App() {
     }
   };
 
-  const handleNewSet = () => {
-    console.log('New Set clicked');
-    // TODO: Implement new set functionality
-    alert('New Set functionality coming soon!');
+
+
+  const handleNewPreset = () => {
+    setModalConfig({
+      isOpen: true,
+      type: 'new',
+      title: 'New Preset',
+      message: 'Are you sure you want to create a new preset? This will reset all current settings to default.',
+      confirmText: 'Yes, Reset',
+      cancelText: 'Cancel'
+    });
   };
 
-  const handleSaveSet = () => {
-    console.log('Save Set clicked');
-    // TODO: Implement save set functionality
-    alert('Save Set functionality coming soon!');
+  const handleSavePreset = () => {
+    // Use the system's native save dialog by creating a download link
+    const { savePreset } = useStore.getState();
+    const presetName = savePreset(); // This will use the default timestamped name
+    
+    if (presetName) {
+      console.log('Preset saved:', presetName);
+      // The file will be downloaded automatically by the savePreset function
+      // The browser will show the system's "Save As" dialog
+    } else {
+      console.error('Failed to save preset');
+    }
   };
 
-  const handleOpenSet = () => {
-    console.log('Open Set clicked');
-    // TODO: Implement open set functionality
-    alert('Open Set functionality coming soon!');
+  const handleLoadPreset = () => {
+    // Create a file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.vjpreset,.json';
+    fileInput.style.display = 'none';
+    
+    fileInput.onchange = async (e) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      
+                if (file) {
+            try {
+              const success = await loadPreset(file);
+              if (success) {
+                console.log(`Preset "${file.name}" loaded successfully!`);
+                // Removed alert to reduce popups
+              } else {
+                console.error('Failed to load preset. Please check the file format.');
+                // Removed alert to reduce popups
+              }
+            } catch (error) {
+              console.error('Error loading preset:', error);
+              // Removed alert to reduce popups
+            }
+          }
+      
+      // Clean up
+      document.body.removeChild(fileInput);
+    };
+    
+    // Trigger file selection
+    document.body.appendChild(fileInput);
+    fileInput.click();
+  };
+
+
+
+  const handleModalClose = () => {
+    setModalConfig(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleModalConfirm = (value: string) => {
+    switch (modalConfig.type) {
+      case 'new':
+        // Reset to default state
+        const { resetToDefault } = useStore.getState();
+        resetToDefault();
+        
+        // Reload the page to ensure clean state
+        window.location.reload();
+        break;
+        
+      case 'save':
+        // Save functionality now uses system dialog, so this case is no longer needed
+        break;
+        
+      default:
+        break;
+    }
   };
 
   return (
@@ -212,9 +353,9 @@ function App() {
         onMaximize={handleWindowMaximize}
         onClose={handleWindowClose}
         onMirror={handleMirrorToggle}
-        onNewSet={handleNewSet}
-        onSaveSet={handleSaveSet}
-        onOpenSet={handleOpenSet}
+        onNewPreset={handleNewPreset}
+        onSavePreset={handleSavePreset}
+        onLoadPreset={handleLoadPreset}
       />
       
       <div style={{
@@ -229,6 +370,18 @@ function App() {
           <LayerManager onClose={() => {}} />
         </div>
       </div>
+      
+      <PresetModal
+        isOpen={modalConfig.isOpen}
+        onClose={handleModalClose}
+        onConfirm={handleModalConfirm}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        placeholder={modalConfig.placeholder}
+        defaultValue={modalConfig.defaultValue}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+      />
     </ErrorBoundary>
   );
 }

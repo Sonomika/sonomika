@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { AppState, Scene, Column, Layer, MIDIMapping, Asset, CompositionSettings } from './types';
+import { AppState, Scene, Column, Layer, MIDIMapping, Asset, CompositionSettings, TransitionType } from './types';
 
 const createEmptyLayer = (type: Layer['type'] = 'p5'): Layer => ({
   id: uuidv4(),
@@ -51,25 +51,7 @@ const initialState: AppState = {
   previewMode: 'composition',
   transitionType: 'fade',
   transitionDuration: 500,
-  assets: [
-    // Sample assets for testing
-    {
-      id: 'sample-image-1',
-      name: 'Sample Image 1',
-      type: 'image',
-      path: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZmY2YjZiIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNhbXBsZTwvdGV4dD48L3N2Zz4=',
-      size: 1024,
-      date: new Date().toLocaleDateString()
-    },
-    {
-      id: 'sample-image-2',
-      name: 'Sample Image 2',
-      type: 'image',
-      path: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzQ5OGRiIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlNhbXBsZSAyPC90ZXh0Pjwvc3ZnPg==',
-      size: 1024,
-      date: new Date().toLocaleDateString()
-    }
-  ],
+  assets: [],
   compositionSettings: {
     width: 1920,
     height: 1080,
@@ -80,7 +62,36 @@ const initialState: AppState = {
 
 initialState.currentSceneId = initialState.scenes[0].id;
 
-export const useStore = create<AppState>()(
+export const useStore = create<AppState & {
+  addScene: () => void;
+  setCurrentScene: (sceneId: string) => void;
+  updateScene: (sceneId: string, updates: Partial<Scene>) => void;
+  removeScene: (sceneId: string) => void;
+  addColumn: (sceneId: string) => void;
+  updateLayer: (layerId: string, updates: Partial<Layer>) => void;
+  toggleSidebar: () => void;
+  setBpm: (bpm: number) => void;
+  setSelectedLayer: (layerId: string | null) => void;
+  setPreviewMode: (mode: AppState['previewMode']) => void;
+  addMIDIMapping: (mapping: MIDIMapping) => void;
+  removeMIDIMapping: (index: number) => void;
+  setMIDIMappings: (mappings: MIDIMapping[]) => void;
+  setTransitionType: (type: TransitionType) => void;
+  setTransitionDuration: (duration: number) => void;
+  setPlayingColumn: (columnId: string | null) => void;
+  playColumn: (columnId: string) => void;
+  stopColumn: () => void;
+  clearStorage: () => void;
+  resetToDefault: () => void;
+  addAsset: (asset: Asset) => void;
+  updateAsset: (assetId: string, updates: Partial<Asset>) => void;
+  removeAsset: (assetId: string) => void;
+  updateCompositionSettings: (settings: Partial<CompositionSettings>) => void;
+  reorderLayers: (columnId: string, startIndex: number, endIndex: number) => void;
+  moveBetweenColumns: (sourceColumnId: string, destinationColumnId: string, sourceIndex: number, destinationIndex: number) => void;
+  savePreset: (presetName?: string) => string | null;
+  loadPreset: (file: File) => Promise<boolean>;
+}>()(
   persist(
     (set, get) => ({
       ...initialState,
@@ -174,14 +185,31 @@ export const useStore = create<AppState>()(
        },
 
        // Clear storage when quota is exceeded
-       clearStorage: () => {
-         try {
-           localStorage.removeItem('vj-app-storage');
-           console.log('Storage cleared due to quota issues');
-         } catch (error) {
-           console.warn('Failed to clear storage:', error);
-         }
-       },
+             clearStorage: () => {
+        try {
+          localStorage.removeItem('vj-app-storage');
+          console.log('Storage cleared due to quota issues');
+        } catch (error) {
+          console.warn('Failed to clear storage:', error);
+        }
+      },
+
+      resetToDefault: () => {
+        try {
+          // Clear localStorage
+          localStorage.removeItem('vj-app-storage');
+          
+          // Reset to initial state
+          set({
+            ...initialState,
+            currentSceneId: initialState.scenes[0].id,
+          });
+          
+          console.log('✅ Reset to default state completed');
+        } catch (error) {
+          console.warn('Failed to reset to default:', error);
+        }
+      },
 
       addAsset: (asset: Asset) => set((state) => {
         console.log('Adding asset to store:', asset.name, asset.id);
@@ -190,6 +218,12 @@ export const useStore = create<AppState>()(
           assets: [...state.assets, asset],
         };
       }),
+
+      updateAsset: (assetId: string, updates: Partial<Asset>) => set((state) => ({
+        assets: state.assets.map(asset => 
+          asset.id === assetId ? { ...asset, ...updates } : asset
+        ),
+      })),
 
       updateCompositionSettings: (settings: Partial<CompositionSettings>) => set((state) => ({
         compositionSettings: { ...state.compositionSettings, ...settings },
@@ -212,76 +246,240 @@ export const useStore = create<AppState>()(
         })),
       })),
 
-      moveBetweenColumns: (
-        sourceColumnId: string,
-        destinationColumnId: string,
-        sourceIndex: number,
-        destinationIndex: number
-      ) => set((state) => ({
-        scenes: state.scenes.map(scene => {
-          const sourceColumn = scene.columns.find(col => col.id === sourceColumnId);
-          const destColumn = scene.columns.find(col => col.id === destinationColumnId);
-          if (!sourceColumn || !destColumn) return scene;
+             moveBetweenColumns: (
+         sourceColumnId: string,
+         destinationColumnId: string,
+         sourceIndex: number,
+         destinationIndex: number
+       ) => set((state) => ({
+         scenes: state.scenes.map(scene => {
+           const sourceColumn = scene.columns.find(col => col.id === sourceColumnId);
+           const destColumn = scene.columns.find(col => col.id === destinationColumnId);
+           if (!sourceColumn || !destColumn) return scene;
 
-          const newColumns = scene.columns.map(column => {
-            if (column.id === sourceColumnId) {
-              const layers = [...column.layers];
-              layers.splice(sourceIndex, 1);
-              return { ...column, layers };
+           const newColumns = scene.columns.map(column => {
+             if (column.id === sourceColumnId) {
+               const layers = [...column.layers];
+               layers.splice(sourceIndex, 1);
+               return { ...column, layers };
+             }
+             if (column.id === destinationColumnId) {
+               const layers = [...column.layers];
+               layers.splice(destinationIndex, 0, sourceColumn.layers[sourceIndex]);
+               return { ...column, layers };
+             }
+             return column;
+           });
+
+           return { ...scene, columns: newColumns };
+         }),
+       })),
+
+               // Save current state as a preset
+              savePreset: (presetName?: string) => {
+        try {
+          const state = get();
+          const defaultName = presetName || `preset-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`;
+          
+          // Filter out large assets to prevent storage quota issues
+          const filteredAssets = state.assets.map(asset => {
+            const { base64Data, ...assetWithoutBase64 } = asset;
+            // Only include base64Data for small files (under 500KB)
+            if (asset.size < 500 * 1024 && base64Data) {
+              return { ...assetWithoutBase64, base64Data };
             }
-            if (column.id === destinationColumnId) {
-              const layers = [...column.layers];
-              layers.splice(destinationIndex, 0, sourceColumn.layers[sourceIndex]);
-              return { ...column, layers };
-            }
-            return column;
+            // For larger files, just include the metadata
+            return assetWithoutBase64;
           });
+          
+          const preset = {
+            name: defaultName,
+            timestamp: Date.now(),
+            data: {
+              scenes: state.scenes,
+              currentSceneId: state.currentSceneId,
+              playingColumnId: state.playingColumnId,
+              bpm: state.bpm,
+              sidebarVisible: state.sidebarVisible,
+              midiMappings: state.midiMappings,
+              selectedLayerId: state.selectedLayerId,
+              previewMode: state.previewMode,
+              transitionType: state.transitionType,
+              transitionDuration: state.transitionDuration,
+              compositionSettings: state.compositionSettings,
+              assets: filteredAssets,
+            }
+          };
+          
+          // Create a blob and download the preset file
+          const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${defaultName}.vjpreset`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          console.log('Preset saved to file:', defaultName);
+          return defaultName;
+        } catch (error) {
+          console.error('Failed to save preset:', error);
+          return null;
+        }
+      },
 
-          return { ...scene, columns: newColumns };
-        }),
-      })),
+               // Load a preset
+              loadPreset: (file: File) => {
+        return new Promise<boolean>((resolve) => {
+          try {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              try {
+                const presetData = e.target?.result as string;
+                const preset = JSON.parse(presetData);
+                console.log('Loading preset:', preset.name);
+                
+                // Check if the preset data is too large for localStorage
+                const dataSize = new Blob([presetData]).size;
+                const maxSize = 4 * 1024 * 1024; // 4MB limit to be safe
+                
+                if (dataSize > maxSize) {
+                  console.warn('⚠️ Preset data is too large for localStorage:', Math.round(dataSize / 1024), 'KB');
+                  
+                  // Try to load without large assets
+                  const cleanedData = {
+                    ...preset.data,
+                                         assets: preset.data.assets?.filter((asset: any) => {
+                       // Remove assets with base64Data that are too large
+                       if (asset.base64Data && asset.size > 1024 * 1024) { // 1MB
+                         console.log('Removing large asset from preset:', asset.name, 'size:', Math.round(asset.size / 1024), 'KB');
+                         return false;
+                       }
+                       return true;
+                     }) || []
+                  };
+                  
+                  // Clear localStorage first to make space
+                  try {
+                    localStorage.removeItem('vj-app-storage');
+                    console.log('Cleared localStorage to make space for preset');
+                  } catch (clearError) {
+                    console.warn('Failed to clear localStorage:', clearError);
+                  }
+                  
+                  // Apply the cleaned preset data
+                  set(cleanedData);
+                  resolve(true);
+                } else {
+                  // Apply the preset data to the store
+                  set(preset.data);
+                  resolve(true);
+                }
+              } catch (error) {
+                console.error('Failed to parse preset file:', error);
+                resolve(false);
+              }
+            };
+            reader.onerror = () => {
+              console.error('Failed to read preset file');
+              resolve(false);
+            };
+            reader.readAsText(file);
+          } catch (error) {
+            console.error('Failed to load preset:', error);
+            resolve(false);
+          }
+        });
+      },
     }),
     {
       name: 'vj-app-storage',
              partialize: (state) => {
          console.log('Persisting state with assets:', state.assets.length);
          return {
-           // Only persist essential data, exclude large base64 assets
-           assets: state.assets.map(asset => ({
-             id: asset.id,
-             name: asset.name,
-             type: asset.type,
-             path: asset.path,
-             filePath: asset.filePath,
-             size: asset.size,
-             date: asset.date,
-             // Exclude base64Data to prevent storage quota issues
-             // base64Data: asset.base64Data || undefined
-           })),
+           // Persist assets with base64Data for small files
+           assets: state.assets.map(asset => {
+             const persistedAsset: any = {
+               id: asset.id,
+               name: asset.name,
+               type: asset.type,
+               path: asset.path,
+               filePath: asset.filePath,
+               size: asset.size,
+               date: asset.date,
+             };
+             
+             // Include base64Data for small files (under 500KB to prevent quota issues)
+             if (asset.size < 500 * 1024 && asset.base64Data) {
+               persistedAsset.base64Data = asset.base64Data;
+               console.log('Including base64Data for asset:', asset.name);
+             }
+             
+             return persistedAsset;
+           }),
+           // Persist all critical application state
            scenes: state.scenes,
            currentSceneId: state.currentSceneId,
            playingColumnId: state.playingColumnId,
            bpm: state.bpm,
+           sidebarVisible: state.sidebarVisible,
            midiMappings: state.midiMappings,
+           selectedLayerId: state.selectedLayerId,
+           previewMode: state.previewMode,
            transitionType: state.transitionType,
            transitionDuration: state.transitionDuration,
+           compositionSettings: state.compositionSettings,
          };
        },
              onRehydrateStorage: () => (state) => {
-         console.log('Store rehydrated with assets:', state?.assets?.length || 0);
-         console.log('Rehydrated assets:', state?.assets);
+         console.log('🔄 Store rehydrated successfully!');
+         console.log('📊 Rehydrated data summary:');
+         console.log('  - Assets:', state?.assets?.length || 0, 'items');
+         console.log('  - Scenes:', state?.scenes?.length || 0, 'scenes');
+         console.log('  - Current Scene ID:', state?.currentSceneId || 'none');
+         console.log('  - Playing Column ID:', state?.playingColumnId || 'none');
+         console.log('  - BPM:', state?.bpm || 120);
+         console.log('  - Sidebar Visible:', state?.sidebarVisible);
+         console.log('  - Selected Layer ID:', state?.selectedLayerId || 'none');
+         console.log('  - Preview Mode:', state?.previewMode || 'composition');
+         console.log('  - MIDI Mappings:', state?.midiMappings?.length || 0, 'mappings');
+         console.log('  - Composition Settings:', state?.compositionSettings);
          
-         // Check if storage is getting too full and clear if needed
+         // Debug: Check what's actually in localStorage
          try {
-           const storageSize = localStorage.getItem('vj-app-storage')?.length || 0;
-           const maxSize = 5 * 1024 * 1024; // 5MB limit
-           if (storageSize > maxSize) {
-             console.warn('Storage size exceeded limit, clearing...');
-             localStorage.removeItem('vj-app-storage');
+           const storageData = localStorage.getItem('vj-app-storage');
+           console.log('🔍 Raw localStorage data length:', storageData?.length || 0);
+           if (storageData) {
+             const parsed = JSON.parse(storageData);
+             console.log('🔍 Parsed storage keys:', Object.keys(parsed));
+             console.log('🔍 Storage state:', parsed);
            }
          } catch (error) {
-           console.warn('Failed to check storage size:', error);
+           console.error('❌ Error reading localStorage:', error);
          }
+         
+                   // Check if storage is getting too full and clear if needed
+          try {
+            const storageSize = localStorage.getItem('vj-app-storage')?.length || 0;
+            const maxSize = 4 * 1024 * 1024; // 4MB limit to be safe
+            if (storageSize > maxSize) {
+              console.warn('⚠️ Storage size exceeded limit, clearing...');
+              localStorage.removeItem('vj-app-storage');
+            } else {
+              console.log('💾 Storage size:', Math.round(storageSize / 1024), 'KB');
+            }
+          } catch (error) {
+            console.warn('Failed to check storage size:', error);
+            // If we can't check storage size, clear it to be safe
+            try {
+              localStorage.removeItem('vj-app-storage');
+              console.log('Cleared localStorage due to error checking size');
+            } catch (clearError) {
+              console.warn('Failed to clear localStorage:', clearError);
+            }
+          }
        },
     }
   )
