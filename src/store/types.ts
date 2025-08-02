@@ -77,6 +77,7 @@ export interface CompositionSettings {
 export interface AppState {
   scenes: Scene[];
   currentSceneId: string;
+  playingColumnId: string | null; // Track which column is currently playing
   bpm: number;
   sidebarVisible: boolean;
   midiMappings: MIDIMapping[];

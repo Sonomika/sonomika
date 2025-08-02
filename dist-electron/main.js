@@ -110,29 +110,28 @@ function createMirrorWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      // Reverted to true
       webSecurity: false,
       allowRunningInsecureContent: true,
       preload: path.join(__dirname, "preload.js")
-      // Ensure this is the main preload, not mirror-preload
     },
     show: false,
-    resizable: false,
-    // Prevent resizing to maintain aspect ratio
-    maximizable: false,
-    // Prevent maximizing to maintain resolution
+    resizable: true,
+    // Allow resizing
+    maximizable: true,
+    // Allow maximizing
     fullscreen: false,
-    // Don't open in fullscreen mode
     kiosk: false,
-    // Allow escape from fullscreen
     alwaysOnTop: true,
-    // Keep mirror window on top
     skipTaskbar: true,
-    // Don't show in taskbar
     focusable: true,
-    // Allow focusing and moving the window
-    movable: true
-    // Allow moving the window
+    movable: true,
+    frame: false,
+    // Keep borderless but add custom controls
+    titleBarStyle: "hidden",
+    transparent: false,
+    minWidth: 480,
+    // Minimum size
+    minHeight: 270
   });
   const htmlContent = `
     <!DOCTYPE html>
@@ -151,33 +150,88 @@ function createMirrorWindow() {
           overflow: hidden;
           font-family: monospace;
         }
+        /* Make the background draggable */
+        body::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          -webkit-app-region: drag;
+          z-index: 0;
+        }
         img {
           width: 960px;
           height: 540px;
-          object-fit: cover;
-        }
-        .mirror-info {
-          position: absolute;
-          top: 10px;
-          left: 10px;
-          color: #fff;
-          font-size: 12px;
-          background: rgba(0,0,0,0.7);
-          padding: 5px 10px;
-          border-radius: 4px;
-          z-index: 1000;
+          object-fit: contain;
+          image-rendering: -webkit-optimize-contrast;
+          image-rendering: crisp-edges;
+          transition: opacity 0.1s ease-in-out;
+          -webkit-app-region: drag; /* Make image draggable */
+          position: relative;
+          z-index: 1;
         }
         .no-stream {
           color: #fff;
           text-align: center;
           font-size: 16px;
+          -webkit-app-region: no-drag; /* Don't drag when clicking text */
+          position: relative;
+          z-index: 1;
         }
+        #mirror-image {
+          opacity: 0;
+          transition: opacity 0.2s ease-in-out;
+        }
+        #mirror-image.loaded {
+          opacity: 1;
+        }
+        /* Custom resize handles */
+        .resize-handle {
+          position: absolute;
+          background: transparent;
+          z-index: 1000;
+          -webkit-app-region: no-drag; /* Prevent dragging on resize handles */
+        }
+        .resize-handle.nw { top: 0; left: 0; width: 10px; height: 10px; cursor: nw-resize; }
+        .resize-handle.ne { top: 0; right: 0; width: 10px; height: 10px; cursor: ne-resize; }
+        .resize-handle.sw { bottom: 0; left: 0; width: 10px; height: 10px; cursor: sw-resize; }
+        .resize-handle.se { bottom: 0; right: 0; width: 10px; height: 10px; cursor: se-resize; }
+        .resize-handle.n { top: 0; left: 10px; right: 10px; height: 10px; cursor: n-resize; }
+        .resize-handle.s { bottom: 0; left: 10px; right: 10px; height: 10px; cursor: s-resize; }
+        .resize-handle.w { left: 0; top: 10px; bottom: 10px; width: 10px; cursor: w-resize; }
+        .resize-handle.e { right: 0; top: 10px; bottom: 10px; width: 10px; cursor: e-resize; }
       </style>
     </head>
-    <body>
-      <div class="mirror-info">VJ Mirror Output (960x540)</div>
+    <body ondblclick="toggleFullscreen()">
       <div id="no-stream" class="no-stream">Waiting for stream...</div>
-      <img id="mirror-image" style="display: none;">
+      <img id="mirror-image" style="display: none;" onload="this.classList.add('loaded');" onclick="handleImageClick(event)">
+      
+      <!-- Resize handles -->
+      <div class="resize-handle nw"></div>
+      <div class="resize-handle ne"></div>
+      <div class="resize-handle sw"></div>
+      <div class="resize-handle se"></div>
+      <div class="resize-handle n"></div>
+      <div class="resize-handle s"></div>
+      <div class="resize-handle w"></div>
+      <div class="resize-handle e"></div>
+      
+      <script>
+        function toggleFullscreen() {
+          // Send message to main process to toggle fullscreen
+          if (window.electron) {
+            window.electron.toggleFullscreen();
+          }
+        }
+        
+        function handleImageClick(event) {
+          // Prevent dragging when clicking on the image
+          event.stopPropagation();
+          // You can add any image-specific interactions here
+        }
+      <\/script>
     </body>
     </html>
   `;
@@ -185,20 +239,12 @@ function createMirrorWindow() {
   mirrorWindow.once("ready-to-show", () => {
     mirrorWindow.show();
     mirrorWindow.center();
-    if (mainWindow) {
-      mainWindow.setAlwaysOnTop(false);
-    }
-  });
-  mirrorWindow.on("closed", () => {
-    mirrorWindow = null;
   });
   mirrorWindow.webContents.on("before-input-event", (event, input) => {
     if (input.key === "Escape") {
-      mirrorWindow.setFullScreen(false);
       mirrorWindow.close();
     }
   });
-  console.log("Mirror window created");
 }
 function closeMirrorWindow() {
   if (mirrorWindow && !mirrorWindow.isDestroyed()) {
@@ -333,7 +379,6 @@ electron.app.whenReady().then(() => {
     closeMirrorWindow();
   });
   electron.ipcMain.on("canvas-data", (event, dataUrl) => {
-    console.log("Main: canvas-data received, sending to mirror window");
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
       const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
       mirrorWindow.webContents.executeJavaScript(`
@@ -342,15 +387,26 @@ electron.app.whenReady().then(() => {
           const mirrorImage = document.getElementById('mirror-image');
           
           if (noStreamDiv && mirrorImage) {
+            // Hide the waiting message
             noStreamDiv.style.display = 'none';
-            mirrorImage.src = '${escapedDataUrl}';
-            mirrorImage.style.display = 'block';
-            console.log('Mirror window: image updated successfully');
-          } else {
-            console.log('Mirror window: elements not found');
+            
+            // Only update if the image source is different to prevent flashing
+            if (mirrorImage.src !== '${escapedDataUrl}') {
+              mirrorImage.src = '${escapedDataUrl}';
+              mirrorImage.style.display = 'block';
+            }
           }
         })();
       `);
+    }
+  });
+  electron.ipcMain.on("toggle-fullscreen", (event) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      if (mirrorWindow.isFullScreen()) {
+        mirrorWindow.setFullScreen(false);
+      } else {
+        mirrorWindow.setFullScreen(true);
+      }
     }
   });
   createWindow();

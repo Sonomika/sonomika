@@ -43,6 +43,7 @@ const createDefaultScenes = (): Scene[] => {
 const initialState: AppState = {
   scenes: createDefaultScenes(),
   currentSceneId: '',
+  playingColumnId: null, // No column playing initially
   bpm: 120,
   sidebarVisible: true,
   midiMappings: [],
@@ -146,6 +147,42 @@ export const useStore = create<AppState>()(
 
       setTransitionDuration: (duration: number) => set({ transitionDuration: duration }),
 
+             // Column playback control
+       setPlayingColumn: (columnId: string | null) => {
+         try {
+           set({ playingColumnId: columnId });
+         } catch (error) {
+           console.warn('Failed to set playing column:', error);
+         }
+       },
+       
+               playColumn: (columnId: string) => {
+          try {
+            // Immediate state update
+            set({ playingColumnId: columnId });
+          } catch (error) {
+            console.warn('Failed to play column:', error);
+          }
+        },
+       
+       stopColumn: () => {
+         try {
+           set({ playingColumnId: null });
+         } catch (error) {
+           console.warn('Failed to stop column:', error);
+         }
+       },
+
+       // Clear storage when quota is exceeded
+       clearStorage: () => {
+         try {
+           localStorage.removeItem('vj-app-storage');
+           console.log('Storage cleared due to quota issues');
+         } catch (error) {
+           console.warn('Failed to clear storage:', error);
+         }
+       },
+
       addAsset: (asset: Asset) => set((state) => {
         console.log('Adding asset to store:', asset.name, asset.id);
         console.log('Current assets count:', state.assets.length);
@@ -206,27 +243,46 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'vj-app-storage',
-      partialize: (state) => {
-        console.log('Persisting state with assets:', state.assets.length);
-        return {
-          assets: state.assets.map(asset => ({
-            ...asset,
-            file: undefined, // Exclude File object from persistence
-            // Keep base64 data for all files to ensure persistence
-            base64Data: asset.base64Data || undefined
-          })),
-          scenes: state.scenes,
-          currentSceneId: state.currentSceneId,
-          bpm: state.bpm,
-          midiMappings: state.midiMappings,
-          transitionType: state.transitionType,
-          transitionDuration: state.transitionDuration,
-        };
-      },
-      onRehydrateStorage: () => (state) => {
-        console.log('Store rehydrated with assets:', state?.assets?.length || 0);
-        console.log('Rehydrated assets:', state?.assets);
-      },
+             partialize: (state) => {
+         console.log('Persisting state with assets:', state.assets.length);
+         return {
+           // Only persist essential data, exclude large base64 assets
+           assets: state.assets.map(asset => ({
+             id: asset.id,
+             name: asset.name,
+             type: asset.type,
+             path: asset.path,
+             filePath: asset.filePath,
+             size: asset.size,
+             date: asset.date,
+             // Exclude base64Data to prevent storage quota issues
+             // base64Data: asset.base64Data || undefined
+           })),
+           scenes: state.scenes,
+           currentSceneId: state.currentSceneId,
+           playingColumnId: state.playingColumnId,
+           bpm: state.bpm,
+           midiMappings: state.midiMappings,
+           transitionType: state.transitionType,
+           transitionDuration: state.transitionDuration,
+         };
+       },
+             onRehydrateStorage: () => (state) => {
+         console.log('Store rehydrated with assets:', state?.assets?.length || 0);
+         console.log('Rehydrated assets:', state?.assets);
+         
+         // Check if storage is getting too full and clear if needed
+         try {
+           const storageSize = localStorage.getItem('vj-app-storage')?.length || 0;
+           const maxSize = 5 * 1024 * 1024; // 5MB limit
+           if (storageSize > maxSize) {
+             console.warn('Storage size exceeded limit, clearing...');
+             localStorage.removeItem('vj-app-storage');
+           }
+         } catch (error) {
+           console.warn('Failed to check storage size:', error);
+         }
+       },
     }
   )
 ); 

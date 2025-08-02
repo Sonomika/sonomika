@@ -80,8 +80,6 @@ function App() {
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
 
   useEffect(() => {
-    console.log('App component mounted');
-
     // Detect Windows taskbar and adjust app height
     const adjustForTaskbar = () => {
       const viewportHeight = window.innerHeight;
@@ -130,31 +128,8 @@ function App() {
         streamManagerRef.current?.closeMirrorWindow();
         setIsMirrorOpen(false);
       } else {
-        // Debug: List all canvases
-        const allCanvases = document.querySelectorAll('canvas');
-        console.log('All canvases found:', allCanvases.length);
-        allCanvases.forEach((canvas, index) => {
-          console.log(`Canvas ${index}:`, canvas, 'classes:', canvas.className, 'id:', canvas.id);
-        });
-        
-        // Find the main canvas element - try multiple selectors
-        let canvas = document.querySelector('.preview-content canvas') as HTMLCanvasElement;
-        
-        if (!canvas) {
-          canvas = document.querySelector('.canvas-renderer canvas') as HTMLCanvasElement;
-        }
-        
-        if (!canvas) {
-          canvas = document.querySelector('.composition-canvas') as HTMLCanvasElement;
-        }
-        
-        if (!canvas) {
-          canvas = document.querySelector('canvas') as HTMLCanvasElement;
-        }
-        
-        if (!canvas) {
-          canvas = document.getElementById('test-mirror-canvas') as HTMLCanvasElement;
-        }
+        // Find the main canvas element
+        let canvas = document.querySelector('canvas') as HTMLCanvasElement;
         
         if (!canvas) {
           console.error('No canvas found for streaming');
@@ -163,6 +138,20 @@ function App() {
         }
 
         console.log('Found canvas for streaming:', canvas);
+        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+        console.log('Canvas style dimensions:', canvas.style.width, 'x', canvas.style.height);
+        
+        // Wait a bit for the Three.js canvas to be fully rendered
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Check canvas dimensions again after delay
+        console.log('Canvas dimensions after delay:', canvas.width, 'x', canvas.height);
+        
+        if (canvas.width === 0 || canvas.height === 0) {
+          console.error('Canvas has zero dimensions, cannot stream');
+          alert('Canvas is not ready. Please wait for the preview to load and try again.');
+          return;
+        }
         
         // Create stream manager and open mirror window
         streamManagerRef.current = new CanvasStreamManager(canvas);
@@ -216,8 +205,6 @@ function App() {
     alert('Open Set functionality coming soon!');
   };
 
-  console.log('App component rendering');
-
   return (
     <ErrorBoundary>
       <CustomTitleBar
@@ -241,8 +228,6 @@ function App() {
         <div style={{ flex: 1, marginTop: '20px', height: 'calc(100vh - 120px)' }}>
           <LayerManager onClose={() => {}} />
         </div>
-
-
       </div>
     </ErrorBoundary>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, startTransition } from 'react';
 import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerOptions } from './LayerOptions';
@@ -15,7 +15,7 @@ interface LayerManagerProps {
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings, bpm } = useStore() as any;
+  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings, bpm, playingColumnId, playColumn, stopColumn, clearStorage } = useStore() as any;
   console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
   
   const [selectedLayer, setSelectedLayer] = useState<any>(null);
@@ -104,21 +104,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         return;
       }
       
-      console.log('🎵 Setting preview content for column:', columnId);
-      console.log('🎵 Preview content will be:', {
-        type: 'column',
-        columnId: columnId,
-        column: column,
-        layers: column.layers || []
-      });
+      // Switch to the new column immediately
+      console.log('▶️ Switching to column:', columnId);
+      try {
+        playColumn(columnId);
+      } catch (error) {
+        console.warn('Failed to play column, clearing storage:', error);
+        clearStorage();
+      }
       
-      setPreviewContent({
+      // Update preview content immediately without causing flash
+      const newPreviewContent = {
         type: 'column',
         columnId: columnId,
         column: column,
         layers: column.layers || []
+      };
+      
+      console.log('🎵 Setting preview content for column:', columnId);
+      console.log('🎵 Preview content will be:', newPreviewContent);
+      
+      // Batch state updates to prevent flash
+      React.startTransition(() => {
+        setPreviewContent(newPreviewContent);
+        setIsPlaying(true);
       });
-      setIsPlaying(true);
       console.log('✅ Playing column:', columnId, column);
     } else {
       console.error('❌ Column not found:', columnId);
@@ -144,8 +154,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
   // Handle stop button
   const handleStop = () => {
+    console.log('🛑 handleStop called');
     setIsPlaying(false);
     setPreviewContent(null);
+    try {
+      stopColumn(); // Stop the currently playing column
+    } catch (error) {
+      console.warn('Failed to stop column, clearing storage:', error);
+      clearStorage();
+    }
   };
 
   const handleClearLayers = () => {
@@ -759,14 +776,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         <div className="preview-column">
           <div className="preview-header-info">
             <h4>Column Preview (Combined Layers)</h4>
-            <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
+            <span className="preview-status">
+              {playingColumnId ? `Playing Column ${columns.findIndex((col: any) => col.id === playingColumnId) + 1}` : 'Stopped'}
+            </span>
           </div>
           <div className="preview-main-content">
             <ColumnPreview
               column={previewContent.column}
               width={compositionSettings.width}
               height={compositionSettings.height}
-              isPlaying={isPlaying}
+              isPlaying={isPlaying && playingColumnId === previewContent.columnId}
               bpm={bpm}
               globalEffects={currentScene?.globalEffects || []}
             />
@@ -1023,7 +1042,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             <div className="composition-row">
 
               {columns.map((column: any, index: number) => {
-                const isColumnPlaying = previewContent?.type === 'column' && previewContent?.columnId === column.id;
+                const isColumnPlaying = playingColumnId === column.id;
                 return (
                   <div key={column.id} className="column-cell">
                     <div 

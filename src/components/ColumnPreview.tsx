@@ -252,21 +252,38 @@ const ColumnScene: React.FC<{
     images: Map<string, HTMLImageElement>;
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
+  
+  // Use ref to track loaded assets to prevent infinite loops
+  const loadedAssetsRef = useRef<{
+    images: Map<string, HTMLImageElement>;
+    videos: Map<string, HTMLVideoElement>;
+  }>({ images: new Map(), videos: new Map() });
 
   console.log('ColumnScene rendering with:', { column, isPlaying, frameCount, assetsCount: assets.images.size + assets.videos.size });
 
-  // Load assets
+  // Load assets with caching
   useEffect(() => {
     const loadAssets = async () => {
       const newImages = new Map<string, HTMLImageElement>();
       const newVideos = new Map<string, HTMLVideoElement>();
         
-        for (const layer of column.layers) {
-          if (!layer.asset) continue;
+      for (const layer of column.layers) {
+        if (!layer.asset) continue;
 
-          const asset = layer.asset;
-          if (asset.type === 'image') {
-            try {
+        const asset = layer.asset;
+        
+        // Check if asset is already loaded
+        if (loadedAssetsRef.current.images.has(asset.id)) {
+          newImages.set(asset.id, loadedAssetsRef.current.images.get(asset.id)!);
+          continue;
+        }
+        if (loadedAssetsRef.current.videos.has(asset.id)) {
+          newVideos.set(asset.id, loadedAssetsRef.current.videos.get(asset.id)!);
+          continue;
+        }
+
+        if (asset.type === 'image') {
+          try {
             const img = new Image();
             img.crossOrigin = 'anonymous';
             await new Promise((resolve, reject) => {
@@ -275,36 +292,30 @@ const ColumnScene: React.FC<{
               img.src = asset.path;
             });
             newImages.set(asset.id, img);
-              console.log(`✅ Image loaded for layer ${layer.name}:`, asset.name);
-            } catch (error) {
-              console.error(`❌ Failed to load image for layer ${layer.name}:`, error);
-            }
-          } else if (asset.type === 'video') {
-            try {
-          const video = document.createElement('video');
-            // Use proper asset path resolution
+            console.log(`✅ Image loaded for layer ${layer.name}:`, asset.name);
+          } catch (error) {
+            console.error(`❌ Failed to load image for layer ${layer.name}:`, error);
+          }
+        } else if (asset.type === 'video') {
+          try {
+            const video = document.createElement('video');
             const assetPath = getAssetPath(asset);
             console.log('Loading video with path:', assetPath, 'for asset:', asset.name);
             video.src = assetPath;
-          video.muted = true;
-          video.loop = true;
-          video.autoplay = true;
-          video.playsInline = true;
-            // Remove black background to prevent black borders
+            video.muted = true;
+            video.loop = true;
+            video.autoplay = true;
+            video.playsInline = true;
             video.style.backgroundColor = 'transparent';
             
             await new Promise<void>((resolve, reject) => {
               video.addEventListener('loadeddata', () => {
                 console.log('Video loaded successfully:', asset.name);
-                console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
-                console.log('Video aspect ratio:', video.videoWidth / video.videoHeight);
-                console.log('Video readyState:', video.readyState);
-                console.log('Video currentTime:', video.currentTime);
                 resolve();
               });
               video.addEventListener('error', reject);
-          video.load();
-        });
+              video.load();
+            });
             
             newVideos.set(asset.id, video);
             console.log(`✅ Video loaded for layer ${layer.name}:`, asset.name);
@@ -314,6 +325,8 @@ const ColumnScene: React.FC<{
         }
       }
 
+      // Store in ref for future use
+      loadedAssetsRef.current = { images: newImages, videos: newVideos };
       setAssets({ images: newImages, videos: newVideos });
     };
 
@@ -658,7 +671,7 @@ const getBlendMode = (blendMode: string): THREE.Blending => {
   }
 };
 
-export const ColumnPreview: React.FC<ColumnPreviewProps> = ({ 
+export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({ 
   column, 
   width, 
   height, 
@@ -732,48 +745,65 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({
   return (
     <div className="column-preview">
       <div className="preview-main-content">
-        <div style={{ width: '100%', height: '100%', backgroundColor: '#000000', position: 'relative' }}>
-          {/* Debug indicator */}
+        <div style={{ 
+          width: '100%', 
+          height: '100%', 
+          backgroundColor: '#000000', 
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'opacity 0.1s ease-in-out'
+        }}>
+          {/* 16:9 aspect ratio container */}
           <div style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px',
-            color: 'rgba(255, 255, 255, 0.6)',
-            fontSize: '10px',
-            fontWeight: 'normal',
-            zIndex: 1,
-            pointerEvents: 'none',
-            backgroundColor: 'rgba(0, 0, 0, 0.3)',
-            padding: '2px 6px',
-            borderRadius: '3px'
+            width: '100%',
+            maxWidth: '100%',
+            aspectRatio: '16/9',
+            backgroundColor: '#000000',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
-            R3F
-          </div>
-          
-          <Canvas
-            camera={{ position: [0, 0, 1], fov: 90 }}
-            style={{ width: '100%', height: '100%' }}
-            onCreated={({ gl }) => {
-              console.log('R3F Canvas created successfully');
-              gl.setClearColor(0x000000, 1);
-            }}
-            onError={(error) => {
-              console.error('R3F Canvas error:', error);
-              setError(`Canvas Error: ${error instanceof Error ? error.message : String(error)}`);
-            }}
-          >
-
+            {/* Debug indicator */}
+            <div style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              color: 'rgba(255, 255, 255, 0.6)',
+              fontSize: '10px',
+              fontWeight: 'normal',
+              zIndex: 1,
+              pointerEvents: 'none',
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              padding: '2px 6px',
+              borderRadius: '3px'
+            }}>
+              R3F
+            </div>
             
-                    <ColumnScene 
-          column={column} 
-          isPlaying={isPlaying} 
-          frameCount={frameCount} 
-          bpm={bpm}
-          globalEffects={globalEffects}
-        />
-          </Canvas>
+            <Canvas
+              camera={{ position: [0, 0, 1], fov: 90 }}
+              style={{ width: '100%', height: '100%' }}
+              onCreated={({ gl }) => {
+                console.log('R3F Canvas created successfully');
+                gl.setClearColor(0x000000, 1);
+              }}
+              onError={(error) => {
+                console.error('R3F Canvas error:', error);
+                setError(`Canvas Error: ${error instanceof Error ? error.message : String(error)}`);
+              }}
+            >
+              <ColumnScene 
+                column={column} 
+                isPlaying={isPlaying} 
+                frameCount={frameCount} 
+                bpm={bpm}
+                globalEffects={globalEffects}
+              />
+            </Canvas>
+          </div>
         </div>
       </div>
     </div>
   );
-}; 
+}); 

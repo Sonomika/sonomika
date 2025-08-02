@@ -33,6 +33,10 @@ try {
     sendCanvasData: (dataUrl: string) => {
       console.log('Preload: sendCanvasData called');
       ipcRenderer.send('canvas-data', dataUrl);
+    },
+    toggleFullscreen: () => {
+      console.log('Preload: toggleFullscreen called');
+      ipcRenderer.send('toggle-fullscreen');
     }
   });
   
@@ -53,6 +57,7 @@ declare global {
       openMirrorWindow: () => void;
       closeMirrorWindow: () => void;
       sendCanvasData: (dataUrl: string) => void;
+      toggleFullscreen: () => void;
     };
   }
 } 
