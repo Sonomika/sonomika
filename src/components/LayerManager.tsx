@@ -1,4 +1,4 @@
-import React, { useState, startTransition } from 'react';
+import React, { useState, startTransition, useEffect } from 'react';
 import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerOptions } from './LayerOptions';
@@ -6,6 +6,7 @@ import { MIDIMapper } from './MIDIMapper';
 import { CanvasRenderer } from './CanvasRenderer';
 import { ColumnPreview } from './ColumnPreview';
 import { EffectsBrowser } from './EffectsBrowser';
+import { BPMManager } from '../engine/BPMManager';
 import { v4 as uuidv4 } from 'uuid';
 
 interface LayerManagerProps {
@@ -15,7 +16,20 @@ interface LayerManagerProps {
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings, bpm, playingColumnId, playColumn, stopColumn, clearStorage } = useStore() as any;
+  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings, bpm, setBpm, playingColumnId, playColumn, stopColumn, clearStorage } = useStore() as any;
+  const [bpmInputValue, setBpmInputValue] = useState(bpm.toString());
+  
+  // Sync local BPM input with store BPM
+  useEffect(() => {
+    setBpmInputValue(bpm.toString());
+  }, [bpm]);
+  
+  // Initialize BPMManager with store BPM
+  useEffect(() => {
+    const bpmManager = BPMManager.getInstance();
+    bpmManager.setBPM(bpm);
+  }, [bpm]);
+  
   console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
   
   const [selectedLayer, setSelectedLayer] = useState<any>(null);
@@ -931,6 +945,65 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 </select>
                 <button onClick={addScene} className="add-scene-btn">
                   +
+                </button>
+              </div>
+              <div className="bpm-control">
+                <label htmlFor="bpm-input">BPM:</label>
+                <input
+                  id="bpm-input"
+                  type="number"
+                  min="30"
+                  max="300"
+                  value={bpmInputValue}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    console.log('BPM input changed:', value);
+                    setBpmInputValue(value); // Always update local state
+                    
+                    if (value === '') {
+                      return; // Allow empty input
+                    }
+                    
+                    const newBpm = parseInt(value);
+                    if (!isNaN(newBpm) && newBpm >= 30 && newBpm <= 300) {
+                      console.log('Setting BPM to:', newBpm);
+                      setBpm(newBpm);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Ensure valid value when leaving the field
+                    const value = e.target.value;
+                    if (value === '' || isNaN(parseInt(value))) {
+                      console.log('Invalid BPM value, defaulting to 120');
+                      setBpm(120);
+                      setBpmInputValue('120');
+                    } else {
+                      // Sync local state with store state
+                      setBpmInputValue(bpm.toString());
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur(); // Trigger onBlur
+                    }
+                  }}
+                  className="bpm-input"
+                  placeholder="120"
+                />
+                <button 
+                  onClick={() => {
+                    const bpmManager = BPMManager.getInstance();
+                    bpmManager.tap();
+                    
+                    // Get the updated BPM from the manager and update the store
+                    const newBpm = bpmManager.getBPM();
+                    console.log('Tap BPM result:', newBpm);
+                    setBpm(newBpm);
+                  }}
+                  className="tap-bpm-btn"
+                  title="Tap to set BPM"
+                >
+                  🎵
                 </button>
               </div>
             </div>

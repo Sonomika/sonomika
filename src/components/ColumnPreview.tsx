@@ -12,6 +12,7 @@ import { useStore } from '../store/store';
         const GeometricPatternEffect = React.lazy(() => import('../effects/GeometricPatternEffect'));
         const AudioReactiveEffect = React.lazy(() => import('../effects/AudioReactiveEffect'));
         const ColorPulseEffect = React.lazy(() => import('../effects/ColorPulseEffect'));
+        const BPMParticleEffect = React.lazy(() => import('../effects/BPMParticleEffect'));
         
         // Lazy load global effects
         const GlobalStrobeEffect = React.lazy(() => import('../effects/GlobalStrobeEffect.tsx'));
@@ -497,6 +498,27 @@ const ColumnScene: React.FC<{
                 </mesh>
               }>
                 <ParticleEffect count={1500} speed={0.8} size={0.03} spread={10} />
+              </Suspense>
+            );
+          }
+          // Check for BPM Particle Effect
+          if (effectAsset.id === 'bpm-particle-effect' || effectAsset.name === 'BPM Particle Effect') {
+            console.log('Rendering BPM Particle Effect');
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0x00ffff} />
+                </mesh>
+              }>
+                <BPMParticleEffect 
+                  count={1000}
+                  speed={0.5}
+                  size={0.02}
+                  color="#ffffff"
+                  spread={10}
+                  pulseIntensity={0.5}
+                />
               </Suspense>
             );
           }

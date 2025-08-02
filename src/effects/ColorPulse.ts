@@ -2,6 +2,7 @@ import { BaseEffect, EffectMetadata } from './BaseEffect';
 
 export class ColorPulse extends BaseEffect {
   private hue: number = 0;
+  private time: number = 0;
 
   getMetadata(): EffectMetadata {
     return {
@@ -37,16 +38,18 @@ export class ColorPulse extends BaseEffect {
     if (!this.ctx) return;
 
     const { width, height } = this.canvas;
-    const speed = this.params.speed as number;
+    const colorSpeed = this.params.colorSpeed as number;
     const intensity = this.params.intensity as number;
 
     // Clear the canvas
     this.ctx.clearRect(0, 0, width, height);
 
-    // Update hue based on BPM and deltaTime
+    // Accumulate time properly
+    this.time += deltaTime;
+
+    // Update hue based on BPM and accumulated time
     const beatsPerSecond = this.bpm / 60;
-    this.hue += deltaTime * beatsPerSecond * speed * 60;
-    if (this.hue >= 360) this.hue -= 360;
+    this.hue = (this.time * beatsPerSecond * colorSpeed * 60) % 360;
 
     // Create gradient
     const gradient = this.ctx.createLinearGradient(0, 0, width, height);

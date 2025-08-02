@@ -100,16 +100,17 @@ const ColorPulseEffect: React.FC<ColorPulseEffectProps> = ({
   // Animation
   useFrame((state) => {
     if (meshRef.current) {
-      timeRef.current += state.clock.getDelta()
+      // Use elapsed time for consistent BPM sync regardless of frame rate
+      const elapsedTime = state.clock.elapsedTime
       
       // Calculate animation based on BPM
       const beatsPerSecond = bpm / 60
-      const animationPhase = timeRef.current * beatsPerSecond
+      const animationPhase = elapsedTime * beatsPerSecond
       
       // Update shader uniforms
       const material = meshRef.current.material as THREE.ShaderMaterial
       if (material && material.uniforms) {
-        material.uniforms.time.value = timeRef.current
+        material.uniforms.time.value = elapsedTime
         material.uniforms.intensity.value = intensity
         material.uniforms.colorSpeed.value = colorSpeed
         material.uniforms.autoColor.value = autoColor ? 1.0 : 0.0

@@ -37,11 +37,12 @@ const CirclePulseEffect: React.FC<CirclePulseEffectProps> = ({
   // Animation
   useFrame((state) => {
     if (meshRef.current) {
-      timeRef.current += state.clock.getDelta()
+      // Use elapsed time for consistent BPM sync regardless of frame rate
+      const elapsedTime = state.clock.elapsedTime
       
       // Calculate pulse based on BPM
       const beatsPerSecond = bpm / 60
-      const pulsePhase = timeRef.current * beatsPerSecond * speed
+      const pulsePhase = elapsedTime * beatsPerSecond * speed
       const pulse = Math.sin(pulsePhase * Math.PI * 2) * 0.5 + 0.5
       
       // Update scale

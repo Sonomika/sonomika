@@ -2497,6 +2497,60 @@ body {
   border-color: #00bcd4;
 }
 
+.bpm-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 1rem;
+}
+
+.bpm-control label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--on-surface);
+  white-space: nowrap;
+}
+
+.bpm-input {
+  background-color: var(--surface);
+  border: 1px solid var(--border-color);
+  color: var(--on-surface);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  width: 70px;
+  text-align: center;
+}
+
+.bpm-input:focus {
+  outline: none;
+  border-color: #00bcd4;
+}
+
+.tap-bpm-btn {
+  background-color: var(--primary-color);
+  border: none;
+  color: var(--on-primary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-weight: 500;
+  min-width: 30px;
+  font-family: 'Inter', sans-serif;
+  transition: background-color 0.2s ease;
+}
+
+.tap-bpm-btn:hover {
+  background-color: var(--primary-variant);
+}
+
+.tap-bpm-btn:active {
+  transform: scale(0.95);
+}
+
 .add-scene-btn {
   background-color: var(--primary-color);
   border: none;

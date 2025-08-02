@@ -83,6 +83,14 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       description: 'React Three Fiber color pulse',
       category: 'Color',
       icon: '◉'
+    },
+    {
+      id: 'bpm-particle-effect',
+      name: 'BPM Particle Effect',
+      type: 'threejs',
+      description: 'Particles that move and pulse in time with the BPM',
+      category: 'BPM',
+      icon: '🎵'
     }
   ];
 

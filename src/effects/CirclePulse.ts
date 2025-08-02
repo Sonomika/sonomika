@@ -1,6 +1,8 @@
 import { BaseEffect, EffectMetadata } from './BaseEffect';
 
 export class CirclePulse extends BaseEffect {
+  private time: number = 0;
+
   getMetadata(): EffectMetadata {
     return {
       name: 'Circle Pulse',
@@ -43,18 +45,18 @@ export class CirclePulse extends BaseEffect {
     // Clear the canvas
     this.ctx.clearRect(0, 0, width, height);
 
-    // Calculate pulse based on BPM and deltaTime
+    // Accumulate time properly
+    this.time += deltaTime;
+
+    // Calculate pulse based on BPM and accumulated time
     const beatsPerSecond = this.bpm / 60;
     const pulsesPerBeat = speed;
-    const pulsePhase = (Date.now() * beatsPerSecond * pulsesPerBeat) / 1000;
+    const pulsePhase = this.time * beatsPerSecond * pulsesPerBeat;
     const pulse = Math.sin(pulsePhase * Math.PI * 2) * 0.5 + 0.5;
-
-    // Apply deltaTime for smoother animation
-    const timeScale = Math.min(deltaTime * 60, 2); // Cap at 2x speed
 
     // Draw the circle
     const maxRadius = Math.min(width, height) * 0.5 * size;
-    const currentRadius = maxRadius * (0.5 + pulse * 0.5) * timeScale;
+    const currentRadius = maxRadius * (0.5 + pulse * 0.5);
 
     this.ctx.beginPath();
     this.ctx.arc(width / 2, height / 2, currentRadius, 0, Math.PI * 2);
