@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useStore } from '../store/store';
 
         // Lazy load effects
         const KaleidoscopeEffect = React.lazy(() => import('../effects/KaleidoscopeEffect'));
@@ -100,7 +101,7 @@ const VideoTexture: React.FC<{
 
   return (
     <mesh ref={meshRef}>
-      <planeGeometry args={[3.56, 2]} />
+      <planeGeometry args={[aspectRatio * 2, 2]} />
       <meshBasicMaterial 
         map={texture} 
         transparent 
@@ -144,7 +145,7 @@ const ImageTexture: React.FC<{
 
   return (
     <mesh ref={meshRef}>
-      <planeGeometry args={[4, 2]} />
+      <planeGeometry args={[aspectRatio * 2, 2]} />
       <meshBasicMaterial 
         map={texture} 
         transparent 
@@ -783,9 +784,24 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
             <Canvas
               camera={{ position: [0, 0, 1], fov: 90 }}
               style={{ width: '100%', height: '100%' }}
+              gl={{ 
+                preserveDrawingBuffer: true,
+                antialias: true,
+                powerPreference: 'high-performance'
+              }}
               onCreated={({ gl }) => {
                 console.log('R3F Canvas created successfully');
                 gl.setClearColor(0x000000, 1);
+                
+                // Set canvas to render at full composition resolution
+                const compositionSettings = useStore.getState().compositionSettings;
+                const targetWidth = compositionSettings.width || 1920;
+                const targetHeight = compositionSettings.height || 1080;
+                
+                // Update the renderer size to composition resolution
+                gl.setSize(targetWidth, targetHeight, false);
+                
+                console.log(`Canvas set to composition resolution: ${targetWidth}x${targetHeight}`);
               }}
               onError={(error) => {
                 console.error('R3F Canvas error:', error);

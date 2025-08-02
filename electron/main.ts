@@ -194,15 +194,21 @@ function createMirrorWindow() {
           z-index: 0;
         }
         img {
-          width: 960px;
-          height: 540px;
-          object-fit: contain;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
           image-rendering: -webkit-optimize-contrast;
           image-rendering: crisp-edges;
           transition: opacity 0.1s ease-in-out;
           -webkit-app-region: drag; /* Make image draggable */
           position: relative;
           z-index: 1;
+        }
+        
+        /* When in fullscreen, use contain to avoid letterboxing */
+        body:fullscreen img,
+        body:-webkit-full-screen img {
+          object-fit: contain;
         }
         .no-stream {
           color: #fff;
@@ -238,7 +244,7 @@ function createMirrorWindow() {
     </head>
     <body ondblclick="toggleFullscreen()">
       <div id="no-stream" class="no-stream">Waiting for stream...</div>
-      <img id="mirror-image" style="display: none;" onload="this.classList.add('loaded');" onclick="handleImageClick(event)">
+      <img id="mirror-image" style="display: none;" onload="this.classList.add('loaded');" onclick="handleImageClick(event)" ondblclick="handleImageDoubleClick(event)">
       
       <!-- Resize handles -->
       <div class="resize-handle nw"></div>
@@ -251,6 +257,8 @@ function createMirrorWindow() {
       <div class="resize-handle e"></div>
       
       <script>
+        let isFullSize = false;
+        
         function toggleFullscreen() {
           // Send message to main process to toggle fullscreen
           if (window.electron) {
@@ -261,7 +269,24 @@ function createMirrorWindow() {
         function handleImageClick(event) {
           // Prevent dragging when clicking on the image
           event.stopPropagation();
-          // You can add any image-specific interactions here
+        }
+        
+        function handleImageDoubleClick(event) {
+          // Prevent dragging when double-clicking on the image
+          event.stopPropagation();
+          
+          // Toggle between 50% and full size
+          if (window.electron) {
+            if (isFullSize) {
+              // Switch back to 50% size
+              window.electron.resizeMirrorWindow(960, 540);
+              isFullSize = false;
+            } else {
+              // Switch to full size
+              window.electron.resizeMirrorWindow(1920, 1080);
+              isFullSize = true;
+            }
+          }
         }
       </script>
     </body>
@@ -462,8 +487,34 @@ app.whenReady().then(() => {
       if (mirrorWindow.isFullScreen()) {
         mirrorWindow.setFullScreen(false);
       } else {
+        // Set the window to 16:9 aspect ratio before going fullscreen
+        const display = require('electron').screen.getPrimaryDisplay();
+        const { width, height } = display.size;
+        
+        // Calculate the largest 16:9 rectangle that fits in the screen
+        const aspectRatio = 16 / 9;
+        let targetWidth = width;
+        let targetHeight = width / aspectRatio;
+        
+        if (targetHeight > height) {
+          targetHeight = height;
+          targetWidth = height * aspectRatio;
+        }
+        
+        // Set the window size to maintain 16:9 aspect ratio
+        mirrorWindow.setSize(Math.floor(targetWidth), Math.floor(targetHeight));
+        mirrorWindow.center();
         mirrorWindow.setFullScreen(true);
       }
+    }
+  });
+
+  // Handle mirror window resize
+  ipcMain.on('resize-mirror-window', (event, width: number, height: number) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      console.log('Resizing mirror window to:', width, 'x', height);
+      mirrorWindow.setSize(width, height);
+      mirrorWindow.center();
     }
   });
   

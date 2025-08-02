@@ -37,6 +37,10 @@ try {
     toggleFullscreen: () => {
       console.log('Preload: toggleFullscreen called');
       ipcRenderer.send('toggle-fullscreen');
+    },
+    resizeMirrorWindow: (width: number, height: number) => {
+      console.log('Preload: resizeMirrorWindow called', width, height);
+      ipcRenderer.send('resize-mirror-window', width, height);
     }
   });
   
@@ -58,6 +62,7 @@ declare global {
       closeMirrorWindow: () => void;
       sendCanvasData: (dataUrl: string) => void;
       toggleFullscreen: () => void;
+      resizeMirrorWindow: (width: number, height: number) => void;
     };
   }
 } 

@@ -117,14 +117,42 @@ export class CanvasStreamManager {
         // Check if canvas has content
         if (this.canvas!.width > 0 && this.canvas!.height > 0) {
           try {
-            // Capture the Three.js canvas directly
-            const dataUrl = this.canvas!.toDataURL('image/jpeg', 0.8); // Use JPEG for smaller size
+            // Capture at full composition resolution (1920x1080)
+            const originalWidth = this.canvas!.width;
+            const originalHeight = this.canvas!.height;
             
-            // Only send if the data is different to prevent unnecessary updates
-            if (dataUrl !== lastDataUrl && dataUrl.length > 100) { // Basic validation
-              if (window.electron && window.electron.sendCanvasData) {
-                window.electron.sendCanvasData(dataUrl);
-                lastDataUrl = dataUrl;
+            // Temporarily resize canvas to composition resolution if needed
+            const targetWidth = 1920;
+            const targetHeight = 1080;
+            
+            if (this.canvas!.width !== targetWidth || this.canvas!.height !== targetHeight) {
+              // Create a temporary canvas for high-res capture
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = targetWidth;
+              tempCanvas.height = targetHeight;
+              const tempCtx = tempCanvas.getContext('2d');
+              
+              if (tempCtx) {
+                // Draw the original canvas scaled to target resolution
+                tempCtx.drawImage(this.canvas!, 0, 0, targetWidth, targetHeight);
+                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9); // Higher quality for mirror
+                
+                if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
+                  if (window.electron && window.electron.sendCanvasData) {
+                    window.electron.sendCanvasData(dataUrl);
+                    lastDataUrl = dataUrl;
+                  }
+                }
+              }
+            } else {
+              // Canvas is already at target resolution
+              const dataUrl = this.canvas!.toDataURL('image/jpeg', 0.9);
+              
+              if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
+                if (window.electron && window.electron.sendCanvasData) {
+                  window.electron.sendCanvasData(dataUrl);
+                  lastDataUrl = dataUrl;
+                }
               }
             }
           } catch (error) {
