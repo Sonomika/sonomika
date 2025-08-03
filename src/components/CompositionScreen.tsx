@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/store';
+import { VideoLoopManager } from '../utils/VideoLoopManager';
+import { VIDEO_ELEMENT_CONFIG } from '../constants/video';
+import type { VideoLayer } from '../types/layer';
 
 interface CompositionScreenProps {
   className?: string;
@@ -35,39 +38,39 @@ class PureCompositionRenderer {
   addVideo(layerId: string, asset: any, layer: any): void {
     const video = document.createElement('video');
     video.src = asset.path || asset.filePath;
-    video.muted = true;
-    video.loop = true;
-    video.autoplay = true;
-    video.crossOrigin = 'anonymous';
-    video.playsInline = true;
-    video.preload = 'auto';
-    video.style.backgroundColor = '#1a1a1a';
+    video.muted = VIDEO_ELEMENT_CONFIG.MUTED;
+    video.loop = false; // Don't use native loop, handle it manually
+    video.autoplay = VIDEO_ELEMENT_CONFIG.AUTOPLAY;
+    video.crossOrigin = VIDEO_ELEMENT_CONFIG.CROSS_ORIGIN;
+    video.playsInline = VIDEO_ELEMENT_CONFIG.PLAYS_INLINE;
+    video.preload = VIDEO_ELEMENT_CONFIG.PRELOAD;
+    video.style.backgroundColor = VIDEO_ELEMENT_CONFIG.BACKGROUND_COLOR;
     
     // NUCLEAR VIDEO MONITORING - Pure composition event handling
     video.addEventListener('timeupdate', () => {
-      const currentTime = video.currentTime;
-      const duration = video.duration;
-      
-      // NUCLEAR OPTION: Force restart video before it ends
-      if (currentTime >= duration - 0.05 && (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong')) {
-        console.log('🎬 NUCLEAR PURE COMPOSITION: Force restarting video before end:', layer.name, 'Time:', currentTime, 'Duration:', duration);
-        
-        // Immediately restart the video
-        video.currentTime = 0;
-        video.play().catch((error: any) => {
-          console.error('🎬 Failed to restart video:', layer.name, error);
-        });
-      }
-      
-      // NUCLEAR DEBUGGING: Log every timeupdate during loop transitions
-      if (currentTime >= duration - 0.1) {
-        console.log('🎬 NUCLEAR PURE COMPOSITION DEBUG: Video near end:', layer.name, 'Time:', currentTime, 'Duration:', duration, 'Diff:', duration - currentTime);
-      }
+      // Use centralized VideoLoopManager for all loop mode logic
+      VideoLoopManager.handleLoopMode(video, layer as VideoLayer, layerId);
     });
     
     video.addEventListener('ended', () => {
-      console.log('🎬 NUCLEAR PURE COMPOSITION: Video ended event:', layer.name);
+      console.log('🎬 NUCLEAR PURE COMPOSITION: Video ended event:', layer.name, 'Loop mode:', layer.loopMode);
+      
+      // Handle ended event for loop modes
+      if (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong') {
+        video.currentTime = 0;
+        video.play().catch((error: any) => {
+          console.error('🎬 Failed to restart video after ended event:', layer.name, error);
+        });
+      }
     });
+    
+    // Cleanup function to clear intervals using VideoLoopManager
+    const cleanup = () => {
+      VideoLoopManager.cleanup(layerId);
+    };
+    
+    // Store cleanup function with video element
+    (video as any).cleanup = cleanup;
     
     this.videoElements.set(layerId, video);
   }
@@ -168,7 +171,7 @@ class PureCompositionRenderer {
       video = document.createElement('video');
       video.src = layer.asset.path;
       video.muted = layer.muted || true;
-      video.loop = layer.loopMode === 'loop' || layer.loopMode === 'ping-pong';
+      video.loop = false; // Handle looping manually for better control
       video.crossOrigin = 'anonymous';
       video.autoplay = layer.autoplay || true;
       video.playsInline = true;
@@ -290,13 +293,19 @@ class PureCompositionRenderer {
   // PURE COMPOSITION CLEANUP - No React dependencies
   destroy(): void {
     this.stopRenderLoop();
-    this.videoElements.forEach(video => {
+    this.videoElements.forEach((video, layerId) => {
+      // Clean up any intervals associated with this video
+      if ((video as any).cleanup) {
+        (video as any).cleanup();
+      }
       video.pause();
       video.src = '';
       video.load();
     });
     this.videoElements.clear();
     this.lastFrames.clear();
+    // Clean up all VideoLoopManager intervals
+    VideoLoopManager.cleanupAll();
   }
 }
 

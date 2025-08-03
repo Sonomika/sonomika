@@ -1,40 +1,42 @@
 import React, { useState } from 'react';
+import { LOOP_MODES, type LoopMode } from '../constants/video';
+import type { Layer } from '../types/layer';
 
 interface LayerOptionsProps {
-  selectedLayer: any;
-  onUpdateLayer: (layerId: string, options: any) => void;
+  selectedLayer: Layer | null;
+  onUpdateLayer: (layerId: string, options: Partial<Layer>) => void;
 }
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
   // Update local state when selectedLayer changes
-  const [loopMode, setLoopMode] = useState(selectedLayer?.loopMode || 'none');
-  const [loopCount, setLoopCount] = useState(selectedLayer?.loopCount || 1);
-  const [reverseEnabled, setReverseEnabled] = useState(selectedLayer?.reverseEnabled || false);
-  const [pingPongEnabled, setPingPongEnabled] = useState(selectedLayer?.pingPongEnabled || false);
+  const [loopMode, setLoopMode] = useState<LoopMode>(
+    (selectedLayer as any)?.loopMode || LOOP_MODES.NONE
+  );
+  const [loopCount, setLoopCount] = useState(
+    (selectedLayer as any)?.loopCount || 1
+  );
   const [blendMode, setBlendMode] = useState(selectedLayer?.blendMode || 'add');
   const [opacity, setOpacity] = useState(selectedLayer?.opacity || 1.0);
 
   // Sync local state with selectedLayer when it changes
   React.useEffect(() => {
     if (selectedLayer) {
-      setLoopMode(selectedLayer.loopMode || 'none');
-      setLoopCount(selectedLayer.loopCount || 1);
-      setReverseEnabled(selectedLayer.reverseEnabled || false);
-      setPingPongEnabled(selectedLayer.pingPongEnabled || false);
+      setLoopMode((selectedLayer as any).loopMode || LOOP_MODES.NONE);
+      setLoopCount((selectedLayer as any).loopCount || 1);
       setBlendMode(selectedLayer.blendMode || 'add');
       setOpacity(selectedLayer.opacity || 1.0);
     }
   }, [selectedLayer]);
 
-  const handleLoopModeChange = (mode: string) => {
+  const handleLoopModeChange = (mode: LoopMode) => {
+    console.log('🎬 Loop mode changed to:', mode, 'for layer:', selectedLayer?.name);
     setLoopMode(mode);
     if (selectedLayer) {
       onUpdateLayer(selectedLayer.id, {
-        ...selectedLayer,
         loopMode: mode,
-        loopCount: mode === 'none' ? 1 : loopCount,
-        reverseEnabled: mode === 'reverse' ? true : false,
-        pingPongEnabled: mode === 'ping-pong' ? true : false
+        loopCount: mode === LOOP_MODES.NONE ? 1 : loopCount,
+        reverseEnabled: mode === LOOP_MODES.REVERSE,
+        pingPongEnabled: mode === LOOP_MODES.PING_PONG
       });
     }
   };
@@ -43,7 +45,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     setLoopCount(count);
     if (selectedLayer) {
       onUpdateLayer(selectedLayer.id, {
-        ...selectedLayer,
+        ...(selectedLayer as any),
         loopCount: count
       });
     }
@@ -53,7 +55,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     setBlendMode(mode);
     if (selectedLayer) {
       onUpdateLayer(selectedLayer.id, {
-        ...selectedLayer,
+        ...(selectedLayer as any),
         blendMode: mode
       });
     }
@@ -63,7 +65,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     setOpacity(value);
     if (selectedLayer) {
       onUpdateLayer(selectedLayer.id, {
-        ...selectedLayer,
+        ...(selectedLayer as any),
         opacity: value
       });
     }
@@ -97,26 +99,26 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           <div className="option-control">
             <div className="loop-mode-buttons">
               <button
-                className={`loop-btn ${loopMode === 'none' ? 'active' : ''}`}
-                onClick={() => handleLoopModeChange('none')}
+                className={`loop-btn ${loopMode === LOOP_MODES.NONE ? 'active' : ''}`}
+                onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
               >
                 None
               </button>
               <button
-                className={`loop-btn ${loopMode === 'loop' ? 'active' : ''}`}
-                onClick={() => handleLoopModeChange('loop')}
+                className={`loop-btn ${loopMode === LOOP_MODES.LOOP ? 'active' : ''}`}
+                onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
               >
                 Loop
               </button>
               <button
-                className={`loop-btn ${loopMode === 'reverse' ? 'active' : ''}`}
-                onClick={() => handleLoopModeChange('reverse')}
+                className={`loop-btn ${loopMode === LOOP_MODES.REVERSE ? 'active' : ''}`}
+                onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
               >
                 Reverse
               </button>
               <button
-                className={`loop-btn ${loopMode === 'ping-pong' ? 'active' : ''}`}
-                onClick={() => handleLoopModeChange('ping-pong')}
+                className={`loop-btn ${loopMode === LOOP_MODES.PING_PONG ? 'active' : ''}`}
+                onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
               >
                 Ping-Pong
               </button>
@@ -124,7 +126,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           </div>
         </div>
 
-        {loopMode !== 'none' && (
+        {loopMode !== LOOP_MODES.NONE && (
           <div className="option-group">
             <h4>Loop Count</h4>
             <div className="option-control">
@@ -223,10 +225,10 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 <span className="setting-value">{loopCount}</span>
               </div>
             )}
-            <div className="setting-item">
-              <span className="setting-label">Asset:</span>
-              <span className="setting-value">{selectedLayer.asset?.name || 'None'}</span>
-            </div>
+                         <div className="setting-item">
+               <span className="setting-label">Asset:</span>
+               <span className="setting-value">{(selectedLayer as any).asset?.name || 'None'}</span>
+             </div>
             <div className="setting-item">
               <span className="setting-label">Blend Mode:</span>
               <span className="setting-value">{blendMode}</span>

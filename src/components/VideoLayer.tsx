@@ -1,11 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useStore } from '../store/store';
+import { LOOP_MODES } from '../constants/video';
+import type { VideoLayer as VideoLayerType } from '../types/layer';
 
 interface VideoLayerProps {
-  layer: any;
+  layer: VideoLayerType;
   width: number;
   height: number;
-  onUpdate: (updates: any) => void;
+  onUpdate: (updates: Partial<VideoLayerType>) => void;
 }
 
 export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, onUpdate }) => {
@@ -48,11 +50,34 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => {
-      if (layer.loopMode === 'loop' || layer.loopMode === 'ping-pong') {
-        video.currentTime = 0;
-        video.play();
-      } else {
-        setIsPlaying(false);
+      console.log('🎬 VideoLayer: Video ended, loop mode:', layer.loopMode);
+      
+      switch (layer.loopMode) {
+        case LOOP_MODES.NONE:
+          setIsPlaying(false);
+          break;
+          
+        case LOOP_MODES.LOOP:
+          video.currentTime = 0;
+          video.play();
+          break;
+          
+        case LOOP_MODES.REVERSE:
+          // Note: HTML5 video doesn't support reverse playback natively
+          console.warn('🎬 REVERSE MODE: Native reverse playback not supported, falling back to loop');
+          video.currentTime = 0;
+          video.play();
+          break;
+          
+        case LOOP_MODES.PING_PONG:
+          // For now, restart as reverse isn't natively supported
+          video.currentTime = 0;
+          video.play();
+          break;
+          
+        default:
+          setIsPlaying(false);
+          break;
       }
     };
 
@@ -193,6 +218,7 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
       const result = e.target?.result as string;
       onUpdate({
         asset: {
+          id: `video-${Date.now()}`,
           path: result,
           name: file.name,
           type: 'video',
@@ -225,6 +251,7 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
           const result = e.target?.result as string;
           onUpdate({
             asset: {
+              id: `video-${Date.now()}`,
               path: result,
               name: file.name,
               type: 'video',
@@ -351,7 +378,7 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
             <label>Fit Mode:</label>
             <select
               value={layer.fitMode || 'cover'}
-              onChange={(e) => onUpdate({ fitMode: e.target.value })}
+                             onChange={(e) => onUpdate({ fitMode: e.target.value as 'cover' | 'contain' | 'stretch' })}
             >
               <option value="cover">Cover</option>
               <option value="contain">Contain</option>
@@ -436,12 +463,12 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
               max="1"
               step="0.01"
               value={layer.position?.x || 0.5}
-              onChange={(e) => onUpdate({ 
-                position: { 
-                  ...layer.position, 
-                  x: parseFloat(e.target.value) 
-                } 
-              })}
+                             onChange={(e) => onUpdate({ 
+                 position: { 
+                   x: parseFloat(e.target.value),
+                   y: layer.position?.y || 0.5
+                 } 
+               })}
             />
           </div>
 
@@ -453,12 +480,12 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
               max="1"
               step="0.01"
               value={layer.position?.y || 0.5}
-              onChange={(e) => onUpdate({ 
-                position: { 
-                  ...layer.position, 
-                  y: parseFloat(e.target.value) 
-                } 
-              })}
+                             onChange={(e) => onUpdate({ 
+                 position: { 
+                   x: layer.position?.x || 0.5,
+                   y: parseFloat(e.target.value)
+                 } 
+               })}
             />
           </div>
         </div>
