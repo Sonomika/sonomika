@@ -3,21 +3,23 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
 
-        // Lazy load effects
-        const KaleidoscopeEffect = React.lazy(() => import('../effects/KaleidoscopeEffect'));
-        const ParticleEffect = React.lazy(() => import('../effects/ParticleEffect'));
-        const CirclePulseEffect = React.lazy(() => import('../effects/CirclePulseEffect'));
-        const SquarePulseEffect = React.lazy(() => import('../effects/SquarePulseEffect'));
-        const WaveEffect = React.lazy(() => import('../effects/WaveEffect'));
-        const GeometricPatternEffect = React.lazy(() => import('../effects/GeometricPatternEffect'));
-        const AudioReactiveEffect = React.lazy(() => import('../effects/AudioReactiveEffect'));
-        const ColorPulseEffect = React.lazy(() => import('../effects/ColorPulseEffect'));
-        const BPMParticleEffect = React.lazy(() => import('../effects/BPMParticleEffect'));
-        
         // Lazy load global effects
         const GlobalStrobeEffect = React.lazy(() => import('../effects/GlobalStrobeEffect.tsx'));
         const GlobalDatamoshEffect = React.lazy(() => import('../effects/GlobalDatamoshEffect.tsx'));
         const GlobalVideoWaveSliceEffect = React.lazy(() => import('../effects/GlobalVideoWaveSliceEffect.tsx'));
+        const FilmNoiseEffectR3F = React.lazy(() => import('../effects/FilmNoiseEffectR3F.tsx'));
+        const FilmFlickerEffectR3F = React.lazy(() => import('../effects/FilmFlickerEffectR3F.tsx'));
+        const LightLeakEffectR3F = React.lazy(() => import('../effects/LightLeakEffectR3F.tsx'));
+        const BPMParticleEffect = React.lazy(() => import('../effects/BPMParticleEffect.tsx'));
+        const CirclePulseEffect = React.lazy(() => import('../effects/CirclePulseEffect.tsx'));
+        const SquarePulseEffect = React.lazy(() => import('../effects/SquarePulseEffect.tsx'));
+        const WaveEffect = React.lazy(() => import('../effects/WaveEffect.tsx'));
+        const GeometricPatternEffect = React.lazy(() => import('../effects/GeometricPatternEffect.tsx'));
+        const AudioReactiveEffect = React.lazy(() => import('../effects/AudioReactiveEffect.tsx'));
+        const ColorPulseEffect = React.lazy(() => import('../effects/ColorPulseEffect.tsx'));
+        const R3FColorPulse = React.lazy(() => import('../effects/R3FColorPulse.tsx').then(module => ({ default: module.R3FColorPulseComponent })));
+        const ParticleEffect = React.lazy(() => import('../effects/ParticleEffect.tsx'));
+        const KaleidoscopeEffect = React.lazy(() => import('../effects/KaleidoscopeEffect.tsx'));
 
 interface ColumnPreviewProps {
   column: any;
@@ -86,6 +88,11 @@ const VideoTexture: React.FC<{
     effect.id === 'kaleidoscope' || effect.name === 'Kaleidoscope Effect'
   );
 
+  // Check if film effects are applied
+  const hasFilmEffects = effects?.some((effect: any) => 
+    effect.id?.includes('film-') || effect.name?.includes('Film')
+  );
+
   if (hasKaleidoscopeEffect) {
     // Import and render KaleidoscopeEffect
     return (
@@ -96,6 +103,25 @@ const VideoTexture: React.FC<{
         </mesh>
       }>
         <KaleidoscopeEffect videoTexture={texture} />
+      </Suspense>
+    );
+  }
+
+  if (hasFilmEffects) {
+    // Import and render FilmEffectsR3F
+    const FilmEffectsR3F = React.lazy(() => import('../effects/FilmEffectsR3F'));
+    return (
+      <Suspense fallback={
+        <mesh>
+          <planeGeometry args={[aspectRatio * 2, 2]} />
+          <meshBasicMaterial color={0xff0000} />
+        </mesh>
+      }>
+        <FilmEffectsR3F
+          noiseEnabled={effects?.some((e: any) => e.id === 'film-noise-r3f')}
+          flickerEnabled={effects?.some((e: any) => e.id === 'film-flicker-r3f')}
+          lightLeakEnabled={effects?.some((e: any) => e.id === 'light-leak-r3f')}
+        />
       </Suspense>
     );
   }
@@ -397,6 +423,274 @@ const ColumnScene: React.FC<{
     return asset.path || '';
   };
 
+  // Unified effect rendering system
+  const renderEffect = (effectId: string, effectName: string, params: any = {}, isGlobal: boolean = false) => {
+    const effectKey = isGlobal ? `global-${effectId}` : `layer-${effectId}`;
+    const effectParams = params || {};
+    
+    console.log(`🎨 Rendering ${isGlobal ? 'global' : 'layer'} effect:`, effectId, effectName, effectParams);
+    
+    // All effects use the same R3F rendering pipeline
+    switch (effectId) {
+      case 'strobe-effect':
+      case 'global-strobe-r3f':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <GlobalStrobeEffect 
+              intensity={effectParams.intensity?.value || 0.8}
+              speed={effectParams.speed?.value || 1}
+              color={effectParams.color?.value || "#ffffff"}
+              frequency={effectParams.frequency?.value || 24}
+            />
+          </Suspense>
+        );
+        
+      case 'bpm-particle-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0x00ffff} />
+            </mesh>
+          }>
+            <BPMParticleEffect 
+              count={effectParams.count?.value || 1000}
+              speed={effectParams.speed?.value || 0.5}
+              size={effectParams.size?.value || 0.02}
+              color={effectParams.color?.value || "#ffffff"}
+              spread={effectParams.spread?.value || 10}
+              pulseIntensity={effectParams.pulseIntensity?.value || 0.5}
+            />
+          </Suspense>
+        );
+        
+      case 'film-noise-r3f':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <FilmNoiseEffectR3F 
+              intensity={effectParams.intensity?.value || 0.5}
+              color={effectParams.color?.value || '#ffffff'}
+              opacity={effectParams.opacity?.value || 0.4}
+            />
+          </Suspense>
+        );
+        
+      case 'film-flicker-r3f':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <FilmFlickerEffectR3F 
+              intensity={effectParams.intensity?.value || 0.2}
+              speed={effectParams.speed?.value || 1}
+              color={effectParams.color?.value || '#ffffff'}
+            />
+          </Suspense>
+        );
+        
+      case 'light-leak-r3f':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xff6b35} />
+            </mesh>
+          }>
+            <LightLeakEffectR3F 
+              intensity={effectParams.intensity?.value || 0.3}
+              color={effectParams.color?.value || '#ff6b35'}
+              position={effectParams.position?.value || 'right'}
+              speed={effectParams.speed?.value || 0.5}
+            />
+          </Suspense>
+        );
+        
+      case 'global-datamosh':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <GlobalDatamoshEffect bpm={bpm} />
+          </Suspense>
+        );
+        
+      case 'video-wave-slice':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <GlobalVideoWaveSliceEffect bpm={bpm} />
+          </Suspense>
+        );
+        
+      case 'circle-pulse-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0x0000ff} />
+            </mesh>
+          }>
+            <CirclePulseEffect 
+              size={effectParams.size?.value || 0.8}
+              speed={effectParams.speed?.value || 1.0}
+              color={effectParams.color?.value || "blue"}
+              bpm={bpm}
+            />
+          </Suspense>
+        );
+        
+      case 'square-pulse-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xff0000} />
+            </mesh>
+          }>
+            <SquarePulseEffect 
+              size={effectParams.size?.value || 0.8}
+              speed={effectParams.speed?.value || 1.0}
+              color={effectParams.color?.value || "red"}
+              bpm={bpm}
+            />
+          </Suspense>
+        );
+        
+      case 'wave-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0x00ffff} />
+            </mesh>
+          }>
+            <WaveEffect 
+              amplitude={effectParams.amplitude?.value || 0.5}
+              frequency={effectParams.frequency?.value || 2.0}
+              speed={effectParams.speed?.value || 1.0}
+              color={effectParams.color?.value || "cyan"}
+              bpm={bpm}
+            />
+          </Suspense>
+        );
+        
+      case 'geometric-pattern-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xff00ff} />
+            </mesh>
+          }>
+            <GeometricPatternEffect 
+              pattern={effectParams.pattern?.value || "spiral"}
+              speed={effectParams.speed?.value || 1.0}
+              color={effectParams.color?.value || "magenta"}
+              bpm={bpm}
+              complexity={effectParams.complexity?.value || 5}
+            />
+          </Suspense>
+        );
+        
+      case 'audio-reactive-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xff8800} />
+            </mesh>
+          }>
+            <AudioReactiveEffect 
+              sensitivity={effectParams.sensitivity?.value || 0.5}
+              frequency={effectParams.frequency?.value || 440}
+              color={effectParams.color?.value || "orange"}
+              bpm={bpm}
+              mode={effectParams.mode?.value || "bars"}
+            />
+          </Suspense>
+        );
+        
+      case 'color-pulse-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffff00} />
+            </mesh>
+          }>
+            <ColorPulseEffect 
+              intensity={effectParams.intensity?.value || 0.5}
+              colorSpeed={effectParams.colorSpeed?.value || 0.1}
+              autoColor={effectParams.autoColor?.value || true}
+              bpm={bpm}
+              mode={effectParams.mode?.value || "gradient"}
+            />
+          </Suspense>
+        );
+        
+      case 'particle-effect':
+      case 'r3f-particle-system':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0x00ff00} />
+            </mesh>
+          }>
+            <ParticleEffect 
+              count={effectParams.count?.value || 1500}
+              speed={effectParams.speed?.value || 0.8}
+              size={effectParams.size?.value || 0.03}
+              spread={effectParams.spread?.value || 10}
+            />
+          </Suspense>
+        );
+        
+      case 'kaleidoscope':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <KaleidoscopeEffect 
+              videoTexture={null} // Kaleidoscope needs video texture, not standalone
+            />
+          </Suspense>
+        );
+        
+      case 'r3f-color-pulse':
+        // R3FColorPulse has a different interface, skip for now
+        console.log('🎨 R3FColorPulse not implemented as standalone effect');
+        return null;
+        
+      default:
+        console.log(`🎨 Unknown effect: ${effectId} - ${effectName}`);
+        return null;
+    }
+  };
+
   return (
     <>
       {/* Background */}
@@ -411,7 +705,12 @@ const ColumnScene: React.FC<{
           layer.asset && layer.asset.type === 'video'
         );
         const effectLayers = sortedLayers.filter(layer => 
-          layer.asset && (layer.asset.type === 'p5js' || layer.asset.type === 'effect' || layer.asset.type === 'threejs')
+          layer.asset && (
+            layer.asset.type === 'p5js' || 
+            layer.asset.type === 'effect' || 
+            layer.asset.type === 'threejs' ||
+            layer.asset.isEffect
+          )
         );
 
         console.log('Video layers:', videoLayers.map(l => l.name));
@@ -465,210 +764,44 @@ const ColumnScene: React.FC<{
           }
         });
 
-        // Then, render standalone effects
+        // Then, render standalone effects using unified system
         effectLayers.forEach((effectLayer, index) => {
           const effectAsset = effectLayer.asset;
           if (!effectAsset) return;
 
-          const key = `effect-${effectLayer.id}-${index}`;
-
-          // Check for particle effect
-          console.log('Checking effect:', effectAsset.id, effectAsset.name);
-          if (effectAsset.id === 'particle-effect' || effectAsset.name === 'Particle Effect') {
-            console.log('Rendering standalone particle effect');
-            renderedElements.push(
-              <Suspense key={key} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0x00ff00} />
-                </mesh>
-              }>
-                <ParticleEffect count={1500} speed={0.8} size={0.03} spread={10} />
-              </Suspense>
-            );
+          console.log('🎨 Processing effect layer:', effectAsset.id, effectAsset.name, 'type:', effectAsset.type);
+          
+          // Use unified effect renderer for all effects
+          const renderedEffect = renderEffect(
+            effectAsset.id, 
+            effectAsset.name, 
+            effectLayer.params, 
+            false // isGlobal = false for layer effects
+          );
+          
+          if (renderedEffect) {
+            renderedElements.push(renderedEffect);
+            console.log('🎨 Added effect to rendered elements:', effectAsset.id);
           }
-          // Also check for R3F Particle System
-          if (effectAsset.id === 'r3f-particle-system' || effectAsset.name === 'R3F Particle System') {
-            console.log('Rendering R3F particle system');
-            renderedElements.push(
-              <Suspense key={key} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0x00ff00} />
-                </mesh>
-              }>
-                <ParticleEffect count={1500} speed={0.8} size={0.03} spread={10} />
-              </Suspense>
-            );
-          }
-          // Check for BPM Particle Effect
-          if (effectAsset.id === 'bpm-particle-effect' || effectAsset.name === 'BPM Particle Effect') {
-            console.log('Rendering BPM Particle Effect');
-            renderedElements.push(
-              <Suspense key={key} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0x00ffff} />
-                </mesh>
-              }>
-                <BPMParticleEffect 
-                  count={1000}
-                  speed={0.5}
-                  size={0.02}
-                  color="#ffffff"
-                  spread={10}
-                  pulseIntensity={0.5}
-                />
-              </Suspense>
-            );
-          }
-          // Check for Circle Pulse Effect
-          if (effectAsset.id === 'circle-pulse-effect' || effectAsset.name === 'Circle Pulse Effect') {
-            console.log('Rendering Circle Pulse Effect');
-            renderedElements.push(
-              <Suspense key={key} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0x00ff00} />
-                </mesh>
-              }>
-                <CirclePulseEffect size={0.8} speed={1.0} color="blue" bpm={bpm} />
-              </Suspense>
-            );
-          }
-          // Check for Square Pulse Effect
-          if (effectAsset.id === 'square-pulse-effect' || effectAsset.name === 'Square Pulse Effect') {
-            console.log('Rendering Square Pulse Effect');
-            renderedElements.push(
-              <Suspense key={key} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0x00ff00} />
-                </mesh>
-              }>
-                <SquarePulseEffect size={0.8} speed={1.0} color="red" bpm={bpm} />
-              </Suspense>
-            );
-          }
-          // Check for Wave Effect
-          if (effectAsset.id === 'wave-effect' || effectAsset.name === 'Wave Effect') {
-            console.log('Rendering Wave Effect');
-            renderedElements.push(
-              <Suspense key={key} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0x00ff00} />
-                </mesh>
-              }>
-                <WaveEffect amplitude={0.5} frequency={2.0} speed={1.0} color="cyan" bpm={bpm} />
-              </Suspense>
-            );
-          }
-          // Check for Geometric Pattern Effect
-          if (effectAsset.id === 'geometric-pattern-effect' || effectAsset.name === 'Geometric Pattern Effect') {
-            console.log('Rendering Geometric Pattern Effect');
-            renderedElements.push(
-              <Suspense key={key} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0x00ff00} />
-                </mesh>
-              }>
-                <GeometricPatternEffect pattern="spiral" speed={1.0} color="magenta" bpm={bpm} complexity={5} />
-              </Suspense>
-            );
-          }
-          // Check for Audio Reactive Effect
-          if (effectAsset.id === 'audio-reactive-effect' || effectAsset.name === 'Audio Reactive Effect') {
-            console.log('Rendering Audio Reactive Effect');
-            renderedElements.push(
-              <Suspense key={key} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0x00ff00} />
-                </mesh>
-              }>
-                <AudioReactiveEffect sensitivity={0.5} frequency={440} color="orange" bpm={bpm} mode="bars" />
-              </Suspense>
-            );
-          }
-          // Check for Color Pulse Effect
-          if (effectAsset.id === 'color-pulse-effect' || effectAsset.name === 'Color Pulse Effect') {
-            console.log('Rendering Color Pulse Effect');
-            renderedElements.push(
-              <Suspense key={key} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0x00ff00} />
-                </mesh>
-              }>
-                <ColorPulseEffect intensity={0.5} colorSpeed={0.1} autoColor={true} bpm={bpm} mode="gradient" />
-              </Suspense>
-            );
-          }
-          // Add other standalone effects here as needed
         });
 
-        // Apply global effects as post-processing layer
+        // Apply global effects using unified system
         const activeGlobalEffect = globalEffects.find((effect: any) => effect.enabled);
         
         if (activeGlobalEffect) {
           console.log('🌐 Applying global effect:', activeGlobalEffect.effectId);
           
-          // Create a post-processing effect that affects all layers
-          const globalEffectKey = `global-effect-${activeGlobalEffect.id}`;
+          // Use unified effect renderer for global effects
+          const renderedGlobalEffect = renderEffect(
+            activeGlobalEffect.effectId,
+            activeGlobalEffect.effectId, // Use effectId as name for globals
+            activeGlobalEffect.params,
+            true // isGlobal = true for global effects
+          );
           
-          // Check for specific global effects
-          if (activeGlobalEffect.effectId === 'global-strobe' || activeGlobalEffect.effectId === 'Global Strobe') {
-            console.log('🌐 Rendering Global Strobe Effect');
-            renderedElements.push(
-              <Suspense key={globalEffectKey} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0xffffff} />
-                </mesh>
-              }>
-                <GlobalStrobeEffect bpm={bpm} />
-              </Suspense>
-            );
-          } else if (activeGlobalEffect.effectId === 'global-datamosh' || activeGlobalEffect.effectId === 'Global Datamosh') {
-            console.log('🌐 Rendering Global Datamosh Effect');
-            renderedElements.push(
-              <Suspense key={globalEffectKey} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0xffffff} />
-                </mesh>
-              }>
-                <GlobalDatamoshEffect bpm={bpm} />
-              </Suspense>
-            );
-          } else if (activeGlobalEffect.effectId === 'video-wave-slice' || activeGlobalEffect.effectId === 'Video Wave Slice') {
-            console.log('🌐 Rendering Global Video Wave Slice Effect');
-            renderedElements.push(
-              <Suspense key={globalEffectKey} fallback={
-                <mesh>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial color={0xffffff} />
-                </mesh>
-              }>
-                <GlobalVideoWaveSliceEffect bpm={bpm} />
-              </Suspense>
-            );
-          } else {
-            // Generic global effect fallback
-            console.log('🌐 Rendering generic global effect:', activeGlobalEffect.effectId);
-            renderedElements.push(
-              <mesh key={globalEffectKey}>
-                <planeGeometry args={[2, 2]} />
-                <meshBasicMaterial 
-                  color={0xffffff} 
-                  transparent 
-                  opacity={0.1}
-                  blending={THREE.AdditiveBlending}
-                />
-              </mesh>
-            );
+          if (renderedGlobalEffect) {
+            renderedElements.push(renderedGlobalEffect);
+            console.log('🌐 Added global effect to rendered elements:', activeGlobalEffect.effectId);
           }
         }
 

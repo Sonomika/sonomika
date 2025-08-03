@@ -459,16 +459,124 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         const isVideo = asset.type === 'video';
         const isEffect = asset.isEffect || asset.type === 'p5js' || asset.type === 'threejs';
         
-        console.log('🟢 Asset type check - isVideo:', isVideo, 'isEffect:', isEffect, 'asset type:', asset.type);
+        console.log('🟢 Asset type check - isVideo:', isVideo, 'isEffect:', isEffect, 'asset type:', asset.type, 'asset isEffect:', asset.isEffect);
         
         // Handle effects
         if (isEffect) {
-          console.log('🟢 Dropping effect asset:', asset.name, 'type:', asset.type);
+          console.log('🟢 Dropping effect asset:', asset.name, 'type:', asset.type, 'id:', asset.id);
           layer.asset = asset;
           layer.type = 'effect'; // Set layer type to effect
           layer.effectType = asset.type; // Store the effect type (p5js or threejs)
           layer.effectFile = asset.filePath; // Store the effect file path
-          console.log('🟢 Set layer as effect:', layer);
+          
+          // Set default parameters for effects
+          const getLayerEffectParams = (effectId: string) => {
+            console.log('🟢 Getting layer effect params for:', effectId);
+            switch (effectId) {
+              case 'strobe-effect':
+              case 'global-strobe-r3f':
+                console.log('🟢 Setting strobe effect params');
+                return {
+                  intensity: { value: 0.8, min: 0, max: 1, step: 0.01 },
+                  color: { value: '#ffffff' },
+                  speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
+                  frequency: { value: 24, min: 1, max: 60, step: 1 }
+                };
+              case 'bpm-particle-effect':
+                return {
+                  count: { value: 1000, min: 100, max: 5000, step: 100 },
+                  speed: { value: 0.5, min: 0.1, max: 2, step: 0.1 },
+                  size: { value: 0.02, min: 0.001, max: 0.1, step: 0.001 },
+                  color: { value: '#ffffff' },
+                  spread: { value: 10, min: 1, max: 50, step: 1 },
+                  pulseIntensity: { value: 0.5, min: 0, max: 1, step: 0.01 }
+                };
+              case 'film-noise-r3f':
+                return {
+                  intensity: { value: 0.5, min: 0, max: 1, step: 0.01 },
+                  color: { value: '#ffffff' },
+                  opacity: { value: 0.4, min: 0, max: 1, step: 0.01 }
+                };
+              case 'film-flicker-r3f':
+                return {
+                  intensity: { value: 0.2, min: 0, max: 1, step: 0.01 },
+                  speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
+                  color: { value: '#ffffff' }
+                };
+              case 'light-leak-r3f':
+                return {
+                  intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
+                  color: { value: '#ff6b35' },
+                  position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] },
+                  speed: { value: 0.5, min: 0.1, max: 2, step: 0.1 }
+                };
+              case 'global-datamosh':
+                return {
+                  intensity: { value: 0.5, min: 0, max: 1, step: 0.01 },
+                  speed: { value: 1, min: 0.1, max: 5, step: 0.1 }
+                };
+              case 'video-wave-slice':
+                return {
+                  amplitude: { value: 0.5, min: 0, max: 2, step: 0.1 },
+                  frequency: { value: 2, min: 0.1, max: 10, step: 0.1 },
+                  speed: { value: 1, min: 0.1, max: 5, step: 0.1 }
+                };
+              case 'circle-pulse-effect':
+                return {
+                  size: { value: 0.8, min: 0.1, max: 2, step: 0.1 },
+                  speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
+                  color: { value: 'blue' }
+                };
+              case 'square-pulse-effect':
+                return {
+                  size: { value: 0.8, min: 0.1, max: 2, step: 0.1 },
+                  speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
+                  color: { value: 'red' }
+                };
+              case 'wave-effect':
+                return {
+                  amplitude: { value: 0.5, min: 0, max: 2, step: 0.1 },
+                  frequency: { value: 2.0, min: 0.1, max: 10, step: 0.1 },
+                  speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
+                  color: { value: 'cyan' }
+                };
+              case 'geometric-pattern-effect':
+                return {
+                  pattern: { value: 'spiral', options: ['spiral', 'grid', 'hexagon'] },
+                  speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
+                  color: { value: 'magenta' },
+                  complexity: { value: 5, min: 1, max: 10, step: 1 }
+                };
+              case 'audio-reactive-effect':
+                return {
+                  sensitivity: { value: 0.5, min: 0, max: 1, step: 0.01 },
+                  frequency: { value: 440, min: 20, max: 20000, step: 1 },
+                  color: { value: 'orange' },
+                  mode: { value: 'bars', options: ['bars', 'circles', 'waves'] }
+                };
+              case 'color-pulse-effect':
+                return {
+                  intensity: { value: 0.5, min: 0, max: 1, step: 0.01 },
+                  colorSpeed: { value: 0.1, min: 0, max: 1, step: 0.01 },
+                  autoColor: { value: true },
+                  mode: { value: 'gradient', options: ['gradient', 'solid', 'rainbow'] }
+                };
+              case 'particle-effect':
+              case 'r3f-particle-system':
+                return {
+                  count: { value: 1500, min: 100, max: 5000, step: 100 },
+                  speed: { value: 0.8, min: 0.1, max: 2, step: 0.1 },
+                  size: { value: 0.03, min: 0.001, max: 0.1, step: 0.001 },
+                  spread: { value: 10, min: 1, max: 50, step: 1 }
+                };
+              default:
+                console.log('🟢 No specific params for effect:', effectId);
+                return {};
+            }
+          };
+          
+          layer.params = getLayerEffectParams(asset.id);
+          console.log('🟢 Set layer as effect with params:', layer);
         }
         // Handle videos
         else if (isVideo && layer.asset && layer.asset.type === 'video') {
@@ -1260,6 +1368,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                               position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] },
                               speed: { value: 0.5, min: 0.1, max: 2, step: 0.1 }
                             };
+                          case 'film-noise-r3f':
+                            return {
+                              intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
+                              color: { value: '#ffffff' }
+                            };
+                          case 'film-flicker-r3f':
+                            return {
+                              intensity: { value: 0.2, min: 0, max: 1, step: 0.01 },
+                              speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
+                              color: { value: '#ffffff' }
+                            };
+                          case 'light-leak-r3f':
+                            return {
+                              intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
+                              color: { value: '#ff6b35' },
+                              position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] },
+                              speed: { value: 0.5, min: 0.1, max: 2, step: 0.1 }
+                            };
+                          case 'global-strobe-r3f':
+                            return {
+                              intensity: { value: 0.8, min: 0, max: 1, step: 0.01 },
+                              color: { value: '#ffffff' },
+                              speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
+                              frequency: { value: 24, min: 1, max: 60, step: 1 }
+                            };
                           default:
                             return {};
                         }
@@ -1309,9 +1442,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                             title="Click to toggle effect on/off"
                                                      >
                              <span className="effect-name">
-                               {effectSlot.effectId === 'film-noise' ? 'Film Noise' :
-                                effectSlot.effectId === 'film-flicker' ? 'Film Flicker' :
-                                effectSlot.effectId === 'light-leak' ? 'Light Leak' :
+                               {effectSlot.effectId === 'film-noise-r3f' ? 'Film Noise (R3F)' :
+                                effectSlot.effectId === 'film-flicker-r3f' ? 'Film Flicker (R3F)' :
+                                effectSlot.effectId === 'light-leak-r3f' ? 'Light Leak (R3F)' :
+                                effectSlot.effectId === 'global-strobe-r3f' ? 'Global Strobe (R3F)' :
                                 effectSlot.effectId}
                              </span>
                              {effectSlot.enabled && <div className="effect-active-indicator">●</div>}

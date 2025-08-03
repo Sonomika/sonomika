@@ -3,9 +3,8 @@ import { useStore } from '../store/store';
 import { VideoLoopManager } from '../utils/VideoLoopManager';
 import { VIDEO_ELEMENT_CONFIG } from '../constants/video';
 import type { VideoLayer } from '../types/layer';
-import { FilmNoiseEffect } from '../effects/FilmNoiseEffect';
-import { FilmFlickerEffect } from '../effects/FilmFlickerEffect';
-import { LightLeakEffect } from '../effects/LightLeakEffect';
+
+import FilmEffectsR3F from '../effects/FilmEffectsR3F';
 
 interface CompositionScreenProps {
   className?: string;
@@ -448,28 +447,7 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
 
       {/* Global Effects Overlay */}
       {showFilmEffects && (
-        <>
-          <GlobalEffectsRenderer globalEffects={currentScene?.globalEffects || []} />
-          {/* Test film effect to verify rendering */}
-          <FilmNoiseEffect
-            intensity={0.5}
-            color="#ffffff"
-            opacity={0.2}
-          />
-          {/* Test effect to verify rendering */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            background: 'rgba(255, 0, 0, 0.1)',
-            pointerEvents: 'none',
-            zIndex: 1000
-          }}>
-            Test Overlay
-          </div>
-        </>
+        <GlobalEffectsRenderer globalEffects={currentScene?.globalEffects || []} />
       )}
       
       {/* Controls overlay */}
@@ -503,39 +481,45 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
 // Global Effects Renderer Component
 const GlobalEffectsRenderer: React.FC<{ globalEffects: any[] }> = ({ globalEffects }) => {
   const enabledEffects = globalEffects.filter((effect: any) => effect.enabled);
-  
-  console.log('🎬 GlobalEffectsRenderer:', { globalEffects, enabledEffects });
-  
+
   return (
     <>
       {enabledEffects.map((effect: any) => {
         switch (effect.effectId) {
-          case 'film-noise':
+
+          case 'film-noise-r3f':
             return (
-              <FilmNoiseEffect
+              <FilmEffectsR3F
                 key={effect.id}
-                intensity={effect.params?.intensity?.value || 0.3}
-                color={effect.params?.color?.value || '#ffffff'}
-                opacity={0.1}
+                noiseEnabled={true}
+                noiseIntensity={effect.params?.intensity?.value || 0.5}
+                noiseColor={effect.params?.color?.value || '#ffffff'}
+                flickerEnabled={false}
+                lightLeakEnabled={false}
               />
             );
-          case 'film-flicker':
+          case 'film-flicker-r3f':
             return (
-              <FilmFlickerEffect
+              <FilmEffectsR3F
                 key={effect.id}
-                intensity={effect.params?.intensity?.value || 0.2}
-                speed={effect.params?.speed?.value || 1}
-                color={effect.params?.color?.value || '#ffffff'}
+                noiseEnabled={false}
+                flickerEnabled={true}
+                flickerIntensity={effect.params?.intensity?.value || 0.2}
+                flickerSpeed={effect.params?.speed?.value || 1}
+                flickerColor={effect.params?.color?.value || '#ffffff'}
+                lightLeakEnabled={false}
               />
             );
-          case 'light-leak':
+          case 'light-leak-r3f':
             return (
-              <LightLeakEffect
+              <FilmEffectsR3F
                 key={effect.id}
-                intensity={effect.params?.intensity?.value || 0.3}
-                color={effect.params?.color?.value || '#ff6b35'}
-                position={effect.params?.position?.value || 'right'}
-                speed={effect.params?.speed?.value || 0.5}
+                noiseEnabled={false}
+                flickerEnabled={false}
+                lightLeakEnabled={true}
+                lightLeakIntensity={effect.params?.intensity?.value || 0.3}
+                lightLeakColor={effect.params?.color?.value || '#ff6b35'}
+                lightLeakPosition={effect.params?.position?.value || 'right'}
               />
             );
           default:

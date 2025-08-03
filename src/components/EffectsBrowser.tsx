@@ -10,7 +10,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'effects' | 'overlays'>('effects');
 
-  // Regular effects (standalone animations)
+  // Regular effects (standalone animations) - can be used as layers
   const regularEffects = [
     {
       id: 'circle-pulse-effect',
@@ -91,10 +91,66 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       description: 'Particles that move and pulse in time with the BPM',
       category: 'BPM',
       icon: '🎵'
+    },
+    {
+      id: 'strobe-effect',
+      name: 'Strobe Effect',
+      type: 'threejs',
+      description: 'BPM-synchronized strobe flash effect',
+      category: 'Animation',
+      icon: '⚡'
+    },
+    {
+      id: 'film-noise-r3f',
+      name: 'Film Noise (R3F)',
+      type: 'threejs',
+      description: 'Three.js shader-based film grain noise',
+      category: 'Film',
+      icon: '🎬'
+    },
+    {
+      id: 'film-flicker-r3f',
+      name: 'Film Flicker (R3F)',
+      type: 'threejs',
+      description: 'Three.js shader-based film flicker',
+      category: 'Film',
+      icon: '🎬'
+    },
+    {
+      id: 'light-leak-r3f',
+      name: 'Light Leak (R3F)',
+      type: 'threejs',
+      description: 'Three.js shader-based light leak',
+      category: 'Film',
+      icon: '🎬'
+    },
+    {
+      id: 'global-strobe-r3f',
+      name: 'Global Strobe (R3F)',
+      type: 'threejs',
+      description: 'Three.js shader-based BPM-synchronized strobe effect',
+      category: 'Global',
+      icon: '⚡'
+    },
+    {
+      id: 'global-datamosh',
+      name: 'Global Datamosh',
+      type: 'video',
+      description: 'Applies datamosh effect to the entire composition',
+      category: 'Video',
+      icon: '◐'
+    },
+    {
+      id: 'video-wave-slice',
+      name: 'Video Wave Slice',
+      type: 'video',
+      description: 'Creates wave-like slicing distortion',
+      category: 'Video',
+      icon: '◤'
     }
   ];
 
-  // Overlay effects (applied to video/content)
+  // Overlay effects (applied to video/content) - can be used as globals
   const overlayEffects = [
     {
       id: 'kaleidoscope',
@@ -137,12 +193,124 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       icon: '◣'
     },
     {
-      id: 'video-wave-slice',
-      name: 'Video Wave Slice',
-      type: 'video',
-      description: 'Creates wave-like slicing distortion',
-      category: 'Video',
-      icon: '◤'
+      id: 'circle-pulse-effect',
+      name: 'Circle Pulse Effect',
+      type: 'threejs',
+      description: 'Animated pulsing circle effect (Three.js)',
+      category: 'Animation',
+      icon: '●'
+    },
+    {
+      id: 'square-pulse-effect',
+      name: 'Square Pulse Effect',
+      type: 'threejs',
+      description: 'Animated pulsing square effect (Three.js)',
+      category: 'Animation',
+      icon: '■'
+    },
+    {
+      id: 'wave-effect',
+      name: 'Wave Effect',
+      type: 'threejs',
+      description: 'Animated wave pattern (Three.js)',
+      category: 'Animation',
+      icon: '~'
+    },
+    {
+      id: 'geometric-pattern-effect',
+      name: 'Geometric Pattern Effect',
+      type: 'threejs',
+      description: 'Geometric shape animations (Three.js)',
+      category: 'Animation',
+      icon: '◆'
+    },
+    {
+      id: 'audio-reactive-effect',
+      name: 'Audio Reactive Effect',
+      type: 'threejs',
+      description: 'Audio-driven visual effects (Three.js)',
+      category: 'Audio',
+      icon: '♪'
+    },
+    {
+      id: 'color-pulse-effect',
+      name: 'Color Pulse Effect',
+      type: 'threejs',
+      description: 'Color cycling pulse effect (Three.js)',
+      category: 'Color',
+      icon: '◉'
+    },
+    {
+      id: 'r3f-pulse',
+      name: 'R3F Pulse',
+      type: 'threejs',
+      description: 'React Three Fiber pulse effect',
+      category: 'Animation',
+      icon: '●'
+    },
+    {
+      id: 'r3f-circle-pulse',
+      name: 'R3F Circle Pulse',
+      type: 'threejs',
+      description: 'React Three Fiber circle pulse',
+      category: 'Animation',
+      icon: '◉'
+    },
+    {
+      id: 'r3f-color-pulse',
+      name: 'R3F Color Pulse',
+      type: 'threejs',
+      description: 'React Three Fiber color pulse',
+      category: 'Color',
+      icon: '◉'
+    },
+    {
+      id: 'bpm-particle-effect',
+      name: 'BPM Particle Effect',
+      type: 'threejs',
+      description: 'Particles that move and pulse in time with the BPM',
+      category: 'BPM',
+      icon: '🎵'
+    },
+    {
+      id: 'strobe-effect',
+      name: 'Strobe Effect',
+      type: 'threejs',
+      description: 'BPM-synchronized strobe flash effect',
+      category: 'Animation',
+      icon: '⚡'
+    },
+    {
+      id: 'film-noise-r3f',
+      name: 'Film Noise (R3F)',
+      type: 'threejs',
+      description: 'Three.js shader-based film grain noise',
+      category: 'Film',
+      icon: '🎬'
+    },
+    {
+      id: 'film-flicker-r3f',
+      name: 'Film Flicker (R3F)',
+      type: 'threejs',
+      description: 'Three.js shader-based film flicker',
+      category: 'Film',
+      icon: '🎬'
+    },
+    {
+      id: 'light-leak-r3f',
+      name: 'Light Leak (R3F)',
+      type: 'threejs',
+      description: 'Three.js shader-based light leak',
+      category: 'Film',
+      icon: '🎬'
+    },
+    {
+      id: 'global-strobe-r3f',
+      name: 'Global Strobe (R3F)',
+      type: 'threejs',
+      description: 'Three.js shader-based BPM-synchronized strobe effect',
+      category: 'Global',
+      icon: '⚡'
     },
     {
       id: 'global-datamosh',
@@ -153,28 +321,12 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       icon: '◐'
     },
     {
-      id: 'film-noise',
-      name: 'Film Noise',
-      type: 'film',
-      description: 'Low GPU film grain noise overlay',
-      category: 'Film',
-      icon: '🎬'
-    },
-    {
-      id: 'film-flicker',
-      name: 'Film Flicker',
-      type: 'film',
-      description: 'Film projector flicker effect',
-      category: 'Film',
-      icon: '🎬'
-    },
-    {
-      id: 'light-leak',
-      name: 'Light Leak',
-      type: 'film',
-      description: 'Film camera light leak effect',
-      category: 'Film',
-      icon: '🎬'
+      id: 'video-wave-slice',
+      name: 'Video Wave Slice',
+      type: 'video',
+      description: 'Creates wave-like slicing distortion',
+      category: 'Video',
+      icon: '◤'
     }
   ];
 

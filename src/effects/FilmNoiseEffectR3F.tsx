@@ -1,35 +1,34 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
 
-interface GlobalStrobeEffectProps {
+interface FilmNoiseEffectR3FProps {
   intensity?: number;
   speed?: number;
   color?: string;
-  frequency?: number;
+  opacity?: number;
+  particleCount?: number;
 }
 
-const GlobalStrobeEffect: React.FC<GlobalStrobeEffectProps> = ({
-  intensity = 0.8,
+const FilmNoiseEffectR3F: React.FC<FilmNoiseEffectR3FProps> = ({
+  intensity = 0.5,
   speed = 1,
   color = '#ffffff',
-  frequency = 24 // 24fps strobe
+  opacity = 0.3,
+  particleCount = 10000
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const { bpm } = useStore();
 
-  // Create shader material for strobe effect
+  // Create shader material for film noise
   const shaderMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
         intensity: { value: intensity },
+        opacity: { value: opacity },
         color: { value: new THREE.Color(color) },
-        speed: { value: speed },
-        frequency: { value: frequency },
-        bpm: { value: bpm }
+        speed: { value: speed }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -41,32 +40,26 @@ const GlobalStrobeEffect: React.FC<GlobalStrobeEffectProps> = ({
       fragmentShader: `
         uniform float time;
         uniform float intensity;
+        uniform float opacity;
         uniform vec3 color;
         uniform float speed;
-        uniform float frequency;
-        uniform float bpm;
         varying vec2 vUv;
+        
+        // Simple noise function
+        float noise(vec2 p) {
+          return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+        }
         
         void main() {
           vec2 uv = vUv;
           
-          // Calculate strobe timing based on BPM
-          float beatsPerSecond = bpm / 60.0;
-          float strobePhase = mod(time * speed * beatsPerSecond, 1.0);
+          // Create simple animated noise
+          float n = noise(uv * 100.0 + time * speed);
+          float noiseValue = n * intensity;
           
-          // Create sharp strobe effect with longer flash duration
-          float strobeIntensity = step(0.3, strobePhase) * intensity;
-          
-          // Add some variation based on frequency
-          float frequencyMod = sin(time * speed * frequency * 3.14159 * 2.0) * 0.3 + 0.7;
-          strobeIntensity *= frequencyMod;
-          
-          // Make the strobe more visible by increasing base intensity
-          strobeIntensity = max(strobeIntensity, 0.1);
-          
-          // Apply color and intensity
-          vec3 finalColor = color * strobeIntensity;
-          float alpha = strobeIntensity;
+          // Apply color and opacity
+          vec3 finalColor = color * noiseValue;
+          float alpha = noiseValue * opacity;
           
           gl_FragColor = vec4(finalColor, alpha);
         }
@@ -76,16 +69,15 @@ const GlobalStrobeEffect: React.FC<GlobalStrobeEffectProps> = ({
       depthTest: false,
       depthWrite: false
     });
-  }, [intensity, color, speed, frequency, bpm]);
+  }, [intensity, opacity, color, speed]);
 
   // Update uniforms on each frame
   useFrame((state) => {
     if (materialRef.current) {
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
       materialRef.current.uniforms.intensity.value = intensity;
+      materialRef.current.uniforms.opacity.value = opacity;
       materialRef.current.uniforms.speed.value = speed;
-      materialRef.current.uniforms.frequency.value = frequency;
-      materialRef.current.uniforms.bpm.value = bpm;
     }
   });
 
@@ -97,4 +89,4 @@ const GlobalStrobeEffect: React.FC<GlobalStrobeEffectProps> = ({
   );
 };
 
-export default GlobalStrobeEffect; 
+export default FilmNoiseEffectR3F; 

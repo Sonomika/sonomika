@@ -1,26 +1,26 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
 
-interface GlobalStrobeEffectProps {
+interface LightLeakEffectR3FProps {
   intensity?: number;
   speed?: number;
   color?: string;
-  frequency?: number;
+  position?: 'left' | 'right' | 'top' | 'bottom';
+  width?: number;
 }
 
-const GlobalStrobeEffect: React.FC<GlobalStrobeEffectProps> = ({
-  intensity = 0.8,
+const LightLeakEffectR3F: React.FC<LightLeakEffectR3FProps> = ({
+  intensity = 0.3,
   speed = 1,
-  color = '#ffffff',
-  frequency = 24 // 24fps strobe
+  color = '#ff6b35',
+  position = 'right',
+  width = 0.2
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const { bpm } = useStore();
 
-  // Create shader material for strobe effect
+  // Create shader material for light leak
   const shaderMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       uniforms: {
@@ -28,8 +28,8 @@ const GlobalStrobeEffect: React.FC<GlobalStrobeEffectProps> = ({
         intensity: { value: intensity },
         color: { value: new THREE.Color(color) },
         speed: { value: speed },
-        frequency: { value: frequency },
-        bpm: { value: bpm }
+        position: { value: position === 'left' ? 0 : position === 'right' ? 1 : position === 'top' ? 2 : 3 },
+        width: { value: width }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -43,40 +43,46 @@ const GlobalStrobeEffect: React.FC<GlobalStrobeEffectProps> = ({
         uniform float intensity;
         uniform vec3 color;
         uniform float speed;
-        uniform float frequency;
-        uniform float bpm;
+        uniform float position;
+        uniform float width;
         varying vec2 vUv;
         
         void main() {
           vec2 uv = vUv;
+          float gradient = 0.0;
           
-          // Calculate strobe timing based on BPM
-          float beatsPerSecond = bpm / 60.0;
-          float strobePhase = mod(time * speed * beatsPerSecond, 1.0);
+          // Create gradient based on position
+          if (position < 1.0) {
+            // Left
+            gradient = smoothstep(0.0, width, uv.x);
+          } else if (position < 2.0) {
+            // Right
+            gradient = smoothstep(1.0, 1.0 - width, uv.x);
+          } else if (position < 3.0) {
+            // Top
+            gradient = smoothstep(0.0, width, uv.y);
+          } else {
+            // Bottom
+            gradient = smoothstep(1.0, 1.0 - width, uv.y);
+          }
           
-          // Create sharp strobe effect with longer flash duration
-          float strobeIntensity = step(0.3, strobePhase) * intensity;
-          
-          // Add some variation based on frequency
-          float frequencyMod = sin(time * speed * frequency * 3.14159 * 2.0) * 0.3 + 0.7;
-          strobeIntensity *= frequencyMod;
-          
-          // Make the strobe more visible by increasing base intensity
-          strobeIntensity = max(strobeIntensity, 0.1);
+          // Add flicker animation
+          float flicker = sin(time * speed * 2.0) * 0.3 + 0.7;
+          float totalIntensity = intensity * flicker * gradient;
           
           // Apply color and intensity
-          vec3 finalColor = color * strobeIntensity;
-          float alpha = strobeIntensity;
+          vec3 finalColor = color * totalIntensity;
+          float alpha = totalIntensity;
           
           gl_FragColor = vec4(finalColor, alpha);
         }
       `,
       transparent: true,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.ScreenBlending,
       depthTest: false,
       depthWrite: false
     });
-  }, [intensity, color, speed, frequency, bpm]);
+  }, [intensity, color, speed, position, width]);
 
   // Update uniforms on each frame
   useFrame((state) => {
@@ -84,8 +90,6 @@ const GlobalStrobeEffect: React.FC<GlobalStrobeEffectProps> = ({
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
       materialRef.current.uniforms.intensity.value = intensity;
       materialRef.current.uniforms.speed.value = speed;
-      materialRef.current.uniforms.frequency.value = frequency;
-      materialRef.current.uniforms.bpm.value = bpm;
     }
   });
 
@@ -97,4 +101,4 @@ const GlobalStrobeEffect: React.FC<GlobalStrobeEffectProps> = ({
   );
 };
 
-export default GlobalStrobeEffect; 
+export default LightLeakEffectR3F; 
