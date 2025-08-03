@@ -13,6 +13,7 @@ export const FilmNoiseEffect: React.FC<FilmNoiseEffectProps> = ({
   color = '#ffffff',
   opacity = 0.1
 }) => {
+  console.log('🎬 FilmNoiseEffect rendered with props:', { intensity, speed, color, opacity });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive] = useState(true);
 
@@ -27,8 +28,10 @@ export const FilmNoiseEffect: React.FC<FilmNoiseEffectProps> = ({
     const resizeCanvas = () => {
       const parent = canvas.parentElement;
       if (parent) {
-        canvas.width = parent.clientWidth;
-        canvas.height = parent.clientHeight;
+        const rect = parent.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        console.log('🎬 FilmNoiseEffect canvas size:', rect.width, rect.height);
       }
     };
 

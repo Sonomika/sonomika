@@ -433,7 +433,7 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
       <canvas
         ref={canvasRef}
         className="composition-canvas"
-        style={{ display: 'block' }}
+        style={{ display: 'block', zIndex: 1 }}
       />
       
       {/* Performance overlay */}
@@ -448,7 +448,28 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
 
       {/* Global Effects Overlay */}
       {showFilmEffects && (
-        <GlobalEffectsRenderer globalEffects={currentScene?.globalEffects || []} />
+        <>
+          <GlobalEffectsRenderer globalEffects={currentScene?.globalEffects || []} />
+          {/* Test film effect to verify rendering */}
+          <FilmNoiseEffect
+            intensity={0.5}
+            color="#ffffff"
+            opacity={0.2}
+          />
+          {/* Test effect to verify rendering */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(255, 0, 0, 0.1)',
+            pointerEvents: 'none',
+            zIndex: 1000
+          }}>
+            Test Overlay
+          </div>
+        </>
       )}
       
       {/* Controls overlay */}
@@ -482,6 +503,8 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
 // Global Effects Renderer Component
 const GlobalEffectsRenderer: React.FC<{ globalEffects: any[] }> = ({ globalEffects }) => {
   const enabledEffects = globalEffects.filter((effect: any) => effect.enabled);
+  
+  console.log('🎬 GlobalEffectsRenderer:', { globalEffects, enabledEffects });
   
   return (
     <>
