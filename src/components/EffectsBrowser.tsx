@@ -151,6 +151,30 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
       description: 'Applies datamosh effect to the entire composition',
       category: 'Video',
       icon: '◐'
+    },
+    {
+      id: 'film-noise',
+      name: 'Film Noise',
+      type: 'film',
+      description: 'Low GPU film grain noise overlay',
+      category: 'Film',
+      icon: '🎬'
+    },
+    {
+      id: 'film-flicker',
+      name: 'Film Flicker',
+      type: 'film',
+      description: 'Film projector flicker effect',
+      category: 'Film',
+      icon: '🎬'
+    },
+    {
+      id: 'light-leak',
+      name: 'Light Leak',
+      type: 'film',
+      description: 'Film camera light leak effect',
+      category: 'Film',
+      icon: '🎬'
     }
   ];
 

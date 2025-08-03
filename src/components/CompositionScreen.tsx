@@ -3,7 +3,9 @@ import { useStore } from '../store/store';
 import { VideoLoopManager } from '../utils/VideoLoopManager';
 import { VIDEO_ELEMENT_CONFIG } from '../constants/video';
 import type { VideoLayer } from '../types/layer';
-import { FilmEffectsOverlay } from '../effects/FilmEffectsOverlay';
+import { FilmNoiseEffect } from '../effects/FilmNoiseEffect';
+import { FilmFlickerEffect } from '../effects/FilmFlickerEffect';
+import { LightLeakEffect } from '../effects/LightLeakEffect';
 
 interface CompositionScreenProps {
   className?: string;
@@ -444,16 +446,9 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
         </div>
       )}
 
-      {/* Film Effects Overlay */}
+      {/* Global Effects Overlay */}
       {showFilmEffects && (
-        <FilmEffectsOverlay
-          noiseEnabled={true}
-          noiseIntensity={0.2}
-          flickerEnabled={true}
-          flickerIntensity={0.1}
-          lightLeakEnabled={false}
-          showControls={false}
-        />
+        <GlobalEffectsRenderer globalEffects={currentScene?.globalEffects || []} />
       )}
       
       {/* Controls overlay */}
@@ -481,5 +476,49 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
         </button>
       </div>
     </div>
+  );
+}; 
+
+// Global Effects Renderer Component
+const GlobalEffectsRenderer: React.FC<{ globalEffects: any[] }> = ({ globalEffects }) => {
+  const enabledEffects = globalEffects.filter((effect: any) => effect.enabled);
+  
+  return (
+    <>
+      {enabledEffects.map((effect: any) => {
+        switch (effect.effectId) {
+          case 'film-noise':
+            return (
+              <FilmNoiseEffect
+                key={effect.id}
+                intensity={effect.params?.intensity?.value || 0.3}
+                color={effect.params?.color?.value || '#ffffff'}
+                opacity={0.1}
+              />
+            );
+          case 'film-flicker':
+            return (
+              <FilmFlickerEffect
+                key={effect.id}
+                intensity={effect.params?.intensity?.value || 0.2}
+                speed={effect.params?.speed?.value || 1}
+                color={effect.params?.color?.value || '#ffffff'}
+              />
+            );
+          case 'light-leak':
+            return (
+              <LightLeakEffect
+                key={effect.id}
+                intensity={effect.params?.intensity?.value || 0.3}
+                color={effect.params?.color?.value || '#ff6b35'}
+                position={effect.params?.position?.value || 'right'}
+                speed={effect.params?.speed?.value || 0.5}
+              />
+            );
+          default:
+            return null;
+        }
+      })}
+    </>
   );
 }; 

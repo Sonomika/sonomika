@@ -1239,12 +1239,37 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                     if (data.isEffect) {
                       console.log('🌐 Adding global effect:', data);
                       
-                      // Create a new effect slot
+                      // Create a new effect slot with default parameters for film effects
+                      const getDefaultParams = (effectId: string) => {
+                        switch (effectId) {
+                          case 'film-noise':
+                            return {
+                              intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
+                              color: { value: '#ffffff' }
+                            };
+                          case 'film-flicker':
+                            return {
+                              intensity: { value: 0.2, min: 0, max: 1, step: 0.01 },
+                              speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
+                              color: { value: '#ffffff' }
+                            };
+                          case 'light-leak':
+                            return {
+                              intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
+                              color: { value: '#ff6b35' },
+                              position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] },
+                              speed: { value: 0.5, min: 0.1, max: 2, step: 0.1 }
+                            };
+                          default:
+                            return {};
+                        }
+                      };
+
                       const newEffectSlot = {
                         id: uuidv4(),
                         effectId: data.id || data.name,
                         enabled: true,
-                        params: {}
+                        params: getDefaultParams(data.id || data.name)
                       };
                       
                       // Add the effect slot to the scene's global effects
@@ -1283,7 +1308,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                             style={{ cursor: 'pointer' }}
                             title="Click to toggle effect on/off"
                                                      >
-                             <span className="effect-name">{effectSlot.effectId}</span>
+                             <span className="effect-name">
+                               {effectSlot.effectId === 'film-noise' ? 'Film Noise' :
+                                effectSlot.effectId === 'film-flicker' ? 'Film Flicker' :
+                                effectSlot.effectId === 'light-leak' ? 'Light Leak' :
+                                effectSlot.effectId}
+                             </span>
                              {effectSlot.enabled && <div className="effect-active-indicator">●</div>}
                            </div>
                           <button 
