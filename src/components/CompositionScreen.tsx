@@ -3,6 +3,7 @@ import { useStore } from '../store/store';
 import { VideoLoopManager } from '../utils/VideoLoopManager';
 import { VIDEO_ELEMENT_CONFIG } from '../constants/video';
 import type { VideoLayer } from '../types/layer';
+import { FilmEffectsOverlay } from '../effects/FilmEffectsOverlay';
 
 interface CompositionScreenProps {
   className?: string;
@@ -316,6 +317,7 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
   const rendererRef = useRef<PureCompositionRenderer | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showPerformance, setShowPerformance] = useState(false);
+  const [showFilmEffects, setShowFilmEffects] = useState(true);
   
   const { currentSceneId, scenes, bpm } = useStore() as any;
   const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
@@ -416,6 +418,10 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
     setShowPerformance(!showPerformance);
   };
 
+  const toggleFilmEffects = () => {
+    setShowFilmEffects(!showFilmEffects);
+  };
+
   // React only provides the container and controls, not the rendering
   return (
     <div 
@@ -438,6 +444,18 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
         </div>
       )}
 
+      {/* Film Effects Overlay */}
+      {showFilmEffects && (
+        <FilmEffectsOverlay
+          noiseEnabled={true}
+          noiseIntensity={0.2}
+          flickerEnabled={true}
+          flickerIntensity={0.1}
+          lightLeakEnabled={false}
+          showControls={false}
+        />
+      )}
+      
       {/* Controls overlay */}
       <div className="composition-controls">
         <button
@@ -446,6 +464,13 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
           title="Toggle Performance Monitor"
         >
           📊
+        </button>
+        <button
+          className="control-button"
+          onClick={toggleFilmEffects}
+          title="Toggle Film Effects"
+        >
+          🎬
         </button>
         <button
           className="control-button"
