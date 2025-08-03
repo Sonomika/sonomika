@@ -29,15 +29,13 @@ const createEmptyScene = (): Scene => ({
 });
 
 const createDefaultScenes = (): Scene[] => {
-  console.log('🔧 Creating default scenes');
-  const templateNames = ['Intro', 'Build Up', 'Drop', 'Breakdown', 'Outro'];
-  const scenes = templateNames.map(name => ({
+  console.log('🔧 Creating default scene');
+  return [{
     id: uuidv4(),
-    name,
+    name: '1',
     columns: Array.from({ length: 10 }, () => createEmptyColumn()),
     globalEffects: [],
-  }));
-  return scenes;
+  }];
 };
 
 const initialState: AppState = {
@@ -103,11 +101,16 @@ export const useStore = create<AppState & {
 
       setCurrentScene: (sceneId: string) => set({ currentSceneId: sceneId }),
 
-      updateScene: (sceneId: string, updates: Partial<Scene>) => set((state) => ({
-        scenes: state.scenes.map(scene => 
-          scene.id === sceneId ? { ...scene, ...updates } : scene
-        ),
-      })),
+      updateScene: (sceneId: string, updates: Partial<Scene>) => {
+        console.log('updateScene called with sceneId:', sceneId, 'updates:', updates);
+        return set((state) => {
+          const newScenes = state.scenes.map(scene => 
+            scene.id === sceneId ? { ...scene, ...updates } : scene
+          );
+          console.log('Updated scenes:', newScenes);
+          return { scenes: newScenes };
+        });
+      },
 
       removeScene: (sceneId: string) => set((state) => ({
         scenes: state.scenes.filter(scene => scene.id !== sceneId),

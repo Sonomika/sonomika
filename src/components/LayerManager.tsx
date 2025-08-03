@@ -930,23 +930,228 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         <div className="layer-manager-content">
           <div className="layer-manager-header">
             <div className="header-left">
-              <h2>VJ - {currentScene.name}</h2>
-              <div className="scene-selector">
-                <select 
-                  value={currentSceneId} 
-                  onChange={(e) => setCurrentScene(e.target.value)}
-                  className="scene-dropdown"
-                >
-                  {scenes.map((scene: any) => (
-                    <option key={scene.id} value={scene.id}>
-                      {scene.name}
-                    </option>
-                  ))}
-                </select>
-                <button onClick={addScene} className="add-scene-btn">
+              <div className="scene-tabs">
+                {scenes.map((scene: any) => (
+                  <div
+                    key={scene.id}
+                    className={`scene-tab ${scene.id === currentSceneId ? 'active' : ''}`}
+                    onClick={() => setCurrentScene(scene.id)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      
+                      // Create context menu
+                      const menu = document.createElement('div');
+                      menu.className = 'context-menu';
+                      menu.style.cssText = `
+                        position: fixed;
+                        top: ${e.clientY}px;
+                        left: ${e.clientX}px;
+                        background: var(--surface);
+                        border: 1px solid var(--border-color);
+                        border-radius: 4px;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                        z-index: 1000;
+                        min-width: 120px;
+                        padding: 0.25rem 0;
+                      `;
+                      
+                      // Rename option
+                      const renameOption = document.createElement('div');
+                      renameOption.textContent = 'Rename';
+                      renameOption.style.cssText = `
+                        padding: 0.5rem 0.75rem;
+                        cursor: pointer;
+                        color: var(--on-surface);
+                        font-size: 0.875rem;
+                        transition: background-color 0.2s ease;
+                      `;
+                      renameOption.onmouseenter = () => {
+                        renameOption.style.backgroundColor = 'var(--surface-variant)';
+                      };
+                      renameOption.onmouseleave = () => {
+                        renameOption.style.backgroundColor = 'transparent';
+                      };
+                      renameOption.onclick = () => {
+                        console.log('Rename clicked for scene:', scene.name, 'ID:', scene.id);
+                        
+                        // Create custom input dialog
+                        const dialog = document.createElement('div');
+                        dialog.style.cssText = `
+                          position: fixed;
+                          top: 0;
+                          left: 0;
+                          width: 100%;
+                          height: 100%;
+                          background: rgba(0, 0, 0, 0.5);
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          z-index: 10000;
+                        `;
+                        
+                        const dialogContent = document.createElement('div');
+                        dialogContent.style.cssText = `
+                          background: var(--surface);
+                          border: 1px solid var(--border-color);
+                          border-radius: 8px;
+                          padding: 1.5rem;
+                          min-width: 300px;
+                          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                        `;
+                        
+                        const title = document.createElement('h3');
+                        title.textContent = 'Rename Scene';
+                        title.style.cssText = `
+                          margin: 0 0 1rem 0;
+                          color: var(--on-surface);
+                          font-size: 1.125rem;
+                          font-weight: 500;
+                        `;
+                        
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = scene.name;
+                        input.style.cssText = `
+                          width: 100%;
+                          padding: 0.75rem;
+                          border: 1px solid var(--border-color);
+                          border-radius: 4px;
+                          background: var(--surface-variant);
+                          color: var(--on-surface);
+                          font-size: 0.875rem;
+                          margin-bottom: 1rem;
+                          box-sizing: border-box;
+                        `;
+                        
+                        const buttonContainer = document.createElement('div');
+                        buttonContainer.style.cssText = `
+                          display: flex;
+                          gap: 0.5rem;
+                          justify-content: flex-end;
+                        `;
+                        
+                        const cancelBtn = document.createElement('button');
+                        cancelBtn.textContent = 'Cancel';
+                        cancelBtn.style.cssText = `
+                          padding: 0.5rem 1rem;
+                          border: 1px solid var(--border-color);
+                          border-radius: 4px;
+                          background: transparent;
+                          color: var(--on-surface);
+                          cursor: pointer;
+                          font-size: 0.875rem;
+                        `;
+                        
+                        const confirmBtn = document.createElement('button');
+                        confirmBtn.textContent = 'Rename';
+                        confirmBtn.style.cssText = `
+                          padding: 0.5rem 1rem;
+                          border: none;
+                          border-radius: 4px;
+                          background: var(--primary);
+                          color: var(--on-primary);
+                          cursor: pointer;
+                          font-size: 0.875rem;
+                        `;
+                        
+                        const handleConfirm = () => {
+                          const newName = input.value.trim();
+                          if (newName && newName !== scene.name) {
+                            console.log('Updating scene name from:', scene.name, 'to:', newName);
+                            try {
+                              updateScene(scene.id, { name: newName });
+                              console.log('Scene updated successfully');
+                            } catch (error) {
+                              console.error('Error updating scene:', error);
+                            }
+                          } else {
+                            console.log('No valid name change or cancelled');
+                          }
+                          document.body.removeChild(dialog);
+                          document.body.removeChild(menu);
+                        };
+                        
+                        const handleCancel = () => {
+                          document.body.removeChild(dialog);
+                          document.body.removeChild(menu);
+                        };
+                        
+                        const handleKeyDown = (e: KeyboardEvent) => {
+                          if (e.key === 'Enter') {
+                            handleConfirm();
+                          } else if (e.key === 'Escape') {
+                            handleCancel();
+                          }
+                        };
+                        
+                        input.addEventListener('keydown', handleKeyDown);
+                        confirmBtn.addEventListener('click', handleConfirm);
+                        cancelBtn.addEventListener('click', handleCancel);
+                        
+                        buttonContainer.appendChild(cancelBtn);
+                        buttonContainer.appendChild(confirmBtn);
+                        
+                        dialogContent.appendChild(title);
+                        dialogContent.appendChild(input);
+                        dialogContent.appendChild(buttonContainer);
+                        dialog.appendChild(dialogContent);
+                        
+                        document.body.appendChild(dialog);
+                        
+                        // Focus the input
+                        setTimeout(() => input.focus(), 100);
+                      };
+                      
+                      // Delete option (only if more than one scene)
+                      if (scenes.length > 1) {
+                        const deleteOption = document.createElement('div');
+                        deleteOption.textContent = 'Delete';
+                        deleteOption.style.cssText = `
+                          padding: 0.5rem 0.75rem;
+                          cursor: pointer;
+                          color: var(--error);
+                          font-size: 0.875rem;
+                          transition: background-color 0.2s ease;
+                        `;
+                        deleteOption.onmouseenter = () => {
+                          deleteOption.style.backgroundColor = 'var(--surface-variant)';
+                        };
+                        deleteOption.onmouseleave = () => {
+                          deleteOption.style.backgroundColor = 'transparent';
+                        };
+                        deleteOption.onclick = () => {
+                          const confirmed = window.confirm(`Are you sure you want to delete scene "${scene.name}"?`);
+                          if (confirmed) {
+                            removeScene(scene.id);
+                          }
+                          document.body.removeChild(menu);
+                        };
+                        menu.appendChild(deleteOption);
+                      }
+                      
+                      menu.appendChild(renameOption);
+                      document.body.appendChild(menu);
+                      
+                      // Close menu when clicking outside
+                      const closeMenu = (e: MouseEvent) => {
+                        if (!menu.contains(e.target as Node)) {
+                          document.body.removeChild(menu);
+                          document.removeEventListener('click', closeMenu);
+                        }
+                      };
+                      document.addEventListener('click', closeMenu);
+                    }}
+                    title="Right-click to rename or delete scene"
+                  >
+                    {scene.name}
+                  </div>
+                ))}
+                <button onClick={addScene} className="add-scene-tab-btn" title="Add new scene">
                   +
                 </button>
               </div>
+            </div>
+            <div className="header-right">
               <div className="bpm-control">
                 <label htmlFor="bpm-input">BPM:</label>
                 <input
@@ -1010,13 +1215,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             
 
             
-            {/* Standalone Clear Button for better visibility */}
-            <button className="clear-layers-standalone" onClick={handleClearLayers}>
-              🗑️ Clear All Layers
-            </button>
-            <button className="force-clear-btn" onClick={handleForceClear}>
-              🧹 Force Clear All Layers
-            </button>
+
           </div>
 
           <div className="layer-manager-body" style={{ height: `${paneSizes.gridHeight}%` }}>
@@ -1063,44 +1262,53 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   }
                 }}
               >
-                <div className="global-effects-list">
-                  {currentScene?.globalEffects?.map((effectSlot: any, index: number) => (
-                    <div key={effectSlot.id || `effect-${index}`} className="global-effect-item">
-                      <div 
-                        className="effect-slot-content"
-                        onClick={() => {
-                          // Toggle this effect on/off, disable all others
-                          const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
-                            ...slot,
-                            enabled: i === index ? !slot.enabled : false
-                          }));
-                          updateScene(currentSceneId, { globalEffects: updatedEffects });
-                        }}
-                        style={{ cursor: 'pointer' }}
-                        title="Click to toggle effect on/off"
-                      >
-                        <div className="effect-slot-icon">✦</div>
-                        <span className="effect-name">{effectSlot.effectId}</span>
-                        {effectSlot.enabled && <div className="effect-active-indicator">●</div>}
-                      </div>
-                      <button 
-                        className="remove-effect-btn"
-                        onClick={() => {
-                          const updatedEffects = currentScene.globalEffects.filter((_: any, i: number) => i !== index);
-                          updateScene(currentSceneId, { globalEffects: updatedEffects });
-                        }}
-                        title="Remove effect"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                  {(!currentScene?.globalEffects || currentScene.globalEffects.length === 0) && (
-                    <div className="no-global-effects">
-                      <span>Empty slots</span>
-                      <small>Drag effects here to apply globally</small>
-                    </div>
-                  )}
+                <div className="global-effects-grid">
+                  {Array.from({ length: 10 }, (_, index) => {
+                    const effectSlot = currentScene?.globalEffects?.[index];
+                    
+                    if (effectSlot) {
+                      // Render existing effect slot
+                      return (
+                        <div key={effectSlot.id || `effect-${index}`} className={`global-effect-slot ${effectSlot.enabled ? 'active' : ''}`}>
+                          <div 
+                            className="effect-slot-content"
+                            onClick={() => {
+                              // Toggle this effect on/off, disable all others
+                              const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
+                                ...slot,
+                                enabled: i === index ? !slot.enabled : false
+                              }));
+                              updateScene(currentSceneId, { globalEffects: updatedEffects });
+                            }}
+                            style={{ cursor: 'pointer' }}
+                            title="Click to toggle effect on/off"
+                                                     >
+                             <span className="effect-name">{effectSlot.effectId}</span>
+                             {effectSlot.enabled && <div className="effect-active-indicator">●</div>}
+                           </div>
+                          <button 
+                            className="remove-effect-btn"
+                            onClick={() => {
+                              const updatedEffects = currentScene.globalEffects.filter((_: any, i: number) => i !== index);
+                              updateScene(currentSceneId, { globalEffects: updatedEffects });
+                            }}
+                            title="Remove effect"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    } else {
+                      // Render empty slot
+                      return (
+                                                 <div key={`empty-slot-${index}`} className="global-effect-slot empty">
+                           <div className="effect-slot-content">
+                             <span className="effect-name">Empty</span>
+                           </div>
+                         </div>
+                      );
+                    }
+                  })}
                 </div>
               </div>
             </div>
