@@ -3,12 +3,13 @@ import { useStore } from '../store/store';
 
 interface TimelineProps {
   onClose: () => void;
+  onPreviewUpdate?: (previewContent: any) => void;
 }
 
 interface TimelineTrack {
   id: string;
   name: string;
-  type: 'audio' | 'video' | 'effect';
+  type: 'video' | 'effect';
   clips: TimelineClip[];
 }
 
@@ -17,14 +18,14 @@ interface TimelineClip {
   startTime: number;
   duration: number;
   asset: any;
-  type: 'audio' | 'video' | 'effect';
+  type: 'video' | 'effect';
   name: string;
 }
 
-export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
-  const { scenes, currentSceneId, bpm, setBpm, setPreviewContent, setIsPlaying: setStoreIsPlaying, previewContent } = useStore() as any;
+export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) => {
+  const { bpm, setBpm } = useStore() as any;
   const [tracks, setTracks] = useState<TimelineTrack[]>([
-    { id: 'track-1', name: 'Track 1', type: 'audio', clips: [] },
+    { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
     { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
     { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
   ]);
@@ -36,6 +37,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
   const [draggedAsset, setDraggedAsset] = useState<any>(null);
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [playbackInterval, setPlaybackInterval] = useState<NodeJS.Timeout | null>(null);
   
   const timelineRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -68,7 +70,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
             barWidth: 2,
             barGap: 1,
             height: 100,
-            responsive: true,
             normalize: true,
             interact: true,
             hideScrollbar: true,
@@ -86,15 +87,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
 
           wavesurferRef.current.on('finish', () => {
             setIsPlaying(false);
-            setStoreIsPlaying(false);
             setCurrentTime(0);
-            setPreviewContent(null);
           });
 
           wavesurferRef.current.on('interaction', () => {
             if (!isPlaying) {
               setIsPlaying(true);
-              setStoreIsPlaying(true);
             }
           });
         } catch (error) {
@@ -133,20 +131,81 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
   // Handle drag and drop for waveform
   const handleWaveformDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    console.log('Waveform drop event triggered');
+    
+    // Check for files first (direct file drop)
     const files = e.dataTransfer.files;
+    console.log('Files dropped:', files.length);
     if (files.length > 0) {
       const file = files[0];
+      console.log('File type:', file.type);
       if (file.type.startsWith('audio/')) {
+        console.log('Processing audio file:', file.name);
         setAudioFile(file);
         
         if (wavesurferRef.current) {
           try {
             await wavesurferRef.current.loadBlob(file);
             setDuration(wavesurferRef.current.getDuration());
+            console.log('Successfully loaded audio file into WaveSurfer');
           } catch (error) {
             console.error('Error loading audio file:', error);
           }
+        } else {
+          console.error('WaveSurfer not initialized');
         }
+      } else {
+        console.log('File is not audio type:', file.type);
+      }
+      return;
+    }
+    
+    // Check for MediaLibrary asset data
+    const assetData = e.dataTransfer.getData('application/json');
+    console.log('Asset data received:', assetData);
+    if (assetData) {
+      try {
+        const asset = JSON.parse(assetData);
+        console.log('Parsed asset:', asset);
+        if (asset.type === 'audio') {
+          console.log('Processing audio asset:', asset.name);
+          // Handle base64 data from MediaLibrary
+          if (asset.base64Data) {
+            console.log('Processing base64 data for:', asset.name);
+            try {
+              // Convert base64 to blob
+              const base64Response = await fetch(asset.base64Data);
+              const blob = await base64Response.blob();
+              console.log('Successfully converted base64 to blob');
+              setAudioFile(new File([blob], asset.name, { type: 'audio/mpeg' }));
+              
+              if (wavesurferRef.current) {
+                await wavesurferRef.current.loadBlob(blob);
+                setDuration(wavesurferRef.current.getDuration());
+                console.log('Successfully loaded audio into WaveSurfer');
+              }
+            } catch (error) {
+              console.error('Error loading audio from base64:', error);
+            }
+          }
+          // Handle blob URL from MediaLibrary
+          else if (asset.path && asset.path.startsWith('blob:')) {
+            try {
+              const response = await fetch(asset.path);
+              const blob = await response.blob();
+              setAudioFile(new File([blob], asset.name, { type: 'audio/mpeg' }));
+              
+              if (wavesurferRef.current) {
+                await wavesurferRef.current.loadBlob(blob);
+                setDuration(wavesurferRef.current.getDuration());
+              }
+            } catch (error) {
+              console.error('Error loading audio from blob URL:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing asset data:', error);
       }
     }
   };
@@ -189,14 +248,23 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
         const track = tracks.find(t => t.id === trackId);
         
         if (track) {
+          // Handle effects from EffectsBrowser (they have isEffect: true)
+          if (asset.isEffect) {
+            asset.type = 'effect';
+          }
+          
+          // Check if asset type is video or effect (no audio allowed)
+          if (asset.type !== 'video' && asset.type !== 'effect') {
+            console.warn('This track only accepts video and effect files');
+            return; // Reject the drop
+          }
+          
           // Determine clip type based on asset type
-          let clipType: 'audio' | 'video' | 'effect' = 'audio';
-          if (asset.type === 'video') {
-            clipType = 'video';
-          } else if (asset.type === 'effect') {
+          let clipType: 'video' | 'effect' = 'video';
+          if (asset.type === 'effect') {
             clipType = 'effect';
-          } else if (asset.type === 'audio') {
-            clipType = 'audio';
+          } else if (asset.type === 'video') {
+            clipType = 'video';
           }
           
           // Calculate sequential placement
@@ -252,14 +320,17 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
           newStartTime = lastOverlappingClip.startTime + lastOverlappingClip.duration;
         }
         
+        // Handle effects from EffectsBrowser (they have isEffect: true)
+        if (draggedAsset.isEffect) {
+          draggedAsset.type = 'effect';
+        }
+        
         // Determine clip type based on asset type
-        let clipType: 'audio' | 'video' | 'effect' = 'audio';
-        if (draggedAsset.type === 'video') {
-          clipType = 'video';
-        } else if (draggedAsset.type === 'effect') {
+        let clipType: 'video' | 'effect' = 'video';
+        if (draggedAsset.type === 'effect') {
           clipType = 'effect';
-        } else if (draggedAsset.type === 'audio') {
-          clipType = 'audio';
+        } else if (draggedAsset.type === 'video') {
+          clipType = 'video';
         }
         
         const newClip: TimelineClip = {
@@ -287,18 +358,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
 
 
 
-  // Update preview content when timeline is playing
-  useEffect(() => {
-    if (isPlaying && previewContent?.type === 'timeline') {
-      setPreviewContent({
-        type: 'timeline',
-        tracks: tracks,
-        currentTime: currentTime,
-        duration: duration,
-        isPlaying: true
-      });
-    }
-  }, [currentTime, isPlaying, tracks, duration, setPreviewContent]);
+
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -308,12 +368,143 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
 
   const getTrackColor = (type: string) => {
     switch (type) {
-      case 'audio': return '#4CAF50';
       case 'video': return '#2196F3';
       case 'effect': return '#FF9800';
       default: return '#9E9E9E';
     }
   };
+
+  // Get clips that should be playing at the current time
+  const getClipsAtTime = (time: number) => {
+    const activeClips: any[] = [];
+    
+    tracks.forEach(track => {
+      track.clips.forEach(clip => {
+        const clipEndTime = clip.startTime + clip.duration;
+        if (time >= clip.startTime && time < clipEndTime) {
+          activeClips.push({
+            ...clip,
+            trackType: track.type,
+            trackId: track.id,
+            relativeTime: time - clip.startTime
+          });
+        }
+      });
+    });
+    
+    return activeClips;
+  };
+
+  // Render timeline preview content
+  const renderTimelinePreview = (activeClips: any[]) => {
+    if (activeClips.length === 0) {
+      return (
+        <div className="timeline-preview-empty">
+          <div className="timeline-preview-placeholder">
+            <div className="placeholder-text">No clips playing at current time</div>
+            <div className="placeholder-time">{formatTime(currentTime)}</div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="timeline-preview-content">
+        {activeClips.map((clip, index) => (
+          <div key={`${clip.id}-${index}`} className="timeline-preview-clip">
+            <div className="clip-info">
+              <div className="clip-name">{clip.name}</div>
+              <div className="clip-track">Track {clip.trackId.split('-')[1]}</div>
+              <div className="clip-time">{formatTime(clip.relativeTime)}</div>
+            </div>
+            {clip.asset && (
+              <div className="clip-preview">
+                {clip.asset.type === 'video' && (
+                  <video
+                    src={clip.asset.path}
+                    autoPlay
+                    muted
+                    loop
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                )}
+                {clip.asset.type === 'effect' && (
+                  <div className="effect-preview">
+                    <div className="effect-icon">✨</div>
+                    <div className="effect-name">{clip.asset.name}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Start timeline playback
+  const startTimelinePlayback = () => {
+    if (playbackInterval) {
+      clearInterval(playbackInterval);
+    }
+    
+    const interval = setInterval(() => {
+      setCurrentTime(prevTime => {
+        const newTime = prevTime + 0.1; // 10fps update rate
+        if (newTime >= duration) {
+          // End of timeline reached
+          setIsPlaying(false);
+          setCurrentTime(0);
+          clearInterval(interval);
+          setPlaybackInterval(null);
+          return 0;
+        }
+        return newTime;
+      });
+    }, 100); // 100ms = 10fps
+    
+    setPlaybackInterval(interval);
+  };
+
+  // Stop timeline playback
+  const stopTimelinePlayback = () => {
+    if (playbackInterval) {
+      clearInterval(playbackInterval);
+      setPlaybackInterval(null);
+    }
+  };
+
+  // Update preview content when timeline is playing
+  useEffect(() => {
+    if (isPlaying && onPreviewUpdate) {
+      const activeClips = getClipsAtTime(currentTime);
+      console.log('Active clips at time', currentTime, ':', activeClips);
+      
+      // Send timeline preview content to parent
+      const timelinePreviewContent = {
+        type: 'timeline',
+        tracks: tracks,
+        currentTime: currentTime,
+        duration: duration,
+        isPlaying: true,
+        activeClips: activeClips
+      };
+      
+      onPreviewUpdate(timelinePreviewContent);
+    } else if (!isPlaying && onPreviewUpdate) {
+      // Clear preview when not playing
+      onPreviewUpdate(null);
+    }
+  }, [currentTime, isPlaying, tracks, duration]);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (playbackInterval) {
+        clearInterval(playbackInterval);
+      }
+    };
+  }, [playbackInterval]);
 
   return (
     <div className="timeline-container">
@@ -322,23 +513,23 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose }) => {
         <div className="timeline-controls">
                      <button 
                            onClick={async () => {
-                if (wavesurferRef.current) {
-                  if (isPlaying) {
+                if (isPlaying) {
+                  // Stop timeline playback
+                  stopTimelinePlayback();
+                  setIsPlaying(false);
+                  
+                  // Also pause audio if available
+                  if (wavesurferRef.current) {
                     wavesurferRef.current.pause();
-                    setIsPlaying(false);
-                    setStoreIsPlaying(false);
-                    setPreviewContent(null);
-                  } else {
+                  }
+                } else {
+                  // Start timeline playback
+                  startTimelinePlayback();
+                  setIsPlaying(true);
+                  
+                  // Also play audio if available
+                  if (wavesurferRef.current) {
                     wavesurferRef.current.play();
-                    setIsPlaying(true);
-                    setStoreIsPlaying(true);
-                    setPreviewContent({
-                      type: 'timeline',
-                      tracks: tracks,
-                      currentTime: currentTime,
-                      duration: duration,
-                      isPlaying: true
-                    });
                   }
                 }
               }}

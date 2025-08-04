@@ -3,6 +3,7 @@ import { LayerManager } from './components/LayerManager';
 import { CanvasStreamManager } from './utils/CanvasStream';
 import { CustomTitleBar } from './components/CustomTitleBar';
 import { PresetModal } from './components/PresetModal';
+import { CompositionSettings } from './components/CompositionSettings';
 import { useStore } from './store/store';
 import './index.css';
 
@@ -79,6 +80,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
 function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
+  const [compositionSettingsOpen, setCompositionSettingsOpen] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const { savePreset, loadPreset } = useStore();
   const lastSaveRef = useRef<number>(0);
@@ -320,7 +322,9 @@ function App() {
     fileInput.click();
   };
 
-
+  const handleCompositionSettings = () => {
+    setCompositionSettingsOpen(true);
+  };
 
   const handleModalClose = () => {
     setModalConfig(prev => ({ ...prev, isOpen: false }));
@@ -356,6 +360,7 @@ function App() {
         onNewPreset={handleNewPreset}
         onSavePreset={handleSavePreset}
         onLoadPreset={handleLoadPreset}
+        onCompositionSettings={handleCompositionSettings}
       />
       
       <div style={{
@@ -381,6 +386,11 @@ function App() {
         defaultValue={modalConfig.defaultValue}
         confirmText={modalConfig.confirmText}
         cancelText={modalConfig.cancelText}
+      />
+      
+      <CompositionSettings
+        isOpen={compositionSettingsOpen}
+        onClose={() => setCompositionSettingsOpen(false)}
       />
     </ErrorBoundary>
   );

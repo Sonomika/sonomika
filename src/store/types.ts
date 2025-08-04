@@ -72,6 +72,8 @@ export interface CompositionSettings {
   height: number;
   aspectRatio: string; // e.g., "16:9", "4:3", "1:1"
   frameRate: number;
+  name?: string;
+  description?: string;
 }
 
 export interface AppState {

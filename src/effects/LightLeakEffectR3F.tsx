@@ -78,7 +78,7 @@ const LightLeakEffectR3F: React.FC<LightLeakEffectR3FProps> = ({
         }
       `,
       transparent: true,
-      blending: THREE.ScreenBlending,
+      blending: THREE.AdditiveBlending,
       depthTest: false,
       depthWrite: false
     });

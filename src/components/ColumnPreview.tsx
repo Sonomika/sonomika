@@ -36,10 +36,24 @@ const VideoTexture: React.FC<{
   opacity: number; 
   blendMode: string;
   effects?: any;
-}> = ({ video, opacity, blendMode, effects }) => {
+  compositionWidth?: number;
+  compositionHeight?: number;
+}> = ({ video, opacity, blendMode, effects, compositionWidth, compositionHeight }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
-  const [aspectRatio, setAspectRatio] = useState(16/9); // Default 16:9
+  
+  // Use composition settings for aspect ratio instead of video's natural ratio
+  const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
+  
+  // Calculate video's natural aspect ratio for proper scaling
+  const [videoAspectRatio, setVideoAspectRatio] = useState(16/9);
+  
+  useEffect(() => {
+    if (video && video.videoWidth && video.videoHeight) {
+      const naturalRatio = video.videoWidth / video.videoHeight;
+      setVideoAspectRatio(naturalRatio);
+    }
+  }, [video]);
 
   useEffect(() => {
     if (video) {
@@ -50,25 +64,6 @@ const VideoTexture: React.FC<{
       videoTexture.format = THREE.RGBAFormat;
       videoTexture.generateMipmaps = false;
       setTexture(videoTexture);
-      
-      // Calculate aspect ratio when video metadata is loaded
-      const updateAspectRatio = () => {
-        if (video.videoWidth && video.videoHeight) {
-          const ratio = video.videoWidth / video.videoHeight;
-          console.log('Video aspect ratio:', ratio, 'Dimensions:', video.videoWidth, 'x', video.videoHeight);
-          console.log('Setting plane geometry to:', [ratio * 2, 2]);
-          setAspectRatio(ratio);
-        }
-      };
-      
-      video.addEventListener('loadedmetadata', updateAspectRatio);
-      if (video.readyState >= 1) {
-        updateAspectRatio();
-      }
-      
-      return () => {
-        video.removeEventListener('loadedmetadata', updateAspectRatio);
-      };
     }
   }, [video]);
 
@@ -126,9 +121,16 @@ const VideoTexture: React.FC<{
     );
   }
 
+  // For square preview (1080x1080), use square geometry and scale video to cover
+  const compositionAspectRatio = aspectRatio;
+  const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
+  const scaleY = Math.max(videoAspectRatio / compositionAspectRatio, 1);
+  const finalScaleX = compositionAspectRatio * 2 * scaleX;
+  const finalScaleY = 2 * scaleY;
+  
   return (
     <mesh ref={meshRef}>
-      <planeGeometry args={[aspectRatio * 2, 2]} />
+      <planeGeometry args={[finalScaleX, finalScaleY]} />
       <meshBasicMaterial 
         map={texture} 
         transparent 
@@ -274,7 +276,9 @@ const ColumnScene: React.FC<{
   frameCount: number;
   bpm: number;
   globalEffects?: any[];
-}> = ({ column, isPlaying, frameCount, bpm, globalEffects = [] }) => {
+  compositionWidth?: number;
+  compositionHeight?: number;
+}> = ({ column, isPlaying, frameCount, bpm, globalEffects = [], compositionWidth, compositionHeight }) => {
   const { camera } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -759,6 +763,8 @@ const ColumnScene: React.FC<{
                 opacity={videoLayer.opacity || 1}
                 blendMode={videoLayer.blendMode || 'add'}
                 effects={videoLayer.effects}
+                compositionWidth={compositionWidth}
+                compositionHeight={compositionHeight}
               />
             );
           }
@@ -938,38 +944,102 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
             
             <Canvas
               camera={{ position: [0, 0, 1], fov: 90 }}
-              style={{ width: '100%', height: '100%' }}
+              style={{ 
+                width: '100%', 
+                height: '100%',
+                display: 'block'
+              }}
               gl={{ 
                 preserveDrawingBuffer: true,
                 antialias: true,
                 powerPreference: 'high-performance'
               }}
-              onCreated={({ gl }) => {
+              onCreated={({ gl, camera }) => {
                 console.log('R3F Canvas created successfully');
                 gl.setClearColor(0x000000, 1);
                 
-                // Set canvas to render at full composition resolution
-                const compositionSettings = useStore.getState().compositionSettings;
-                const targetWidth = compositionSettings.width || 1920;
-                const targetHeight = compositionSettings.height || 1080;
+                // Force the renderer to respect the container's aspect ratio
+                const container = gl.domElement.parentElement;
+                if (container) {
+                  try {
+                    // Get the composition settings from the store
+                    const compositionSettings = useStore.getState().compositionSettings;
+                    const targetAspectRatio = compositionSettings.width / compositionSettings.height;
+                    
+                    // Calculate container dimensions based on target aspect ratio
+                    const containerRect = container.getBoundingClientRect();
+                    const containerWidth = containerRect.width;
+                    const containerHeight = containerWidth / targetAspectRatio;
+                    
+                    // Update camera aspect ratio to match target
+                    if (camera && 'aspect' in camera) {
+                      (camera as THREE.PerspectiveCamera).aspect = targetAspectRatio;
+                      camera.updateProjectionMatrix();
+                    }
+                    
+                    // Set renderer size to match calculated dimensions
+                    gl.setSize(containerWidth, containerHeight, false);
+                    
+                    // Force canvas element to match calculated dimensions
+                    gl.domElement.style.width = `${containerWidth}px`;
+                    gl.domElement.style.height = `${containerHeight}px`;
+                    gl.domElement.width = containerWidth;
+                    gl.domElement.height = containerHeight;
+                    
+                    // Update container height to match aspect ratio
+                    container.style.height = `${containerHeight}px`;
+                  } catch (error) {
+                    console.error('Error in canvas setup:', error);
+                  }
+                }
                 
-                // Update the renderer size to composition resolution
-                gl.setSize(targetWidth, targetHeight, false);
+                // Add resize observer to maintain aspect ratio
+                const resizeObserver = new ResizeObserver(() => {
+                  if (container) {
+                    try {
+                      const compositionSettings = useStore.getState().compositionSettings;
+                      const targetAspectRatio = compositionSettings.width / compositionSettings.height;
+                      
+                      const containerRect = container.getBoundingClientRect();
+                      const containerWidth = containerRect.width;
+                      const containerHeight = containerWidth / targetAspectRatio;
+                      
+                      if (camera && 'aspect' in camera) {
+                        (camera as THREE.PerspectiveCamera).aspect = targetAspectRatio;
+                        camera.updateProjectionMatrix();
+                      }
+                      
+                      gl.setSize(containerWidth, containerHeight, false);
+                      gl.domElement.style.width = `${containerWidth}px`;
+                      gl.domElement.style.height = `${containerHeight}px`;
+                      gl.domElement.width = containerWidth;
+                      gl.domElement.height = containerHeight;
+                      
+                      container.style.height = `${containerHeight}px`;
+                    } catch (error) {
+                      console.error('Error in resize observer:', error);
+                    }
+                  }
+                });
                 
-                console.log(`Canvas set to composition resolution: ${targetWidth}x${targetHeight}`);
+                if (container) {
+                  resizeObserver.observe(container);
+                }
               }}
               onError={(error) => {
                 console.error('R3F Canvas error:', error);
                 setError(`Canvas Error: ${error instanceof Error ? error.message : String(error)}`);
               }}
             >
-              <ColumnScene 
-                column={column} 
-                isPlaying={isPlaying} 
-                frameCount={frameCount} 
-                bpm={bpm}
-                globalEffects={globalEffects}
-              />
+                      <ColumnScene 
+          column={column} 
+          isPlaying={isPlaying} 
+          frameCount={frameCount} 
+          bpm={bpm}
+          globalEffects={globalEffects}
+          compositionWidth={width}
+          compositionHeight={height}
+        />
             </Canvas>
           </div>
         </div>

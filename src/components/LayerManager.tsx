@@ -1,4 +1,6 @@
-import React, { useState, startTransition, useEffect } from 'react';
+import React, { useState, startTransition, useEffect, useCallback, Suspense, useRef, useMemo } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import * as THREE from 'three';
 import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerOptions } from './LayerOptions';
@@ -9,6 +11,238 @@ import { EffectsBrowser } from './EffectsBrowser';
 import { Timeline } from './Timeline';
 import { BPMManager } from '../engine/BPMManager';
 import { v4 as uuidv4 } from 'uuid';
+
+// Timeline Preview Scene Component
+const TimelinePreviewScene: React.FC<{
+  activeClips: any[];
+  isPlaying: boolean;
+  currentTime: number;
+  compositionWidth?: number;
+  compositionHeight?: number;
+}> = ({ activeClips, isPlaying, currentTime, compositionWidth, compositionHeight }) => {
+  const { camera } = useThree();
+  const [assets, setAssets] = useState<{ images: Map<string, HTMLImageElement>; videos: Map<string, HTMLVideoElement> }>({
+    images: new Map(),
+    videos: new Map()
+  });
+  const loadedAssetsRef = useRef<{ images: Map<string, HTMLImageElement>; videos: Map<string, HTMLVideoElement> }>({
+    images: new Map(),
+    videos: new Map()
+  });
+
+  // Load assets for active clips
+  useEffect(() => {
+    const loadAssets = async () => {
+      const newImages = new Map<string, HTMLImageElement>();
+      const newVideos = new Map<string, HTMLVideoElement>();
+        
+      for (const clip of activeClips) {
+        if (!clip.asset) continue;
+
+        const asset = clip.asset;
+        
+        // Check if asset is already loaded
+        if (loadedAssetsRef.current.images.has(asset.id)) {
+          newImages.set(asset.id, loadedAssetsRef.current.images.get(asset.id)!);
+          continue;
+        }
+        if (loadedAssetsRef.current.videos.has(asset.id)) {
+          newVideos.set(asset.id, loadedAssetsRef.current.videos.get(asset.id)!);
+          continue;
+        }
+
+        if (asset.type === 'image') {
+          try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = asset.path;
+            });
+            newImages.set(asset.id, img);
+          } catch (error) {
+            console.error(`Failed to load image for clip ${clip.name}:`, error);
+          }
+        } else if (asset.type === 'video') {
+          try {
+            const video = document.createElement('video');
+            video.src = asset.path;
+            video.muted = true;
+            video.loop = true;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.style.backgroundColor = 'transparent';
+            
+            await new Promise<void>((resolve, reject) => {
+              video.addEventListener('loadeddata', () => {
+                resolve();
+              });
+              video.addEventListener('error', reject);
+              video.load();
+            });
+            
+            newVideos.set(asset.id, video);
+          } catch (error) {
+            console.error(`Failed to load video for clip ${clip.name}:`, error);
+          }
+        }
+      }
+
+      // Store in ref for future use
+      loadedAssetsRef.current = { images: newImages, videos: newVideos };
+      setAssets({ images: newImages, videos: newVideos });
+    };
+
+    loadAssets();
+  }, [activeClips]);
+
+  // Handle play/pause
+  useEffect(() => {
+    assets.videos.forEach(video => {
+      if (isPlaying) {
+        video.play().catch(console.warn);
+      } else {
+        video.pause();
+      }
+    });
+  }, [isPlaying, assets.videos]);
+
+  // Camera setup is handled by Canvas props, no manual setup needed
+
+  // Video texture component
+  const VideoTexture: React.FC<{ 
+    video: HTMLVideoElement; 
+    opacity: number; 
+    blendMode: string;
+    compositionWidth?: number;
+    compositionHeight?: number;
+  }> = ({ video, opacity, blendMode, compositionWidth, compositionHeight }) => {
+    const meshRef = useRef<THREE.Mesh>(null);
+    const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+    
+    // Use composition settings for aspect ratio instead of video's natural ratio
+    const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
+    
+    // Calculate video's natural aspect ratio for proper scaling
+    const [videoAspectRatio, setVideoAspectRatio] = useState(16/9);
+    
+    useEffect(() => {
+      if (video && video.videoWidth && video.videoHeight) {
+        const naturalRatio = video.videoWidth / video.videoHeight;
+        setVideoAspectRatio(naturalRatio);
+      }
+    }, [video]);
+
+
+
+    useEffect(() => {
+      if (video) {
+        console.log('Creating video texture for timeline preview:', video.src);
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBAFormat;
+        videoTexture.generateMipmaps = false;
+        setTexture(videoTexture);
+      }
+    }, [video]);
+
+    useFrame(() => {
+      if (texture && video.readyState >= 2) {
+        texture.needsUpdate = true;
+      }
+    });
+
+    if (!texture || video.readyState < 2) {
+      console.log('Timeline video not ready, readyState:', video.readyState);
+      return null;
+    }
+
+    // For square preview (1080x1080), use square geometry and scale video to cover
+    const compositionAspectRatio = aspectRatio;
+    const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
+    const scaleY = Math.max(videoAspectRatio / compositionAspectRatio, 1);
+    const finalScaleX = compositionAspectRatio * 2 * scaleX;
+    const finalScaleY = 2 * scaleY;
+    
+
+    
+    return (
+      <mesh ref={meshRef} position={[0, 0, 0]}>
+        <planeGeometry args={[finalScaleX, finalScaleY]} />
+        <meshBasicMaterial 
+          map={texture} 
+          transparent 
+          opacity={opacity}
+          blending={blendMode === 'add' ? THREE.AdditiveBlending : THREE.NormalBlending}
+          side={THREE.DoubleSide}
+          alphaTest={0.1}
+        />
+      </mesh>
+    );
+  };
+
+  // Effect layer component
+  const EffectLayer: React.FC<{ 
+    clip: any;
+    zIndex: number;
+    compositionWidth?: number;
+    compositionHeight?: number;
+  }> = ({ clip, zIndex, compositionWidth, compositionHeight }) => {
+    // Use composition settings for aspect ratio instead of video's natural ratio
+    const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
+
+    return (
+      <group position={[0, 0, zIndex * 0.1]}>
+        <mesh>
+          <planeGeometry args={[aspectRatio * 2, 2]} />
+          <meshBasicMaterial 
+            color="#00bcd4" 
+            transparent 
+            opacity={0.3}
+            blending={THREE.AdditiveBlending}
+          />
+        </mesh>
+      </group>
+    );
+  };
+
+  return (
+    <>
+      {activeClips.map((clip, index) => {
+        if (!clip.asset) return null;
+
+        if (clip.asset.type === 'video') {
+          const video = assets.videos.get(clip.asset.id);
+          if (video) {
+            return (
+              <VideoTexture 
+                key={`${clip.id}-${index}`}
+                video={video}
+                opacity={1}
+                blendMode="normal"
+                compositionWidth={compositionWidth}
+                compositionHeight={compositionHeight}
+              />
+            );
+          }
+        } else if (clip.asset.type === 'effect') {
+          return (
+            <EffectLayer 
+              key={`${clip.id}-${index}`}
+              clip={clip}
+              zIndex={index + 1}
+              compositionWidth={compositionWidth}
+              compositionHeight={compositionHeight}
+            />
+          );
+        }
+        return null;
+      })}
+    </>
+  );
+};
 
 interface LayerManagerProps {
   onClose: () => void;
@@ -48,6 +282,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [showTimeline, setShowTimeline] = useState(false);
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
+
+  // Memoized callback for timeline preview updates
+  const handleTimelinePreviewUpdate = useCallback((previewContent: any) => {
+    setPreviewContent(previewContent);
+  }, []);
 
   console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);
   console.log('🎭 Preview state - previewContent:', previewContent, 'isPlaying:', isPlaying);
@@ -905,18 +1144,25 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
       console.log('🎨 Column data:', previewContent.column);
       console.log('🎨 Composition settings:', compositionSettings);
       
-      const previewElement = (
-        <div className="preview-column">
-          <div className="preview-main-content">
-            <ColumnPreview
-              column={previewContent.column}
-              width={compositionSettings.width}
-              height={compositionSettings.height}
-              isPlaying={isPlaying && playingColumnId === previewContent.columnId}
-              bpm={bpm}
-              globalEffects={currentScene?.globalEffects || []}
-            />
-          </div>
+              // Calculate aspect ratio dynamically
+        const aspectRatio = compositionSettings.width / compositionSettings.height;
+        
+        const previewElement = (
+          <div className="preview-column">
+            <div 
+              className="preview-main-content"
+              data-aspect-ratio={`${compositionSettings.width}:${compositionSettings.height}`}
+              style={{ aspectRatio: aspectRatio }}
+            >
+              <ColumnPreview
+                column={previewContent.column}
+                width={compositionSettings.width}
+                height={compositionSettings.height}
+                isPlaying={isPlaying && playingColumnId === previewContent.columnId}
+                bpm={bpm}
+                globalEffects={currentScene?.globalEffects || []}
+              />
+            </div>
           <div className="preview-layers-info">
             <h5>Layers in Column:</h5>
             {layersWithContent.map((layer: any, index: number) => (
@@ -966,71 +1212,137 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     }
 
     if (previewContent.type === 'timeline') {
+      const activeClips = previewContent.activeClips || [];
+      
       return (
         <div className="preview-timeline">
           <div className="preview-header-info">
             <h4>Timeline Preview</h4>
             <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
-          </div>
-          <div className="preview-timeline-content">
-            <div className="preview-timeline-info">
-              <div className="preview-time-display">
-                Time: {Math.floor(previewContent.currentTime)}s / {Math.floor(previewContent.duration)}s
-              </div>
-              <div className="preview-tracks-info">
-                <h5>Active Tracks:</h5>
-                {previewContent.tracks.map((track: any) => (
-                  <div key={track.id} className="preview-track-item">
-                    <span className="track-name">{track.name}</span>
-                    <span className="track-clips-count">{track.clips.length} clips</span>
-                  </div>
-                ))}
-              </div>
+            <div className="preview-time-display">
+              Time: {Math.floor(previewContent.currentTime)}s / {Math.floor(previewContent.duration)}s
             </div>
-            <div className="preview-timeline-visualization">
-              {/* Timeline visualization placeholder */}
-              <div className="timeline-preview-placeholder">
-                <div className="timeline-preview-header">
-                  <h5>Timeline Preview</h5>
-                  <div className="timeline-preview-controls">
-                    <span className="current-time">{Math.floor(previewContent.currentTime)}s</span>
-                    <div className="timeline-progress-bar">
-                      <div 
-                        className="timeline-progress-fill"
-                        style={{ width: `${(previewContent.currentTime / previewContent.duration) * 100}%` }}
-                      />
-                    </div>
-                  </div>
+          </div>
+          
+          <div className="preview-timeline-content">
+            {activeClips.length === 0 ? (
+              <div className="timeline-preview-empty">
+                <div className="timeline-preview-placeholder">
+                  <div className="placeholder-text">No clips playing at current time</div>
+                  <div className="placeholder-time">{Math.floor(previewContent.currentTime)}s</div>
                 </div>
-                <div className="timeline-tracks-preview">
-                  {previewContent.tracks.map((track: any) => (
-                    <div key={track.id} className="timeline-track-preview">
-                      <div className="track-header-preview" style={{ backgroundColor: getTrackColor(track.type) }}>
-                        {track.name}
-                      </div>
-                      <div className="track-content-preview">
-                        {track.clips.map((clip: any) => (
-                          <div
-                            key={clip.id}
-                            className={`timeline-clip-preview ${
-                              previewContent.currentTime >= clip.startTime && 
-                              previewContent.currentTime < clip.startTime + clip.duration ? 'active' : ''
-                            }`}
-                            style={{
-                              left: `${(clip.startTime / previewContent.duration) * 100}%`,
-                              width: `${(clip.duration / previewContent.duration) * 100}%`,
-                              backgroundColor: getTrackColor(clip.type)
-                            }}
-                          >
-                            {clip.name}
-                          </div>
-                        ))}
-                      </div>
+              </div>
+            ) : (
+                              <div className="timeline-composition-preview">
+                  {/* Use R3F Canvas for timeline preview, similar to ColumnPreview */}
+                  <div 
+                    className="timeline-preview-canvas"
+                    data-aspect-ratio={`${compositionSettings.width}:${compositionSettings.height}`}
+                    style={{ aspectRatio: compositionSettings.width / compositionSettings.height }}
+                  >
+                    <Canvas
+                      camera={{ position: [0, 0, 1], fov: 90 }}
+                      style={{ 
+                        width: '100%', 
+                        height: '100%',
+                        display: 'block'
+                      }}
+                      gl={{
+                        alpha: true,
+                        antialias: false,
+                        preserveDrawingBuffer: true
+                      }}
+                      onCreated={({ gl, camera }) => {
+                        gl.setClearColor(0x000000, 0);
+                        
+                        // Force the renderer to respect the container's aspect ratio
+                        const container = gl.domElement.parentElement;
+                        if (container) {
+                          // Get the composition settings from the store
+                          const compositionSettings = useStore.getState().compositionSettings;
+                          const targetAspectRatio = compositionSettings.width / compositionSettings.height;
+                          
+                          // Calculate container dimensions based on target aspect ratio
+                          const containerRect = container.getBoundingClientRect();
+                          const containerWidth = containerRect.width;
+                          const containerHeight = containerWidth / targetAspectRatio;
+                          
+                          // Update camera aspect ratio to match target
+                          if (camera && 'aspect' in camera) {
+                            (camera as THREE.PerspectiveCamera).aspect = targetAspectRatio;
+                            camera.updateProjectionMatrix();
+                          }
+                          
+                          // Set renderer size to match calculated dimensions
+                          gl.setSize(containerWidth, containerHeight, false);
+                          
+                          // Force canvas element to match calculated dimensions
+                          gl.domElement.style.width = `${containerWidth}px`;
+                          gl.domElement.style.height = `${containerHeight}px`;
+                          gl.domElement.width = containerWidth;
+                          gl.domElement.height = containerHeight;
+                          
+                          // Update container height to match aspect ratio
+                          container.style.height = `${containerHeight}px`;
+                        }
+                        
+                        // Add resize observer to maintain aspect ratio
+                        const resizeObserver = new ResizeObserver(() => {
+                          if (container) {
+                            try {
+                              const compositionSettings = useStore.getState().compositionSettings;
+                              const targetAspectRatio = compositionSettings.width / compositionSettings.height;
+                              
+                              const containerRect = container.getBoundingClientRect();
+                              const containerWidth = containerRect.width;
+                              const containerHeight = containerWidth / targetAspectRatio;
+                              
+                              if (camera && 'aspect' in camera) {
+                                (camera as THREE.PerspectiveCamera).aspect = targetAspectRatio;
+                                camera.updateProjectionMatrix();
+                              }
+                              
+                              gl.setSize(containerWidth, containerHeight, false);
+                              gl.domElement.style.width = `${containerWidth}px`;
+                              gl.domElement.style.height = `${containerHeight}px`;
+                              gl.domElement.width = containerWidth;
+                              gl.domElement.height = containerHeight;
+                              
+                              container.style.height = `${containerHeight}px`;
+                            } catch (error) {
+                              console.error('Error in resize observer:', error);
+                            }
+                          }
+                        });
+                        
+                        if (container) {
+                          resizeObserver.observe(container);
+                        }
+                      }}
+                    >
+                      <TimelinePreviewScene 
+                        activeClips={activeClips}
+                        isPlaying={isPlaying}
+                        currentTime={previewContent.currentTime}
+                        compositionWidth={compositionSettings.width}
+                        compositionHeight={compositionSettings.height}
+                      />
+                    </Canvas>
+                  </div>
+                
+                {/* Track info overlay */}
+                <div className="track-info-overlay">
+                  <div className="track-info-header">Active Tracks:</div>
+                  {activeClips.map((clip: any, index: number) => (
+                    <div key={`info-${clip.id}-${index}`} className="track-info-item">
+                      <span className="track-name">Track {clip.trackId.split('-')[1]}</span>
+                      <span className="clip-name">{clip.name}</span>
+                      <span className="clip-time">{Math.floor(clip.relativeTime)}s</span>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       );
@@ -1417,7 +1729,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
           <div className="layer-manager-body" style={{ height: `${paneSizes.gridHeight}%` }}>
             {showTimeline ? (
-              <Timeline onClose={() => setShowTimeline(false)} />
+              <Timeline 
+                onClose={() => setShowTimeline(false)} 
+                onPreviewUpdate={handleTimelinePreviewUpdate}
+              />
             ) : (
               <>
                 {/* Global Effects Row */}
