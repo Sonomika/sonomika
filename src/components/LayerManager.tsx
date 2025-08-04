@@ -286,6 +286,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   // Memoized callback for timeline preview updates
   const handleTimelinePreviewUpdate = useCallback((previewContent: any) => {
     setPreviewContent(previewContent);
+    
+    // Update isPlaying state based on previewContent.isPlaying
+    if (previewContent && typeof previewContent.isPlaying === 'boolean') {
+      console.log('🎭 LayerManager updating isPlaying to:', previewContent.isPlaying);
+      setIsPlaying(previewContent.isPlaying);
+    }
   }, []);
 
   console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);

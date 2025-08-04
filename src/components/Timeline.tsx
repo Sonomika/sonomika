@@ -31,6 +31,19 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   ]);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(60); // 60 seconds default
+  
+  // Calculate the earliest clip start time to sync playhead
+  const getEarliestClipTime = () => {
+    let earliestTime = 0;
+    tracks.forEach(track => {
+      track.clips.forEach(clip => {
+        if (clip.startTime < earliestTime || earliestTime === 0) {
+          earliestTime = clip.startTime;
+        }
+      });
+    });
+    return earliestTime;
+  };
   const [zoom, setZoom] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
@@ -38,6 +51,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [playbackInterval, setPlaybackInterval] = useState<NodeJS.Timeout | null>(null);
+  const [intervalCounter, setIntervalCounter] = useState(0);
   
   const timelineRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -82,18 +96,21 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
           });
 
           wavesurferRef.current.on('audioprocess', (currentTime: number) => {
-            setCurrentTime(currentTime);
+            // Disable WaveSurfer's automatic timeline control completely
+            // We'll control the timeline manually and sync WaveSurfer to our timeline
+            console.log('WaveSurfer audioprocess event - ignoring to prevent conflicts');
           });
 
           wavesurferRef.current.on('finish', () => {
+            console.log('Audio finished, stopping timeline playback');
             setIsPlaying(false);
             setCurrentTime(0);
           });
 
           wavesurferRef.current.on('interaction', () => {
-            if (!isPlaying) {
-              setIsPlaying(true);
-            }
+            console.log('WaveSurfer interaction detected');
+            // Don't automatically start playing on interaction
+            // Let the user control it explicitly
           });
         } catch (error) {
           console.error('Error initializing WaveSurfer:', error);
@@ -224,6 +241,20 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+    
+    // Add visual feedback
+    const target = e.currentTarget as HTMLElement;
+    target.classList.add('drag-over');
+    
+    console.log('Drag over timeline track');
+    console.log('DataTransfer types:', e.dataTransfer.types);
+    console.log('DataTransfer items:', e.dataTransfer.items);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Remove visual feedback
+    const target = e.currentTarget as HTMLElement;
+    target.classList.remove('drag-over');
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -241,10 +272,19 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   const handleDrop = (e: React.DragEvent, trackId: string, time: number) => {
     e.preventDefault();
     
+    console.log('Drop event triggered on track:', trackId);
+    
+    // Remove visual feedback
+    const target = e.currentTarget as HTMLElement;
+    target.classList.remove('drag-over');
+    
     const assetData = e.dataTransfer.getData('application/json');
+    console.log('Asset data from drop:', assetData);
+    
     if (assetData) {
       try {
         const asset = JSON.parse(assetData);
+        console.log('Parsed asset:', asset);
         const track = tracks.find(t => t.id === trackId);
         
         if (track) {
@@ -291,10 +331,13 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
           );
           
           setTracks(updatedTracks);
+          console.log('Successfully added clip to timeline:', newClip);
         }
       } catch (error) {
         console.error('Error adding clip to timeline:', error);
       }
+    } else {
+      console.warn('No asset data found in drop event');
     }
   };
 
@@ -444,58 +487,147 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
 
   // Start timeline playback
   const startTimelinePlayback = () => {
+    console.log('Starting timeline playback, current time:', currentTime, 'duration:', duration);
+    console.log('🎵 Timeline tracks:', tracks);
+    console.log('🎵 Earliest clip time:', getEarliestClipTime());
+    
+    // Clear any existing interval first
     if (playbackInterval) {
+      console.log('Clearing existing interval');
       clearInterval(playbackInterval);
+      setPlaybackInterval(null);
     }
     
+    // Sync playhead to the earliest clip if not already there
+    const earliestClipTime = getEarliestClipTime();
+    if (earliestClipTime > 0 && currentTime < earliestClipTime) {
+      console.log('Syncing playhead to earliest clip at:', earliestClipTime);
+      setCurrentTime(earliestClipTime);
+    }
+    
+    console.log('Creating new interval');
     const interval = setInterval(() => {
+      console.log('🔄 Interval callback executed at:', Date.now());
+      setIntervalCounter(prev => prev + 1);
       setCurrentTime(prevTime => {
-        const newTime = prevTime + 0.1; // 10fps update rate
+        const newTime = prevTime + 0.05; // 20fps update rate for smoother movement
+        console.log('🕒 Timeline time update:', prevTime, '->', newTime, 'duration:', duration);
         if (newTime >= duration) {
           // End of timeline reached
+          console.log('⏹️ Timeline reached end, stopping playback');
           setIsPlaying(false);
-          setCurrentTime(0);
+          // Reset to 0 if no clips, otherwise reset to earliest clip
+          const resetTime = earliestClipTime > 0 ? earliestClipTime : 0;
+          setCurrentTime(resetTime);
           clearInterval(interval);
           setPlaybackInterval(null);
-          return 0;
+          return resetTime;
         }
+        console.log('✅ Returning new time:', newTime);
         return newTime;
       });
-    }, 100); // 100ms = 10fps
+    }, 50); // 50ms = 20fps for smoother movement
     
+    console.log('Setting playback interval:', interval);
     setPlaybackInterval(interval);
+    setIsPlaying(true); // Ensure playing state is set
+    console.log('Timeline playback started, isPlaying set to true');
   };
 
   // Stop timeline playback
   const stopTimelinePlayback = () => {
+    console.log('Stopping timeline playback');
     if (playbackInterval) {
       clearInterval(playbackInterval);
       setPlaybackInterval(null);
     }
+    setIsPlaying(false);
+    console.log('Timeline playback stopped, isPlaying set to false');
   };
+
+  // Handle play button click
+  const handlePlayButtonClick = async () => {
+    console.log('Play button clicked, current isPlaying:', isPlaying);
+    
+    // Force a small delay to ensure state is properly updated
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
+    if (isPlaying) {
+      console.log('Stopping timeline playback');
+      stopTimelinePlayback();
+      
+      // Don't automatically pause WaveSurfer - let our timeline control it
+      console.log('Timeline playback stopped - WaveSurfer will be synced to timeline');
+    } else {
+      console.log('Starting timeline playback');
+      startTimelinePlayback();
+      
+      // Don't automatically start WaveSurfer playback - let our timeline control it
+      // WaveSurfer will be synced to our timeline position instead
+      console.log('Timeline playback started - WaveSurfer will be synced to timeline');
+    }
+  };
+
+  // Force refresh play state when component mounts or when needed
+  useEffect(() => {
+    // Ensure play state is consistent with interval state
+    if (!playbackInterval && isPlaying) {
+      console.log('Fixing inconsistent play state - clearing isPlaying');
+      setIsPlaying(false);
+    }
+  }, [playbackInterval, isPlaying]);
+
+  // Debug currentTime changes
+  useEffect(() => {
+    console.log('🕒 currentTime changed to:', currentTime);
+    
+    // Sync WaveSurfer position with our timeline when playing
+    if (isPlaying && wavesurferRef.current) {
+      try {
+        wavesurferRef.current.setTime(currentTime);
+        console.log('🔄 Synced WaveSurfer to timeline time:', currentTime);
+      } catch (error) {
+        console.warn('Error syncing WaveSurfer time:', error);
+      }
+    }
+  }, [currentTime, isPlaying]);
 
   // Update preview content when timeline is playing
   useEffect(() => {
-    if (isPlaying && onPreviewUpdate) {
+    if (onPreviewUpdate) {
       const activeClips = getClipsAtTime(currentTime);
-      console.log('Active clips at time', currentTime, ':', activeClips);
+      console.log('Timeline preview update - Time:', currentTime, 'Playing:', isPlaying, 'Active clips:', activeClips.length);
       
-      // Send timeline preview content to parent
-      const timelinePreviewContent = {
-        type: 'timeline',
-        tracks: tracks,
-        currentTime: currentTime,
-        duration: duration,
-        isPlaying: true,
-        activeClips: activeClips
-      };
-      
-      onPreviewUpdate(timelinePreviewContent);
-    } else if (!isPlaying && onPreviewUpdate) {
-      // Clear preview when not playing
-      onPreviewUpdate(null);
+      if (isPlaying && activeClips.length > 0) {
+        // Send timeline preview content to parent
+        const timelinePreviewContent = {
+          type: 'timeline',
+          tracks: tracks,
+          currentTime: currentTime,
+          duration: duration,
+          isPlaying: true,
+          activeClips: activeClips
+        };
+        
+        console.log('Sending timeline preview content:', timelinePreviewContent);
+        onPreviewUpdate(timelinePreviewContent);
+      } else {
+        // Clear preview when not playing or no active clips
+        console.log('Clearing timeline preview');
+        onPreviewUpdate(null);
+      }
     }
-  }, [currentTime, isPlaying, tracks, duration]);
+  }, [currentTime, isPlaying, tracks, duration, onPreviewUpdate]);
+
+  // Debug currentTime changes
+  useEffect(() => {
+    console.log('currentTime changed to:', currentTime);
+  }, [currentTime]);
+
+  // Debug isPlaying changes
+  useEffect(() => {
+    console.log('isPlaying changed to:', isPlaying);
+  }, [isPlaying]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -508,44 +640,66 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
 
   return (
     <div className="timeline-container">
+      <style>
+        {`
+          @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+          }
+        `}
+      </style>
       <div className="timeline-header">
         <h2>Timeline</h2>
         <div className="timeline-controls">
                      <button 
-                           onClick={async () => {
-                if (isPlaying) {
-                  // Stop timeline playback
-                  stopTimelinePlayback();
-                  setIsPlaying(false);
-                  
-                  // Also pause audio if available
-                  if (wavesurferRef.current) {
-                    wavesurferRef.current.pause();
-                  }
-                } else {
-                  // Start timeline playback
-                  startTimelinePlayback();
-                  setIsPlaying(true);
-                  
-                  // Also play audio if available
-                  if (wavesurferRef.current) {
-                    wavesurferRef.current.play();
-                  }
-                }
-              }}
+                           onClick={handlePlayButtonClick}
              className={`play-button ${isPlaying ? 'playing' : ''}`}
            >
              {isPlaying ? '⏸️' : '▶️'}
            </button>
           <button onClick={() => setCurrentTime(0)}>⏮️</button>
-          <span className="time-display">{formatTime(currentTime)} / {formatTime(duration)}</span>
+          <button 
+            onClick={() => {
+              const earliestTime = getEarliestClipTime();
+              if (earliestTime > 0) {
+                setCurrentTime(earliestTime);
+                console.log('Synced playhead to earliest clip at:', earliestTime);
+              }
+            }}
+            title="Sync to first clip"
+          >
+            🔗
+          </button>
+          <span className="time-display">
+            {formatTime(currentTime)} / {formatTime(duration)}
+            {isPlaying && <span className="playing-indicator-text"> ▶</span>}
+          </span>
           <input
             type="range"
             min="0"
             max={duration}
             value={currentTime}
-            onChange={(e) => setCurrentTime(parseFloat(e.target.value))}
+            onChange={(e) => {
+              const newTime = parseFloat(e.target.value);
+              console.log('Slider changed to:', newTime);
+              setCurrentTime(newTime);
+              // Don't stop playback when scrubbing - let user control it
+            }}
+            onInput={(e) => {
+              console.log('🕒 Slider input event - value:', e.currentTarget.value);
+            }}
+            onMouseDown={() => {
+              // Optional: pause playback when user starts scrubbing
+              // if (isPlaying) {
+              //   console.log('Pausing playback for scrubbing');
+              //   stopTimelinePlayback();
+              // }
+            }}
             className="time-slider"
+            style={{ 
+              background: `linear-gradient(to right, #4CAF50 0%, #4CAF50 ${(currentTime / duration) * 100}%, #ddd ${(currentTime / duration) * 100}%, #ddd 100%)`
+            }}
           />
           <input
             type="range"
@@ -582,41 +736,45 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
         {/* Timeline Tracks */}
         <div className="timeline-tracks" ref={timelineRef}>
           <div className="timeline-ruler">
+            {/* Major second marks only - cleaner look */}
             {Array.from({ length: Math.ceil(duration) + 1 }, (_, i) => (
-              <div key={i} className="timeline-mark" style={{ left: `${(i / duration) * 100}%` }}>
-                <span className="timeline-label">{formatTime(i)}</span>
+              <div key={`major-${i}`} className="timeline-mark major-mark" style={{ left: `${(i / duration) * 100}%` }}>
+                <span className="timeline-label">{i}s</span>
               </div>
             ))}
           </div>
 
           {tracks.map((track) => (
             <div key={track.id} className="timeline-track">
-              <div className="track-header" style={{ backgroundColor: getTrackColor(track.type) }}>
-                <span>{track.name}</span>
-              </div>
               <div 
                 className="track-content"
                 onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, track.id, currentTime)}
                 onClick={(e) => handleTrackClick(e, track.id)}
               >
-                {track.clips.map((clip) => (
-                  <div
-                    key={clip.id}
-                    className={`timeline-clip ${selectedClip === clip.id ? 'selected' : ''}`}
-                    style={{
-                      left: `${(clip.startTime / duration) * 100}%`,
-                      width: `${(clip.duration / duration) * 100}%`,
-                      backgroundColor: getTrackColor(clip.type)
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedClip(clip.id);
-                    }}
-                  >
-                    <span className="clip-name">{clip.name}</span>
-                  </div>
-                ))}
+                {track.clips.map((clip) => {
+                  const isPlaying = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
+                  return (
+                    <div
+                      key={clip.id}
+                      className={`timeline-clip ${selectedClip === clip.id ? 'selected' : ''} ${isPlaying ? 'playing' : ''}`}
+                      style={{
+                        left: `${(clip.startTime / duration) * 100}%`,
+                        width: `${(clip.duration / duration) * 100}%`,
+                        backgroundColor: getTrackColor(clip.type),
+                        border: isPlaying ? '2px solid #FFD700' : 'none'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedClip(clip.id);
+                      }}
+                    >
+                      <span className="clip-name">{clip.name}</span>
+                      {isPlaying && <div className="playing-indicator">▶</div>}
+                    </div>
+                  );
+                })}
                 {draggedAsset && (
                   <div className="drag-preview">
                     <span>Drop to place: {draggedAsset.name}</span>
@@ -631,8 +789,57 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
         <div 
           ref={playheadRef}
           className="timeline-playhead"
-          style={{ left: `${(currentTime / duration) * 100}%` }}
+          style={{ 
+            left: `${(currentTime / duration) * 100}%`,
+            transition: isPlaying ? 'none' : 'left 0.1s ease'
+          }}
+          title={`Time: ${formatTime(currentTime)}`}
+          data-current-time={currentTime}
+          data-duration={duration}
+          data-position={`${(currentTime / duration) * 100}%`}
         />
+        
+        {/* Moving Dot Indicator */}
+        <div 
+          className="timeline-moving-dot"
+          style={{ 
+            position: 'absolute',
+            left: `${(currentTime / duration) * 100}%`,
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '12px',
+            height: '12px',
+            backgroundColor: isPlaying ? '#FF0000' : '#00FF00',
+            borderRadius: '50%',
+            border: '2px solid white',
+            boxShadow: '0 0 8px rgba(255, 0, 0, 0.8)',
+            zIndex: 1000,
+            transition: isPlaying ? 'none' : 'left 0.1s ease',
+            animation: isPlaying ? 'pulse 0.5s infinite' : 'none'
+          }}
+          title={`Moving Dot - Time: ${formatTime(currentTime)} - Playing: ${isPlaying}`}
+        />
+        {/* Debug info */}
+        {process.env.NODE_ENV === 'development' && (
+          <div style={{ 
+            position: 'absolute', 
+            top: '10px', 
+            right: '10px', 
+            background: 'rgba(0,0,0,0.8)', 
+            color: 'white', 
+            padding: '5px', 
+            fontSize: '12px',
+            zIndex: 1001
+          }}>
+            Time: {currentTime.toFixed(2)}s<br/>
+            Duration: {duration}s<br/>
+            Position: {((currentTime / duration) * 100).toFixed(1)}%<br/>
+            Playing: {isPlaying ? 'Yes' : 'No'}<br/>
+            Interval: {playbackInterval ? 'Active' : 'None'}<br/>
+            Counter: {intervalCounter}<br/>
+            Audio: {wavesurferRef.current ? 'Ready' : 'None'}
+          </div>
+        )}
       </div>
 
 

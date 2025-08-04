@@ -5777,6 +5777,11 @@ body {
   min-width: 120px;
 }
 
+.playing-indicator-text {
+  color: #ff0000;
+  animation: pulse 1s infinite;
+}
+
 .time-slider, .zoom-slider {
   width: 150px;
   height: 6px;
@@ -5851,12 +5856,14 @@ body {
   position: relative;
   overflow: auto;
   background: #1a1a1a;
+  display: flex;
+  flex-direction: column;
 }
 
 .timeline-ruler {
   height: 30px;
-  background: #2a2a2a;
-  border-bottom: 1px solid #444;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
   position: relative;
 }
 
@@ -5865,7 +5872,12 @@ body {
   top: 0;
   width: 1px;
   height: 100%;
+  background: #444;
+}
+
+.timeline-mark.major-mark {
   background: #666;
+  width: 1px;
 }
 
 .timeline-label {
@@ -5874,59 +5886,73 @@ body {
   left: 2px;
   font-size: 10px;
   color: #ccc;
-  transform: rotate(-45deg);
-  transform-origin: top left;
+  font-weight: normal;
+  /* No rotation - horizontal labels are much more readable */
 }
 
 .timeline-track {
-  display: flex;
   height: 60px;
   border-bottom: 1px solid #444;
-}
-
-.track-header {
-  width: 150px;
-  padding: 10px;
-  display: flex;
-  align-items: center;
-  font-weight: bold;
-  font-size: 12px;
-  border-right: 1px solid #444;
-}
-
-.track-content {
-  flex: 1;
   position: relative;
   background: #1a1a1a;
   cursor: crosshair;
 }
 
+.timeline-track .track-content {
+  position: relative;
+  background: #1a1a1a;
+  cursor: crosshair;
+  transition: background-color 0.2s ease;
+  height: 100%;
+  width: 100%;
+}
+
+.timeline-track .track-content.drag-over {
+  background: #2a2a2a;
+  border: 2px dashed #4CAF50;
+  box-shadow: inset 0 0 10px rgba(76, 175, 80, 0.3);
+}
+
+.timeline-track .track-content.drag-over::after {
+  content: 'Drop here';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(76, 175, 80, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 10;
+}
+
 .timeline-clip {
   position: absolute;
-  top: 5px;
-  bottom: 5px;
-  border-radius: 4px;
-  padding: 5px;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 2px;
+  padding: 3px 6px;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   transition: all 0.2s ease;
 }
 
 .timeline-clip:hover {
-  transform: scale(1.02);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .timeline-clip.selected {
-  border: 2px solid #fff;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  border: 1px solid #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
 }
 
 .clip-name {
-  font-size: 10px;
-  font-weight: bold;
-  color: white;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  font-size: 9px;
+  font-weight: normal;
+  color: #ccc;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5936,22 +5962,24 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 2px;
+  width: 3px;
   background: #ff0000;
   z-index: 1000;
   pointer-events: none;
+  box-shadow: 0 0 6px rgba(255, 0, 0, 0.8);
 }
 
 .timeline-playhead::after {
   content: '';
   position: absolute;
   top: 0;
-  left: -4px;
+  left: -5px;
   width: 0;
   height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 8px solid #ff0000;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 10px solid #ff0000;
+  filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.8));
 }
 
 .timeline-panels {
