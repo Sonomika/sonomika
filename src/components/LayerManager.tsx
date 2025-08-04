@@ -6,6 +6,7 @@ import { MIDIMapper } from './MIDIMapper';
 import { CanvasRenderer } from './CanvasRenderer';
 import { ColumnPreview } from './ColumnPreview';
 import { EffectsBrowser } from './EffectsBrowser';
+import { Timeline } from './Timeline';
 import { BPMManager } from '../engine/BPMManager';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -44,6 +45,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState<'media' | 'effects' | 'midi'>('media');
+  const [showTimeline, setShowTimeline] = useState(false);
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
 
@@ -723,6 +725,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     }
   };
 
+  const getTrackColor = (type: string) => {
+    switch (type) {
+      case 'audio': return '#4CAF50';
+      case 'video': return '#2196F3';
+      case 'effect': return '#FF9800';
+      default: return '#9E9E9E';
+    }
+  };
+
   // Layer reordering handlers
   const handleLayerReorderDragStart = (e: React.DragEvent, layer: any, columnId: string) => {
     console.log('🔄 Starting layer reorder drag:', layer, 'from column:', columnId);
@@ -949,6 +960,77 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 />
               </div>
             )}
+          </div>
+        </div>
+      );
+    }
+
+    if (previewContent.type === 'timeline') {
+      return (
+        <div className="preview-timeline">
+          <div className="preview-header-info">
+            <h4>Timeline Preview</h4>
+            <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
+          </div>
+          <div className="preview-timeline-content">
+            <div className="preview-timeline-info">
+              <div className="preview-time-display">
+                Time: {Math.floor(previewContent.currentTime)}s / {Math.floor(previewContent.duration)}s
+              </div>
+              <div className="preview-tracks-info">
+                <h5>Active Tracks:</h5>
+                {previewContent.tracks.map((track: any) => (
+                  <div key={track.id} className="preview-track-item">
+                    <span className="track-name">{track.name}</span>
+                    <span className="track-clips-count">{track.clips.length} clips</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="preview-timeline-visualization">
+              {/* Timeline visualization placeholder */}
+              <div className="timeline-preview-placeholder">
+                <div className="timeline-preview-header">
+                  <h5>Timeline Preview</h5>
+                  <div className="timeline-preview-controls">
+                    <span className="current-time">{Math.floor(previewContent.currentTime)}s</span>
+                    <div className="timeline-progress-bar">
+                      <div 
+                        className="timeline-progress-fill"
+                        style={{ width: `${(previewContent.currentTime / previewContent.duration) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="timeline-tracks-preview">
+                  {previewContent.tracks.map((track: any) => (
+                    <div key={track.id} className="timeline-track-preview">
+                      <div className="track-header-preview" style={{ backgroundColor: getTrackColor(track.type) }}>
+                        {track.name}
+                      </div>
+                      <div className="track-content-preview">
+                        {track.clips.map((clip: any) => (
+                          <div
+                            key={clip.id}
+                            className={`timeline-clip-preview ${
+                              previewContent.currentTime >= clip.startTime && 
+                              previewContent.currentTime < clip.startTime + clip.duration ? 'active' : ''
+                            }`}
+                            style={{
+                              left: `${(clip.startTime / previewContent.duration) * 100}%`,
+                              width: `${(clip.duration / previewContent.duration) * 100}%`,
+                              backgroundColor: getTrackColor(clip.type)
+                            }}
+                          >
+                            {clip.name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -1319,6 +1401,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   🎵
                 </button>
               </div>
+              <button 
+                onClick={() => setShowTimeline(!showTimeline)}
+                className={`timeline-toggle-btn ${showTimeline ? 'active' : ''}`}
+                title={showTimeline ? 'Switch to Grid View' : 'Switch to Timeline View'}
+              >
+                {showTimeline ? '📊' : '📋'}
+              </button>
             </div>
             
 
@@ -1327,159 +1416,162 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           </div>
 
           <div className="layer-manager-body" style={{ height: `${paneSizes.gridHeight}%` }}>
-            {/* Global Effects Row */}
-            <div className="global-effects-row">
-              <div 
-                className="global-effects-content"
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.classList.add('drag-over');
-                }}
-                onDragLeave={(e) => {
-                  e.currentTarget.classList.remove('drag-over');
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.classList.remove('drag-over');
-                  
-                  try {
-                    const data = JSON.parse(e.dataTransfer.getData('application/json'));
-                    if (data.isEffect) {
-                      console.log('🌐 Adding global effect:', data);
+            {showTimeline ? (
+              <Timeline onClose={() => setShowTimeline(false)} />
+            ) : (
+              <>
+                {/* Global Effects Row */}
+                <div className="global-effects-row">
+                  <div 
+                    className="global-effects-content"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add('drag-over');
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.classList.remove('drag-over');
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('drag-over');
                       
-                      // Create a new effect slot with default parameters for film effects
-                      const getDefaultParams = (effectId: string) => {
-                        switch (effectId) {
-                          case 'film-noise':
-                            return {
-                              intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
-                              color: { value: '#ffffff' }
-                            };
-                          case 'film-flicker':
-                            return {
-                              intensity: { value: 0.2, min: 0, max: 1, step: 0.01 },
-                              speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
-                              color: { value: '#ffffff' }
-                            };
-                          case 'light-leak':
-                            return {
-                              intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
-                              color: { value: '#ff6b35' },
-                              position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] },
-                              speed: { value: 0.5, min: 0.1, max: 2, step: 0.1 }
-                            };
-                          case 'film-noise-r3f':
-                            return {
-                              intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
-                              color: { value: '#ffffff' }
-                            };
-                          case 'film-flicker-r3f':
-                            return {
-                              intensity: { value: 0.2, min: 0, max: 1, step: 0.01 },
-                              speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
-                              color: { value: '#ffffff' }
-                            };
-                          case 'light-leak-r3f':
-                            return {
-                              intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
-                              color: { value: '#ff6b35' },
-                              position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] },
-                              speed: { value: 0.5, min: 0.1, max: 2, step: 0.1 }
-                            };
-                          case 'global-strobe-r3f':
-                            return {
-                              intensity: { value: 0.8, min: 0, max: 1, step: 0.01 },
-                              color: { value: '#ffffff' },
-                              speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
-                              frequency: { value: 24, min: 1, max: 60, step: 1 }
-                            };
-                          default:
-                            return {};
-                        }
-                      };
+                      try {
+                        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                        if (data.isEffect) {
+                          console.log('🌐 Adding global effect:', data);
+                          
+                          // Create a new effect slot with default parameters for film effects
+                          const getDefaultParams = (effectId: string) => {
+                            switch (effectId) {
+                              case 'film-noise':
+                                return {
+                                  intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
+                                  color: { value: '#ffffff' }
+                                };
+                              case 'film-flicker':
+                                return {
+                                  intensity: { value: 0.2, min: 0, max: 1, step: 0.01 },
+                                  speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
+                                  color: { value: '#ffffff' }
+                                };
+                              case 'light-leak':
+                                return {
+                                  intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
+                                  color: { value: '#ff6b35' },
+                                  position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] },
+                                  speed: { value: 0.5, min: 0.1, max: 2, step: 0.1 }
+                                };
+                              case 'film-noise-r3f':
+                                return {
+                                  intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
+                                  color: { value: '#ffffff' }
+                                };
+                              case 'film-flicker-r3f':
+                                return {
+                                  intensity: { value: 0.2, min: 0, max: 1, step: 0.01 },
+                                  speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
+                                  color: { value: '#ffffff' }
+                                };
+                              case 'light-leak-r3f':
+                                return {
+                                  intensity: { value: 0.3, min: 0, max: 1, step: 0.01 },
+                                  color: { value: '#ff6b35' },
+                                  position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] },
+                                  speed: { value: 0.5, min: 0.1, max: 2, step: 0.1 }
+                                };
+                              case 'global-strobe-r3f':
+                                return {
+                                  intensity: { value: 0.8, min: 0, max: 1, step: 0.01 },
+                                  color: { value: '#ffffff' },
+                                  speed: { value: 1, min: 0.1, max: 5, step: 0.1 },
+                                  frequency: { value: 24, min: 1, max: 60, step: 1 }
+                                };
+                              default:
+                                return {};
+                            }
+                          };
 
-                      const newEffectSlot = {
-                        id: uuidv4(),
-                        effectId: data.id || data.name,
-                        enabled: true,
-                        params: getDefaultParams(data.id || data.name)
-                      };
-                      
-                      // Add the effect slot to the scene's global effects
-                      // Disable all existing effects and enable only the new one
-                      const currentGlobalEffects = currentScene?.globalEffects || [];
-                      const updatedEffects = [
-                        ...currentGlobalEffects.map((effect: any) => ({ ...effect, enabled: false })),
-                        newEffectSlot
-                      ];
-                      updateScene(currentSceneId, { globalEffects: updatedEffects });
-                      console.log('🌐 Global effects updated:', updatedEffects);
-                    }
-                  } catch (error) {
-                    console.error('Error adding global effect:', error);
-                  }
-                }}
-              >
-                <div className="global-effects-grid">
-                  {Array.from({ length: 10 }, (_, index) => {
-                    const effectSlot = currentScene?.globalEffects?.[index];
-                    
-                    if (effectSlot) {
-                      // Render existing effect slot
-                      return (
-                        <div key={effectSlot.id || `effect-${index}`} className={`global-effect-slot ${effectSlot.enabled ? 'active' : ''}`}>
-                          <div 
-                            className="effect-slot-content"
-                            onClick={() => {
-                              // Toggle this effect on/off, disable all others
-                              const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
-                                ...slot,
-                                enabled: i === index ? !slot.enabled : false
-                              }));
-                              updateScene(currentSceneId, { globalEffects: updatedEffects });
-                            }}
-                            style={{ cursor: 'pointer' }}
-                            title="Click to toggle effect on/off"
-                                                     >
-                             <span className="effect-name">
-                               {effectSlot.effectId === 'film-noise-r3f' ? 'Film Noise (R3F)' :
-                                effectSlot.effectId === 'film-flicker-r3f' ? 'Film Flicker (R3F)' :
-                                effectSlot.effectId === 'light-leak-r3f' ? 'Light Leak (R3F)' :
-                                effectSlot.effectId === 'global-strobe-r3f' ? 'Global Strobe (R3F)' :
-                                effectSlot.effectId}
-                             </span>
-                             {effectSlot.enabled && <div className="effect-active-indicator">●</div>}
-                           </div>
-                          <button 
-                            className="remove-effect-btn"
-                            onClick={() => {
-                              const updatedEffects = currentScene.globalEffects.filter((_: any, i: number) => i !== index);
-                              updateScene(currentSceneId, { globalEffects: updatedEffects });
-                            }}
-                            title="Remove effect"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    } else {
-                      // Render empty slot
-                      return (
-                                                 <div key={`empty-slot-${index}`} className="global-effect-slot empty">
-                           <div className="effect-slot-content">
-                             <span className="effect-name">Empty</span>
-                           </div>
-                         </div>
-                      );
-                    }
-                  })}
-                </div>
-              </div>
-            </div>
+                          const newEffectSlot = {
+                            id: uuidv4(),
+                            effectId: data.id || data.name,
+                            enabled: true,
+                            params: getDefaultParams(data.id || data.name)
+                          };
+                          
+                          // Add the effect slot to the scene's global effects
+                          // Disable all existing effects and enable only the new one
+                          const currentGlobalEffects = currentScene?.globalEffects || [];
+                          const updatedEffects = [
+                            ...currentGlobalEffects.map((effect: any) => ({ ...effect, enabled: false })),
+                            newEffectSlot
+                          ];
+                          updateScene(currentSceneId, { globalEffects: updatedEffects });
+                          console.log('🌐 Global effects updated:', updatedEffects);
+                        }
+                      } catch (error) {
+                        console.error('Error adding global effect:', error);
+                      }
+                    }}
+                  >
+                    <div className="global-effects-grid">
+                      {Array.from({ length: 10 }, (_, index) => {
+                        const effectSlot = currentScene?.globalEffects?.[index];
+                        
+                        if (effectSlot) {
+                          // Render existing effect slot
+                          return (
+                            <div key={effectSlot.id || `effect-${index}`} className={`global-effect-slot ${effectSlot.enabled ? 'active' : ''}`}>
+                              <div 
+                                className="effect-slot-content"
+                                onClick={() => {
+                                  // Toggle this effect on/off, disable all others
+                                  const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
+                                    ...slot,
+                                    enabled: i === index ? !slot.enabled : false
+                                  }));
+                                  updateScene(currentSceneId, { globalEffects: updatedEffects });
+                                }}
+                                style={{ cursor: 'pointer' }}
+                                title="Click to toggle effect on/off"
+                              >
+                               <span className="effect-name">
+                                 {effectSlot.effectId === 'film-noise-r3f' ? 'Film Noise (R3F)' :
+                                  effectSlot.effectId === 'film-flicker-r3f' ? 'Film Flicker (R3F)' :
+                                  effectSlot.effectId === 'light-leak-r3f' ? 'Light Leak (R3F)' :
+                                  effectSlot.effectId === 'global-strobe-r3f' ? 'Global Strobe (R3F)' :
+                                  effectSlot.effectId}
+                               </span>
+                               {effectSlot.enabled && <div className="effect-active-indicator">●</div>}
+                             </div>
+                            <button 
+                              className="remove-effect-btn"
+                              onClick={() => {
+                                const updatedEffects = currentScene.globalEffects.filter((_: any, i: number) => i !== index);
+                                updateScene(currentSceneId, { globalEffects: updatedEffects });
+                              }}
+                              title="Remove effect"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      } else {
+                        // Render empty slot
+                        return (
+                          <div key={`empty-slot-${index}`} className="global-effect-slot empty">
+                            <div className="effect-slot-content">
+                              <span className="effect-name">Empty</span>
+                            </div>
+                          </div>
+                        );
+                      }
+                                         })}
+                   </div>
+                 </div>
+               </div>
 
             {/* Composition Row */}
             <div className="composition-row">
-
               {columns.map((column: any, index: number) => {
                 const isColumnPlaying = playingColumnId === column.id;
                 return (
@@ -1526,9 +1618,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             {/* Layer Rows */}
             {[3, 2, 1].map((layerNum) => (
               <div key={layerNum} className={`layer-row ${layerNum === 1 ? 'active' : ''}`}>
-
-
-
                 {/* Column Cells for this Layer */}
                 {columns.map((column: any, colIndex: number) => {
                   // More robust layer finding - check both name and layerNum
@@ -1646,6 +1735,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 })}
               </div>
             ))}
+            </>
+            )}
           </div>
 
           {/* Drag-to-Remove Zone */}
@@ -1743,6 +1834,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 >
                   MIDI
                 </button>
+
               </div>
               
               {/* Tab Content */}
@@ -1751,8 +1843,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   <MediaLibrary onClose={() => {}} isEmbedded={true} />
                 ) : activeTab === 'effects' ? (
                   <EffectsBrowser />
-                ) : (
+                ) : activeTab === 'midi' ? (
                   <MIDIMapper />
+                ) : (
+                  <MediaLibrary onClose={() => {}} isEmbedded={true} />
                 )}
               </div>
             </div>

@@ -31,7 +31,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       // If asset has base64Data but no valid path, restore the blob URL
       if (asset.base64Data && (!asset.path || asset.path.startsWith('blob:'))) {
         console.log('Restoring asset from base64Data:', asset.name);
-        const restoredBlobURL = convertBase64ToBlobURL(asset.base64Data, asset.type === 'image' ? 'image/*' : 'video/*');
+        let mimeType = 'image/*';
+        if (asset.type === 'video') mimeType = 'video/*';
+        else if (asset.type === 'audio') mimeType = 'audio/*';
+        
+        const restoredBlobURL = convertBase64ToBlobURL(asset.base64Data, mimeType);
         if (restoredBlobURL) {
           // Update the asset with the restored blob URL in the store
           updateAsset(asset.id, { path: restoredBlobURL });
@@ -132,7 +136,9 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         const asset = {
           id: `asset-${Date.now()}-${Math.random()}`,
           name: file.name,
-          type: file.type.startsWith('image/') ? 'image' : 'video',
+          type: file.type.startsWith('image/') ? 'image' : 
+                file.type.startsWith('video/') ? 'video' : 
+                file.type.startsWith('audio/') ? 'audio' : 'unknown',
           path: filePath ? `file://${filePath}` : blobURL, // Use file path if available, otherwise blob URL
           filePath: filePath, // Store actual file path if available
           base64Data: base64Data, // Store base64 for persistence (small files only)
@@ -267,7 +273,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       
       // If asset has base64Data, try to recreate blob URL
       if (asset.base64Data && !asset.path.startsWith('blob:')) {
-        const newPath = convertBase64ToBlobURL(asset.base64Data, asset.type === 'image' ? 'image/*' : 'video/*');
+        let mimeType = 'image/*';
+        if (asset.type === 'video') mimeType = 'video/*';
+        else if (asset.type === 'audio') mimeType = 'audio/*';
+        
+        const newPath = convertBase64ToBlobURL(asset.base64Data, mimeType);
         if (newPath) {
           console.log('Recreated blob URL for asset:', asset.name, 'from:', asset.path, 'to:', newPath);
           return {
@@ -303,9 +313,13 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       // If asset has no valid path, create a placeholder
       if (!asset.path) {
         console.warn('Asset has no path:', asset.name);
+        let placeholderMime = 'image/png';
+        if (asset.type === 'video') placeholderMime = 'video/mp4';
+        else if (asset.type === 'audio') placeholderMime = 'audio/mpeg';
+        
         return {
           ...asset,
-          path: `data:${asset.type === 'image' ? 'image/png' : 'video/mp4'};base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`
+          path: `data:${placeholderMime};base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`
         };
       }
       
@@ -374,6 +388,18 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || asset.type === filterType;
     return matchesSearch && matchesType;
+  });
+
+  // Debug logging
+  console.log('MediaLibrary Debug:', {
+    assetsCount: assets?.length || 0,
+    processedAssetsCount: processedAssets?.length || 0,
+    filteredAssetsCount: filteredAssets?.length || 0,
+    searchTerm,
+    filterType,
+    assets: assets,
+    processedAssets: processedAssets,
+    filteredAssets: filteredAssets
   });
 
   const formatFileSize = (bytes: number) => {
@@ -450,7 +476,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/*,video/*"
+        accept="image/*,video/*,audio/*"
         onChange={handleFileInputChange}
         style={{ display: 'none' }}
       />
@@ -468,38 +494,46 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
             )}
           </div>
         ) : (
-          filteredAssets.map((asset: any) => (
-            <div
-              key={asset.id}
-              className={`asset-item ${selectedAsset?.id === asset.id ? 'selected' : ''}`}
-              onClick={() => setSelectedAsset(asset)}
-              draggable
-              onDragStart={(e) => handleDragStart(e, asset)}
-            >
-              <div className="asset-preview">
-                {asset.type === 'image' ? (
-                  <img src={asset.path} alt={asset.name} />
-                ) : (
-                  <div className="asset-placeholder">
+          filteredAssets.map((asset: any) => {
+            console.log('Rendering asset:', asset);
+            return (
+              <div
+                key={asset.id}
+                className={`asset-item ${selectedAsset?.id === asset.id ? 'selected' : ''}`}
+                onClick={() => setSelectedAsset(asset)}
+                draggable
+                onDragStart={(e) => handleDragStart(e, asset)}
+              >
+                <div className="asset-preview">
+                  {asset.type === 'image' ? (
+                    <img src={asset.path} alt={asset.name} />
+                  ) : asset.type === 'audio' ? (
+                    <div className="asset-placeholder audio">
+                      <div className="audio-icon">🎵</div>
+                      <div className="audio-name">{asset.name}</div>
+                    </div>
+                  ) : (
+                    <div className="asset-placeholder">
+                      {asset.type.toUpperCase()}
+                    </div>
+                  )}
+                  <div className="asset-type-badge">
                     {asset.type.toUpperCase()}
                   </div>
-                )}
-                <div className="asset-type-badge">
-                  {asset.type.toUpperCase()}
+                </div>
+                <div className="asset-info">
+                  <div className="asset-name">{asset.name}</div>
+                  <div className="asset-meta">
+                    <span>{formatFileSize(asset.size)}</span>
+                    <span>{asset.date}</span>
+                  </div>
+                </div>
+                <div className="asset-actions">
+                  <button className="delete-button" onClick={(e) => { e.stopPropagation(); handleRemoveAsset(asset.id); }}>🗑️</button>
                 </div>
               </div>
-              <div className="asset-info">
-                <div className="asset-name">{asset.name}</div>
-                <div className="asset-meta">
-                  <span>{formatFileSize(asset.size)}</span>
-                  <span>{asset.date}</span>
-                </div>
-              </div>
-              <div className="asset-actions">
-                <button className="delete-button" onClick={(e) => { e.stopPropagation(); handleRemoveAsset(asset.id); }}>🗑️</button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </>
