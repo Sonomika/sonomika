@@ -498,12 +498,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
       setPlaybackInterval(null);
     }
     
-    // Sync playhead to the earliest clip if not already there
+    // Always start from 0 when play button is clicked
+    console.log('Resetting timeline to 0 seconds for playback start');
+    setCurrentTime(0);
+    
+    // Get earliest clip time for end-of-timeline reset
     const earliestClipTime = getEarliestClipTime();
-    if (earliestClipTime > 0 && currentTime < earliestClipTime) {
-      console.log('Syncing playhead to earliest clip at:', earliestClipTime);
-      setCurrentTime(earliestClipTime);
-    }
     
     console.log('Creating new interval');
     const interval = setInterval(() => {
