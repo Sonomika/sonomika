@@ -1,4 +1,5 @@
 import { BaseEffect } from '../effects/BaseEffect';
+import { DynamicEffectLoader } from './DynamicEffectLoader';
 import { CirclePulse } from '../effects/CirclePulse';
 import { ColorPulse } from '../effects/ColorPulse';
 import { TestEffect } from '../effects/TestEffect';
@@ -42,6 +43,21 @@ export class EffectLoader {
   }
 
   createEffect(name: string, width: number, height: number): BaseEffect {
+    // First try the new dynamic effect loader
+    try {
+      const dynamicLoader = DynamicEffectLoader.getInstance();
+      const availableEffects = dynamicLoader.getAvailableEffects();
+      
+      // Check if the effect exists in the dynamic loader
+      const effect = availableEffects.find(e => e.name === name || e.id === name);
+      if (effect) {
+        return dynamicLoader.createEffect(effect.id, width, height);
+      }
+    } catch (error) {
+      console.warn('Dynamic effect loader failed, falling back to legacy:', error);
+    }
+
+    // Fall back to legacy effect system
     const effectClass = this.effectRegistry.get(name);
     if (!effectClass) {
       throw new Error(`Effect "${name}" not found`);
@@ -66,6 +82,19 @@ export class EffectLoader {
   }
 
   getAvailableEffects(): string[] {
-    return Array.from(this.effectRegistry.keys());
+    const effects = Array.from(this.effectRegistry.keys());
+    
+    // Add dynamic effects
+    try {
+      const dynamicLoader = DynamicEffectLoader.getInstance();
+      const dynamicEffects = dynamicLoader.getAvailableEffects();
+      dynamicEffects.forEach(effect => {
+        effects.push(effect.name);
+      });
+    } catch (error) {
+      console.warn('Could not get dynamic effects:', error);
+    }
+    
+    return effects;
   }
 } 

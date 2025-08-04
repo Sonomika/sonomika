@@ -55,6 +55,17 @@ export class DynamicEffectLoader {
       }).catch(error => {
         console.warn('Could not load example effect:', error);
       });
+
+      // Import and register the test timeline effect
+      import('../effects/TestTimelineEffect').then(module => {
+        if (module.exportEffect) {
+          const effect = module.exportEffect();
+          this.registerEffect(effect);
+          console.log(`Loaded test timeline effect: ${effect.name}`);
+        }
+      }).catch(error => {
+        console.warn('Could not load test timeline effect:', error);
+      });
     } catch (error) {
       console.warn('Error loading built-in effects:', error);
     }

@@ -1,5 +1,82 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/store';
+import { EffectLoader } from '../utils/EffectLoader';
+
+// Effect Preview Component
+interface EffectPreviewProps {
+  effectName: string;
+  effectId: string;
+  dimensions: { width: number; height: number };
+}
+
+const EffectPreview: React.FC<EffectPreviewProps> = ({ effectName, effectId, dimensions }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const effectRef = useRef<any>(null);
+  const animationRef = useRef<number>();
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Create effect instance
+    try {
+      effectRef.current = EffectLoader.getInstance().createEffect(
+        effectName,
+        dimensions.width,
+        dimensions.height
+      );
+    } catch (error) {
+      console.warn(`Could not create effect ${effectName}:`, error);
+      return;
+    }
+
+    let time = 0;
+    const animate = (deltaTime: number) => {
+      if (!effectRef.current) return;
+
+      // Render the effect
+      effectRef.current.render(deltaTime);
+      
+      // Draw the effect to canvas
+      ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+      ctx.drawImage(effectRef.current.canvas, 0, 0);
+      
+      time += deltaTime;
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      if (effectRef.current) {
+        effectRef.current.cleanup();
+      }
+    };
+  }, [effectName, dimensions]);
+
+  return (
+    <div className="effect-preview">
+      <canvas 
+        ref={canvasRef} 
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          objectFit: 'cover',
+          borderRadius: '4px'
+        }} 
+      />
+    </div>
+  );
+};
 
 interface TimelineProps {
   onClose: () => void;
@@ -472,10 +549,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
                   />
                 )}
                 {clip.asset.type === 'effect' && (
-                  <div className="effect-preview">
-                    <div className="effect-icon">✨</div>
-                    <div className="effect-name">{clip.asset.name}</div>
-                  </div>
+                  <EffectPreview 
+                    effectName={clip.asset.name}
+                    effectId={clip.asset.id}
+                    dimensions={{ width: 200, height: 150 }}
+                  />
                 )}
               </div>
             )}
