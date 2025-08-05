@@ -189,9 +189,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     
     // Default tracks if no saved data
     return [
-      { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
-      { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
-      { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
+    { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
+    { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
+    { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
     ];
   };
 
@@ -1197,12 +1197,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
            .clear-btn:hover {
              background: #f44336;
              border-color: #ff5722;
-           }
-         `}
-       </style>
-             <div className="timeline-header">
+          }
+        `}
+      </style>
+      <div className="timeline-header">
          <div className="timeline-title">
-           <h2>Timeline</h2>
+        <h2>Timeline</h2>
          </div>
          
          {/* All Controls on One Line */}
@@ -1233,8 +1233,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
                </svg>
              </button>
              
-             <button 
-               onClick={handlePlayButtonClick}
+                     <button 
+                           onClick={handlePlayButtonClick}
                className={`transport-btn play-btn ${isPlaying ? 'playing' : ''}`}
                title={isPlaying ? 'Pause' : 'Play'}
              >
@@ -1247,10 +1247,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
                    <path d="M8 5v14l11-7z"/>
                  </svg>
                )}
-             </button>
+           </button>
              
-             <button 
-               onClick={() => {
+          <button 
+            onClick={() => {
                  const newTime = Math.min(duration, currentTime + 1);
                  setCurrentTime(newTime);
                }}
@@ -1260,7 +1260,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                  <path d="M4 18l8.5-6L4 6v12zm10 0V6h2v12h-2z"/>
                </svg>
-             </button>
+          </button>
              
              <button 
                onClick={() => setCurrentTime(duration)}
@@ -1308,17 +1308,17 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
            
            {/* Timeline Scrubber */}
            <div className="timeline-scrubber">
-             <input
-               type="range"
-               min="0"
-               max={duration}
-               value={currentTime}
-               onChange={(e) => {
-                 const newTime = parseFloat(e.target.value);
-                 setCurrentTime(newTime);
+          <input
+            type="range"
+            min="0"
+            max={duration}
+            value={currentTime}
+            onChange={(e) => {
+              const newTime = parseFloat(e.target.value);
+              setCurrentTime(newTime);
                }}
                className="scrubber-slider"
-               style={{ 
+            style={{ 
                  background: `linear-gradient(to right, #007acc 0%, #007acc ${(currentTime / duration) * 100}%, #444 ${(currentTime / duration) * 100}%, #444 100%)`
                }}
              />
@@ -1362,8 +1362,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
                </svg>
              </button>
            </div>
-         </div>
-       </div>
+        </div>
+      </div>
 
       <div className="timeline-content">
         {/* Waveform Display */}
@@ -1453,7 +1453,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
         
 
 
-      </div>
+          </div>
 
       {/* Context Menu */}
       {contextMenu.visible && (

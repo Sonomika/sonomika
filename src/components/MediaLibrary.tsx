@@ -12,7 +12,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   const { assets, addAsset, removeAsset, updateAsset } = useStore() as any;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string>('');
@@ -435,20 +435,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
             <option value="video">Videos</option>
           </select>
         </div>
-        <div className="view-toggle">
-          <button
-            className={viewMode === 'grid' ? 'active' : ''}
-            onClick={() => setViewMode('grid')}
-          >
-            Grid
-          </button>
-          <button
-            className={viewMode === 'list' ? 'active' : ''}
-            onClick={() => setViewMode('list')}
-          >
-            List
-          </button>
-        </div>
+
         <button className="import-button" onClick={handleImportClick}>Import</button>
       </div>
 
@@ -481,7 +468,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         style={{ display: 'none' }}
       />
 
-      <div className="assets-container">
+      <div className="assets-container list">
         {filteredAssets.length === 0 ? (
           <div className="empty-state">
             <h3>No assets found</h3>
