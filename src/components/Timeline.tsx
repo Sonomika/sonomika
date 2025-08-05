@@ -172,15 +172,15 @@ interface TimelineClip {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) => {
-  const { bpm, setBpm } = useStore() as any;
+  const { bpm, setBpm, currentSceneId } = useStore() as any;
   
-  // Load saved timeline data from localStorage
+  // Load saved timeline data from localStorage for current scene
   const loadTimelineData = (): TimelineTrack[] => {
     try {
-      const savedData = localStorage.getItem('timeline-tracks');
+      const savedData = localStorage.getItem(`timeline-tracks-${currentSceneId}`);
       if (savedData) {
         const parsedData = JSON.parse(savedData);
-        console.log('Loaded timeline data from localStorage:', parsedData);
+        console.log(`Loaded timeline data for scene ${currentSceneId} from localStorage:`, parsedData);
         return parsedData;
       }
     } catch (error) {
@@ -199,23 +199,51 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(60); // 60 seconds default
   
-  // Save timeline data to localStorage
+  // Reload timeline data when scene changes
+  useEffect(() => {
+    console.log(`Scene changed to ${currentSceneId}, reloading timeline data`);
+    const newTracks = loadTimelineData();
+    setTracks(newTracks);
+    setCurrentTime(0);
+    setSelectedClip(null);
+    // Clear any existing playback
+    if (playbackInterval) {
+      clearInterval(playbackInterval);
+      setPlaybackInterval(null);
+    }
+    setIsPlaying(false);
+  }, [currentSceneId]);
+  
+  // Save timeline data to localStorage for current scene
   const saveTimelineData = (tracksData: TimelineTrack[]) => {
     try {
-      localStorage.setItem('timeline-tracks', JSON.stringify(tracksData));
-      console.log('Saved timeline data to localStorage:', tracksData);
+      localStorage.setItem(`timeline-tracks-${currentSceneId}`, JSON.stringify(tracksData));
+      console.log(`Saved timeline data for scene ${currentSceneId} to localStorage:`, tracksData);
     } catch (error) {
       console.error('Error saving timeline data:', error);
     }
   };
 
-  // Clear timeline data from localStorage
+  // Clear timeline data from localStorage for current scene
   const clearTimelineData = () => {
     try {
-      localStorage.removeItem('timeline-tracks');
-      console.log('Cleared timeline data from localStorage');
+      localStorage.removeItem(`timeline-tracks-${currentSceneId}`);
+      console.log(`Cleared timeline data for scene ${currentSceneId} from localStorage`);
     } catch (error) {
       console.error('Error clearing timeline data:', error);
+    }
+  };
+
+  // Clear all timeline data for all scenes (for debugging/reset)
+  const clearAllTimelineData = () => {
+    try {
+      // Get all localStorage keys that start with 'timeline-tracks-'
+      const keys = Object.keys(localStorage);
+      const timelineKeys = keys.filter(key => key.startsWith('timeline-tracks-'));
+      timelineKeys.forEach(key => localStorage.removeItem(key));
+      console.log('Cleared all timeline data for all scenes');
+    } catch (error) {
+      console.error('Error clearing all timeline data:', error);
     }
   };
 
@@ -1007,7 +1035,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
           <span>Zoom: {zoom}x</span>
           <button 
             onClick={() => {
-              if (window.confirm('Are you sure you want to clear all timeline clips? This cannot be undone.')) {
+              if (window.confirm(`Are you sure you want to clear all timeline clips for the current scene? This cannot be undone.`)) {
                 clearTimelineData();
                 updateTracks([
                   { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
@@ -1016,10 +1044,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
                 ]);
                 setCurrentTime(0);
                 setSelectedClip(null);
-                console.log('Timeline cleared');
+                console.log(`Timeline cleared for scene ${currentSceneId}`);
               }
             }}
-            title="Clear all timeline clips"
+            title="Clear timeline clips for current scene"
             style={{ 
               backgroundColor: '#ff4444', 
               color: 'white', 
@@ -1032,6 +1060,28 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
           >
             🗑️ Clear
           </button>
+          {process.env.NODE_ENV === 'development' && (
+            <button 
+              onClick={() => {
+                if (window.confirm('Clear ALL timeline data for ALL scenes? (Debug only)')) {
+                  clearAllTimelineData();
+                  console.log('All timeline data cleared');
+                }
+              }}
+              title="Clear all timeline data (Debug)"
+              style={{ 
+                backgroundColor: '#ff8800', 
+                color: 'white', 
+                border: 'none', 
+                padding: '4px 8px', 
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              🧹 Clear All
+            </button>
+          )}
         </div>
       </div>
 
