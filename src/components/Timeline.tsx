@@ -2,6 +2,78 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/store';
 import { EffectLoader } from '../utils/EffectLoader';
 
+// Context Menu Component
+interface ContextMenuProps {
+  x: number;
+  y: number;
+  onClose: () => void;
+  onDelete: () => void;
+}
+
+const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete }) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  const handleDelete = () => {
+    onDelete();
+    onClose();
+  };
+
+  return (
+    <div
+      ref={menuRef}
+      className="context-menu"
+      style={{
+        position: 'fixed',
+        left: x,
+        top: y,
+        backgroundColor: '#2a2a2a',
+        border: '1px solid #444',
+        borderRadius: '4px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+        zIndex: 1000,
+        minWidth: '120px',
+        padding: '4px 0',
+      }}
+    >
+      <button
+        onClick={handleDelete}
+        style={{
+          width: '100%',
+          padding: '8px 12px',
+          backgroundColor: 'transparent',
+          border: 'none',
+          color: '#ff6b6b',
+          cursor: 'pointer',
+          textAlign: 'left',
+          fontSize: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#444';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }}
+      >
+        🗑️ Delete
+      </button>
+    </div>
+  );
+};
+
 // Effect Preview Component
 interface EffectPreviewProps {
   effectName: string;
@@ -129,6 +201,21 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [playbackInterval, setPlaybackInterval] = useState<NodeJS.Timeout | null>(null);
   const [intervalCounter, setIntervalCounter] = useState(0);
+  
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    clipId: string | null;
+    trackId: string | null;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    clipId: null,
+    trackId: null,
+  });
   
   const timelineRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -646,6 +733,53 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     }
   };
 
+  // Context menu functions
+  const handleClipRightClick = (e: React.MouseEvent, clipId: string, trackId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      clipId,
+      trackId,
+    });
+  };
+
+  const handleContextMenuClose = () => {
+    setContextMenu({
+      visible: false,
+      x: 0,
+      y: 0,
+      clipId: null,
+      trackId: null,
+    });
+  };
+
+  const handleDeleteClip = () => {
+    if (contextMenu.clipId && contextMenu.trackId) {
+      setTracks(prevTracks => 
+        prevTracks.map(track => {
+          if (track.id === contextMenu.trackId) {
+            return {
+              ...track,
+              clips: track.clips.filter(clip => clip.id !== contextMenu.clipId)
+            };
+          }
+          return track;
+        })
+      );
+      
+      // Clear selection if the deleted clip was selected
+      if (selectedClip === contextMenu.clipId) {
+        setSelectedClip(null);
+      }
+      
+      console.log(`Deleted clip ${contextMenu.clipId} from track ${contextMenu.trackId}`);
+    }
+  };
+
   // Force refresh play state when component mounts or when needed
   useEffect(() => {
     // Ensure play state is consistent with interval state
@@ -724,6 +858,41 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
             0% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -50%) scale(1.2); }
             100% { transform: translate(-50%, -50%) scale(1); }
+          }
+          
+          .context-menu {
+            position: fixed;
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            min-width: 120px;
+            padding: 4px 0;
+            font-family: inherit;
+          }
+          
+          .context-menu button {
+            width: 100%;
+            padding: 8px 12px;
+            background-color: transparent;
+            border: none;
+            color: #ff6b6b;
+            cursor: pointer;
+            text-align: left;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s ease;
+          }
+          
+          .context-menu button:hover {
+            background-color: #444;
+          }
+          
+          .timeline-clip {
+            user-select: none;
           }
         `}
       </style>
@@ -847,6 +1016,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
                         e.stopPropagation();
                         setSelectedClip(clip.id);
                       }}
+                      onContextMenu={(e) => handleClipRightClick(e, clip.id, track.id)}
                     >
                       <span className="clip-name">{clip.name}</span>
                       {isPlaying && <div className="playing-indicator">▶</div>}
@@ -920,6 +1090,15 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
         )}
       </div>
 
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={handleContextMenuClose}
+          onDelete={handleDeleteClip}
+        />
+      )}
 
     </div>
   );
