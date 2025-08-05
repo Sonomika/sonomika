@@ -988,15 +988,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
              font-weight: 600;
            }
            
-           .transport-controls {
-             display: flex;
-             align-items: center;
-             gap: 16px;
-             padding: 12px;
-             background: rgba(0, 0, 0, 0.3);
-             border-radius: 6px;
-             border: 1px solid #444;
-           }
+           
            
            .transport-buttons {
              display: flex;
@@ -1079,15 +1071,27 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
              color: #ccc;
            }
            
-           .timeline-controls {
-             display: flex;
-             align-items: center;
-             gap: 16px;
-             padding: 12px;
-             background: rgba(0, 0, 0, 0.2);
-             border-radius: 6px;
-             border: 1px solid #444;
-           }
+                       .timeline-controls-single-line {
+              display: flex;
+              align-items: center;
+              gap: 16px;
+              padding: 12px;
+              background: rgba(0, 0, 0, 0.3);
+              border-radius: 6px;
+              border: 1px solid #444;
+              flex-wrap: nowrap;
+              overflow-x: auto;
+            }
+            
+            .timeline-controls {
+              display: flex;
+              align-items: center;
+              gap: 16px;
+              padding: 12px;
+              background: rgba(0, 0, 0, 0.2);
+              border-radius: 6px;
+              border: 1px solid #444;
+            }
            
            .zoom-controls {
              display: flex;
@@ -1206,8 +1210,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
            <h2>Timeline</h2>
          </div>
          
-         {/* Transport Controls */}
-         <div className="transport-controls">
+         {/* All Controls on One Line */}
+         <div className="timeline-controls-single-line">
+           {/* Transport Controls */}
            <div className="transport-buttons">
              <button 
                onClick={() => setCurrentTime(0)}
@@ -1280,10 +1285,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
              <span className="time-separator">/</span>
              <span className="total-time">{formatTime(duration)}</span>
            </div>
-         </div>
-         
-         {/* Timeline Controls */}
-         <div className="timeline-controls">
+           
            {/* Zoom Controls */}
            <div className="zoom-controls">
              <button 
