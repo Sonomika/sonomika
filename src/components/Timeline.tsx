@@ -966,124 +966,407 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
             background-color: #444;
           }
           
-          .timeline-clip {
-            user-select: none;
-          }
-        `}
-      </style>
-      <div className="timeline-header">
-        <h2>Timeline</h2>
-        <div className="timeline-controls">
-                     <button 
-                           onClick={handlePlayButtonClick}
-             className={`play-button ${isPlaying ? 'playing' : ''}`}
-           >
-             {isPlaying ? '⏸️' : '▶️'}
-           </button>
-          <button onClick={() => setCurrentTime(0)}>⏮️</button>
-          <button 
-            onClick={() => {
-              const earliestTime = getEarliestClipTime();
-              if (earliestTime > 0) {
-                setCurrentTime(earliestTime);
-                console.log('Synced playhead to earliest clip at:', earliestTime);
-              }
-            }}
-            title="Sync to first clip"
-          >
-            🔗
-          </button>
-          <span className="time-display">
-            {formatTime(currentTime)} / {formatTime(duration)}
-            {isPlaying && <span className="playing-indicator-text"> ▶</span>}
-          </span>
-          <input
-            type="range"
-            min="0"
-            max={duration}
-            value={currentTime}
-            onChange={(e) => {
-              const newTime = parseFloat(e.target.value);
-              console.log('Slider changed to:', newTime);
-              setCurrentTime(newTime);
-              // Don't stop playback when scrubbing - let user control it
-            }}
-            onInput={(e) => {
-              console.log('🕒 Slider input event - value:', e.currentTarget.value);
-            }}
-            onMouseDown={() => {
-              // Optional: pause playback when user starts scrubbing
-              // if (isPlaying) {
-              //   console.log('Pausing playback for scrubbing');
-              //   stopTimelinePlayback();
-              // }
-            }}
-            className="time-slider"
-            style={{ 
-              background: `linear-gradient(to right, #4CAF50 0%, #4CAF50 ${(currentTime / duration) * 100}%, #ddd ${(currentTime / duration) * 100}%, #ddd 100%)`
-            }}
-          />
-          <input
-            type="range"
-            min="0.1"
-            max="5"
-            step="0.1"
-            value={zoom}
-            onChange={(e) => setZoom(parseFloat(e.target.value))}
-            className="zoom-slider"
-          />
-          <span>Zoom: {zoom}x</span>
-          <button 
-            onClick={() => {
-              if (window.confirm(`Are you sure you want to clear all timeline clips for the current scene? This cannot be undone.`)) {
-                clearTimelineData();
-                updateTracks([
-                  { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
-                  { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
-                  { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
-                ]);
-                setCurrentTime(0);
-                setSelectedClip(null);
-                console.log(`Timeline cleared for scene ${currentSceneId}`);
-              }
-            }}
-            title="Clear timeline clips for current scene"
-            style={{ 
-              backgroundColor: '#ff4444', 
-              color: 'white', 
-              border: 'none', 
-              padding: '4px 8px', 
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            🗑️ Clear
-          </button>
-          {process.env.NODE_ENV === 'development' && (
-            <button 
-              onClick={() => {
-                if (window.confirm('Clear ALL timeline data for ALL scenes? (Debug only)')) {
-                  clearAllTimelineData();
-                  console.log('All timeline data cleared');
-                }
-              }}
-              title="Clear all timeline data (Debug)"
-              style={{ 
-                backgroundColor: '#ff8800', 
-                color: 'white', 
-                border: 'none', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              🧹 Clear All
-            </button>
-          )}
-        </div>
-      </div>
+                     .timeline-clip {
+             user-select: none;
+           }
+           
+           /* Professional Video Editor Controls */
+           .timeline-header {
+             display: flex;
+             flex-direction: column;
+             gap: 12px;
+             padding: 16px;
+             background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+             border-bottom: 1px solid #444;
+             border-radius: 8px 8px 0 0;
+           }
+           
+           .timeline-title h2 {
+             margin: 0;
+             color: #fff;
+             font-size: 18px;
+             font-weight: 600;
+           }
+           
+           .transport-controls {
+             display: flex;
+             align-items: center;
+             gap: 16px;
+             padding: 12px;
+             background: rgba(0, 0, 0, 0.3);
+             border-radius: 6px;
+             border: 1px solid #444;
+           }
+           
+           .transport-buttons {
+             display: flex;
+             align-items: center;
+             gap: 4px;
+           }
+           
+           .transport-btn {
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             width: 36px;
+             height: 36px;
+             background: #333;
+             border: 1px solid #555;
+             border-radius: 4px;
+             color: #fff;
+             cursor: pointer;
+             transition: all 0.2s ease;
+             font-size: 12px;
+           }
+           
+           .transport-btn:hover {
+             background: #444;
+             border-color: #666;
+             transform: translateY(-1px);
+           }
+           
+           .transport-btn:active {
+             transform: translateY(0);
+           }
+           
+           .play-btn {
+             background: #007acc;
+             border-color: #0099ff;
+             width: 44px;
+             height: 44px;
+           }
+           
+           .play-btn:hover {
+             background: #0099ff;
+             border-color: #00aaff;
+           }
+           
+           .play-btn.playing {
+             background: #ff6b35;
+             border-color: #ff8c42;
+           }
+           
+           .play-btn.playing:hover {
+             background: #ff8c42;
+             border-color: #ffa052;
+           }
+           
+           .time-display {
+             display: flex;
+             align-items: center;
+             gap: 8px;
+             font-family: 'Courier New', monospace;
+             font-size: 14px;
+             font-weight: 600;
+             color: #fff;
+             background: rgba(0, 0, 0, 0.5);
+             padding: 8px 12px;
+             border-radius: 4px;
+             border: 1px solid #555;
+             min-width: 120px;
+             justify-content: center;
+           }
+           
+           .current-time {
+             color: #00ff88;
+           }
+           
+           .time-separator {
+             color: #888;
+           }
+           
+           .total-time {
+             color: #ccc;
+           }
+           
+           .timeline-controls {
+             display: flex;
+             align-items: center;
+             gap: 16px;
+             padding: 12px;
+             background: rgba(0, 0, 0, 0.2);
+             border-radius: 6px;
+             border: 1px solid #444;
+           }
+           
+           .zoom-controls {
+             display: flex;
+             align-items: center;
+             gap: 8px;
+             background: rgba(0, 0, 0, 0.3);
+             padding: 6px 10px;
+             border-radius: 4px;
+             border: 1px solid #555;
+           }
+           
+           .zoom-btn {
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             width: 28px;
+             height: 28px;
+             background: #333;
+             border: 1px solid #555;
+             border-radius: 3px;
+             color: #fff;
+             cursor: pointer;
+             transition: all 0.2s ease;
+           }
+           
+           .zoom-btn:hover {
+             background: #444;
+             border-color: #666;
+           }
+           
+           .zoom-level {
+             color: #fff;
+             font-size: 12px;
+             font-weight: 600;
+             min-width: 30px;
+             text-align: center;
+           }
+           
+           .timeline-scrubber {
+             flex: 1;
+             display: flex;
+             align-items: center;
+           }
+           
+           .scrubber-slider {
+             width: 100%;
+             height: 6px;
+             background: #444;
+             border-radius: 3px;
+             outline: none;
+             cursor: pointer;
+             -webkit-appearance: none;
+             appearance: none;
+           }
+           
+           .scrubber-slider::-webkit-slider-thumb {
+             -webkit-appearance: none;
+             appearance: none;
+             width: 16px;
+             height: 16px;
+             background: #007acc;
+             border: 2px solid #fff;
+             border-radius: 50%;
+             cursor: pointer;
+             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+           }
+           
+           .scrubber-slider::-moz-range-thumb {
+             width: 16px;
+             height: 16px;
+             background: #007acc;
+             border: 2px solid #fff;
+             border-radius: 50%;
+             cursor: pointer;
+             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+           }
+           
+           .action-buttons {
+             display: flex;
+             align-items: center;
+             gap: 8px;
+           }
+           
+           .action-btn {
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             width: 32px;
+             height: 32px;
+             background: #333;
+             border: 1px solid #555;
+             border-radius: 4px;
+             color: #fff;
+             cursor: pointer;
+             transition: all 0.2s ease;
+           }
+           
+           .action-btn:hover {
+             background: #444;
+             border-color: #666;
+           }
+           
+           .clear-btn {
+             background: #d32f2f;
+             border-color: #f44336;
+           }
+           
+           .clear-btn:hover {
+             background: #f44336;
+             border-color: #ff5722;
+           }
+         `}
+       </style>
+             <div className="timeline-header">
+         <div className="timeline-title">
+           <h2>Timeline</h2>
+         </div>
+         
+         {/* Transport Controls */}
+         <div className="transport-controls">
+           <div className="transport-buttons">
+             <button 
+               onClick={() => setCurrentTime(0)}
+               className="transport-btn"
+               title="Go to Start"
+             >
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M8 5v14l11-7z"/>
+                 <path d="M6 5h2v14H6z"/>
+               </svg>
+             </button>
+             
+             <button 
+               onClick={() => {
+                 const newTime = Math.max(0, currentTime - 1);
+                 setCurrentTime(newTime);
+               }}
+               className="transport-btn"
+               title="Step Backward"
+             >
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+               </svg>
+             </button>
+             
+             <button 
+               onClick={handlePlayButtonClick}
+               className={`transport-btn play-btn ${isPlaying ? 'playing' : ''}`}
+               title={isPlaying ? 'Pause' : 'Play'}
+             >
+               {isPlaying ? (
+                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                   <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                 </svg>
+               ) : (
+                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                   <path d="M8 5v14l11-7z"/>
+                 </svg>
+               )}
+             </button>
+             
+             <button 
+               onClick={() => {
+                 const newTime = Math.min(duration, currentTime + 1);
+                 setCurrentTime(newTime);
+               }}
+               className="transport-btn"
+               title="Step Forward"
+             >
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M4 18l8.5-6L4 6v12zm10 0V6h2v12h-2z"/>
+               </svg>
+             </button>
+             
+             <button 
+               onClick={() => setCurrentTime(duration)}
+               className="transport-btn"
+               title="Go to End"
+             >
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M8 5v14l11-7z"/>
+                 <path d="M16 5h2v14h-2z"/>
+               </svg>
+             </button>
+           </div>
+           
+           {/* Time Display */}
+           <div className="time-display">
+             <span className="current-time">{formatTime(currentTime)}</span>
+             <span className="time-separator">/</span>
+             <span className="total-time">{formatTime(duration)}</span>
+           </div>
+         </div>
+         
+         {/* Timeline Controls */}
+         <div className="timeline-controls">
+           {/* Zoom Controls */}
+           <div className="zoom-controls">
+             <button 
+               onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
+               className="zoom-btn"
+               title="Zoom Out"
+             >
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M19 13H5v-2h14v2z"/>
+               </svg>
+             </button>
+             
+             <span className="zoom-level">{zoom.toFixed(1)}x</span>
+             
+             <button 
+               onClick={() => setZoom(Math.min(5, zoom + 0.1))}
+               className="zoom-btn"
+               title="Zoom In"
+             >
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+               </svg>
+             </button>
+           </div>
+           
+           {/* Timeline Scrubber */}
+           <div className="timeline-scrubber">
+             <input
+               type="range"
+               min="0"
+               max={duration}
+               value={currentTime}
+               onChange={(e) => {
+                 const newTime = parseFloat(e.target.value);
+                 setCurrentTime(newTime);
+               }}
+               className="scrubber-slider"
+               style={{ 
+                 background: `linear-gradient(to right, #007acc 0%, #007acc ${(currentTime / duration) * 100}%, #444 ${(currentTime / duration) * 100}%, #444 100%)`
+               }}
+             />
+           </div>
+           
+           {/* Action Buttons */}
+           <div className="action-buttons">
+             <button 
+               onClick={() => {
+                 const earliestTime = getEarliestClipTime();
+                 if (earliestTime > 0) {
+                   setCurrentTime(earliestTime);
+                 }
+               }}
+               className="action-btn"
+               title="Go to First Clip"
+             >
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+               </svg>
+             </button>
+             
+             <button 
+               onClick={() => {
+                 if (window.confirm(`Clear all timeline clips for the current scene?`)) {
+                   clearTimelineData();
+                   updateTracks([
+                     { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
+                     { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
+                     { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
+                   ]);
+                   setCurrentTime(0);
+                   setSelectedClip(null);
+                 }
+               }}
+               className="action-btn clear-btn"
+               title="Clear Timeline"
+             >
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                 <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+               </svg>
+             </button>
+           </div>
+         </div>
+       </div>
 
       <div className="timeline-content">
         {/* Waveform Display */}
