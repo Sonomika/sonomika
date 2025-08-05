@@ -929,11 +929,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     <div className="timeline-container">
       <style>
         {`
-          @keyframes pulse {
-            0% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.2); }
-            100% { transform: translate(-50%, -50%) scale(1); }
-          }
           
           .context-menu {
             position: fixed;
@@ -1456,26 +1451,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
           data-position={`${(currentTime / duration) * 100}%`}
         />
         
-        {/* Moving Dot Indicator */}
-        <div 
-          className="timeline-moving-dot"
-          style={{ 
-            position: 'absolute',
-            left: `${(currentTime / duration) * 100}%`,
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '12px',
-            height: '12px',
-            backgroundColor: isPlaying ? '#FF0000' : '#00FF00',
-            borderRadius: '50%',
-            border: '2px solid white',
-            boxShadow: '0 0 8px rgba(255, 0, 0, 0.8)',
-            zIndex: 1000,
-            transition: isPlaying ? 'none' : 'left 0.1s ease',
-            animation: isPlaying ? 'pulse 0.5s infinite' : 'none'
-          }}
-          title={`Moving Dot - Time: ${formatTime(currentTime)} - Playing: ${isPlaying}`}
-        />
+
 
       </div>
 

@@ -5961,25 +5961,25 @@ body {
 .timeline-playhead {
   position: absolute;
   top: 0;
-  bottom: 0;
-  width: 3px;
-  background: #ff0000;
+  height: calc(100% - 60px); /* Stop before audio track area */
+  width: 2px;
+  background: linear-gradient(to bottom, #ff0000 0%, #ff4444 50%, #ff0000 100%);
   z-index: 1000;
   pointer-events: none;
-  box-shadow: 0 0 6px rgba(255, 0, 0, 0.8);
+  box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
 }
 
 .timeline-playhead::after {
   content: '';
   position: absolute;
   top: 0;
-  left: -5px;
+  left: -4px;
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 10px solid #ff0000;
-  filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.8));
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid #ff0000;
+  filter: drop-shadow(0 0 3px rgba(255, 0, 0, 0.6));
 }
 
 .timeline-panels {
