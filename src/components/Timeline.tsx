@@ -173,13 +173,60 @@ interface TimelineClip {
 
 export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) => {
   const { bpm, setBpm } = useStore() as any;
-  const [tracks, setTracks] = useState<TimelineTrack[]>([
-    { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
-    { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
-    { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
-  ]);
+  
+  // Load saved timeline data from localStorage
+  const loadTimelineData = (): TimelineTrack[] => {
+    try {
+      const savedData = localStorage.getItem('timeline-tracks');
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        console.log('Loaded timeline data from localStorage:', parsedData);
+        return parsedData;
+      }
+    } catch (error) {
+      console.error('Error loading timeline data:', error);
+    }
+    
+    // Default tracks if no saved data
+    return [
+      { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
+      { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
+      { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
+    ];
+  };
+
+  const [tracks, setTracks] = useState<TimelineTrack[]>(loadTimelineData);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(60); // 60 seconds default
+  
+  // Save timeline data to localStorage
+  const saveTimelineData = (tracksData: TimelineTrack[]) => {
+    try {
+      localStorage.setItem('timeline-tracks', JSON.stringify(tracksData));
+      console.log('Saved timeline data to localStorage:', tracksData);
+    } catch (error) {
+      console.error('Error saving timeline data:', error);
+    }
+  };
+
+  // Clear timeline data from localStorage
+  const clearTimelineData = () => {
+    try {
+      localStorage.removeItem('timeline-tracks');
+      console.log('Cleared timeline data from localStorage');
+    } catch (error) {
+      console.error('Error clearing timeline data:', error);
+    }
+  };
+
+  // Custom setTracks function that also saves to localStorage
+  const updateTracks = (newTracks: TimelineTrack[] | ((prev: TimelineTrack[]) => TimelineTrack[])) => {
+    setTracks(prevTracks => {
+      const updatedTracks = typeof newTracks === 'function' ? newTracks(prevTracks) : newTracks;
+      saveTimelineData(updatedTracks);
+      return updatedTracks;
+    });
+  };
   
   // Calculate the earliest clip start time to sync playhead
   const getEarliestClipTime = () => {
@@ -494,7 +541,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
               : t
           );
           
-          setTracks(updatedTracks);
+          updateTracks(updatedTracks);
           console.log('Successfully added clip to timeline:', newClip);
         }
       } catch (error) {
@@ -555,7 +602,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
             : t
         );
         
-        setTracks(updatedTracks);
+        updateTracks(updatedTracks);
         setDraggedAsset(null);
       }
     }
@@ -759,7 +806,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
 
   const handleDeleteClip = () => {
     if (contextMenu.clipId && contextMenu.trackId) {
-      setTracks(prevTracks => 
+      updateTracks(prevTracks => 
         prevTracks.map(track => {
           if (track.id === contextMenu.trackId) {
             return {
@@ -958,6 +1005,33 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
             className="zoom-slider"
           />
           <span>Zoom: {zoom}x</span>
+          <button 
+            onClick={() => {
+              if (window.confirm('Are you sure you want to clear all timeline clips? This cannot be undone.')) {
+                clearTimelineData();
+                updateTracks([
+                  { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
+                  { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
+                  { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
+                ]);
+                setCurrentTime(0);
+                setSelectedClip(null);
+                console.log('Timeline cleared');
+              }
+            }}
+            title="Clear all timeline clips"
+            style={{ 
+              backgroundColor: '#ff4444', 
+              color: 'white', 
+              border: 'none', 
+              padding: '4px 8px', 
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            🗑️ Clear
+          </button>
         </div>
       </div>
 
@@ -1067,27 +1141,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
           }}
           title={`Moving Dot - Time: ${formatTime(currentTime)} - Playing: ${isPlaying}`}
         />
-        {/* Debug info */}
-        {process.env.NODE_ENV === 'development' && (
-          <div style={{ 
-            position: 'absolute', 
-            top: '10px', 
-            right: '10px', 
-            background: 'rgba(0,0,0,0.8)', 
-            color: 'white', 
-            padding: '5px', 
-            fontSize: '12px',
-            zIndex: 1001
-          }}>
-            Time: {currentTime.toFixed(2)}s<br/>
-            Duration: {duration}s<br/>
-            Position: {((currentTime / duration) * 100).toFixed(1)}%<br/>
-            Playing: {isPlaying ? 'Yes' : 'No'}<br/>
-            Interval: {playbackInterval ? 'Active' : 'None'}<br/>
-            Counter: {intervalCounter}<br/>
-            Audio: {wavesurferRef.current ? 'Ready' : 'None'}
-          </div>
-        )}
+
       </div>
 
       {/* Context Menu */}
