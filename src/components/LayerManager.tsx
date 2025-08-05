@@ -1010,32 +1010,29 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 </div>
               </div>
             ) : (
-                              <div className="timeline-composition-preview">
-                  {/* Use TimelineComposer for timeline preview with effect support */}
-                  <div 
-                    className="timeline-preview-canvas"
-                    data-aspect-ratio={`${compositionSettings.width}:${compositionSettings.height}`}
-                    style={{ aspectRatio: compositionSettings.width / compositionSettings.height }}
-                  >
-                    <TimelineComposer
-                      activeClips={activeClips}
-                      isPlaying={isPlaying}
-                      currentTime={previewContent.currentTime}
-                      width={compositionSettings.width}
-                      height={compositionSettings.height}
-                      bpm={bpm}
-                      globalEffects={[]} // Add global effects support here if needed
-                    />
-                  </div>
+              <div className="preview-column">
+                <div 
+                  className="preview-main-content"
+                  data-aspect-ratio={`${compositionSettings.width}:${compositionSettings.height}`}
+                  style={{ aspectRatio: compositionSettings.width / compositionSettings.height }}
+                >
+                  <TimelineComposer
+                    activeClips={activeClips}
+                    isPlaying={isPlaying}
+                    currentTime={previewContent.currentTime}
+                    width={compositionSettings.width}
+                    height={compositionSettings.height}
+                    bpm={bpm}
+                    globalEffects={[]} // Add global effects support here if needed
+                  />
+                </div>
                 
-                {/* Track info overlay */}
-                <div className="track-info-overlay">
-                  <div className="track-info-header">Active Tracks:</div>
+                <div className="preview-layers-info">
+                  <h5>Active Timeline Clips:</h5>
                   {activeClips.map((clip: any, index: number) => (
-                    <div key={`info-${clip.id}-${index}`} className="track-info-item">
-                      <span className="track-name">Track {clip.trackId.split('-')[1]}</span>
-                      <span className="clip-name">{clip.name}</span>
-                      <span className="clip-time">{Math.floor(clip.relativeTime)}s</span>
+                    <div key={`info-${clip.id}-${index}`} className="preview-layer-item">
+                      <div className="preview-layer-name">Track {clip.trackId.split('-')[1]}</div>
+                      <div className="preview-layer-asset-type">{clip.name}</div>
                     </div>
                   ))}
                 </div>
