@@ -1,0 +1,750 @@
+import React, { Suspense, useEffect, useState, useRef } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+
+// Lazy load effects (same as ColumnPreview)
+const GlobalStrobeEffect = React.lazy(() => import('../effects/GlobalStrobeEffect.tsx'));
+const GlobalDatamoshEffect = React.lazy(() => import('../effects/GlobalDatamoshEffect.tsx'));
+const GlobalVideoWaveSliceEffect = React.lazy(() => import('../effects/GlobalVideoWaveSliceEffect.tsx'));
+const FilmNoiseEffectR3F = React.lazy(() => import('../effects/FilmNoiseEffectR3F.tsx'));
+const FilmFlickerEffectR3F = React.lazy(() => import('../effects/FilmFlickerEffectR3F.tsx'));
+const LightLeakEffectR3F = React.lazy(() => import('../effects/LightLeakEffectR3F.tsx'));
+const BPMParticleEffect = React.lazy(() => import('../effects/BPMParticleEffect.tsx'));
+const CirclePulseEffect = React.lazy(() => import('../effects/CirclePulseEffect.tsx'));
+const SquarePulseEffect = React.lazy(() => import('../effects/SquarePulseEffect.tsx'));
+const WaveEffect = React.lazy(() => import('../effects/WaveEffect.tsx'));
+const GeometricPatternEffect = React.lazy(() => import('../effects/GeometricPatternEffect.tsx'));
+const AudioReactiveEffect = React.lazy(() => import('../effects/AudioReactiveEffect.tsx'));
+const ColorPulseEffect = React.lazy(() => import('../effects/ColorPulseEffect.tsx'));
+const R3FColorPulse = React.lazy(() => import('../effects/R3FColorPulse.tsx').then(module => ({ default: module.R3FColorPulseComponent })));
+const ParticleEffect = React.lazy(() => import('../effects/ParticleEffect.tsx'));
+const KaleidoscopeEffect = React.lazy(() => import('../effects/KaleidoscopeEffect.tsx'));
+
+interface TimelineComposerProps {
+  activeClips: any[];
+  isPlaying: boolean;
+  currentTime: number;
+  width: number;
+  height: number;
+  bpm?: number;
+  globalEffects?: any[];
+}
+
+// Video texture component for R3F (same as ColumnPreview)
+const VideoTexture: React.FC<{ 
+  video: HTMLVideoElement; 
+  opacity: number; 
+  blendMode: string;
+  effects?: any;
+  compositionWidth?: number;
+  compositionHeight?: number;
+}> = ({ video, opacity, blendMode, effects, compositionWidth, compositionHeight }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+  
+  // Use composition settings for aspect ratio instead of video's natural ratio
+  const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
+  
+  // Calculate video's natural aspect ratio for proper scaling
+  const [videoAspectRatio, setVideoAspectRatio] = useState(16/9);
+  
+  useEffect(() => {
+    if (video && video.videoWidth && video.videoHeight) {
+      const naturalRatio = video.videoWidth / video.videoHeight;
+      setVideoAspectRatio(naturalRatio);
+    }
+  }, [video]);
+
+  useEffect(() => {
+    if (video) {
+      console.log('Creating video texture for:', video.src);
+      const videoTexture = new THREE.VideoTexture(video);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      videoTexture.format = THREE.RGBAFormat;
+      videoTexture.generateMipmaps = false;
+      setTexture(videoTexture);
+    }
+  }, [video]);
+
+  useFrame(() => {
+    if (texture && video.readyState >= 2) {
+      texture.needsUpdate = true;
+    }
+  });
+
+  if (!texture || video.readyState < 2) {
+    console.log('Video not ready, readyState:', video.readyState);
+    return null;
+  }
+
+  // Check if kaleidoscope effect is applied
+  const hasKaleidoscopeEffect = effects?.some((effect: any) => 
+    effect.id === 'kaleidoscope' || effect.name === 'Kaleidoscope Effect'
+  );
+
+  // Check if film effects are applied
+  const hasFilmEffects = effects?.some((effect: any) => 
+    effect.id?.includes('film-') || effect.name?.includes('Film')
+  );
+
+  if (hasKaleidoscopeEffect) {
+    // Import and render KaleidoscopeEffect
+    return (
+      <Suspense fallback={
+        <mesh>
+          <planeGeometry args={[aspectRatio * 2, 2]} />
+          <meshBasicMaterial color={0xff0000} />
+        </mesh>
+      }>
+        <KaleidoscopeEffect videoTexture={texture} />
+      </Suspense>
+    );
+  }
+
+  if (hasFilmEffects) {
+    // Import and render FilmEffectsR3F
+    const FilmEffectsR3F = React.lazy(() => import('../effects/FilmEffectsR3F'));
+    return (
+      <Suspense fallback={
+        <mesh>
+          <planeGeometry args={[aspectRatio * 2, 2]} />
+          <meshBasicMaterial color={0xff0000} />
+        </mesh>
+      }>
+        <FilmEffectsR3F
+          noiseEnabled={effects?.some((e: any) => e.id === 'film-noise-r3f')}
+          flickerEnabled={effects?.some((e: any) => e.id === 'film-flicker-r3f')}
+          lightLeakEnabled={effects?.some((e: any) => e.id === 'light-leak-r3f')}
+        />
+      </Suspense>
+    );
+  }
+
+  // For square preview (1080x1080), use square geometry and scale video to cover
+  const compositionAspectRatio = aspectRatio;
+  const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
+  const scaleY = Math.max(videoAspectRatio / compositionAspectRatio, 1);
+  const finalScaleX = compositionAspectRatio * 2 * scaleX;
+  const finalScaleY = 2 * scaleY;
+  
+  return (
+    <mesh ref={meshRef}>
+      <planeGeometry args={[finalScaleX, finalScaleY]} />
+      <meshBasicMaterial 
+        map={texture} 
+        transparent 
+        opacity={opacity}
+        blending={getBlendMode(blendMode)}
+        side={THREE.DoubleSide}
+        alphaTest={0.1}
+      />
+    </mesh>
+  );
+};
+
+// Helper function to convert blend modes
+const getBlendMode = (blendMode: string): THREE.Blending => {
+  switch (blendMode) {
+    case 'add':
+      return THREE.AdditiveBlending;
+    case 'multiply':
+      return THREE.MultiplyBlending;
+    case 'screen':
+      return THREE.CustomBlending;
+    case 'overlay':
+      return THREE.CustomBlending;
+    default:
+      return THREE.AdditiveBlending;
+  }
+};
+
+// Timeline Scene Component with effect support
+const TimelineScene: React.FC<{
+  activeClips: any[];
+  isPlaying: boolean;
+  currentTime: number;
+  bpm?: number;
+  globalEffects?: any[];
+  compositionWidth?: number;
+  compositionHeight?: number;
+}> = ({ activeClips, isPlaying, currentTime, bpm = 120, globalEffects = [], compositionWidth, compositionHeight }) => {
+  const { camera } = useThree();
+  const [assets, setAssets] = useState<{
+    images: Map<string, HTMLImageElement>;
+    videos: Map<string, HTMLVideoElement>;
+  }>({ images: new Map(), videos: new Map() });
+  
+  const loadedAssetsRef = useRef<{
+    images: Map<string, HTMLImageElement>;
+    videos: Map<string, HTMLVideoElement>;
+  }>({ images: new Map(), videos: new Map() });
+
+  console.log('TimelineScene rendering with:', { activeClips, isPlaying, currentTime, assetsCount: assets.images.size + assets.videos.size });
+
+  // Load assets with caching
+  useEffect(() => {
+    const loadAssets = async () => {
+      const newImages = new Map<string, HTMLImageElement>();
+      const newVideos = new Map<string, HTMLVideoElement>();
+        
+      for (const clip of activeClips) {
+        if (!clip.asset) continue;
+
+        const asset = clip.asset;
+        
+        // Check if asset is already loaded
+        if (loadedAssetsRef.current.images.has(asset.id)) {
+          newImages.set(asset.id, loadedAssetsRef.current.images.get(asset.id)!);
+          continue;
+        }
+        if (loadedAssetsRef.current.videos.has(asset.id)) {
+          newVideos.set(asset.id, loadedAssetsRef.current.videos.get(asset.id)!);
+          continue;
+        }
+
+        if (asset.type === 'image') {
+          try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = asset.path;
+            });
+            newImages.set(asset.id, img);
+            console.log(`✅ Image loaded for clip ${clip.name}:`, asset.name);
+          } catch (error) {
+            console.error(`❌ Failed to load image for clip ${clip.name}:`, error);
+          }
+        } else if (asset.type === 'video') {
+          try {
+            const video = document.createElement('video');
+            const assetPath = getAssetPath(asset);
+            console.log('Loading video with path:', assetPath, 'for asset:', asset.name);
+            video.src = assetPath;
+            video.muted = true;
+            video.loop = true;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.style.backgroundColor = 'transparent';
+            
+            await new Promise<void>((resolve, reject) => {
+              video.addEventListener('loadeddata', () => {
+                console.log('Video loaded successfully:', asset.name);
+                resolve();
+              });
+              video.addEventListener('error', reject);
+              video.load();
+            });
+            
+            newVideos.set(asset.id, video);
+            console.log(`✅ Video loaded for clip ${clip.name}:`, asset.name);
+          } catch (error) {
+            console.error(`❌ Failed to load video for clip ${clip.name}:`, error);
+          }
+        }
+      }
+
+      // Store in ref for future use
+      loadedAssetsRef.current = { images: newImages, videos: newVideos };
+      setAssets({ images: newImages, videos: newVideos });
+    };
+
+    loadAssets();
+  }, [activeClips]);
+
+  // Handle play/pause
+  useEffect(() => {
+    assets.videos.forEach(video => {
+      if (isPlaying) {
+        video.play().catch(console.warn);
+      } else {
+        video.pause();
+      }
+    });
+  }, [isPlaying, assets.videos]);
+
+  // Set up camera
+  useEffect(() => {
+    camera.position.z = 1;
+    if ('fov' in camera) {
+      (camera as THREE.PerspectiveCamera).fov = 90;
+      camera.updateProjectionMatrix();
+    }
+    camera.lookAt(0, 0, 0);
+  }, [camera]);
+
+  // Helper function to get proper file path for Electron
+  const getAssetPath = (asset: any) => {
+    if (!asset) return '';
+    console.log('getAssetPath called with asset:', asset);
+    if (asset.path && asset.path.startsWith('blob:')) {
+      console.log('Using blob URL:', asset.path);
+      return asset.path;
+    }
+    if (asset.filePath) {
+      const filePath = `file://${asset.filePath}`;
+      console.log('Using file protocol:', filePath);
+      return filePath;
+    }
+    if (asset.path && asset.path.startsWith('file://')) {
+      console.log('Using existing file URL:', asset.path);
+      return asset.path;
+    }
+    if (asset.path && asset.path.startsWith('local-file://')) {
+      const filePath = asset.path.replace('local-file://', '');
+      const standardPath = `file://${filePath}`;
+      console.log('Converting local-file to file:', standardPath);
+      return standardPath;
+    }
+    if (asset.path && asset.path.startsWith('data:')) {
+      console.log('Using data URL:', asset.path);
+      return asset.path;
+    }
+    console.log('Using fallback path:', asset.path);
+    return asset.path || '';
+  };
+
+  // Unified effect rendering system (same as ColumnPreview)
+  const renderEffect = (effectId: string, effectName: string, params: any = {}, isGlobal: boolean = false) => {
+    const effectKey = isGlobal ? `global-${effectId}` : `layer-${effectId}`;
+    const effectParams = params || {};
+    
+    console.log(`🎨 Rendering ${isGlobal ? 'global' : 'layer'} effect:`, effectId, effectName, effectParams);
+    
+    // All effects use the same R3F rendering pipeline
+    switch (effectId) {
+      case 'strobe-effect':
+      case 'global-strobe-r3f':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <GlobalStrobeEffect 
+              intensity={effectParams.intensity?.value || 0.8}
+              speed={effectParams.speed?.value || 1}
+              color={effectParams.color?.value || "#ffffff"}
+              frequency={effectParams.frequency?.value || 24}
+            />
+          </Suspense>
+        );
+        
+      case 'bpm-particle-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0x00ffff} />
+            </mesh>
+          }>
+            <BPMParticleEffect 
+              count={effectParams.count?.value || 1000}
+              speed={effectParams.speed?.value || 0.5}
+              size={effectParams.size?.value || 0.02}
+              color={effectParams.color?.value || "#ffffff"}
+              spread={effectParams.spread?.value || 10}
+              pulseIntensity={effectParams.pulseIntensity?.value || 0.5}
+            />
+          </Suspense>
+        );
+        
+      case 'film-noise-r3f':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <FilmNoiseEffectR3F 
+              intensity={effectParams.intensity?.value || 0.5}
+              color={effectParams.color?.value || '#ffffff'}
+              opacity={effectParams.opacity?.value || 0.4}
+            />
+          </Suspense>
+        );
+        
+      case 'film-flicker-r3f':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <FilmFlickerEffectR3F 
+              intensity={effectParams.intensity?.value || 0.2}
+              speed={effectParams.speed?.value || 1}
+              color={effectParams.color?.value || '#ffffff'}
+            />
+          </Suspense>
+        );
+        
+      case 'light-leak-r3f':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xff6b35} />
+            </mesh>
+          }>
+            <LightLeakEffectR3F 
+              intensity={effectParams.intensity?.value || 0.3}
+              color={effectParams.color?.value || '#ff6b35'}
+              position={effectParams.position?.value || 'right'}
+              speed={effectParams.speed?.value || 0.5}
+            />
+          </Suspense>
+        );
+        
+      case 'global-datamosh':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <GlobalDatamoshEffect bpm={bpm} />
+          </Suspense>
+        );
+        
+      case 'video-wave-slice':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <GlobalVideoWaveSliceEffect bpm={bpm} />
+          </Suspense>
+        );
+        
+      case 'circle-pulse-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0x0000ff} />
+            </mesh>
+          }>
+            <CirclePulseEffect 
+              size={effectParams.size?.value || 0.8}
+              speed={effectParams.speed?.value || 1.0}
+              color={effectParams.color?.value || "blue"}
+              bpm={bpm}
+            />
+          </Suspense>
+        );
+        
+      case 'square-pulse-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xff0000} />
+            </mesh>
+          }>
+            <SquarePulseEffect 
+              size={effectParams.size?.value || 0.8}
+              speed={effectParams.speed?.value || 1.0}
+              color={effectParams.color?.value || "red"}
+              bpm={bpm}
+            />
+          </Suspense>
+        );
+        
+      case 'wave-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0x00ffff} />
+            </mesh>
+          }>
+            <WaveEffect 
+              amplitude={effectParams.amplitude?.value || 0.5}
+              frequency={effectParams.frequency?.value || 2.0}
+              speed={effectParams.speed?.value || 1.0}
+              color={effectParams.color?.value || "cyan"}
+              bpm={bpm}
+            />
+          </Suspense>
+        );
+        
+      case 'geometric-pattern-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xff00ff} />
+            </mesh>
+          }>
+            <GeometricPatternEffect 
+              pattern={effectParams.pattern?.value || "spiral"}
+              speed={effectParams.speed?.value || 1.0}
+              color={effectParams.color?.value || "magenta"}
+              bpm={bpm}
+              complexity={effectParams.complexity?.value || 5}
+            />
+          </Suspense>
+        );
+        
+      case 'audio-reactive-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xff8800} />
+            </mesh>
+          }>
+            <AudioReactiveEffect 
+              sensitivity={effectParams.sensitivity?.value || 0.5}
+              frequency={effectParams.frequency?.value || 440}
+              color={effectParams.color?.value || "orange"}
+              bpm={bpm}
+              mode={effectParams.mode?.value || "bars"}
+            />
+          </Suspense>
+        );
+        
+      case 'color-pulse-effect':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffff00} />
+            </mesh>
+          }>
+            <ColorPulseEffect 
+              intensity={effectParams.intensity?.value || 0.5}
+              colorSpeed={effectParams.colorSpeed?.value || 0.1}
+              autoColor={effectParams.autoColor?.value || true}
+              bpm={bpm}
+              mode={effectParams.mode?.value || "gradient"}
+            />
+          </Suspense>
+        );
+        
+      case 'particle-effect':
+      case 'r3f-particle-system':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0x00ff00} />
+            </mesh>
+          }>
+            <ParticleEffect 
+              count={effectParams.count?.value || 1500}
+              speed={effectParams.speed?.value || 0.8}
+              size={effectParams.size?.value || 0.03}
+              spread={effectParams.spread?.value || 10}
+            />
+          </Suspense>
+        );
+        
+      case 'kaleidoscope':
+        return (
+          <Suspense key={effectKey} fallback={
+            <mesh>
+              <planeGeometry args={[4, 4]} />
+              <meshBasicMaterial color={0xffffff} />
+            </mesh>
+          }>
+            <KaleidoscopeEffect 
+              videoTexture={null} // Kaleidoscope needs video texture, not standalone
+            />
+          </Suspense>
+        );
+        
+      case 'r3f-color-pulse':
+        // R3FColorPulse has a different interface, skip for now
+        console.log('🎨 R3FColorPulse not implemented as standalone effect');
+        return null;
+        
+      default:
+        console.log(`🎨 Unknown effect: ${effectId} - ${effectName}`);
+        return null;
+    }
+  };
+
+  return (
+    <>
+      {/* Background */}
+      <color attach="background" args={[0, 0, 0]} />
+      
+      {/* Render all layers using unified system */}
+      {(() => {
+        // Find all video layers and effect layers
+        const videoLayers = activeClips.filter(clip => 
+          clip.asset && clip.asset.type === 'video'
+        );
+        const effectLayers = activeClips.filter(clip => 
+          clip.asset && (
+            clip.asset.type === 'p5js' || 
+            clip.asset.type === 'effect' || 
+            clip.asset.type === 'threejs' ||
+            clip.asset.isEffect
+          )
+        );
+
+        console.log('Timeline video layers:', videoLayers.map(l => l.name));
+        console.log('Timeline effect layers:', effectLayers.map(l => l.name));
+        console.log('Timeline all clips:', activeClips.map(l => ({ name: l.name, asset: l.asset?.name, type: l.asset?.type })));
+
+        const renderedElements: React.ReactElement[] = [];
+
+        // First, render video layers
+        videoLayers.forEach((videoClip, index) => {
+          const video = assets.videos.get(videoClip.asset.id);
+          if (!video) return;
+
+          const key = `video-${videoClip.id}-${index}`;
+
+          // Check if there's a kaleidoscope effect layer that should be applied to this video
+          const kaleidoscopeEffectLayer = effectLayers.find(effectLayer => {
+            const effectAsset = effectLayer.asset;
+            return effectAsset && (
+              effectAsset.id === 'kaleidoscope' || 
+              effectAsset.name === 'Kaleidoscope Effect' ||
+              effectAsset.name === 'Kaleidoscope'
+            );
+          });
+
+          console.log('Timeline video layer:', videoClip.name, 'has kaleidoscope effect:', !!kaleidoscopeEffectLayer);
+
+          if (kaleidoscopeEffectLayer) {
+            // Apply kaleidoscope effect to the video
+            renderedElements.push(
+              <Suspense key={key} fallback={
+                <mesh>
+                  <planeGeometry args={[2, 2]} />
+                  <meshBasicMaterial color={0xff0000} />
+                </mesh>
+              }>
+                <KaleidoscopeEffect videoTexture={new THREE.VideoTexture(video)} />
+              </Suspense>
+            );
+          } else {
+            // Render normal video
+            renderedElements.push(
+              <VideoTexture
+                key={key}
+                video={video}
+                opacity={videoClip.opacity || 1}
+                blendMode={videoClip.blendMode || 'add'}
+                effects={videoClip.effects}
+                compositionWidth={compositionWidth}
+                compositionHeight={compositionHeight}
+              />
+            );
+          }
+        });
+
+        // Then, render standalone effects using unified system
+        effectLayers.forEach((effectLayer, index) => {
+          const effectAsset = effectLayer.asset;
+          if (!effectAsset) return;
+
+          console.log('🎨 Processing timeline effect layer:', effectAsset.id, effectAsset.name, 'type:', effectAsset.type);
+          
+          // Use unified effect renderer for all effects
+          const renderedEffect = renderEffect(
+            effectAsset.id, 
+            effectAsset.name, 
+            effectLayer.params, 
+            false // isGlobal = false for layer effects
+          );
+          
+          if (renderedEffect) {
+            renderedElements.push(renderedEffect);
+            console.log('🎨 Added timeline effect to rendered elements:', effectAsset.id);
+          }
+        });
+
+        // Apply global effects using unified system
+        const activeGlobalEffect = globalEffects.find((effect: any) => effect.enabled);
+        
+        if (activeGlobalEffect) {
+          console.log('🌐 Applying timeline global effect:', activeGlobalEffect.effectId);
+          
+          // Use unified effect renderer for global effects
+          const renderedGlobalEffect = renderEffect(
+            activeGlobalEffect.effectId,
+            activeGlobalEffect.effectId, // Use effectId as name for globals
+            activeGlobalEffect.params,
+            true // isGlobal = true for global effects
+          );
+          
+          if (renderedGlobalEffect) {
+            renderedElements.push(renderedGlobalEffect);
+            console.log('🌐 Added timeline global effect to rendered elements:', activeGlobalEffect.effectId);
+          }
+        }
+
+        return renderedElements;
+      })()}
+    </>
+  );
+};
+
+// Main TimelineComposer Component
+const TimelineComposer: React.FC<TimelineComposerProps> = ({
+  activeClips,
+  isPlaying,
+  currentTime,
+  width,
+  height,
+  bpm = 120,
+  globalEffects = []
+}) => {
+  return (
+    <div className="timeline-composer" style={{ width: '100%', height: '100%' }}>
+      <Canvas
+        camera={{ position: [0, 0, 1], fov: 90 }}
+        style={{ 
+          width: '100%', 
+          height: '100%',
+          display: 'block'
+        }}
+        gl={{ 
+          preserveDrawingBuffer: true,
+          antialias: true,
+          powerPreference: 'high-performance'
+        }}
+        onCreated={({ gl, camera }) => {
+          console.log('Timeline R3F Canvas created successfully');
+          gl.setClearColor(0x000000, 1);
+        }}
+        onError={(error) => {
+          console.error('Timeline R3F Canvas error:', error);
+        }}
+      >
+        <Suspense fallback={
+          <mesh>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshBasicMaterial color="#888888" />
+          </mesh>
+        }>
+          <TimelineScene
+            activeClips={activeClips}
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            bpm={bpm}
+            globalEffects={globalEffects}
+            compositionWidth={width}
+            compositionHeight={height}
+          />
+        </Suspense>
+      </Canvas>
+    </div>
+  );
+};
+
+export default TimelineComposer; 
