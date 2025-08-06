@@ -12,6 +12,10 @@ import { Timeline } from './Timeline';
 import TimelineComposer from './TimelineComposer';
 import { BPMManager } from '../engine/BPMManager';
 import { v4 as uuidv4 } from 'uuid';
+import { getAssetPath, getLayerTypeName, getTrackColor, createLayer, createColumn, getDefaultEffectParams, handleResizeStart, handleResizeMove, handleResizeEnd, handleDragOver, handleDragLeave, handleLayerClick, handleColumnClick, handleLayerPlay, handleStop, handleDragEnd } from '../utils/LayerManagerUtils';
+import { handleDrop, handleLayerDragStart, handleRemoveZoneDragOver, handleRemoveZoneDrop, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
+import { handleColumnPlay, handleClearLayers, handleForceClear, handleRemoveAsset, handleUpdateLayer } from '../utils/LayerManagementHandlers';
+import { createSceneContextMenu } from '../utils/SceneManagementHandlers';
 
 
 
@@ -68,271 +72,47 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);
   console.log('🎭 Preview state - previewContent:', previewContent, 'isPlaying:', isPlaying);
 
-  // Helper function to get proper file path for Electron
-  const getAssetPath = (asset: any) => {
-    if (!asset) return '';
-    console.log('getAssetPath called with asset:', asset);
-    if (asset.path && asset.path.startsWith('blob:')) {
-      console.log('Using blob URL:', asset.path);
-      return asset.path;
-    }
-    if (asset.filePath) {
-      const filePath = `file://${asset.filePath}`;
-      console.log('Using file protocol:', filePath);
-      return filePath;
-    }
-    if (asset.path && asset.path.startsWith('file://')) {
-      console.log('Using existing file URL:', asset.path);
-      return asset.path;
-    }
-    if (asset.path && asset.path.startsWith('local-file://')) {
-      const filePath = asset.path.replace('local-file://', '');
-      const standardPath = `file://${filePath}`;
-      console.log('Converting local-file to file:', standardPath);
-      return standardPath;
-    }
-    if (asset.path && asset.path.startsWith('data:')) {
-      console.log('Using data URL:', asset.path);
-      return asset.path;
-    }
-    console.log('Using fallback path:', asset.path);
-    return asset.path || '';
-  };
+
 
   const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
   console.log('Current scene:', currentScene);
 
-  const handleLayerClick = (layer: any, columnId: string) => {
-    setSelectedLayer(layer);
-    setSelectedColumn(columnId);
+  const handleLayerClickWrapper = (layer: any, columnId: string) => {
+    handleLayerClick(layer, columnId, setSelectedLayer, setSelectedColumn);
   };
 
-  const handleColumnClick = (columnId: string) => {
-    setSelectedColumn(columnId);
+  const handleColumnClickWrapper = (columnId: string) => {
+    handleColumnClick(columnId, setSelectedColumn);
   };
 
   // Handle column play button
-  const handleColumnPlay = (columnId: string) => {
-    console.log('🎵 handleColumnPlay called with columnId:', columnId);
-    const column = currentScene?.columns.find((col: any) => col.id === columnId);
-    console.log('🎵 Found column:', column);
-    
-    if (column) {
-      const layersWithContent = column.layers.filter((layer: any) => layer.asset);
-      console.log('🎵 Column layers with content:', layersWithContent);
-      console.log('🎵 Total layers in column:', column.layers.length);
-      
-      if (layersWithContent.length === 0) {
-        console.log('❌ No layers with content in column:', columnId);
-        // Show a helpful message in the preview
-        setPreviewContent({
-          type: 'column',
-          columnId: columnId,
-          column: column,
-          layers: column.layers || [],
-          isEmpty: true
-        });
-        setIsPlaying(false); // Don't start playing if no content
-        return;
-      }
-      
-      // Switch to the new column immediately
-      console.log('▶️ Switching to column:', columnId);
-      try {
-        playColumn(columnId);
-      } catch (error) {
-        console.warn('Failed to play column, clearing storage:', error);
-        clearStorage();
-      }
-      
-      // Update preview content immediately without causing flash
-      const newPreviewContent = {
-        type: 'column',
-        columnId: columnId,
-        column: column,
-        layers: column.layers || []
-      };
-      
-      console.log('🎵 Setting preview content for column:', columnId);
-      console.log('🎵 Preview content will be:', newPreviewContent);
-      
-      // Batch state updates to prevent flash
-      React.startTransition(() => {
-        setPreviewContent(newPreviewContent);
-        setIsPlaying(true);
-      });
-      console.log('✅ Playing column:', columnId, column);
-    } else {
-      console.error('❌ Column not found:', columnId);
-    }
+  const handleColumnPlayWrapper = (columnId: string) => {
+    handleColumnPlay(columnId, currentScene, setPreviewContent, setIsPlaying, playColumn);
   };
 
-  const handleLayerPlay = (layerId: string) => {
-    const layer = currentScene?.columns
-      .flatMap((col: any) => col.layers)
-      .find((layer: any) => layer.id === layerId);
-    
-    if (layer && layer.asset) {
-      console.log('Playing layer:', layerId, layer.asset);
-      setPreviewContent({
-        type: 'layer',
-        layerId: layerId,
-        layer: layer,
-        asset: layer.asset
-      });
-      setIsPlaying(true);
-    }
+  const handleLayerPlayWrapper = (layerId: string) => {
+    handleLayerPlay(layerId, currentScene, setPreviewContent, setIsPlaying);
   };
 
   // Handle stop button
-  const handleStop = () => {
-    console.log('🛑 handleStop called');
-    setIsPlaying(false);
-    setPreviewContent(null);
-    try {
-      stopColumn(); // Stop the currently playing column
-    } catch (error) {
-      console.warn('Failed to stop column, clearing storage:', error);
-      clearStorage();
-    }
+  const handleStopWrapper = () => {
+    handleStop(setIsPlaying, setPreviewContent, stopColumn, clearStorage);
   };
 
-  const handleClearLayers = () => {
-    if (currentScene) {
-      const confirmed = window.confirm('Are you sure you want to clear all layers? This will remove all assets from all layers.');
-      if (confirmed) {
-        console.log('Starting clear layers process for scene:', currentScene.id);
-        console.log('Current scene columns:', currentScene.columns.length);
-        
-        // Create a deep copy of the current scene
-        const updatedScene = JSON.parse(JSON.stringify(currentScene));
-        
-        // Clear all assets from all layers and remove empty layers
-        let clearedCount = 0;
-        updatedScene.columns.forEach((column: any, columnIndex: number) => {
-          console.log(`Processing column ${columnIndex + 1}:`, column.id);
-          if (column.layers) {
-            // Filter out layers that have no assets
-            column.layers = column.layers.filter((layer: any) => {
-              if (layer.asset) {
-                console.log(`Clearing asset from layer:`, layer.asset.name);
-                clearedCount++;
-                return false; // Remove layers with assets
-              }
-              return false; // Remove all layers
-            });
-          }
-        });
-        
-        console.log(`Cleared ${clearedCount} assets total`);
-        
-        // Update the scene with the new data
-        updateScene(currentScene.id, updatedScene);
-        console.log('Updated scene with cleared layers');
-        
-        // Force multiple refresh mechanisms
-        setCurrentScene(currentScene.id);
-        setRefreshTrigger(prev => prev + 1);
-        
-        // Force a complete re-render by updating selected states
-        setSelectedLayer(null);
-        setSelectedColumn(null);
-        setPreviewContent(null);
-        setIsPlaying(false);
-        
-        console.log('Forced complete component refresh');
-        
-        // Additional force refresh after a short delay
-        setTimeout(() => {
-          setRefreshTrigger(prev => prev + 1);
-          console.log('Additional refresh triggered');
-        }, 100);
-      }
-    }
+  const handleClearLayersWrapper = () => {
+    handleClearLayers(currentScene, updateScene, setCurrentScene, setRefreshTrigger, setSelectedLayer, setSelectedColumn, setPreviewContent, setIsPlaying);
   };
 
-  const handleForceClear = () => {
-    if (currentScene) {
-      const confirmed = window.confirm('FORCE CLEAR: This will completely reset all layers. Are you sure?');
-      if (confirmed) {
-        console.log('FORCE CLEAR: Resetting scene completely');
-        
-        // Create a completely fresh scene with no layers at all
-        const freshScene = {
-          ...currentScene,
-          columns: currentScene.columns.map((column: any) => ({
-            ...column,
-            layers: [] // Remove all layers completely
-          }))
-        };
-        
-        // Update the scene
-        updateScene(currentScene.id, freshScene);
-        
-        // Force all state resets
-        setSelectedLayer(null);
-        setSelectedColumn(null);
-        setPreviewContent(null);
-        setIsPlaying(false);
-        setRefreshTrigger(prev => prev + 1);
-        
-        console.log('FORCE CLEAR: Scene completely reset - all layers removed');
-      }
-    }
+  const handleForceClearWrapper = () => {
+    handleForceClear(currentScene, updateScene, setSelectedLayer, setSelectedColumn, setPreviewContent, setIsPlaying, setRefreshTrigger);
   };
 
-  const handleRemoveAsset = (columnId: string, layerId: string) => {
-    if (currentScene) {
-      // Create a deep copy of the current scene
-      const updatedScene = JSON.parse(JSON.stringify(currentScene));
-      
-      const column = updatedScene.columns.find((col: any) => col.id === columnId);
-      if (column) {
-        const layer = column.layers.find((layer: any) => layer.id === layerId);
-        if (layer) {
-          layer.asset = null;
-          // Update the entire scene
-          updateScene(currentScene.id, updatedScene);
-          console.log('Removed asset from layer:', layerId, 'in column:', columnId);
-          
-          // Force component refresh
-          setRefreshTrigger(prev => prev + 1);
-        }
-      }
-    }
+  const handleRemoveAssetWrapper = (columnId: string, layerId: string) => {
+    handleRemoveAsset(columnId, layerId, currentScene, updateScene, setRefreshTrigger);
   };
 
-  const handleUpdateLayer = (layerId: string, updatedLayer: any) => {
-    if (currentScene) {
-      // Create a deep copy of the current scene
-      const updatedScene = JSON.parse(JSON.stringify(currentScene));
-      
-      // Find the layer in any column
-      let layerFound = false;
-      for (const column of updatedScene.columns) {
-        const layer = column.layers.find((layer: any) => layer.id === layerId);
-        if (layer) {
-          // Update the layer with new options
-          Object.assign(layer, updatedLayer);
-          layerFound = true;
-          console.log('Updated layer options:', layerId, updatedLayer);
-          break;
-        }
-      }
-      
-      if (layerFound) {
-        // Update the entire scene
-        updateScene(currentScene.id, updatedScene);
-        
-        // Update selected layer if it's the same one
-        if (selectedLayer && selectedLayer.id === layerId) {
-          setSelectedLayer(updatedLayer);
-        }
-        
-        // Force component refresh
-        setRefreshTrigger(prev => prev + 1);
-      }
-    }
+  const handleUpdateLayerWrapper = (layerId: string, updatedLayer: any) => {
+    handleUpdateLayer(layerId, updatedLayer, currentScene, updateScene, setSelectedLayer, setRefreshTrigger);
   };
 
   const handleResizeStart = (e: React.MouseEvent) => {
@@ -376,256 +156,28 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   }, [isResizing]);
 
   // Drag and Drop Handlers
-  const handleDragOver = (e: React.DragEvent, cellId: string) => {
-    e.preventDefault();
-    console.log('🔵 Drag over cell:', cellId);
-    console.log('🔵 DataTransfer types:', e.dataTransfer.types);
-    console.log('🔵 DataTransfer items:', e.dataTransfer.items);
-    setDragOverCell(cellId);
+  const handleDragOverWrapper = (e: React.DragEvent, cellId: string) => {
+    handleDragOver(e, cellId, setDragOverCell);
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    console.log('🔴 Drag leave');
-    setDragOverCell(null);
+  const handleDragLeaveWrapper = (e: React.DragEvent) => {
+    handleDragLeave(e, setDragOverCell);
   };
 
-  const handleDrop = (e: React.DragEvent, columnId: string, layerNum: number) => {
-    e.preventDefault();
-    setDragOverCell(null);
-    console.log('🟢 Drop event triggered for column:', columnId, 'layer:', layerNum);
-    console.log('🟢 DataTransfer types:', e.dataTransfer.types);
-    console.log('🟢 DataTransfer items:', e.dataTransfer.items);
-    
-    const assetData = e.dataTransfer.getData('application/json');
-    console.log('🟢 Asset data from drop:', assetData);
-    
-    if (assetData) {
-      try {
-        const asset = JSON.parse(assetData);
-        console.log('🟢 Dropped asset:', asset, 'onto column:', columnId, 'layer:', layerNum);
-        
-        // Find the current scene and column
-        const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
-        if (!currentScene) {
-          console.error('❌ No current scene found');
-          return;
-        }
-        
-        const column = currentScene.columns.find((col: any) => col.id === columnId);
-        if (!column) {
-          // Handle placeholder columns like "column-3" by auto-creating a real column
-          const placeholderMatch = /^column-(\d+)$/.exec(columnId);
-          if (placeholderMatch) {
-            const colIndex = parseInt(placeholderMatch[1], 10) - 1;
-            const newColumn = {
-              id: uuidv4(),
-              name: `Column ${colIndex + 1}`,
-              layers: [],
-            };
-            const updatedColumns = [...currentScene.columns];
-            // Ensure array is large enough
-            while (updatedColumns.length <= colIndex) {
-              updatedColumns.push({ id: uuidv4(), name: `Column ${updatedColumns.length + 1}`, layers: [] });
-            }
-            updatedColumns[colIndex] = newColumn;
-            updateScene(currentSceneId, { columns: updatedColumns });
-            console.log('🆕 Auto-created column for drop:', newColumn);
-            // continue with the newly created column
-            currentScene.columns = updatedColumns;
-          } else {
-            console.error('❌ Column not found and not a placeholder:', columnId);
-            return;
-          }
-        }
-        
-        console.log('🟢 Found column:', column);
-        console.log('🟢 Column layers before:', column.layers);
-        
-        // Find or create the layer
-        let layer = column.layers.find((l: any) => 
-          l.name.includes(`Layer ${layerNum}`) || 
-          l.layerNum === layerNum ||
-          l.name === `Layer ${layerNum}`
-        );
-        
-        if (!layer) {
-                  // Create a new layer
-        layer = {
-          id: `layer-${columnId}-${layerNum}-${Date.now()}`,
-          name: `Layer ${layerNum}`,
-          type: 'media',
-          columnId: columnId,
-          layerNum: layerNum,
-          loopMode: 'none', // Default loop mode
-          loopCount: 1,
-          reverseEnabled: false,
-          pingPongEnabled: false,
-          blendMode: 'add', // Default blend mode for stacking
-          opacity: 1.0 // Default opacity
-        };
-          
-          if (!column.layers) {
-            column.layers = [];
-          }
-          column.layers.push(layer);
-          console.log('🟢 Created new layer:', layer);
-        } else {
-          console.log('🟢 Found existing layer:', layer);
-        }
-        
-        // Check asset type
-        const isVideo = asset.type === 'video';
-        const isEffect = asset.isEffect || asset.type === 'p5js' || asset.type === 'threejs';
-        
-        console.log('🟢 Asset type check - isVideo:', isVideo, 'isEffect:', isEffect, 'asset type:', asset.type, 'asset isEffect:', asset.isEffect);
-        
-        // Handle effects
-        if (isEffect) {
-          // Handle nested effect structure from EffectsBrowser
-          const effectData = asset.effect || asset;
-          console.log('🟢 Dropping effect asset:', effectData.name, 'type:', effectData.type, 'id:', effectData.id);
-          layer.asset = effectData;
-          layer.type = 'effect'; // Set layer type to effect
-          layer.effectType = effectData.type; // Store the effect type (p5js or threejs)
-          layer.effectFile = effectData.filePath; // Store the effect file path
-          
-          // Set the effects array for the layer (required by ColumnPreview)
-          layer.effects = [effectData];
-          
-          // Set default parameters for effects
-          const getLayerEffectParams = (effectId: string) => {
-            console.log('🟢 Getting layer effect params for:', effectId);
-            
-            // Use generic parameters instead of hardcoded effect-specific ones
-            // Effects should define their own parameters in their metadata
-            return {
-              intensity: { value: 0.5, min: 0, max: 1, step: 0.01 },
-              speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
-              color: { value: '#ffffff' }
-            };
-          };
-          
-          layer.params = getLayerEffectParams(effectData.id);
-          console.log('🟢 Set layer as effect with params:', layer);
-        }
-        // Handle videos
-        else if (isVideo && layer.asset && layer.asset.type === 'video') {
-          console.log('🟢 Replacing existing video in layer:', layer.id);
-          layer.asset = asset;
-          layer.type = 'video';
-          // Auto-set video to loop mode
-          layer.loopMode = 'loop';
-          console.log('🟢 Auto-set video to loop mode');
-        } else if (isVideo && layer.asset) {
-          // If layer has a non-video asset, replace it
-          console.log('🟢 Replacing non-video asset with video in layer:', layer.id);
-          layer.asset = asset;
-          layer.type = 'video';
-          // Auto-set video to loop mode
-          layer.loopMode = 'loop';
-          console.log('🟢 Auto-set video to loop mode');
-        } else if (!isVideo && layer.asset && layer.asset.type === 'video') {
-          // If dropping non-video on video layer, replace video
-          console.log('🟢 Replacing video with non-video asset in layer:', layer.id);
-          layer.asset = asset;
-          layer.type = 'image';
-          // Reset loop mode for non-video
-          layer.loopMode = 'none';
-        } else {
-          // Normal case - just set the asset
-          layer.asset = asset;
-          layer.type = asset.type === 'image' ? 'image' : 'video';
-          // Auto-set video to loop mode if it's a video
-          if (isVideo) {
-            layer.loopMode = 'loop';
-            console.log('🟢 Auto-set video to loop mode');
-          }
-        }
-        
-        console.log('🟢 Layer after asset assignment:', layer);
-        console.log('🟢 Column layers after:', column.layers);
-        
-        // Update the scene
-        updateScene(currentScene.id, { columns: currentScene.columns });
-        console.log('✅ Updated scene with new asset');
-        
-      } catch (error) {
-        console.error('❌ Error processing dropped asset:', error);
-      }
-    } else {
-      console.log('❌ No asset data found in drop event');
-      console.log('❌ Available data types:', e.dataTransfer.types);
-      console.log('❌ DataTransfer items:', e.dataTransfer.items);
-    }
+  const handleDropWrapper = (e: React.DragEvent, columnId: string, layerNum: number) => {
+    handleDrop(e, columnId, layerNum, scenes, currentSceneId, updateScene, setDragOverCell);
   };
 
-  // Handle drag start from layer cells to enable drag-to-remove
-  const handleLayerDragStart = (e: React.DragEvent, layer: any, columnId: string) => {
-    if (!layer.asset) return;
-    
-    console.log('🎯 Starting drag from layer:', layer.name, 'asset:', layer.asset.name);
-    
-    // Set drag data for potential reordering (though we'll use it for removal)
-    e.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'layer-asset',
-      layer: layer,
-      columnId: columnId,
-      asset: layer.asset
-    }));
-    
-    e.dataTransfer.effectAllowed = 'move';
-    
-    // Show removal zone
-    document.body.classList.add('dragging');
+  const handleLayerDragStartWrapper = (e: React.DragEvent, layer: any, columnId: string) => {
+    handleLayerDragStart(e, layer, columnId);
   };
 
-  // Handle drag over for removal zone
-  const handleRemoveZoneDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+  const handleRemoveZoneDragOverWrapper = (e: React.DragEvent) => {
+    handleRemoveZoneDragOver(e);
   };
 
-  // Handle drop in removal zone
-  const handleRemoveZoneDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    
-    const dragData = e.dataTransfer.getData('application/json');
-    if (!dragData) return;
-    
-    try {
-      const data = JSON.parse(dragData);
-      
-      if (data.type === 'layer-asset') {
-        console.log('🗑️ Removing asset from layer:', data.layer.name, 'asset:', data.asset.name);
-        
-        // Find the current scene and column
-        const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
-        if (!currentScene) return;
-        
-        const column = currentScene.columns.find((col: any) => col.id === data.columnId);
-        if (!column) return;
-        
-        // Find the layer and remove the asset
-        const layer = column.layers.find((l: any) => l.id === data.layer.id);
-        if (layer) {
-          layer.asset = null;
-          layer.type = 'media';
-          
-          console.log('🗑️ Asset removed from layer:', layer.name);
-          
-          // Update the scene
-          updateScene(currentSceneId, { columns: currentScene.columns });
-          
-          // Trigger a refresh
-          setRefreshTrigger(prev => prev + 1);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error processing removal drop:', error);
-    }
-    
-    // Hide removal zone
-    document.body.classList.remove('dragging');
+  const handleRemoveZoneDropWrapper = (e: React.DragEvent) => {
+    handleRemoveZoneDrop(e, scenes, currentSceneId, updateScene, setRefreshTrigger);
   };
 
   // Handle drag end to hide removal zone
@@ -636,147 +188,18 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     document.body.classList.remove('dragging');
   };
 
-  const getLayerTypeName = (type: string) => {
-    switch (type) {
-      case 'image':
-        return 'Image';
-      case 'video':
-        return 'Video';
-      case 'effect':
-        return 'Effect';
-      case 'p5js':
-        return 'p5.js Effect';
-      case 'threejs':
-        return 'Three.js Effect';
-      default:
-        return 'Unknown';
-    }
+
+
+  const handleLayerReorderDragStartWrapper = (e: React.DragEvent, layer: any, columnId: string) => {
+    handleLayerReorderDragStart(e, layer, columnId, setDraggedLayer);
   };
 
-  const getTrackColor = (type: string) => {
-    switch (type) {
-      case 'audio': return '#4CAF50';
-      case 'video': return '#2196F3';
-      case 'effect': return '#FF9800';
-      default: return '#9E9E9E';
-    }
+  const handleLayerReorderDragOverWrapper = (e: React.DragEvent, targetColumnId: string, targetLayerNum: number) => {
+    handleLayerReorderDragOver(e, targetColumnId, targetLayerNum, draggedLayer, setDragOverLayer);
   };
 
-  // Layer reordering handlers
-  const handleLayerReorderDragStart = (e: React.DragEvent, layer: any, columnId: string) => {
-    console.log('🔄 Starting layer reorder drag:', layer, 'from column:', columnId);
-    setDraggedLayer({ ...layer, sourceColumnId: columnId });
-    e.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'layer-reorder',
-      layer: layer,
-      sourceColumnId: columnId
-    }));
-    e.dataTransfer.effectAllowed = 'move';
-    document.body.classList.add('dragging');
-  };
-
-  const handleLayerReorderDragOver = (e: React.DragEvent, targetColumnId: string, targetLayerNum: number) => {
-    e.preventDefault();
-    if (draggedLayer) {
-      const targetCellId = `${targetColumnId}-${targetLayerNum}`;
-      setDragOverLayer(targetCellId);
-    }
-  };
-
-  const handleLayerReorderDrop = (e: React.DragEvent, targetColumnId: string, targetLayerNum: number) => {
-    e.preventDefault();
-    
-    if (!draggedLayer) return;
-    
-    console.log('🔄 Dropping layer reorder:', {
-      draggedLayer,
-      targetColumnId,
-      targetLayerNum
-    });
-
-    try {
-      const dragData = e.dataTransfer.getData('application/json');
-      if (!dragData) return;
-      
-      const data = JSON.parse(dragData);
-      if (data.type !== 'layer-reorder') return;
-
-      const { layer: draggedLayerData, sourceColumnId } = data;
-      
-      // Allow moving layers between columns
-      console.log('🔄 Moving layer between columns:', sourceColumnId, '->', targetColumnId);
-
-      // Find the source column and target column
-      const sourceColumn = currentScene.columns.find((col: any) => col.id === sourceColumnId);
-      const targetColumn = currentScene.columns.find((col: any) => col.id === targetColumnId);
-      
-      if (!sourceColumn || !targetColumn) return;
-
-      // Find the source layer in the source column
-      const sourceLayerIndex = sourceColumn.layers.findIndex((l: any) => l.id === draggedLayerData.id);
-      if (sourceLayerIndex === -1) return;
-
-      const sourceLayer = sourceColumn.layers[sourceLayerIndex];
-
-      // Don't allow dropping on the same layer position if moving within the same column
-      if (sourceColumnId === targetColumnId) {
-        const sourceLayerNum = sourceLayer.layerNum || parseInt(sourceLayer.name.replace('Layer ', ''));
-        if (sourceLayerNum === targetLayerNum) {
-          console.log('❌ Cannot drop on same layer position');
-          return;
-        }
-      }
-
-      // Create new layers array for target column
-      const newTargetLayers = [...targetColumn.layers];
-      
-      // Find the target layer to determine insertion position
-      const targetLayerIndex = newTargetLayers.findIndex((l: any) => {
-        const layerNum = l.layerNum || parseInt(l.name.replace('Layer ', ''));
-        return layerNum === targetLayerNum;
-      });
-
-      // Update the dragged layer's layer number and column
-      const updatedLayer = {
-        ...sourceLayer,
-        layerNum: targetLayerNum,
-        name: `Layer ${targetLayerNum}`
-      };
-
-      // Insert at the target position in target column
-      if (targetLayerIndex === -1) {
-        // Target layer doesn't exist, add at the end
-        newTargetLayers.push(updatedLayer);
-      } else {
-        // Insert before the target layer
-        newTargetLayers.splice(targetLayerIndex, 0, updatedLayer);
-      }
-
-      // Remove from source column (if different from target)
-      let newSourceLayers = [...sourceColumn.layers];
-      if (sourceColumnId !== targetColumnId) {
-        newSourceLayers.splice(sourceLayerIndex, 1);
-      } else {
-        // Same column reordering - remove from current position
-        newSourceLayers.splice(sourceLayerIndex, 1);
-      }
-
-      // Update the scene with the new layers
-      const updatedColumns = currentScene.columns.map((col: any) => {
-        if (col.id === targetColumnId) {
-          return { ...col, layers: newTargetLayers };
-        } else if (col.id === sourceColumnId) {
-          return { ...col, layers: newSourceLayers };
-        }
-        return col;
-      });
-
-      updateScene(currentSceneId, { columns: updatedColumns });
-      console.log('✅ Layer moved successfully');
-      
-    } catch (error) {
-      console.error('❌ Error reordering layer:', error);
-    }
+  const handleLayerReorderDropWrapper = (e: React.DragEvent, targetColumnId: string, targetLayerNum: number) => {
+    handleLayerReorderDrop(e, targetColumnId, targetLayerNum, draggedLayer, currentScene, currentSceneId, updateScene);
   };
 
   // Render preview content
@@ -992,7 +415,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const columns = [...currentScene.columns];
   let columnsAdded = 0;
   while (columns.length < 10) {
-    columns.push({ id: uuidv4(), name: `Column ${columns.length + 1}`, layers: [] });
+    const newCol = createColumn();
+    newCol.name = `Column ${columns.length + 1}`;
+    columns.push(newCol);
     columnsAdded++;
   }
   // Persist newly-added columns once
@@ -1047,208 +472,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                     onClick={() => setCurrentScene(scene.id)}
                     onContextMenu={(e) => {
                       e.preventDefault();
+                      e.stopPropagation();
                       
-                      // Create context menu
-                      const menu = document.createElement('div');
-                      menu.className = 'context-menu';
-                      menu.style.cssText = `
-                        position: fixed;
-                        top: ${e.clientY}px;
-                        left: ${e.clientX}px;
-                        background: var(--surface);
-                        border: 1px solid var(--border-color);
-                        border-radius: 4px;
-                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                        z-index: 1000;
-                        min-width: 120px;
-                        padding: 0.25rem 0;
-                      `;
+                      // Remove any existing menus
+                      const existingMenus = document.querySelectorAll('.scene-context-menu');
+                      existingMenus.forEach(menu => menu.remove());
                       
-                      // Rename option
-                      const renameOption = document.createElement('div');
-                      renameOption.textContent = 'Rename';
-                      renameOption.style.cssText = `
-                        padding: 0.5rem 0.75rem;
-                        cursor: pointer;
-                        color: var(--on-surface);
-                        font-size: 0.875rem;
-                        transition: background-color 0.2s ease;
-                      `;
-                      renameOption.onmouseenter = () => {
-                        renameOption.style.backgroundColor = 'var(--surface-variant)';
-                      };
-                      renameOption.onmouseleave = () => {
-                        renameOption.style.backgroundColor = 'transparent';
-                      };
-                      renameOption.onclick = () => {
-                        console.log('Rename clicked for scene:', scene.name, 'ID:', scene.id);
-                        
-                        // Create custom input dialog
-                        const dialog = document.createElement('div');
-                        dialog.style.cssText = `
-                          position: fixed;
-                          top: 0;
-                          left: 0;
-                          width: 100%;
-                          height: 100%;
-                          background: rgba(0, 0, 0, 0.5);
-                          display: flex;
-                          align-items: center;
-                          justify-content: center;
-                          z-index: 10000;
-                        `;
-                        
-                        const dialogContent = document.createElement('div');
-                        dialogContent.style.cssText = `
-                          background: var(--surface);
-                          border: 1px solid var(--border-color);
-                          border-radius: 8px;
-                          padding: 1.5rem;
-                          min-width: 300px;
-                          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                        `;
-                        
-                        const title = document.createElement('h3');
-                        title.textContent = 'Rename Scene';
-                        title.style.cssText = `
-                          margin: 0 0 1rem 0;
-                          color: var(--on-surface);
-                          font-size: 1.125rem;
-                          font-weight: 500;
-                        `;
-                        
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.value = scene.name;
-                        input.style.cssText = `
-                          width: 100%;
-                          padding: 0.75rem;
-                          border: 1px solid var(--border-color);
-                          border-radius: 4px;
-                          background: var(--surface-variant);
-                          color: var(--on-surface);
-                          font-size: 0.875rem;
-                          margin-bottom: 1rem;
-                          box-sizing: border-box;
-                        `;
-                        
-                        const buttonContainer = document.createElement('div');
-                        buttonContainer.style.cssText = `
-                          display: flex;
-                          gap: 0.5rem;
-                          justify-content: flex-end;
-                        `;
-                        
-                        const cancelBtn = document.createElement('button');
-                        cancelBtn.textContent = 'Cancel';
-                        cancelBtn.style.cssText = `
-                          padding: 0.5rem 1rem;
-                          border: 1px solid var(--border-color);
-                          border-radius: 4px;
-                          background: transparent;
-                          color: var(--on-surface);
-                          cursor: pointer;
-                          font-size: 0.875rem;
-                        `;
-                        
-                        const confirmBtn = document.createElement('button');
-                        confirmBtn.textContent = 'Rename';
-                        confirmBtn.style.cssText = `
-                          padding: 0.5rem 1rem;
-                          border: none;
-                          border-radius: 4px;
-                          background: var(--primary);
-                          color: var(--on-primary);
-                          cursor: pointer;
-                          font-size: 0.875rem;
-                        `;
-                        
-                        const handleConfirm = () => {
-                          const newName = input.value.trim();
-                          if (newName && newName !== scene.name) {
-                            console.log('Updating scene name from:', scene.name, 'to:', newName);
-                            try {
-                              updateScene(scene.id, { name: newName });
-                              console.log('Scene updated successfully');
-                            } catch (error) {
-                              console.error('Error updating scene:', error);
-                            }
-                          } else {
-                            console.log('No valid name change or cancelled');
-                          }
-                          document.body.removeChild(dialog);
-                          document.body.removeChild(menu);
-                        };
-                        
-                        const handleCancel = () => {
-                          document.body.removeChild(dialog);
-                          document.body.removeChild(menu);
-                        };
-                        
-                        const handleKeyDown = (e: KeyboardEvent) => {
-                          if (e.key === 'Enter') {
-                            handleConfirm();
-                          } else if (e.key === 'Escape') {
-                            handleCancel();
-                          }
-                        };
-                        
-                        input.addEventListener('keydown', handleKeyDown);
-                        confirmBtn.addEventListener('click', handleConfirm);
-                        cancelBtn.addEventListener('click', handleCancel);
-                        
-                        buttonContainer.appendChild(cancelBtn);
-                        buttonContainer.appendChild(confirmBtn);
-                        
-                        dialogContent.appendChild(title);
-                        dialogContent.appendChild(input);
-                        dialogContent.appendChild(buttonContainer);
-                        dialog.appendChild(dialogContent);
-                        
-                        document.body.appendChild(dialog);
-                        
-                        // Focus the input
-                        setTimeout(() => input.focus(), 100);
-                      };
-                      
-                      // Delete option (only if more than one scene)
-                      if (scenes.length > 1) {
-                        const deleteOption = document.createElement('div');
-                        deleteOption.textContent = 'Delete';
-                        deleteOption.style.cssText = `
-                          padding: 0.5rem 0.75rem;
-                          cursor: pointer;
-                          color: var(--error);
-                          font-size: 0.875rem;
-                          transition: background-color 0.2s ease;
-                        `;
-                        deleteOption.onmouseenter = () => {
-                          deleteOption.style.backgroundColor = 'var(--surface-variant)';
-                        };
-                        deleteOption.onmouseleave = () => {
-                          deleteOption.style.backgroundColor = 'transparent';
-                        };
-                        deleteOption.onclick = () => {
-                          const confirmed = window.confirm(`Are you sure you want to delete scene "${scene.name}"?`);
-                          if (confirmed) {
-                            removeScene(scene.id);
-                          }
-                          document.body.removeChild(menu);
-                        };
-                        menu.appendChild(deleteOption);
-                      }
-                      
-                      menu.appendChild(renameOption);
-                      document.body.appendChild(menu);
-                      
-                      // Close menu when clicking outside
-                      const closeMenu = (e: MouseEvent) => {
-                        if (!menu.contains(e.target as Node)) {
-                          document.body.removeChild(menu);
-                          document.removeEventListener('click', closeMenu);
-                        }
-                      };
-                      document.addEventListener('click', closeMenu);
+                      createSceneContextMenu(scene, scenes, updateScene, removeScene);
                     }}
                     title="Right-click to rename or delete scene"
                   >
@@ -1362,23 +592,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                         if (data.isEffect) {
                           console.log('🌐 Adding global effect:', data);
                           
-                          // Create a new effect slot with default parameters for film effects
-                          const getDefaultParams = (effectId: string) => {
-                            // Use generic parameters instead of hardcoded effect-specific ones
-                            // Effects should define their own parameters in their metadata
-                            return {
-                              intensity: { value: 0.5, min: 0, max: 1, step: 0.01 },
-                              speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
-                              color: { value: '#ffffff' }
-                            };
-                          };
-
-                          const newEffectSlot = {
-                            id: uuidv4(),
-                            effectId: data.id || data.name,
-                            enabled: true,
-                            params: getDefaultParams(data.id || data.name)
-                          };
+                                    const newEffectSlot = {
+            id: uuidv4(),
+            effectId: data.id || data.name,
+            enabled: true,
+            params: getDefaultEffectParams(data.id || data.name)
+          };
                           
                           // Add the effect slot to the scene's global effects
                           // Disable all existing effects and enable only the new one
@@ -1461,10 +680,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                         console.log('🎵 Is column playing:', isColumnPlaying);
                         if (isColumnPlaying) {
                           console.log('🎵 Stopping column playback from header');
-                          handleStop();
+                          handleStopWrapper();
                         } else {
                           console.log('🎵 Starting column playback from header');
-                          handleColumnPlay(column.id);
+                          handleColumnPlayWrapper(column.id);
                         }
                       }}
                     >
@@ -1478,10 +697,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                           e.stopPropagation();
                           if (isColumnPlaying) {
                             console.log('🎵 Stopping column playback');
-                            handleStop();
+                            handleStopWrapper();
                           } else {
                             console.log('🎵 Starting column playback');
-                            handleColumnPlay(column.id);
+                            handleColumnPlayWrapper(column.id);
                           }
                         }}
                       >
@@ -1515,22 +734,22 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                     <div
                       key={cellId}
                       className={`grid-cell ${hasAsset ? 'has-content' : 'empty'} ${selectedLayer?.id === layer?.id ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''} ${isDragOverLayer ? 'drag-over-layer' : ''}`}
-                      onClick={() => hasAsset && handleLayerClick(layer, column.id)}
+                      onClick={() => hasAsset && handleLayerClickWrapper(layer, column.id)}
                       onDragStart={(e) => {
                         if (hasAsset) {
                           // Always use layer reordering for existing layers
-                          handleLayerReorderDragStart(e, layer, column.id);
+                          handleLayerReorderDragStartWrapper(e, layer, column.id);
                         }
                       }}
                       onDragEnd={handleDragEnd}
                       onDragOver={(e) => {
                         // Handle both asset dropping and layer reordering
-                        handleDragOver(e, cellId);
+                        handleDragOverWrapper(e, cellId);
                         if (draggedLayer && draggedLayer.sourceColumnId === column.id) {
-                          handleLayerReorderDragOver(e, column.id, layerNum);
+                          handleLayerReorderDragOverWrapper(e, column.id, layerNum);
                         }
                       }}
-                      onDragLeave={(e) => handleDragLeave(e)}
+                      onDragLeave={(e) => handleDragLeaveWrapper(e)}
                       onDrop={(e) => {
                         // Check if this is a layer reorder (from existing layer) or asset drop (from Media/Effects)
                         const dragData = e.dataTransfer.getData('application/json');
@@ -1538,17 +757,17 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                           try {
                             const data = JSON.parse(dragData);
                             if (data.type === 'layer-reorder') {
-                              handleLayerReorderDrop(e, column.id, layerNum);
+                              handleLayerReorderDropWrapper(e, column.id, layerNum);
                             } else {
-                              handleDrop(e, column.id, layerNum);
+                              handleDropWrapper(e, column.id, layerNum);
                             }
                           } catch (error) {
                             // Fallback to asset drop
-                            handleDrop(e, column.id, layerNum);
+                            handleDropWrapper(e, column.id, layerNum);
                           }
                         } else {
                           // Fallback to asset drop
-                          handleDrop(e, column.id, layerNum);
+                          handleDropWrapper(e, column.id, layerNum);
                         }
                       }}
                       draggable={hasAsset}
@@ -1622,8 +841,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           {/* Drag-to-Remove Zone */}
           <div 
             className="remove-zone"
-            onDragOver={handleRemoveZoneDragOver}
-            onDrop={handleRemoveZoneDrop}
+            onDragOver={handleRemoveZoneDragOverWrapper}
+            onDrop={handleRemoveZoneDropWrapper}
           >
             <div className="remove-zone-content">
               <div className="remove-zone-icon">🗑️</div>
@@ -1659,7 +878,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 <div className="preview-controls">
                   <button 
                     className="control-btn" 
-                    onClick={handleStop}
+                    onClick={handleStopWrapper}
                     title="Stop Preview"
                     disabled={!isPlaying}
                   >
@@ -1688,7 +907,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             <div className="layer-options-panel">
               <LayerOptions 
                 selectedLayer={selectedLayer}
-                onUpdateLayer={handleUpdateLayer}
+                onUpdateLayer={handleUpdateLayerWrapper}
               />
             </div>
 
