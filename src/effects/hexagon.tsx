@@ -59,6 +59,7 @@ const PulseHexagonEffect: React.FC<PulseHexagonEffectProps> = ({
 
 // Metadata for dynamic discovery
 (PulseHexagonEffect as any).metadata = {
+  id: 'hexagon',
   name: 'Pulse Hexagon',
   description: 'A hexagonal shape that pulses with the BPM',
   category: 'Pulse',

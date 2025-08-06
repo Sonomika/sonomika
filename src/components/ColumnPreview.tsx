@@ -452,17 +452,7 @@ const ColumnScene: React.FC<{
               }
             }
             
-            // Convert effect name to kebab-case ID if it's not already in the correct format
-            if (effectId && !effectId.includes('-')) {
-              // Convert "BPM Particles" to "bpm-particles-effect"
-              const kebabCaseId = effectId
-                .toLowerCase()
-                .replace(/\s+/g, '-')
-                .replace(/[^a-z0-9-]/g, '')
-                + '-effect';
-              effectId = kebabCaseId;
-            }
-            
+            // Use filename directly - no conversion needed
             console.log('🎨 Using effect ID for video:', effectId);
             
             // Calculate proper aspect ratio for video (memoized)
@@ -565,17 +555,7 @@ const ColumnScene: React.FC<{
             }
           }
           
-          // Convert effect name to kebab-case ID if it's not already in the correct format
-          if (effectId && !effectId.includes('-')) {
-            // Convert "BPM Particles" to "bpm-particles-effect"
-            const kebabCaseId = effectId
-              .toLowerCase()
-              .replace(/\s+/g, '-')
-              .replace(/[^a-z0-9-]/g, '')
-              + '-effect';
-            effectId = kebabCaseId;
-          }
-          
+          // Use filename directly - no conversion needed
           console.log('🎨 Standalone effect ID resolved:', effectId);
           
           const effectName = effectAsset.name || effectAsset.id || 'Unknown Effect';

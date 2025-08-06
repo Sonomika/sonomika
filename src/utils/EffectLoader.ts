@@ -2,7 +2,7 @@ import React from 'react';
 
 /**
  * Loads an effect component dynamically from the effects folder
- * @param effectId - The ID of the effect to load
+ * @param effectId - The filename of the effect to load (without .tsx extension)
  * @returns A React component or null if loading fails
  */
 export const loadEffectComponent = async (effectId: string): Promise<React.ComponentType<any> | null> => {
@@ -13,37 +13,35 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
   }
 
   try {
-    // Try to load the specific effect
+    // Try to load the effect by filename directly
     const modules = (import.meta as any).glob('../effects/*.tsx');
     
-    // Convert kebab-case to PascalCase for file matching
-    const pascalCaseId = effectId.split('-').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join('');
+    // Try the exact filename first
+    const exactPath = `../effects/${effectId}.tsx`;
     
-    const possiblePaths = [
-      `../effects/${effectId}.tsx`,                    // kebab-case.tsx
-      `../effects/${effectId}Effect.tsx`,              // kebab-caseEffect.tsx
-      `../effects/${pascalCaseId}.tsx`,                // PascalCase.tsx
-      `../effects/${pascalCaseId}Effect.tsx`,          // PascalCaseEffect.tsx
-      `../effects/${pascalCaseId.replace('Effect', '')}Effect.tsx` // PascalCase.tsx (if already has Effect)
-    ];
-
-    console.log(`🔍 Loading effect: ${effectId} -> ${pascalCaseId}`);
+    console.log(`🔍 Loading effect: ${effectId}`);
     console.log(`🔍 Available modules:`, Object.keys(modules));
+    console.log(`🔍 Trying exact path: ${exactPath} - exists: ${!!modules[exactPath]}`);
     
-    for (const path of possiblePaths) {
-      console.log(`🔍 Trying path: ${path} - exists: ${!!modules[path]}`);
-      if (modules[path]) {
-        console.log(`✅ Found effect at: ${path}`);
-        const mod = await modules[path]();
-        return mod.default;
-      }
+    if (modules[exactPath]) {
+      console.log(`✅ Found effect at: ${exactPath}`);
+      const mod = await modules[exactPath]();
+      return mod.default;
     }
 
+    // If exact match not found, try to find by partial match
+    const availableFiles = Object.keys(modules);
+    const matchingFile = availableFiles.find(file => 
+      file.includes(effectId) || effectId.includes(file.replace('../effects/', '').replace('.tsx', ''))
+    );
+    
+    if (matchingFile) {
+      console.log(`✅ Found effect by partial match: ${matchingFile}`);
+      const mod = await modules[matchingFile]();
+      return mod.default;
+    }
 
-
-    // If no specific effect found, return null instead of hardcoding a fallback
+    // If no effect found, return null instead of hardcoding a fallback
     console.warn(`No effect found for ID: ${effectId}`);
     return null;
   } catch (error) {
@@ -54,7 +52,7 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
 
 /**
  * Hook to load an effect component with state management
- * @param effectId - The ID of the effect to load
+ * @param effectId - The filename of the effect to load (without .tsx extension)
  * @returns The loaded effect component or null if still loading
  */
 export const useEffectComponent = (effectId: string): React.ComponentType<any> | null => {
