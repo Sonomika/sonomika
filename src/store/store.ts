@@ -297,7 +297,10 @@ export const useStore = create<AppState & {
           
           const preset = {
             name: defaultName,
+            displayName: defaultName, // Human-readable name
             timestamp: Date.now(),
+            version: '1.0.0',
+            description: `VJ Preset: ${defaultName}`,
             data: {
               scenes: state.scenes,
               currentSceneId: state.currentSceneId,
@@ -342,7 +345,8 @@ export const useStore = create<AppState & {
               try {
                 const presetData = e.target?.result as string;
                 const preset = JSON.parse(presetData);
-                console.log('Loading preset:', preset.name);
+                const presetName = preset.displayName || preset.name || file.name;
+                console.log('Loading preset:', presetName);
                 
                 // Check if the preset data is too large for localStorage
                 const dataSize = new Blob([presetData]).size;

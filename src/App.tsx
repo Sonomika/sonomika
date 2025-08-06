@@ -273,17 +273,17 @@ function App() {
   };
 
   const handleSavePreset = () => {
-    // Use the system's native save dialog by creating a download link
-    const { savePreset } = useStore.getState();
-    const presetName = savePreset(); // This will use the default timestamped name
-    
-    if (presetName) {
-      console.log('Preset saved:', presetName);
-      // The file will be downloaded automatically by the savePreset function
-      // The browser will show the system's "Save As" dialog
-    } else {
-      console.error('Failed to save preset');
-    }
+    // Show modal to get custom preset name
+    setModalConfig({
+      isOpen: true,
+      type: 'save',
+      title: 'Save Preset',
+      message: 'Enter a name for your preset:',
+      placeholder: 'My Awesome Preset',
+      defaultValue: '',
+      confirmText: 'Save',
+      cancelText: 'Cancel'
+    });
   };
 
   const handleLoadPreset = () => {
@@ -342,7 +342,17 @@ function App() {
         break;
         
       case 'save':
-        // Save functionality now uses system dialog, so this case is no longer needed
+        // Save preset with custom name
+        const { savePreset } = useStore.getState();
+        const presetName = value.trim() || `preset-${new Date().toISOString().slice(0, 19)}`;
+        const savedName = savePreset(presetName);
+        
+        if (savedName) {
+          console.log('Preset saved:', savedName);
+          // The file will be downloaded automatically by the savePreset function
+        } else {
+          console.error('Failed to save preset');
+        }
         break;
         
       default:
