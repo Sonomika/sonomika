@@ -1,0 +1,28 @@
+# Files and directories to ignore by Cursor AI
+# These will never be modified by the AI assistant
+
+# Configuration files
+.env
+.env.local
+.env.production
+config.json
+secrets.json
+
+# Build outputs
+dist/
+build/
+node_modules/
+
+# Generated files
+*.log
+*.tmp
+*.cache
+
+# Sensitive files
+*.key
+*.pem
+*.p12
+
+# User-specific files
+.vscode/settings.json
+.cursor/settings.json 

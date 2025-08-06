@@ -1,4 +1,15 @@
-import { SelfContainedEffect } from './DynamicEffectLoader';
+// SelfContainedEffect interface moved here since DynamicEffectLoader was deleted
+export interface SelfContainedEffect {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  author?: string;
+  version?: string;
+  metadata: any;
+  createEffect: (width: number, height: number) => any;
+}
 
 /**
  * Parameter interface for effects

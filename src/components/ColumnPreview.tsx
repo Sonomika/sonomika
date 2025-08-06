@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
 import EffectLoader from './EffectLoader';
+import { useEffectComponent } from '../utils/EffectLoader';
 
 interface ColumnPreviewProps {
   column: any;
@@ -40,7 +41,6 @@ const VideoTexture: React.FC<{
 
   useEffect(() => {
     if (video) {
-      console.log('Creating video texture for:', video.src);
       const videoTexture = new THREE.VideoTexture(video);
       videoTexture.minFilter = THREE.LinearFilter;
       videoTexture.magFilter = THREE.LinearFilter;
@@ -57,7 +57,6 @@ const VideoTexture: React.FC<{
   });
 
   if (!texture || video.readyState < 2) {
-    console.log('Video not ready, readyState:', video.readyState);
     return null;
   }
 
@@ -145,63 +144,31 @@ const ImageTexture: React.FC<{
 };
 
 // Effect component for R3F
+
+
 const EffectLayer: React.FC<{ 
   layer: any; 
   frameCount: number;
 }> = ({ layer, frameCount }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const time = frameCount / 60;
+  const effectId = layer.asset?.id || layer.asset?.name;
+  
+  // Debug logging
+  console.log('EffectLayer - layer:', layer);
+  console.log('EffectLayer - effectId:', effectId);
+  
+  const EffectComponent = useEffectComponent(effectId);
 
-
-
-  // Simple animated effects for now
-  useFrame(() => {
-    if (meshRef.current) {
-      // Generic animation based on effect ID
-      const effectId = layer.asset.id || 'default';
-      
-      // Apply generic pulsing animation
-      const scale = 1 + Math.sin(time * 2) * 0.2;
-      meshRef.current.scale.setScalar(scale);
-      
-      // Apply rotation for certain effects
-      if (effectId.includes('rotation') || effectId.includes('spin')) {
-        meshRef.current.rotation.z = time * 2;
-      }
-    }
-  });
-
-  const geometry = useMemo(() => {
-    const effectId = layer.asset.id || 'default';
-    
-    // Default to sphere geometry
-    return new THREE.SphereGeometry(0.5, 16, 16);
-  }, [layer.asset.id]);
-
-  const material = useMemo(() => {
-    const effectId = layer.asset.id || 'default';
-    let color = new THREE.Color(0xff6666);
-    
-    // Apply color based on effect ID
-    if (effectId.includes('color') || effectId.includes('pulse')) {
-      const hue = (time * 50) % 1;
-      color.setHSL(hue, 1, 0.5);
-    } else if (effectId.includes('wave')) {
-      color.setHex(0x6666ff);
-    } else if (effectId.includes('particle')) {
-      color.setHex(0xffff00);
-    }
-
-    return new THREE.MeshBasicMaterial({ 
-      color, 
-      transparent: true, 
-      opacity: layer.opacity || 1,
-      blending: getBlendMode(layer.blendMode || 'add')
-    });
-  }, [layer.asset.id, layer.opacity, layer.blendMode, time]);
+  if (!EffectComponent) {
+    console.warn(`No effect component found for ID: ${effectId}`);
+    return null;
+  }
 
   return (
-    <mesh ref={meshRef} geometry={geometry} material={material} />
+    <EffectComponent 
+      {...layer.params}
+      opacity={layer.opacity}
+      blendMode={layer.blendMode}
+    />
   );
 };
 
@@ -227,7 +194,7 @@ const ColumnScene: React.FC<{
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
 
-  console.log('ColumnScene rendering with:', { column, isPlaying, frameCount, assetsCount: assets.images.size + assets.videos.size });
+  // Performance optimization: removed excessive logging
 
   // Load assets with caching
   useEffect(() => {
@@ -370,20 +337,23 @@ const ColumnScene: React.FC<{
     
     console.log(`🎨 Rendering ${isGlobal ? 'global' : 'layer'} effect:`, effectId, effectName, effectParams);
 
-    
-    // Use SimpleEffectLoader for all effects
-    const effectNames = [effectId].filter(Boolean);
+    // Create a mock layer object for the effect
+    const mockLayer = {
+      asset: {
+        id: effectId,
+        name: effectName,
+        type: 'effect'
+      },
+      params: effectParams,
+      opacity: 1,
+      blendMode: 'add'
+    };
 
-    
     return (
-      <EffectLoader
+      <EffectLayer 
         key={effectKey}
-        fallback={
-          <mesh>
-            <planeGeometry args={[4, 4]} />
-            <meshBasicMaterial color={0x888888} />
-          </mesh>
-        }
+        layer={mockLayer}
+        frameCount={frameCount}
       />
     );
   };
@@ -415,6 +385,33 @@ const ColumnScene: React.FC<{
         const renderedElements: React.ReactElement[] = [];
 
         // First, render video layers
+        // Create video textures map outside the loop to avoid hooks in loops
+        const videoTextures = useMemo(() => {
+          const textures = new Map();
+          videoLayers.forEach((videoLayer) => {
+            const video = assets.videos.get(videoLayer.asset.id);
+            if (video) {
+              const texture = new THREE.VideoTexture(video);
+              texture.minFilter = THREE.LinearFilter;
+              texture.magFilter = THREE.LinearFilter;
+              texture.format = THREE.RGBAFormat;
+              texture.generateMipmaps = false;
+              texture.needsUpdate = true; // Force texture update
+              textures.set(videoLayer.asset.id, texture);
+            }
+          });
+          return textures;
+        }, [videoLayers, assets.videos]);
+
+        // Update video textures when playing
+        useEffect(() => {
+          if (isPlaying) {
+            videoTextures.forEach((texture) => {
+              texture.needsUpdate = true;
+            });
+          }
+        }, [videoTextures, isPlaying]);
+
         videoLayers.forEach((videoLayer, index) => {
           const video = assets.videos.get(videoLayer.asset.id);
           if (!video) return;
@@ -431,7 +428,17 @@ const ColumnScene: React.FC<{
             // Apply the first effect to the video
             const firstEffect = effectLayersForVideo[0];
             const effectAsset = firstEffect.asset;
-            let effectId = effectAsset.id || effectAsset.name;
+            console.log('🎨 Video effect asset:', effectAsset);
+            
+            // Handle nested effect structure
+            let effectId = null;
+            if (effectAsset.effect) {
+              // Nested effect structure: {type: 'effect', effect: {...}}
+              effectId = effectAsset.effect.id || effectAsset.effect.name || effectAsset.effect.type;
+            } else {
+              // Direct effect structure
+              effectId = effectAsset.id || effectAsset.name;
+            }
             
             // If we still don't have an ID, try to extract from filePath or generate from name
             if (!effectId) {
@@ -439,35 +446,65 @@ const ColumnScene: React.FC<{
                 effectId = effectAsset.filePath.replace('.tsx', '').replace(/^.*[\\\/]/, '');
               } else if (effectAsset.name) {
                 effectId = effectAsset.name;
-                          } else {
-              effectId = 'unknown'; // Default fallback
-            }
+              } else {
+                console.warn('No valid effect ID found for effect asset:', effectAsset);
+                return; // Skip rendering this effect instead of using 'unknown'
+              }
             }
             
-            const effectNames = [effectId].filter(Boolean);
-            console.log('🎨 Applying effect to video:', effectNames, 'effect asset:', effectAsset);
+            console.log('🎨 Using effect ID for video:', effectId);
             
+            // Calculate proper aspect ratio for video (memoized)
+            const videoAspectRatio = video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 16/9;
+            const compositionAspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
+            
+            // Scale video to fit composition while maintaining aspect ratio
+            const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
+            const scaleY = Math.max(videoAspectRatio / compositionAspectRatio, 1);
+            const finalScaleX = compositionAspectRatio * 2 * scaleX;
+            const finalScaleY = 2 * scaleY;
+            
+            // Get video texture from the map
+            const videoTexture = videoTextures.get(videoLayer.asset.id);
+            
+            // Create a stable key for the effect component
+            const effectKey = `effect-${effectId}-${key}`;
+            
+            // Create a mock layer for the effect with video texture
+            const mockEffectLayer = {
+              asset: {
+                id: effectId,
+                name: effectAsset.effect?.name || effectAsset.name || effectId,
+                type: 'effect'
+              },
+              params: {
+                ...firstEffect.params,
+                ...effectAsset.effect?.params, // Include nested effect params
+                videoTexture: videoTexture // Pass video texture to effect
+              },
+              opacity: firstEffect.opacity || 1,
+              blendMode: firstEffect.blendMode || 'add'
+            };
+
+            // Render both the base video and the effect on top
             renderedElements.push(
               <React.Fragment key={`${key}-container`}>
                 {/* Render the base video first */}
                 <mesh key={`${key}-video`}>
-                  <planeGeometry args={[2, 2]} />
+                  <planeGeometry args={[finalScaleX, finalScaleY]} />
                   <meshBasicMaterial 
-                    map={new THREE.VideoTexture(video)}
+                    map={videoTexture}
                     transparent
-                    opacity={1}
+                    opacity={videoLayer.opacity || 1}
+                    blending={getBlendMode(videoLayer.blendMode || 'add')}
                   />
                 </mesh>
-                {/* Render the effect overlay on top */}
-                <EffectLoader
-                  key={`${key}-effects`}
-                  videoTexture={new THREE.VideoTexture(video)}
-                  fallback={
-                    <mesh>
-                      <planeGeometry args={[2, 2]} />
-                      <meshBasicMaterial color={0xff0000} />
-                    </mesh>
-                  }
+                
+                {/* Render the effect on top */}
+                <EffectLayer 
+                  key={effectKey}
+                  layer={mockEffectLayer}
+                  frameCount={frameCount}
                 />
               </React.Fragment>
             );
@@ -496,7 +533,14 @@ const ColumnScene: React.FC<{
           
           // Use unified effect renderer for all effects
           // Handle different effect data structures
-          let effectId = effectAsset.id || effectAsset.name;
+          let effectId = null;
+          if (effectAsset.effect) {
+            // Nested effect structure: {type: 'effect', effect: {...}}
+            effectId = effectAsset.effect.id || effectAsset.effect.name || effectAsset.effect.type;
+          } else {
+            // Direct effect structure
+            effectId = effectAsset.id || effectAsset.name;
+          }
           
           // If we still don't have an ID, try to extract from filePath or generate from name
           if (!effectId) {
@@ -505,9 +549,12 @@ const ColumnScene: React.FC<{
             } else if (effectAsset.name) {
               effectId = effectAsset.name;
             } else {
-              effectId = 'unknown'; // Default fallback
+              console.warn('No valid effect ID found for effect asset:', effectAsset);
+              return; // Skip rendering this effect instead of using 'unknown'
             }
           }
+          
+          console.log('🎨 Standalone effect ID resolved:', effectId);
           
           const effectName = effectAsset.name || effectAsset.id || 'Unknown Effect';
           
@@ -684,16 +731,18 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               style={{ 
                 width: '100%', 
                 height: '100%',
-                display: 'block'
+                display: 'block',
+                background: 'transparent'
               }}
               gl={{ 
+                alpha: true,
                 preserveDrawingBuffer: true,
                 antialias: true,
                 powerPreference: 'high-performance'
               }}
               onCreated={({ gl, camera }) => {
+                gl.setClearColor(0x000000, 0); // transparent black
                 console.log('R3F Canvas created successfully');
-                gl.setClearColor(0x000000, 1);
                 
                 // Force the renderer to respect the container's aspect ratio
                 const container = gl.domElement.parentElement;

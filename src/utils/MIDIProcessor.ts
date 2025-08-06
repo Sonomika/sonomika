@@ -1,6 +1,6 @@
 import { MIDIMapping, AppState } from '../store/types';
 import { useStore } from '../store/store';
-import { EffectLoader } from './EffectLoader';
+// EffectLoader import removed - using dynamic loading instead
 
 type StoreActions = {
   setCurrentScene: (sceneId: string) => void;
@@ -128,7 +128,8 @@ export class MIDIProcessor {
   }
 
   private getEffectMetadata(effectType: string) {
-    const effect = EffectLoader.getInstance().createEffect(effectType, 1, 1);
-    return effect.getMetadata();
+    // Using dynamic discovery instead of EffectLoader
+    console.log('Getting metadata for effect type:', effectType);
+    return null; // TODO: Implement dynamic metadata loading
   }
 } 

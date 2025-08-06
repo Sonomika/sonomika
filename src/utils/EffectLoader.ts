@@ -1,82 +1,83 @@
-import { BaseEffect } from '../effects/BaseEffect';
-import { DynamicEffectLoader } from './DynamicEffectLoader';
+import React from 'react';
 
-type EffectConstructor = new (width: number, height: number) => BaseEffect;
-
-export class EffectLoader {
-  private static instance: EffectLoader;
-  private effectRegistry: Map<string, EffectConstructor>;
-  private effectInstances: Map<string, BaseEffect>;
-
-  private constructor() {
-    this.effectRegistry = new Map();
-    this.effectInstances = new Map();
+/**
+ * Loads an effect component dynamically from the effects folder
+ * @param effectId - The ID of the effect to load
+ * @returns A React component or null if loading fails
+ */
+export const loadEffectComponent = async (effectId: string): Promise<React.ComponentType<any> | null> => {
+  // Handle undefined or invalid effect IDs
+  if (!effectId || effectId === 'unknown' || effectId === 'undefined') {
+    console.warn(`Invalid effect ID: ${effectId}`);
+    return null;
   }
 
-  static getInstance(): EffectLoader {
-    if (!EffectLoader.instance) {
-      EffectLoader.instance = new EffectLoader();
-    }
-    return EffectLoader.instance;
-  }
+  try {
+    // Try to load the specific effect
+    const modules = (import.meta as any).glob('../effects/*.tsx');
+    
+    // Convert kebab-case to PascalCase for file matching
+    const pascalCaseId = effectId.split('-').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join('');
+    
+    const possiblePaths = [
+      `../effects/${effectId}.tsx`,                    // kebab-case.tsx
+      `../effects/${effectId}Effect.tsx`,              // kebab-caseEffect.tsx
+      `../effects/${pascalCaseId}.tsx`,                // PascalCase.tsx
+      `../effects/${pascalCaseId}Effect.tsx`,          // PascalCaseEffect.tsx
+      `../effects/${pascalCaseId.replace('Effect', '')}Effect.tsx` // PascalCase.tsx (if already has Effect)
+    ];
 
-  registerEffect(name: string, effectClass: EffectConstructor): void {
-    this.effectRegistry.set(name, effectClass);
-  }
-
-  createEffect(name: string, width: number, height: number): BaseEffect {
-    // First try the new dynamic effect loader
-    try {
-      const dynamicLoader = DynamicEffectLoader.getInstance();
-      const availableEffects = dynamicLoader.getAvailableEffects();
-      
-      // Check if the effect exists in the dynamic loader
-      const effect = availableEffects.find(e => e.name === name || e.id === name);
-      if (effect) {
-        return dynamicLoader.createEffect(effect.id, width, height);
+    console.log(`🔍 Loading effect: ${effectId} -> ${pascalCaseId}`);
+    console.log(`🔍 Available modules:`, Object.keys(modules));
+    
+    for (const path of possiblePaths) {
+      console.log(`🔍 Trying path: ${path} - exists: ${!!modules[path]}`);
+      if (modules[path]) {
+        console.log(`✅ Found effect at: ${path}`);
+        const mod = await modules[path]();
+        return mod.default;
       }
-    } catch (error) {
-      console.warn('Dynamic effect loader failed, falling back to legacy:', error);
     }
 
-    // Fall back to legacy effect system
-    const effectClass = this.effectRegistry.get(name);
-    if (!effectClass) {
-      throw new Error(`Effect "${name}" not found`);
-    }
 
-    const effect = new effectClass(width, height);
-    const instanceId = `${name}_${Date.now()}`;
-    this.effectInstances.set(instanceId, effect);
-    return effect;
-  }
 
-  getEffect(instanceId: string): BaseEffect | undefined {
-    return this.effectInstances.get(instanceId);
+    // If no specific effect found, return null instead of hardcoding a fallback
+    console.warn(`No effect found for ID: ${effectId}`);
+    return null;
+  } catch (error) {
+    console.error(`Error loading effect ${effectId}:`, error);
+    return null;
   }
+};
 
-  removeEffect(instanceId: string): void {
-    const effect = this.effectInstances.get(instanceId);
-    if (effect) {
-      effect.cleanup();
-      this.effectInstances.delete(instanceId);
-    }
-  }
+/**
+ * Hook to load an effect component with state management
+ * @param effectId - The ID of the effect to load
+ * @returns The loaded effect component or null if still loading
+ */
+export const useEffectComponent = (effectId: string): React.ComponentType<any> | null => {
+  const [EffectComponent, setEffectComponent] = React.useState<React.ComponentType<any> | null>(null);
 
-  getAvailableEffects(): string[] {
-    const effects = Array.from(this.effectRegistry.keys());
-    
-    // Add dynamic effects
-    try {
-      const dynamicLoader = DynamicEffectLoader.getInstance();
-      const dynamicEffects = dynamicLoader.getAvailableEffects();
-      dynamicEffects.forEach(effect => {
-        effects.push(effect.name);
-      });
-    } catch (error) {
-      console.warn('Could not get dynamic effects:', error);
-    }
-    
-    return effects;
-  }
-} 
+  React.useEffect(() => {
+    const loadEffect = async () => {
+      // Handle undefined or invalid effect IDs
+      const validEffectId = effectId && effectId !== 'unknown' && effectId !== 'undefined' 
+        ? effectId 
+        : null;
+        
+      if (!validEffectId) {
+        setEffectComponent(null);
+        return;
+      }
+        
+      const component = await loadEffectComponent(validEffectId);
+      setEffectComponent(() => component);
+    };
+
+    loadEffect();
+  }, [effectId]);
+
+  return EffectComponent;
+}; 

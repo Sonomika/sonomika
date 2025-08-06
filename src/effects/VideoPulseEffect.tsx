@@ -18,11 +18,11 @@ const VideoPulseEffect: React.FC<VideoPulseEffectProps> = ({
 
   useFrame((state) => {
     if (materialRef.current) {
-      // Create a pulsing effect by modifying the material's color
+      // Create a very subtle pulsing effect
       const pulse = Math.sin(state.clock.elapsedTime * speed) * intensity;
-      const brightness = 1 + pulse;
+      const brightness = 1 + (pulse * 0.1); // Much more subtle brightness change
       
-      // Apply brightness to the material while preserving the video texture
+      // Apply subtle brightness to the material while preserving the video texture
       materialRef.current.color.setRGB(brightness, brightness, brightness);
     }
   });
@@ -34,9 +34,9 @@ const VideoPulseEffect: React.FC<VideoPulseEffectProps> = ({
         ref={materialRef}
         map={videoTexture}
         transparent
-        opacity={0.9} // Slightly transparent to show video underneath
+        opacity={0.3} // Much more transparent for subtle overlay
         side={THREE.DoubleSide}
-        blending={THREE.AdditiveBlending} // Use additive blending for overlay effect
+        blending={THREE.NormalBlending} // Use normal blending for subtle overlay
         depthTest={false} // Ensure overlay renders on top
         depthWrite={false} // Don't write to depth buffer
       />

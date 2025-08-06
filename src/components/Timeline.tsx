@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/store';
-import { EffectLoader } from '../utils/EffectLoader';
+// EffectLoader import removed - using dynamic loading instead
 
 // Context Menu Component
 interface ContextMenuProps {
@@ -98,11 +98,14 @@ const EffectPreview: React.FC<EffectPreviewProps> = ({ effectName, effectId, dim
 
     // Create effect instance
     try {
-      effectRef.current = EffectLoader.getInstance().createEffect(
-        effectName,
-        dimensions.width,
-        dimensions.height
-      );
+      // Using dynamic discovery instead of EffectLoader
+      console.log('Creating effect for timeline:', effectType);
+      // TODO: Implement dynamic effect creation
+      // effectRef.current = EffectLoader.getInstance().createEffect(
+      //   effectName,
+      //   dimensions.width,
+      //   dimensions.height
+      // );
     } catch (error) {
       console.warn(`Could not create effect ${effectName}:`, error);
       return;

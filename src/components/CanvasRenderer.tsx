@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useEffectComponent } from '../utils/EffectLoader';
 
 interface CanvasRendererProps {
   assets: Array<{
@@ -95,57 +96,20 @@ const EffectLayer: React.FC<{
   layer: any; 
   frameCount: number;
 }> = ({ asset, layer, frameCount }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const time = frameCount / 60;
+  const effectId = asset.asset.id;
+  const EffectComponent = useEffectComponent(effectId);
 
-  // Simple animated effects for now
-  useFrame(() => {
-    if (meshRef.current) {
-      // Generic animation based on effect ID
-      const effectId = asset.asset.id || 'default';
-      
-      // Apply generic pulsing animation
-      const scale = 1 + Math.sin(time * 2) * 0.2;
-      meshRef.current.scale.setScalar(scale);
-      
-      // Apply rotation for certain effects
-      if (effectId.includes('rotation') || effectId.includes('spin')) {
-        meshRef.current.rotation.z = time * 2;
-      }
-    }
-  });
-
-  const geometry = useMemo(() => {
-    const effectId = asset.asset.id || 'default';
-    
-    // Default to sphere geometry
-    return new THREE.SphereGeometry(0.5, 16, 16);
-  }, [asset.asset.id]);
-
-  const material = useMemo(() => {
-    const effectId = asset.asset.id || 'default';
-    let color = new THREE.Color(0xff6666);
-    
-    // Apply color based on effect ID
-    if (effectId.includes('color') || effectId.includes('pulse')) {
-      const hue = (time * 50) % 1;
-      color.setHSL(hue, 1, 0.5);
-    } else if (effectId.includes('wave')) {
-      color.setHex(0x6666ff);
-    } else if (effectId.includes('particle')) {
-      color.setHex(0xffff00);
-    }
-
-    return new THREE.MeshBasicMaterial({ 
-      color, 
-      transparent: true, 
-      opacity: layer.opacity || 1,
-      blending: getBlendMode(layer.blendMode || 'add')
-    });
-  }, [asset.asset.id, layer.opacity, layer.blendMode, time]);
+  if (!EffectComponent) {
+    // No effect found - return null instead of hardcoded fallback
+    return null;
+  }
 
   return (
-    <mesh ref={meshRef} geometry={geometry} material={material} />
+    <EffectComponent 
+      {...layer.params}
+      opacity={layer.opacity}
+      blendMode={layer.blendMode}
+    />
   );
 };
 

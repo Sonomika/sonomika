@@ -1,0 +1,16 @@
+# Cursor Rules - Hard Constraints for AI Assistant
+
+## Git Operations
+- NEVER push to Git unless explicitly requested by user
+
+## Project-Specific Rules
+- NEVER hardcode effects in any file outside of src/effects/ directory
+- NEVER add fallback effect imports in utils/EffectLoader.ts
+- NEVER reference specific effect files outside effects folder
+- ONLY use dynamic discovery patterns
+- ZERO EXCEPTIONS: Any hardcoded effect reference outside effects/ is a violation
+- ALWAYS open electron app, not website
+- ALWAYS use react fiber to render the composite video
+- NEVER create monolithic long files - break large files into smaller, focused modules
+
+ 

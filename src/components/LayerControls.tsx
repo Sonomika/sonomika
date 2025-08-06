@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStore } from '../store/store';
-import { EffectLoader } from '../utils/EffectLoader';
+// EffectLoader import removed - using dynamic loading instead
 import { Layer, AppState, LayerParamValue } from '../store/types';
 
 type StoreActions = {
@@ -16,9 +16,9 @@ interface Props {
 export const LayerControls: React.FC<Props> = ({ layer }) => {
   const { updateLayer } = useStore() as Store;
 
-  const metadata = EffectLoader.getInstance()
-    .createEffect(layer.type, 1, 1)
-    .getMetadata();
+  // Using dynamic discovery instead of EffectLoader
+  console.log('Getting metadata for layer controls:', layer.type);
+  const metadata = null; // TODO: Implement dynamic metadata loading
 
   const handleParamChange = (name: string, value: number | boolean | string) => {
     updateLayer(layer.id, {

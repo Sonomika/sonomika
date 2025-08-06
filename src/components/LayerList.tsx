@@ -136,7 +136,7 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
                         </div>
                         <div className="layer-meta">
                           {getLayerTypeName(layer.type)} • Column {layer.columnIndex + 1}
-                          {layer.asset?.name && ` • ${layer.asset.name}`}
+                          {layer.asset?.name && ` • ${layer.asset.name || layer.asset.metadata?.name || layer.asset.effect?.name || 'Unknown Effect'}`}
                         </div>
                       </div>
                     </div>

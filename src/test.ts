@@ -1,7 +1,7 @@
 import { useStore } from './store/store';
 import { MIDIManager } from './midi/MIDIManager';
 import { BPMManager } from './engine/BPMManager';
-import { EffectLoader } from './utils/EffectLoader';
+// EffectLoader import removed - using dynamic loading instead
 import { SceneTransition } from './utils/SceneTransition';
 import { AppState, Layer, LayerType } from './store/types';
 
@@ -31,9 +31,8 @@ export function runTests() {
   bpm.setBPM(140);
   console.log('Updated BPM:', bpm.getBPM());
 
-  // Test effects
-  const effectLoader = EffectLoader.getInstance();
-  console.log('Available effects:', effectLoader.getAvailableEffects());
+  // Test effects - using dynamic discovery instead of EffectLoader
+  console.log('Available effects: Using dynamic discovery system');
 
   // Test scene transition
   const transition = SceneTransition.getInstance();

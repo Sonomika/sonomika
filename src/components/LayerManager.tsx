@@ -496,71 +496,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
           const getLayerEffectParams = (effectId: string) => {
             console.log('🟢 Getting layer effect params for:', effectId);
             
-            // Generic parameter generation based on effect type
-            const baseParams = {
+            // Use generic parameters instead of hardcoded effect-specific ones
+            // Effects should define their own parameters in their metadata
+            return {
               intensity: { value: 0.5, min: 0, max: 1, step: 0.01 },
               speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
               color: { value: '#ffffff' }
             };
-
-            // Add specific parameters based on effect type
-            if (effectId.includes('strobe')) {
-              return {
-                ...baseParams,
-                frequency: { value: 24, min: 1, max: 60, step: 1 }
-              };
-            } else if (effectId.includes('particle')) {
-              return {
-                ...baseParams,
-                count: { value: 1000, min: 100, max: 5000, step: 100 },
-                size: { value: 0.02, min: 0.001, max: 0.1, step: 0.001 },
-                spread: { value: 10, min: 1, max: 50, step: 1 }
-              };
-            } else if (effectId.includes('film')) {
-              return {
-                ...baseParams,
-                opacity: { value: 0.4, min: 0, max: 1, step: 0.01 }
-              };
-            } else if (effectId.includes('light-leak')) {
-              return {
-                ...baseParams,
-                position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] }
-              };
-            } else if (effectId.includes('wave')) {
-              return {
-                ...baseParams,
-                amplitude: { value: 0.5, min: 0, max: 2, step: 0.1 },
-                frequency: { value: 2, min: 0.1, max: 10, step: 0.1 }
-              };
-            } else if (effectId.includes('pulse')) {
-              return {
-                ...baseParams,
-                size: { value: 0.8, min: 0.1, max: 2, step: 0.1 }
-              };
-            } else if (effectId.includes('geometric')) {
-              return {
-                ...baseParams,
-                pattern: { value: 'spiral', options: ['spiral', 'grid', 'hexagon'] },
-                complexity: { value: 5, min: 1, max: 10, step: 1 }
-              };
-            } else if (effectId.includes('audio')) {
-              return {
-                ...baseParams,
-                sensitivity: { value: 0.5, min: 0, max: 1, step: 0.01 },
-                frequency: { value: 440, min: 20, max: 20000, step: 1 },
-                mode: { value: 'bars', options: ['bars', 'circles', 'waves'] }
-              };
-            } else if (effectId.includes('color')) {
-              return {
-                ...baseParams,
-                colorSpeed: { value: 0.1, min: 0, max: 1, step: 0.01 },
-                autoColor: { value: true },
-                mode: { value: 'gradient', options: ['gradient', 'solid', 'rainbow'] }
-              };
-            }
-
-            // Default parameters for unknown effects
-            return baseParams;
           };
           
           layer.params = getLayerEffectParams(effectData.id);
@@ -1422,33 +1364,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                           
                           // Create a new effect slot with default parameters for film effects
                           const getDefaultParams = (effectId: string) => {
-                            // Generic parameter generation based on effect type
-                            const baseParams = {
+                            // Use generic parameters instead of hardcoded effect-specific ones
+                            // Effects should define their own parameters in their metadata
+                            return {
                               intensity: { value: 0.5, min: 0, max: 1, step: 0.01 },
                               speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
                               color: { value: '#ffffff' }
                             };
-
-                            // Add specific parameters based on effect type
-                            if (effectId.includes('strobe')) {
-                              return {
-                                ...baseParams,
-                                frequency: { value: 24, min: 1, max: 60, step: 1 }
-                              };
-                            } else if (effectId.includes('film')) {
-                              return {
-                                ...baseParams,
-                                opacity: { value: 0.4, min: 0, max: 1, step: 0.01 }
-                              };
-                            } else if (effectId.includes('light-leak')) {
-                              return {
-                                ...baseParams,
-                                position: { value: 'right', options: ['left', 'right', 'top', 'bottom'] }
-                              };
-                            }
-
-                            // Default parameters for unknown effects
-                            return baseParams;
                           };
 
                           const newEffectSlot = {
@@ -1495,7 +1417,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                                 title="Click to toggle effect on/off"
                               >
                                <span className="effect-name">
-                                 {effectSlot.effectId}
+                                 {effectSlot.name || effectSlot.effectId || 'Unknown Effect'}
                                </span>
                                {effectSlot.enabled && <div className="effect-active-indicator">●</div>}
                              </div>
@@ -1673,7 +1595,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                               </div>
                             )}
                           </div>
-                          <div className="layer-name">{layer.asset.name}</div>
+                          <div className="layer-name">
+                            {layer.asset.name || layer.asset.metadata?.name || layer.asset.effect?.name || 'Unknown Effect'}
+                          </div>
                           {layer.blendMode && layer.blendMode !== 'add' && (
                             <div className="layer-blend-mode">
                               {layer.blendMode}

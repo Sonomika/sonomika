@@ -49,10 +49,19 @@ export const EffectRenderer: React.FC<EffectRendererProps> = React.memo(({
           return;
         }
 
-        // Dynamic import based on effect type
+        // Use dynamic discovery instead of hardcoded imports
         let effectModule;
         try {
-          effectModule = await import(`../effects/${effectFile}`);
+          const modules = (import.meta as any).glob('../effects/*.tsx');
+          const effectPath = `../effects/${effectFile}`;
+          
+          if (modules[effectPath]) {
+            effectModule = await modules[effectPath]();
+          } else {
+            console.error('Effect not found:', effectFile);
+            setError(`Effect not found: ${effectName}`);
+            return;
+          }
         } catch (importError) {
           console.error('Failed to import effect:', importError);
           setError(`Failed to load effect: ${effectName}`);

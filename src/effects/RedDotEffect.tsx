@@ -3,20 +3,20 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
 
-interface TestEffectProps {
+interface RedDotEffectProps {
   videoTexture?: THREE.VideoTexture;
   color?: string;
   speed?: number;
   intensity?: number;
-  geometryArgs?: [number, number];
+  size?: number;
 }
 
-const TestEffect: React.FC<TestEffectProps> = ({
+const RedDotEffect: React.FC<RedDotEffectProps> = ({
   videoTexture,
   color = '#ff0000',
   speed = 2.0,
   intensity = 0.3,
-  geometryArgs = [2, 2]
+  size = 0.1
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.MeshBasicMaterial>(null);
@@ -41,7 +41,7 @@ const TestEffect: React.FC<TestEffectProps> = ({
   return (
     <mesh ref={meshRef} position={[0, 0, 0.1]}>
       {/* Small circle geometry for the dot */}
-      <circleGeometry args={[0.1, 32]} />
+      <circleGeometry args={[size, 32]} />
       <meshBasicMaterial 
         ref={materialRef}
         color={color}
@@ -56,8 +56,8 @@ const TestEffect: React.FC<TestEffectProps> = ({
 };
 
 // Add metadata for the effect
-(TestEffect as any).metadata = {
-  name: 'BPM Red Dot',
+(RedDotEffect as any).metadata = {
+  name: 'Red Dot',
   description: 'A small red dot that pulses in sync with the BPM',
   category: 'Test',
   icon: '🔴',
@@ -78,8 +78,17 @@ const TestEffect: React.FC<TestEffectProps> = ({
       max: 1.0,
       step: 0.1,
       description: 'Pulse intensity'
+    },
+    {
+      name: 'size',
+      type: 'number',
+      value: 0.1,
+      min: 0.05,
+      max: 0.5,
+      step: 0.01,
+      description: 'Dot size'
     }
   ]
 };
 
-export default TestEffect; 
+export default RedDotEffect; 
