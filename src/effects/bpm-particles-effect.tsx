@@ -19,8 +19,9 @@ export const BPMParticlesEffect: React.FC<BPMParticlesEffectProps> = ({
   size = 0.1,
   speed = 1.0
 }) => {
-  const meshRef = useRef<THREE.Points>(null);
-  const particlesRef = useRef<THREE.BufferGeometry>(null);
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const positionsRef = useRef<Float32Array | null>(null);
+  const velocitiesRef = useRef<Float32Array | null>(null);
 
   // Calculate BPM timing
   const beatInterval = 60 / bpm; // seconds per beat
@@ -28,7 +29,7 @@ export const BPMParticlesEffect: React.FC<BPMParticlesEffectProps> = ({
   const lastBeatTime = useRef(0);
 
   // Create particle system
-  const { positions, velocities, colors } = useMemo(() => {
+  useMemo(() => {
     const positions = new Float32Array(particleCount * 3);
     const velocities = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
@@ -56,29 +57,28 @@ export const BPMParticlesEffect: React.FC<BPMParticlesEffectProps> = ({
       colors[i * 3 + 2] = colorObj.b;
     }
 
-    return { positions, velocities, colors };
+    // Store refs for animation
+    positionsRef.current = positions;
+    velocitiesRef.current = velocities;
   }, [particleCount, color, speed]);
 
-  // Create geometry and material
+  // Create circle geometry and material
   const geometry = useMemo(() => {
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    return geom;
-  }, [positions, colors]);
+    return new THREE.CircleGeometry(size, 16); // Circle with 16 segments
+  }, [size]);
 
   const material = useMemo(() => {
-    return new THREE.PointsMaterial({
-      size,
-      vertexColors: true,
+    return new THREE.MeshBasicMaterial({
+      color: color,
       transparent: true,
       opacity: 0.8,
       blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
     });
-  }, [size]);
+  }, [color]);
 
   useFrame((state, delta) => {
-    if (!meshRef.current || !particlesRef.current) return;
+    if (!meshRef.current || !positionsRef.current || !velocitiesRef.current) return;
 
     // Update beat timing
     beatTime.current += delta;
@@ -89,9 +89,9 @@ export const BPMParticlesEffect: React.FC<BPMParticlesEffectProps> = ({
       lastBeatTime.current = beatTime.current;
     }
 
-    // Get current positions
-    const positionAttribute = particlesRef.current.getAttribute('position') as THREE.BufferAttribute;
-    const positions = positionAttribute.array as Float32Array;
+    // Get current positions and velocities
+    const positions = positionsRef.current;
+    const velocities = velocitiesRef.current;
 
     // Update particle positions
     for (let i = 0; i < particleCount; i++) {
@@ -133,7 +133,16 @@ export const BPMParticlesEffect: React.FC<BPMParticlesEffectProps> = ({
       }
     }
 
-    positionAttribute.needsUpdate = true;
+    // Update instanced mesh positions
+    if (meshRef.current) {
+      const matrix = new THREE.Matrix4();
+      for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        matrix.setPosition(positions[i3], positions[i3 + 1], positions[i3 + 2]);
+        meshRef.current.setMatrixAt(i, matrix);
+      }
+      meshRef.current.instanceMatrix.needsUpdate = true;
+    }
 
     // Rotate the entire system
     meshRef.current.rotation.x += delta * 0.1;
@@ -141,9 +150,7 @@ export const BPMParticlesEffect: React.FC<BPMParticlesEffectProps> = ({
   });
 
   return (
-    <points ref={meshRef} geometry={geometry} material={material}>
-      <bufferGeometry ref={particlesRef} />
-    </points>
+    <instancedMesh ref={meshRef} geometry={geometry} material={material} args={[undefined, undefined, particleCount]} />
   );
 };
 
