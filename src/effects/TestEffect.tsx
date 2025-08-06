@@ -41,4 +41,31 @@ const TestEffect: React.FC<TestEffectProps> = ({
   );
 };
 
+// Add metadata for the effect
+(TestEffect as any).metadata = {
+  name: 'Test Effect',
+  description: 'A simple test effect with rotation and pulsing animation',
+  category: 'Test',
+  icon: '🧪',
+  author: 'VJ System',
+  version: '1.0.0',
+  parameters: [
+    {
+      name: 'color',
+      type: 'color',
+      value: '#ff0000',
+      description: 'Color of the overlay'
+    },
+    {
+      name: 'speed',
+      type: 'number',
+      value: 1.0,
+      min: 0.1,
+      max: 5.0,
+      step: 0.1,
+      description: 'Animation speed'
+    }
+  ]
+};
+
 export default TestEffect; 

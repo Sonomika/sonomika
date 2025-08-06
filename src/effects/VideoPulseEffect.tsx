@@ -44,4 +44,34 @@ const VideoPulseEffect: React.FC<VideoPulseEffectProps> = ({
   );
 };
 
+// Add metadata for the effect
+(VideoPulseEffect as any).metadata = {
+  name: 'Video Pulse',
+  description: 'Adds a pulsing brightness effect to video',
+  category: 'Video',
+  icon: '💓',
+  author: 'VJ System',
+  version: '1.0.0',
+  parameters: [
+    {
+      name: 'intensity',
+      type: 'number',
+      value: 0.3,
+      min: 0.1,
+      max: 1.0,
+      step: 0.1,
+      description: 'Pulse intensity'
+    },
+    {
+      name: 'speed',
+      type: 'number',
+      value: 2.0,
+      min: 0.5,
+      max: 5.0,
+      step: 0.1,
+      description: 'Pulse speed'
+    }
+  ]
+};
+
 export default VideoPulseEffect; 

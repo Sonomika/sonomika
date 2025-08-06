@@ -230,8 +230,8 @@ export class EffectDiscovery {
       console.log(`✅ Successfully imported module:`, module);
       
       // Try to get metadata from the module
-      const metadata = module.metadata || module.default?.metadata || module[`${importPath}Metadata`];
       const component = module.default || module[`${importPath}Component`];
+      const metadata = module.metadata || component?.metadata || module[`${importPath}Metadata`];
       
       console.log(`🔍 Found metadata:`, metadata);
       console.log(`🔍 Found component:`, component ? 'Yes' : 'No');
