@@ -452,6 +452,17 @@ const ColumnScene: React.FC<{
               }
             }
             
+            // Convert effect name to kebab-case ID if it's not already in the correct format
+            if (effectId && !effectId.includes('-')) {
+              // Convert "BPM Particles" to "bpm-particles-effect"
+              const kebabCaseId = effectId
+                .toLowerCase()
+                .replace(/\s+/g, '-')
+                .replace(/[^a-z0-9-]/g, '')
+                + '-effect';
+              effectId = kebabCaseId;
+            }
+            
             console.log('🎨 Using effect ID for video:', effectId);
             
             // Calculate proper aspect ratio for video (memoized)
@@ -552,6 +563,17 @@ const ColumnScene: React.FC<{
               console.warn('No valid effect ID found for effect asset:', effectAsset);
               return; // Skip rendering this effect instead of using 'unknown'
             }
+          }
+          
+          // Convert effect name to kebab-case ID if it's not already in the correct format
+          if (effectId && !effectId.includes('-')) {
+            // Convert "BPM Particles" to "bpm-particles-effect"
+            const kebabCaseId = effectId
+              .toLowerCase()
+              .replace(/\s+/g, '-')
+              .replace(/[^a-z0-9-]/g, '')
+              + '-effect';
+            effectId = kebabCaseId;
           }
           
           console.log('🎨 Standalone effect ID resolved:', effectId);
