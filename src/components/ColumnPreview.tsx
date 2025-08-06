@@ -449,10 +449,16 @@ const ColumnScene: React.FC<{
             
             renderedElements.push(
               <React.Fragment key={`${key}-container`}>
+                {/* Render the base video first */}
                 <mesh key={`${key}-video`}>
                   <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial map={new THREE.VideoTexture(video)} />
+                  <meshBasicMaterial 
+                    map={new THREE.VideoTexture(video)}
+                    transparent
+                    opacity={1}
+                  />
                 </mesh>
+                {/* Render the effect overlay on top */}
                 <EffectLoader
                   key={`${key}-effects`}
                   videoTexture={new THREE.VideoTexture(video)}
