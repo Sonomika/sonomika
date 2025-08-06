@@ -75,7 +75,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     console.log('Importing files:', files.length, 'files');
     
     // Check if we're in Electron environment
-    const isElectron = !!(window as any).electron || !!(window as any).require;
+    const isElectron = typeof window !== 'undefined' && (window as any).require;
     console.log('Is Electron environment:', isElectron);
     
     for (const file of Array.from(files)) {
@@ -203,28 +203,34 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
   // Function to resolve file path in Electron environment
   const resolveFilePath = (file: File): string => {
-    const isElectron = !!(window as any).electron || !!(window as any).require;
+    console.log('Resolving file path for:', file.name);
+    console.log('File object:', file);
     
-    if (!isElectron) {
-      return '';
-    }
+    // Check if we're in Electron environment
+    const isElectron = typeof window !== 'undefined' && (window as any).require;
     
-    try {
-      // In Electron, we can use Node.js path module
-      const path = (window as any).require('path');
-      
-      // Try different ways to get the file path
-      if ((file as any).path) {
-        const resolvedPath = path.resolve((file as any).path);
-        console.log('Resolved file path:', resolvedPath);
-        return resolvedPath;
+    if (isElectron) {
+      try {
+        // In Electron, we can use Node.js path module
+        const path = (window as any).require('path');
+        
+        // Try different ways to get the file path
+        if ((file as any).path) {
+          const resolvedPath = path.resolve((file as any).path);
+          console.log('Resolved file path (Electron):', resolvedPath);
+          return resolvedPath;
+        }
+        
+        // If no path property, try to construct from name (this is a fallback)
+        console.log('No path property found, using fallback');
+        return '';
+      } catch (error) {
+        console.error('Error resolving file path (Electron):', error);
+        return '';
       }
-      
-      // If no path property, try to construct from name (this is a fallback)
-      console.log('No path property found, using fallback');
-      return '';
-    } catch (error) {
-      console.error('Error resolving file path:', error);
+    } else {
+      // In browser environment, we can't resolve file paths
+      console.log('Browser environment detected, cannot resolve file paths');
       return '';
     }
   };

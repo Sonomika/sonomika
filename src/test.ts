@@ -35,10 +35,6 @@ export function runTests() {
   const effectLoader = EffectLoader.getInstance();
   console.log('Available effects:', effectLoader.getAvailableEffects());
 
-  // Create test effect
-  const effect = effectLoader.createEffect('TestEffect', 400, 300);
-  console.log('Test effect metadata:', effect.getMetadata());
-
   // Test scene transition
   const transition = SceneTransition.getInstance();
   console.log('Scene transition active:', transition.isActive());

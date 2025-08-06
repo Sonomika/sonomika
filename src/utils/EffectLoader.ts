@@ -1,13 +1,5 @@
 import { BaseEffect } from '../effects/BaseEffect';
 import { DynamicEffectLoader } from './DynamicEffectLoader';
-import { CirclePulse } from '../effects/CirclePulse';
-import { ColorPulse } from '../effects/ColorPulse';
-import { TestEffect } from '../effects/TestEffect';
-import { Waveform } from '../effects/Waveform';
-import { ParticleSystem } from '../effects/ParticleSystem';
-import { GeometricPattern } from '../effects/GeometricPattern';
-import { AudioReactive } from '../effects/AudioReactive';
-import { TransitionEffect } from '../effects/TransitionEffect';
 
 type EffectConstructor = new (width: number, height: number) => BaseEffect;
 
@@ -19,16 +11,6 @@ export class EffectLoader {
   private constructor() {
     this.effectRegistry = new Map();
     this.effectInstances = new Map();
-
-    // Register built-in effects
-    this.registerEffect('CirclePulse', CirclePulse);
-    this.registerEffect('ColorPulse', ColorPulse);
-    this.registerEffect('TestEffect', TestEffect);
-    this.registerEffect('Waveform', Waveform);
-    this.registerEffect('ParticleSystem', ParticleSystem);
-    this.registerEffect('GeometricPattern', GeometricPattern);
-    this.registerEffect('AudioReactive', AudioReactive);
-    this.registerEffect('TransitionEffect', TransitionEffect);
   }
 
   static getInstance(): EffectLoader {
