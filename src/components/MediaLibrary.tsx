@@ -488,7 +488,6 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           </div>
         ) : (
           filteredAssets.map((asset: any) => {
-            console.log('Rendering asset:', asset);
             return (
               <div
                 key={asset.id}

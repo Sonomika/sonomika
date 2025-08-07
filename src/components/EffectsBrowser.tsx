@@ -173,7 +173,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
 
         {activeTab === 'effects' && (
           <div className="effects-grid">
-            {allEffects.map((effect) => (
+            {filteredEffects.map((effect) => (
               <div
                 key={effect.id}
                 className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}

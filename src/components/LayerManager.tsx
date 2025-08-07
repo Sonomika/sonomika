@@ -140,19 +140,27 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     });
   };
 
-  const handleResizeEnd = () => {
+  const handleResizeEnd = (e?: MouseEvent) => {
     setIsResizing(false);
   };
 
   React.useEffect(() => {
-    if (isResizing) {
-      document.addEventListener('mousemove', handleResizeMove);
-      document.addEventListener('mouseup', handleResizeEnd);
-      return () => {
-        document.removeEventListener('mousemove', handleResizeMove);
-        document.removeEventListener('mouseup', handleResizeEnd);
-      };
-    }
+    if (!isResizing) return;
+
+    // Add a class to body to indicate resizing is active
+    document.body.classList.add('resizing');
+    
+    const handleMouseMove = (e: MouseEvent) => handleResizeMove(e);
+    const handleMouseUp = (e: MouseEvent) => handleResizeEnd(e);
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.classList.remove('resizing');
+    };
   }, [isResizing]);
 
   // Drag and Drop Handlers
