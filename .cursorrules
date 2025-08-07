@@ -13,4 +13,8 @@
 - ALWAYS use react fiber to render the composite video
 - NEVER create monolithic long files - break large files into smaller, focused modules
 
- 
+## UI Design Rules
+- KEEP UI minimal and clean - avoid unnecessary visual clutter
+- NEVER add unneeded icons unless essential for functionality
+- ONLY use icons for essential controls (play, fast-forward, rewind, stop, etc.)
+- Prioritize functionality over decorative elements

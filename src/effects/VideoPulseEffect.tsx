@@ -77,6 +77,5 @@ const VideoPulseEffect: React.FC<VideoPulseEffectProps> = ({
 
 // Self-register the effect
 registerEffect('VideoPulseEffect', VideoPulseEffect);
-registerEffect('video-pulse-effect', VideoPulseEffect); // Also register with kebab-case ID for backward compatibility
 
 export default VideoPulseEffect; 

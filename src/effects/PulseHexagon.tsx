@@ -105,6 +105,5 @@ const PulseHexagon: React.FC<PulseHexagonEffectProps> = ({
 
 // Self-register the effect
 registerEffect('PulseHexagon', PulseHexagon);
-registerEffect('pulse-hexagon', PulseHexagon); // Also register with old kebab-case ID for backward compatibility
 
 export default PulseHexagon;

@@ -115,6 +115,5 @@ const GenericPulseEffect: React.FC<GenericPulseEffectProps> = ({
 
 // Self-register the effect
 registerEffect('GenericPulseEffect', GenericPulseEffect);
-registerEffect('generic-pulse-effect', GenericPulseEffect); // Also register with kebab-case ID for backward compatibility
 
 export default GenericPulseEffect; 

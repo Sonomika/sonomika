@@ -155,25 +155,10 @@ const EffectLayer: React.FC<{
   console.log('🔍 EffectLayer - layer asset:', layer.asset);
   console.log('🔍 EffectLayer - effectId:', effectId);
   
-  // Try to map old effect IDs to new filenames
-  const getUpdatedEffectId = (id: string) => {
-    const idMappings: Record<string, string> = {
-      'pulse-hexagon': 'PulseHexagon',
-      'hexagon': 'PulseHexagon',
-      'bpm-particles-effect': 'bpm-particles-effect',
-      'video-pulse-effect': 'VideoPulseEffect'
-    };
-    
-    return idMappings[id] || id;
-  };
-  
-  const updatedEffectId = getUpdatedEffectId(effectId);
-  console.log('🔍 EffectLayer - updated effectId:', updatedEffectId);
-  
-  const EffectComponent = useEffectComponent(updatedEffectId);
+  const EffectComponent = useEffectComponent(effectId);
 
   if (!EffectComponent) {
-    console.warn(`No effect component found for ID: ${updatedEffectId} (original: ${effectId})`);
+    console.warn(`No effect component found for ID: ${effectId}`);
     return null;
   }
 
@@ -592,8 +577,12 @@ const ColumnScene: React.FC<{
         // Apply global effects using unified system
         const activeGlobalEffect = globalEffects.find((effect: any) => effect.enabled);
         
+        console.log('🌐 Global effects array:', globalEffects);
+        console.log('🌐 Active global effect:', activeGlobalEffect);
+        
         if (activeGlobalEffect) {
           console.log('🌐 Applying global effect:', activeGlobalEffect.effectId);
+          console.log('🌐 Global effect params:', activeGlobalEffect.params);
           
           // Use unified effect renderer for global effects
           const renderedGlobalEffect = renderEffect(

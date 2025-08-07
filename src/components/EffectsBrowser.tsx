@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useEffectManager } from '../utils/EffectManager';
+import React, { useState, useEffect } from 'react';
+import { getAllRegisteredEffects, getEffect } from '../utils/effectRegistry';
 
 interface EffectsBrowserProps {
   onClose?: () => void;
@@ -10,21 +10,34 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   const [selectedEffect, setSelectedEffect] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'effects' | 'overlays'>('effects');
+  const [registeredEffects, setRegisteredEffects] = useState<string[]>([]);
 
-  // Use the centralized effect manager
-  const { effects, categories, isInitialized } = useEffectManager();
+  // Get all registered effects from the registry
+  useEffect(() => {
+    const effects = getAllRegisteredEffects();
+    setRegisteredEffects(effects);
+    console.log('🔧 EffectsBrowser: Found registered effects:', effects);
+  }, []);
 
-  // All effects are now dynamically discovered
-  const allEffects = isInitialized ? effects.map(effect => ({
-    id: effect.id,
-    name: effect.name,
-    type: effect.category === 'Global' ? 'global' : 
-          effect.category === 'Film' ? 'film' : 
-          effect.category === 'Special' ? 'overlay' : 'threejs',
-    description: effect.description,
-    category: effect.category,
-    icon: effect.icon
-  })) : [];
+  // Convert registered effect IDs to effect objects for display
+  const allEffects = registeredEffects.map(effectId => {
+    const effectComponent = getEffect(effectId);
+    if (!effectComponent) return null;
+
+    // Get metadata from the component
+    const metadata = (effectComponent as any).metadata || {};
+    
+    return {
+      id: effectId,
+      name: metadata.name || effectId,
+      type: metadata.type || 'threejs',
+      description: metadata.description || 'No description available',
+      category: metadata.category || 'Effects',
+      icon: metadata.icon || '✨',
+      author: metadata.author || 'Unknown',
+      version: metadata.version || '1.0.0'
+    };
+  }).filter((effect): effect is NonNullable<typeof effect> => effect !== null);
 
   // Filter effects based on search term
   const filteredEffects = allEffects.filter(effect =>
@@ -47,10 +60,18 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   };
 
   const handleEffectDrag = (e: React.DragEvent, effect: any) => {
+    // Set the drag data in the format expected by the drop handlers
     e.dataTransfer.setData('application/json', JSON.stringify({
       type: 'effect',
-      effect: effect
+      isEffect: true,
+      id: effect.id,
+      name: effect.name,
+      description: effect.description,
+      category: effect.category,
+      icon: effect.icon,
+      effect: effect // Include the full effect object for backward compatibility
     }));
+    console.log('🔧 Dragging effect:', effect);
   };
 
   const handleAddToLayer = () => {
@@ -75,7 +96,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
     }
   };
 
-  if (!isInitialized) {
+  // Show loading state while effects are being registered
+  if (registeredEffects.length === 0) {
     return (
       <div className="effects-browser">
         <div className="effects-browser-header">
@@ -104,10 +126,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
             <p>This might be because:</p>
             <ul>
               <li>No effects are in the effects folder</li>
-              <li>Effects are not properly exported</li>
-              <li>Dynamic discovery is not working in this environment</li>
+              <li>Effects are not properly registered</li>
+              <li>The registry system is not working</li>
             </ul>
-            <p>Check the browser console for more details about the discovery process.</p>
+            <p>Check the browser console for more details about the registration process.</p>
           </div>
         </div>
       </div>

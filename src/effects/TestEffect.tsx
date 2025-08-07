@@ -85,6 +85,5 @@ const TestEffect: React.FC<TestEffectProps> = ({
 
 // Self-register the effect
 registerEffect('TestEffect', TestEffect);
-registerEffect('test-effect', TestEffect); // Also register with kebab-case ID for backward compatibility
 
 export default TestEffect; 

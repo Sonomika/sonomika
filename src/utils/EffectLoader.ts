@@ -103,10 +103,27 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
 export const useEffectComponent = (effectId: string): React.ComponentType<any> | null => {
   console.log(`🎯 useEffectComponent called with effectId: ${effectId}`);
   
+  // Handle backward compatibility: map kebab-case IDs to camelCase IDs
+  const getUpdatedEffectId = (id: string) => {
+    const idMappings: Record<string, string> = {
+      'pulse-hexagon': 'PulseHexagon',
+      'hexagon': 'PulseHexagon',
+      'bpm-particles-effect': 'BPMParticlesEffect',
+      'video-pulse-effect': 'VideoPulseEffect',
+      'generic-pulse-effect': 'GenericPulseEffect',
+      'test-effect': 'TestEffect',
+      'red-dot-effect': 'RedDotEffect'
+    };
+    return idMappings[id] || id;
+  };
+
+  const updatedEffectId = getUpdatedEffectId(effectId);
+  console.log(`🎯 Mapped effectId: ${effectId} -> ${updatedEffectId}`);
+  
   // Try to get from registry first
-  const registeredEffect = getEffect(effectId);
+  const registeredEffect = getEffect(updatedEffectId);
   if (registeredEffect) {
-    console.log(`✅ Found effect in registry: ${effectId}`);
+    console.log(`✅ Found effect in registry: ${updatedEffectId}`);
     return registeredEffect;
   }
   
@@ -118,8 +135,8 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
     
     const loadEffect = async () => {
       // Handle undefined or invalid effect IDs
-      const validEffectId = effectId && effectId !== 'unknown' && effectId !== 'undefined' 
-        ? effectId 
+      const validEffectId = updatedEffectId && updatedEffectId !== 'unknown' && updatedEffectId !== 'undefined' 
+        ? updatedEffectId 
         : null;
         
       if (!validEffectId) {
@@ -135,7 +152,7 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
     };
 
     loadEffect();
-  }, [effectId]);
+  }, [effectId, updatedEffectId]);
 
   return EffectComponent;
 }; 

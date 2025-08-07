@@ -94,6 +94,5 @@ const RedDotEffect: React.FC<RedDotEffectProps> = ({
 
 // Self-register the effect
 registerEffect('RedDotEffect', RedDotEffect);
-registerEffect('red-dot-effect', RedDotEffect); // Also register with kebab-case ID for backward compatibility
 
 export default RedDotEffect; 

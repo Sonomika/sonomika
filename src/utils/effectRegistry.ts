@@ -10,6 +10,7 @@ export const registerEffect = (id: string, component: React.FC<any>) => {
 export const getEffect = (id: string): React.FC<any> | null => {
   const effect = registry.get(id);
   console.log(`🔧 Getting effect: ${id} - found: ${!!effect}`);
+  console.log(`🔧 Registry keys:`, Array.from(registry.keys()));
   return effect || null;
 };
 

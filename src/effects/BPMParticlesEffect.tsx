@@ -156,23 +156,69 @@ export const BPMParticlesEffect: React.FC<BPMParticlesEffectProps> = ({
 };
 
 // Metadata for dynamic discovery
-export const BPMParticlesEffectMeta = {
-  id: 'bpm-particles-effect',
+(BPMParticlesEffect as any).metadata = {
   name: 'BPM Particles',
-  type: 'threejs',
   description: 'Particle system synchronized with BPM',
-  parameters: {
-    bpm: { type: 'number', default: 120, min: 60, max: 200, label: 'BPM' },
-    intensity: { type: 'number', default: 1.0, min: 0.1, max: 3.0, label: 'Intensity' },
-    particleCount: { type: 'number', default: 100, min: 10, max: 500, label: 'Particle Count' },
-    color: { type: 'color', default: '#ff6b6b', label: 'Color' },
-    size: { type: 'number', default: 0.1, min: 0.01, max: 0.5, label: 'Particle Size' },
-    speed: { type: 'number', default: 1.0, min: 0.1, max: 5.0, label: 'Speed' }
-  }
+  category: 'Particles',
+  icon: '✨',
+  author: 'VJ System',
+  version: '1.0.0',
+  parameters: [
+    {
+      name: 'bpm',
+      type: 'number',
+      value: 120,
+      min: 60,
+      max: 200,
+      step: 1,
+      description: 'BPM'
+    },
+    {
+      name: 'intensity',
+      type: 'number',
+      value: 1.0,
+      min: 0.1,
+      max: 3.0,
+      step: 0.1,
+      description: 'Intensity'
+    },
+    {
+      name: 'particleCount',
+      type: 'number',
+      value: 100,
+      min: 10,
+      max: 500,
+      step: 10,
+      description: 'Particle Count'
+    },
+    {
+      name: 'color',
+      type: 'color',
+      value: '#ff6b6b',
+      description: 'Color'
+    },
+    {
+      name: 'size',
+      type: 'number',
+      value: 0.1,
+      min: 0.01,
+      max: 0.5,
+      step: 0.01,
+      description: 'Particle Size'
+    },
+    {
+      name: 'speed',
+      type: 'number',
+      value: 1.0,
+      min: 0.1,
+      max: 5.0,
+      step: 0.1,
+      description: 'Speed'
+    }
+  ]
 };
 
 // Self-register the effect
 registerEffect('BPMParticlesEffect', BPMParticlesEffect);
-registerEffect('bpm-particles-effect', BPMParticlesEffect); // Also register with kebab-case ID for backward compatibility
 
 export default BPMParticlesEffect; 

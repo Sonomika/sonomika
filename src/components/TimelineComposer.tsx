@@ -271,13 +271,11 @@ const TimelineScene: React.FC<{
     
     console.log(`🎨 Rendering ${isGlobal ? 'global' : 'layer'} effect:`, effectId, effectName, effectParams);
     
-    // Use SimpleEffectLoader for all effects
-    const effectNames = [effectId].filter(Boolean);
-
-    
     return (
       <EffectLoader
         key={effectKey}
+        effectId={effectId}
+        params={effectParams}
         fallback={
           <mesh>
             <planeGeometry args={[4, 4]} />
