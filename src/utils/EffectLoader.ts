@@ -108,11 +108,7 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
     const idMappings: Record<string, string> = {
       'pulse-hexagon': 'PulseHexagon',
       'hexagon': 'PulseHexagon',
-      'bpm-particles-effect': 'BPMParticlesEffect',
-      'video-pulse-effect': 'VideoPulseEffect',
-      'generic-pulse-effect': 'GenericPulseEffect',
-      'test-effect': 'TestEffect',
-      'red-dot-effect': 'RedDotEffect'
+      'generic-pulse-effect': 'GenericPulseEffect'
     };
     return idMappings[id] || id;
   };

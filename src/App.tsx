@@ -7,8 +7,7 @@ import { CompositionSettings } from './components/CompositionSettings';
 import { useStore } from './store/store';
 import './index.css';
 
-// Import effects to trigger self-registration
-import './effects';
+// Effects are loaded dynamically - no hardcoded imports needed
 
 // Type declaration for the exposed API
 declare global {

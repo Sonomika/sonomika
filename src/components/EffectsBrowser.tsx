@@ -12,11 +12,26 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   const [activeTab, setActiveTab] = useState<'effects' | 'overlays'>('effects');
   const [registeredEffects, setRegisteredEffects] = useState<string[]>([]);
 
-  // Get all registered effects from the registry
+  // Get all registered effects from the registry and trigger discovery
   useEffect(() => {
-    const effects = getAllRegisteredEffects();
-    setRegisteredEffects(effects);
-    console.log('🔧 EffectsBrowser: Found registered effects:', effects);
+    const loadEffects = async () => {
+      try {
+        // Trigger dynamic discovery first
+        const { EffectDiscovery } = await import('../utils/EffectDiscovery');
+        const discovery = EffectDiscovery.getInstance();
+        await discovery.discoverEffects();
+        console.log('🔧 EffectsBrowser: Triggered dynamic discovery');
+      } catch (error) {
+        console.warn('⚠️ Could not trigger dynamic discovery:', error);
+      }
+      
+      // Then get registered effects
+      const effects = getAllRegisteredEffects();
+      setRegisteredEffects(effects);
+      console.log('🔧 EffectsBrowser: Found registered effects:', effects);
+    };
+    
+    loadEffects();
   }, []);
 
   // Convert registered effect IDs to effect objects for display
