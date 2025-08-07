@@ -154,6 +154,7 @@ const EffectLayer: React.FC<{
   
   console.log('🔍 EffectLayer - layer asset:', layer.asset);
   console.log('🔍 EffectLayer - effectId:', effectId);
+  console.log('🔍 EffectLayer - layer params:', layer.params);
   
   const EffectComponent = useEffectComponent(effectId);
 
@@ -162,9 +163,27 @@ const EffectLayer: React.FC<{
     return null;
   }
 
+  console.log('✅ EffectLayer - EffectComponent found, rendering with props:', {
+    ...layer.params,
+    opacity: layer.opacity,
+    blendMode: layer.blendMode
+  });
+
+  // Convert parameter objects to direct values for the effect component
+  const effectProps = { ...layer.params };
+  
+  // Convert parameter objects with 'value' property to direct values
+  Object.keys(effectProps).forEach(key => {
+    if (effectProps[key] && typeof effectProps[key] === 'object' && 'value' in effectProps[key]) {
+      effectProps[key] = effectProps[key].value;
+    }
+  });
+
+  console.log('✅ EffectLayer - Converted props for effect:', effectProps);
+
   return (
     <EffectComponent 
-      {...layer.params}
+      {...effectProps}
       opacity={layer.opacity}
       blendMode={layer.blendMode}
     />
@@ -556,6 +575,7 @@ const ColumnScene: React.FC<{
           
           // Use filename directly - no conversion needed
           console.log('🎨 Standalone effect ID resolved:', effectId);
+          console.log('🎨 Effect asset structure:', effectAsset);
           
           const effectName = effectAsset.name || effectAsset.id || 'Unknown Effect';
           

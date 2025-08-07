@@ -93,6 +93,9 @@ export const handleDrop = (
         // Handle nested effect structure from EffectsBrowser
         const effectData = asset.effect || asset;
         console.log('🟢 Dropping effect asset:', effectData.name, 'type:', effectData.type, 'id:', effectData.id);
+        console.log('🟢 Full effect data:', effectData);
+        console.log('🟢 Asset structure:', asset);
+        
         layer.asset = effectData;
         layer.type = 'effect'; // Set layer type to effect
         layer.effectType = effectData.type; // Store the effect type (p5js or threejs)

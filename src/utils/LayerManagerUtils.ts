@@ -103,11 +103,15 @@ export const getDefaultEffectParams = (effectId: string) => {
 
   // Use generic parameters instead of hardcoded effect-specific ones
   // Effects should define their own parameters in their metadata
-  return {
-    intensity: { value: 0.5, min: 0, max: 1, step: 0.01 },
+  const defaultParams = {
+    intensity: { value: 1.0, min: 0, max: 2, step: 0.1 },
     speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
-    color: { value: '#ffffff' }
+    color: { value: '#00ff00' },
+    size: { value: 1.0, min: 0.1, max: 2, step: 0.1 }
   };
+
+  console.log('🟢 Default params for', effectId, ':', defaultParams);
+  return defaultParams;
 };
 
 /**

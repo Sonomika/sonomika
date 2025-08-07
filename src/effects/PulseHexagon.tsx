@@ -14,13 +14,16 @@ interface PulseHexagonEffectProps {
 
 const PulseHexagon: React.FC<PulseHexagonEffectProps> = ({
   color = '#00ff00',
-  intensity = 0.5,
-  size = 0.5,
+  intensity = 1.0,
+  size = 1.0,
   speed = 1.0
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.MeshBasicMaterial>(null);
   const { bpm } = useStore();
+
+  // Add debugging logs
+  console.log('🎨 PulseHexagon component rendered with props:', { color, intensity, size, speed });
 
   useFrame((state) => {
     if (materialRef.current && meshRef.current) {
@@ -42,7 +45,7 @@ const PulseHexagon: React.FC<PulseHexagonEffectProps> = ({
   });
 
   return (
-    <mesh ref={meshRef} position={[0, 0, 0.1]}>
+    <mesh ref={meshRef} position={[0, 0, 0.5]}>
       {/* Hexagon geometry */}
       <ringGeometry args={[size * 0.8, size, 6]} />
       <meshBasicMaterial 
@@ -76,7 +79,7 @@ const PulseHexagon: React.FC<PulseHexagonEffectProps> = ({
     {
       name: 'intensity',
       type: 'number',
-      value: 0.5,
+      value: 1.0,
       min: 0.1,
       max: 2.0,
       step: 0.1,
@@ -85,7 +88,7 @@ const PulseHexagon: React.FC<PulseHexagonEffectProps> = ({
     {
       name: 'size',
       type: 'number',
-      value: 0.5,
+      value: 1.0,
       min: 0.1,
       max: 2.0,
       step: 0.1,
@@ -104,6 +107,8 @@ const PulseHexagon: React.FC<PulseHexagonEffectProps> = ({
 };
 
 // Self-register the effect
+console.log('🔧 Registering PulseHexagon effect...');
 registerEffect('PulseHexagon', PulseHexagon);
+console.log('✅ PulseHexagon effect registered successfully');
 
 export default PulseHexagon;
