@@ -7374,33 +7374,123 @@ body {
   align-items: center;
   gap: 8px;
   flex: 1;
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.layer-options-panel .effect-param {
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.layer-options-panel .param-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
 }
 
 .layer-options-panel .param-slider {
   flex: 1;
-  height: 4px;
+  height: 6px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  border-radius: 3px;
   outline: none;
   cursor: pointer;
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10;
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  transition: background 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.layer-options-panel .param-slider:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.layer-options-panel .param-slider:active {
+  background: rgba(0, 188, 212, 0.3);
 }
 
 .layer-options-panel .param-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
-  background: #00bcd4;
+  width: 20px;
+  height: 20px;
+  background: #ff0000 !important;
   border-radius: 50%;
   cursor: pointer;
+  border: 3px solid #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  transition: all 0.2s ease;
+  position: static !important;
+  z-index: auto !important;
+}
+
+.layer-options-panel .param-slider::-webkit-slider-thumb:hover {
+  background: #00d4e6;
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.layer-options-panel .param-slider::-webkit-slider-thumb:active {
+  background: #00e6f7;
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  cursor: grabbing;
+}
+
+/* Force slider interaction */
+.layer-options-panel input[type="range"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.layer-options-panel input[type="range"]:hover {
+  pointer-events: auto !important;
+}
+
+.layer-options-panel input[type="range"]:active {
+  pointer-events: auto !important;
 }
 
 .layer-options-panel .param-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: #00bcd4;
+  width: 20px;
+  height: 20px;
+  background: #ff0000 !important;
   border-radius: 50%;
   cursor: pointer;
-  border: none;
+  border: 3px solid #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  transition: all 0.2s ease;
+  position: static !important;
+  z-index: auto !important;
+}
+
+.layer-options-panel .param-slider::-moz-range-thumb:hover {
+  background: #00d4e6;
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.layer-options-panel .param-slider::-moz-range-thumb:active {
+  background: #00e6f7;
+  transform: scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  cursor: grabbing;
 }
 
 .layer-options-panel .param-value {

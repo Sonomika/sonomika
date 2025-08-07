@@ -1,10 +1,33 @@
-import { useEffect, Component, ErrorInfo, ReactNode, useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LayerManager } from './components/LayerManager';
-import { CanvasStreamManager } from './utils/CanvasStream';
-import { CustomTitleBar } from './components/CustomTitleBar';
-import { PresetModal } from './components/PresetModal';
+import { CompositionScreen } from './components/CompositionScreen';
+import { LayerScreen } from './components/LayerScreen';
+import { MediaLibrary } from './components/MediaLibrary';
+import { EffectsBrowser } from './components/EffectsBrowser';
+import { LayerOptions } from './components/LayerOptions';
+import { MIDIMapper } from './components/MIDIMapper';
+import { MIDISceneMapper } from './components/MIDISceneMapper';
+import { Timeline } from './components/Timeline';
+import TimelineComposer from './components/TimelineComposer';
+import { TransitionSettings } from './components/TransitionSettings';
 import { CompositionSettings } from './components/CompositionSettings';
+import { PresetModal } from './components/PresetModal';
+import { ShortcutHelp } from './components/ShortcutHelp';
+import { CustomTitleBar } from './components/CustomTitleBar';
 import { useStore } from './store/store';
+import { Layer } from './store/types';
+import { KeyboardShortcuts } from './utils/KeyboardShortcuts';
+import { ProjectManager } from './utils/ProjectManager';
+import { RenderLoop } from './utils/RenderLoop';
+import { VideoLoopManager } from './utils/VideoLoopManager';
+import { PerformanceMonitor } from './utils/PerformanceMonitor';
+
+import { MIDIProcessor } from './utils/MIDIProcessor';
+import { MIDIManager } from './midi/MIDIManager';
+import { MIDIMapping } from './midi/MIDIMapping';
+import { BPMManager } from './engine/BPMManager';
+import { CanvasStreamManager } from './utils/CanvasStream';
+import { usePreviewRenderer } from './hooks/usePreviewRenderer';
 import './index.css';
 
 // Effects are loaded dynamically - no hardcoded imports needed
@@ -30,8 +53,8 @@ interface ErrorBoundaryState {
   error?: Error;
 }
 
-class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
-  constructor(props: { children: ReactNode }) {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -40,7 +63,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
   }
 
@@ -227,8 +250,8 @@ function App() {
           return;
         }
         
-        // Create stream manager and open mirror window
-        streamManagerRef.current = new CanvasStreamManager(canvas);
+                  // Create stream manager and open mirror window
+          streamManagerRef.current = new CanvasStreamManager(canvas);
         await streamManagerRef.current.openMirrorWindow();
         setIsMirrorOpen(true);
       }

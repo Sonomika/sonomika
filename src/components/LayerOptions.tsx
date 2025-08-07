@@ -210,7 +210,54 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               max={param.max || 1}
                               step={param.step || 0.1}
                               value={currentValue}
-                              onChange={(e) => handleEffectParamChange(param.name, parseFloat(e.target.value))}
+                              onChange={(e) => {
+                                console.log('🔄 onChange triggered:', param.name, 'value:', e.target.value);
+                                handleEffectParamChange(param.name, parseFloat(e.target.value));
+                              }}
+                              onMouseDown={(e) => {
+                                console.log('🖱️ Mouse down on slider:', param.name, 'event:', e.type);
+                                e.currentTarget.style.cursor = 'grabbing';
+                                e.stopPropagation();
+                              }}
+                              onMouseUp={(e) => {
+                                console.log('🖱️ Mouse up on slider:', param.name, 'event:', e.type);
+                                e.currentTarget.style.cursor = 'pointer';
+                                e.stopPropagation();
+                              }}
+                              onMouseEnter={(e) => {
+                                console.log('🖱️ Mouse enter slider:', param.name);
+                                e.currentTarget.style.cursor = 'grab';
+                              }}
+                              onMouseLeave={(e) => {
+                                console.log('🖱️ Mouse leave slider:', param.name);
+                                e.currentTarget.style.cursor = 'pointer';
+                              }}
+                              onInput={(e) => {
+                                console.log('📊 Input event on slider:', param.name, 'value:', e.target.value);
+                              }}
+                              onPointerDown={(e) => {
+                                console.log('👆 Pointer down on slider:', param.name, 'pointerId:', e.pointerId);
+                              }}
+                              onPointerMove={(e) => {
+                                console.log('👆 Pointer move on slider:', param.name, 'pointerId:', e.pointerId);
+                              }}
+                              onPointerUp={(e) => {
+                                console.log('👆 Pointer up on slider:', param.name, 'pointerId:', e.pointerId);
+                              }}
+                              onClick={(e) => {
+                                console.log('🖱️ Click on slider:', param.name);
+                                e.stopPropagation();
+                              }}
+                              onFocus={(e) => {
+                                console.log('🎯 Focus on slider:', param.name);
+                              }}
+                              onBlur={(e) => {
+                                console.log('🎯 Blur on slider:', param.name);
+                              }}
+                              style={{ 
+                                pointerEvents: 'auto',
+                                cursor: 'pointer'
+                              }}
                               className="param-slider"
                             />
                             <span className="param-value">{currentValue}</span>
@@ -250,7 +297,54 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               max={param?.max || 2}
                               step={param?.step || 0.1}
                               value={currentValue}
-                              onChange={(e) => handleEffectParamChange(paramName, parseFloat(e.target.value))}
+                              onChange={(e) => {
+                                console.log('🔄 onChange triggered (fallback):', paramName, 'value:', e.target.value);
+                                handleEffectParamChange(paramName, parseFloat(e.target.value));
+                              }}
+                              onMouseDown={(e) => {
+                                console.log('🖱️ Mouse down on slider (fallback):', paramName, 'event:', e.type);
+                                e.currentTarget.style.cursor = 'grabbing';
+                                e.stopPropagation();
+                              }}
+                              onMouseUp={(e) => {
+                                console.log('🖱️ Mouse up on slider (fallback):', paramName, 'event:', e.type);
+                                e.currentTarget.style.cursor = 'pointer';
+                                e.stopPropagation();
+                              }}
+                              onMouseEnter={(e) => {
+                                console.log('🖱️ Mouse enter slider (fallback):', paramName);
+                                e.currentTarget.style.cursor = 'grab';
+                              }}
+                              onMouseLeave={(e) => {
+                                console.log('🖱️ Mouse leave slider (fallback):', paramName);
+                                e.currentTarget.style.cursor = 'pointer';
+                              }}
+                              onInput={(e) => {
+                                console.log('📊 Input event on slider (fallback):', paramName, 'value:', e.target.value);
+                              }}
+                              onPointerDown={(e) => {
+                                console.log('👆 Pointer down on slider (fallback):', paramName, 'pointerId:', e.pointerId);
+                              }}
+                              onPointerMove={(e) => {
+                                console.log('👆 Pointer move on slider (fallback):', paramName, 'pointerId:', e.pointerId);
+                              }}
+                              onPointerUp={(e) => {
+                                console.log('👆 Pointer up on slider (fallback):', paramName, 'pointerId:', e.pointerId);
+                              }}
+                              onClick={(e) => {
+                                console.log('🖱️ Click on slider (fallback):', paramName);
+                                e.stopPropagation();
+                              }}
+                              onFocus={(e) => {
+                                console.log('🎯 Focus on slider (fallback):', paramName);
+                              }}
+                              onBlur={(e) => {
+                                console.log('🎯 Blur on slider (fallback):', paramName);
+                              }}
+                              style={{ 
+                                pointerEvents: 'auto',
+                                cursor: 'pointer'
+                              }}
                               className="param-slider"
                             />
                             <span className="param-value">{currentValue}</span>

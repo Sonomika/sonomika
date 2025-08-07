@@ -10,13 +10,15 @@ interface VideoWarpEffectProps {
   frequency?: number;
   speed?: number;
   waveType?: 'sine' | 'cosine' | 'tangent';
+  videoTexture?: THREE.VideoTexture;
 }
 
 const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
   intensity = 0.1,
   frequency = 3.0,
   speed = 1.0,
-  waveType = 'sine'
+  waveType = 'sine',
+  videoTexture
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -33,7 +35,8 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
         frequency: { value: frequency },
         speed: { value: speed },
         bpm: { value: bpm },
-        waveType: { value: waveType === 'sine' ? 0 : waveType === 'cosine' ? 1 : 2 }
+        waveType: { value: waveType === 'sine' ? 0 : waveType === 'cosine' ? 1 : 2 },
+        tDiffuse: { value: videoTexture }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -106,18 +109,45 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
       depthTest: false,
       depthWrite: false
     });
-  }, [intensity, frequency, speed, waveType, bpm]);
+  }, [intensity, frequency, speed, waveType, bpm, videoTexture]);
 
   useFrame((state) => {
     if (materialRef.current) {
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
       materialRef.current.uniforms.bpm.value = bpm;
+      
+      // Update parameter uniforms in real-time
+      materialRef.current.uniforms.intensity.value = intensity;
+      materialRef.current.uniforms.frequency.value = frequency;
+      materialRef.current.uniforms.speed.value = speed;
+      materialRef.current.uniforms.waveType.value = waveType === 'sine' ? 0.0 : 
+                                                   waveType === 'cosine' ? 1.0 : 2.0;
+      
+      // Update video texture if available
+      if (videoTexture && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
+        materialRef.current.uniforms.tDiffuse.value = videoTexture;
+      }
     }
   });
 
+  // Calculate aspect ratio from video texture if available
+  const aspectRatio = useMemo(() => {
+    if (videoTexture && videoTexture.image) {
+      try {
+        const { width, height } = videoTexture.image;
+        if (width && height && width > 0 && height > 0) {
+          return width / height;
+        }
+      } catch (error) {
+        console.warn('Error calculating aspect ratio from video texture:', error);
+      }
+    }
+    return 16/9; // Default aspect ratio
+  }, [videoTexture]);
+
   return (
     <mesh ref={meshRef} position={[0, 0, 0.1]}>
-      <planeGeometry args={[2, 2]} />
+      <planeGeometry args={[aspectRatio * 2, 2]} />
       <primitive object={shaderMaterial} ref={materialRef} />
     </mesh>
   );
