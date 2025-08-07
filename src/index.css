@@ -7208,3 +7208,123 @@ body {
   color: var(--primary-variant);
   font-style: italic;
 }
+
+/* Effect Parameters Styles */
+.layer-options-panel .effect-params {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.layer-options-panel .effect-param {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(0, 188, 212, 0.05);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 188, 212, 0.2);
+}
+
+.layer-options-panel .param-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.layer-options-panel .param-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layer-options-panel .color-picker {
+  width: 40px;
+  height: 30px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.layer-options-panel .number-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.layer-options-panel .param-slider {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.layer-options-panel .param-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #00bcd4;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.layer-options-panel .param-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #00bcd4;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.layer-options-panel .param-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #00bcd4;
+  min-width: 40px;
+  text-align: right;
+}
+
+.layer-options-panel .effect-info {
+  font-size: 12px;
+  color: #00bcd4;
+  font-style: italic;
+  margin: 0;
+  padding: 8px;
+  background: rgba(0, 188, 212, 0.1);
+  border-radius: 4px;
+  border-left: 3px solid #00bcd4;
+}
+
+.layer-options-panel .param-select {
+  background-color: rgba(0, 188, 212, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(0, 188, 212, 0.3);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.layer-options-panel .param-select:hover {
+  border-color: rgba(0, 188, 212, 0.5);
+  background-color: rgba(0, 188, 212, 0.15);
+}
+
+.layer-options-panel .param-select:focus {
+  border-color: #00bcd4;
+  background-color: rgba(0, 188, 212, 0.2);
+}
+
+.layer-options-panel .param-select option {
+  background-color: #1a1a1a;
+  color: #ffffff;
+  padding: 4px;
+}

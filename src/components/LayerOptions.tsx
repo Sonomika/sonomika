@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LOOP_MODES, type LoopMode } from '../constants/video';
 import type { Layer } from '../types/layer';
+import { getEffect } from '../utils/effectRegistry';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
@@ -71,6 +72,78 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     }
   };
 
+  const handleEffectParamChange = (paramName: string, value: any) => {
+    if (selectedLayer) {
+      const currentParams = selectedLayer.params || {};
+      
+      // Clean up old parameters that were removed from PulseHexagon
+      const cleanedParams = { ...currentParams };
+      if (selectedLayer.asset?.name === 'Pulse Hexagon' || selectedLayer.asset?.id === 'PulseHexagon') {
+        delete cleanedParams.intensity;
+        delete cleanedParams.size;
+        delete cleanedParams.speed;
+      }
+      
+      const newParams = { ...cleanedParams, [paramName]: { ...cleanedParams[paramName], value } };
+      onUpdateLayer(selectedLayer.id, { params: newParams });
+    }
+  };
+
+  // Check if the layer has an effect
+  const hasEffect = selectedLayer?.type === 'effect' || selectedLayer?.asset?.type === 'effect' || selectedLayer?.asset?.isEffect;
+  const effectId = selectedLayer?.asset?.id || selectedLayer?.asset?.name;
+  
+  // Try multiple ways to find the effect component
+  let effectComponent = null;
+  if (hasEffect) {
+    // Try the exact ID first
+    effectComponent = getEffect(effectId);
+    
+    // If not found, try common variations
+    if (!effectComponent) {
+      const variations = [
+        effectId,
+        effectId.replace(/-/g, ''), // Remove hyphens
+        effectId.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, ''), // Add hyphens
+        effectId.toLowerCase(),
+        effectId.toUpperCase(),
+        effectId.replace(/Effect$/, ''), // Remove "Effect" suffix
+        effectId + 'Effect', // Add "Effect" suffix
+      ];
+      
+      for (const variation of variations) {
+        effectComponent = getEffect(variation);
+        if (effectComponent) {
+          console.log(`✅ Found effect using variation: ${variation}`);
+          break;
+        }
+      }
+    }
+  }
+  
+  const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
+
+  // Debug logging
+  console.log('🔍 LayerOptions Debug:', {
+    selectedLayer: selectedLayer,
+    asset: selectedLayer?.asset,
+    assetType: selectedLayer?.asset?.type,
+    assetName: selectedLayer?.asset?.name,
+    assetId: selectedLayer?.asset?.id,
+    layerType: selectedLayer?.type,
+    hasEffect: hasEffect,
+    effectId: effectId,
+    effectComponent: effectComponent,
+    effectMetadata: effectMetadata,
+    params: selectedLayer?.params
+  });
+
+  // List all registered effects for debugging
+  if (hasEffect && !effectComponent) {
+    console.log('⚠️ Effect not found in registry. Available effects:');
+    // This will be logged by the effectRegistry.ts file
+  }
+
   if (!selectedLayer) {
     return (
       <div className="layer-options-panel">
@@ -93,38 +166,149 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         <h3>Layer Options - {selectedLayer.name}</h3>
       </div>
       
-      <div className="layer-options-content">
-        <div className="option-group">
-          <h4>Loop Mode</h4>
-          <div className="option-control">
-            <div className="loop-mode-buttons">
-              <button
-                className={`loop-btn ${loopMode === LOOP_MODES.NONE ? 'active' : ''}`}
-                onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
-              >
-                None
-              </button>
-              <button
-                className={`loop-btn ${loopMode === LOOP_MODES.LOOP ? 'active' : ''}`}
-                onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
-              >
-                Loop
-              </button>
-              <button
-                className={`loop-btn ${loopMode === LOOP_MODES.REVERSE ? 'active' : ''}`}
-                onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
-              >
-                Reverse
-              </button>
-              <button
-                className={`loop-btn ${loopMode === LOOP_MODES.PING_PONG ? 'active' : ''}`}
-                onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
-              >
-                Ping-Pong
-              </button>
+      <div className="layer-options-content" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+        {/* Effect Parameters Section */}
+        {hasEffect && (
+          <div className="option-group">
+            <h4>Effect Parameters</h4>
+            <div className="effect-params">
+              {effectMetadata ? (
+                // Use metadata if available
+                effectMetadata.parameters?.map((param: any) => {
+                  const currentValue = selectedLayer.params?.[param.name]?.value ?? param.value;
+                  
+                  return (
+                    <div key={param.name} className="effect-param">
+                      <label className="param-label">{param.description || param.name}</label>
+                      <div className="param-control">
+                        {param.type === 'color' && (
+                          <input
+                            type="color"
+                            value={currentValue}
+                            onChange={(e) => handleEffectParamChange(param.name, e.target.value)}
+                            className="color-picker"
+                          />
+                        )}
+                        {param.type === 'select' && (
+                          <select
+                            value={currentValue}
+                            onChange={(e) => handleEffectParamChange(param.name, e.target.value)}
+                            className="param-select"
+                          >
+                            {param.options?.map((option: any) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        {param.type === 'number' && (
+                          <div className="number-control">
+                            <input
+                              type="range"
+                              min={param.min || 0}
+                              max={param.max || 1}
+                              step={param.step || 0.1}
+                              value={currentValue}
+                              onChange={(e) => handleEffectParamChange(param.name, parseFloat(e.target.value))}
+                              className="param-slider"
+                            />
+                            <span className="param-value">{currentValue}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                // Fallback: show parameters from layer.params, but filter out removed ones
+                selectedLayer.params && Object.keys(selectedLayer.params).map((paramName) => {
+                  // Skip parameters that were removed from PulseHexagon
+                  if (paramName === 'intensity' || paramName === 'size' || paramName === 'speed') {
+                    return null;
+                  }
+                  
+                  const param = selectedLayer.params[paramName];
+                  const currentValue = param?.value ?? 1.0;
+                  
+                  return (
+                    <div key={paramName} className="effect-param">
+                      <label className="param-label">{paramName}</label>
+                      <div className="param-control">
+                        {paramName === 'color' ? (
+                          <input
+                            type="color"
+                            value={currentValue}
+                            onChange={(e) => handleEffectParamChange(paramName, e.target.value)}
+                            className="color-picker"
+                          />
+                        ) : (
+                          <div className="number-control">
+                            <input
+                              type="range"
+                              min={param?.min || 0}
+                              max={param?.max || 2}
+                              step={param?.step || 0.1}
+                              value={currentValue}
+                              onChange={(e) => handleEffectParamChange(paramName, parseFloat(e.target.value))}
+                              className="param-slider"
+                            />
+                            <span className="param-value">{currentValue}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }).filter(Boolean)
+              )}
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Video-specific options */}
+        {selectedLayer?.type === 'video' && (
+          <div className="option-group">
+            <h4>Video Options</h4>
+            <div className="option-control">
+              <div className="loop-mode-buttons">
+                <button
+                  className={`loop-btn ${loopMode === LOOP_MODES.NONE ? 'active' : ''}`}
+                  onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
+                >
+                  None
+                </button>
+                <button
+                  className={`loop-btn ${loopMode === LOOP_MODES.LOOP ? 'active' : ''}`}
+                  onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
+                >
+                  Loop
+                </button>
+                <button
+                  className={`loop-btn ${loopMode === LOOP_MODES.REVERSE ? 'active' : ''}`}
+                  onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
+                >
+                  Reverse
+                </button>
+                <button
+                  className={`loop-btn ${loopMode === LOOP_MODES.PING_PONG ? 'active' : ''}`}
+                  onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
+                >
+                  Ping-Pong
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Effect-specific options */}
+        {hasEffect && (
+          <div className="option-group">
+            <h4>Effect Options</h4>
+            <div className="option-control">
+              <p className="effect-info">Effects are automatically synchronized with BPM</p>
+            </div>
+          </div>
+        )}
 
         {loopMode !== LOOP_MODES.NONE && (
           <div className="option-group">
@@ -225,10 +409,10 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 <span className="setting-value">{loopCount}</span>
               </div>
             )}
-                         <div className="setting-item">
-               <span className="setting-label">Asset:</span>
-               <span className="setting-value">{(selectedLayer as any).asset?.name || 'None'}</span>
-             </div>
+            <div className="setting-item">
+              <span className="setting-label">Asset:</span>
+              <span className="setting-value">{(selectedLayer as any).asset?.name || 'None'}</span>
+            </div>
             <div className="setting-item">
               <span className="setting-label">Blend Mode:</span>
               <span className="setting-value">{blendMode}</span>
