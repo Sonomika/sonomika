@@ -414,11 +414,23 @@ export class EffectDiscovery {
    * Get filename from effect ID
    */
   private getFileNameFromId(id: string): string {
-    // Convert kebab-case back to CamelCase
-    return id
+    console.log(`🔍 getFileNameFromId called with id: "${id}"`);
+    
+    // If the ID is already a simple filename (no hyphens), just add .tsx
+    if (!id.includes('-')) {
+      const fileName = `${id}.tsx`;
+      console.log(`🔍 Simple filename detected, returning: "${fileName}"`);
+      return fileName;
+    }
+    
+    // Convert kebab-case back to CamelCase for complex names
+    const fileName = id
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join('') + 'Effect.tsx';
+    
+    console.log(`🔍 Converted kebab-case to filename: "${fileName}"`);
+    return fileName;
   }
 
   /**

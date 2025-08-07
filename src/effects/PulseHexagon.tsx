@@ -1,8 +1,9 @@
-// src/effects/PulseHexagonEffect.tsx
+// src/effects/PulseHexagon.tsx
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
+import { registerEffect } from '../utils/effectRegistry';
 
 interface PulseHexagonEffectProps {
   color?: string;
@@ -11,7 +12,7 @@ interface PulseHexagonEffectProps {
   speed?: number;
 }
 
-const PulseHexagonEffect: React.FC<PulseHexagonEffectProps> = ({
+const PulseHexagon: React.FC<PulseHexagonEffectProps> = ({
   color = '#00ff00',
   intensity = 0.5,
   size = 0.5,
@@ -58,8 +59,7 @@ const PulseHexagonEffect: React.FC<PulseHexagonEffectProps> = ({
 };
 
 // Metadata for dynamic discovery
-(PulseHexagonEffect as any).metadata = {
-  id: 'hexagon',
+(PulseHexagon as any).metadata = {
   name: 'Pulse Hexagon',
   description: 'A hexagonal shape that pulses with the BPM',
   category: 'Pulse',
@@ -103,4 +103,8 @@ const PulseHexagonEffect: React.FC<PulseHexagonEffectProps> = ({
   ]
 };
 
-export default PulseHexagonEffect;
+// Self-register the effect
+registerEffect('PulseHexagon', PulseHexagon);
+registerEffect('pulse-hexagon', PulseHexagon); // Also register with old kebab-case ID for backward compatibility
+
+export default PulseHexagon;

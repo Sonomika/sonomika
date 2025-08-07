@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { registerEffect } from '../utils/effectRegistry';
 
 interface VideoPulseEffectProps {
   videoTexture: THREE.VideoTexture;
@@ -73,5 +74,9 @@ const VideoPulseEffect: React.FC<VideoPulseEffectProps> = ({
     }
   ]
 };
+
+// Self-register the effect
+registerEffect('VideoPulseEffect', VideoPulseEffect);
+registerEffect('video-pulse-effect', VideoPulseEffect); // Also register with kebab-case ID for backward compatibility
 
 export default VideoPulseEffect; 

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
+import { registerEffect } from '../utils/effectRegistry';
 
 interface RedDotEffectProps {
   videoTexture?: THREE.VideoTexture;
@@ -90,5 +91,9 @@ const RedDotEffect: React.FC<RedDotEffectProps> = ({
     }
   ]
 };
+
+// Self-register the effect
+registerEffect('RedDotEffect', RedDotEffect);
+registerEffect('red-dot-effect', RedDotEffect); // Also register with kebab-case ID for backward compatibility
 
 export default RedDotEffect; 

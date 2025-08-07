@@ -1,4 +1,9 @@
 import React from 'react';
+import { getEffect } from './effectRegistry';
+
+// Test what modules are available
+const testModules = (import.meta as any).glob('../effects/*.tsx');
+console.log('🧪 TEST: Available effect modules:', Object.keys(testModules));
 
 /**
  * Loads an effect component dynamically from the effects folder
@@ -6,6 +11,8 @@ import React from 'react';
  * @returns A React component or null if loading fails
  */
 export const loadEffectComponent = async (effectId: string): Promise<React.ComponentType<any> | null> => {
+  console.log(`🚀 loadEffectComponent called with effectId: ${effectId}`);
+  
   // Handle undefined or invalid effect IDs
   if (!effectId || effectId === 'unknown' || effectId === 'undefined') {
     console.warn(`Invalid effect ID: ${effectId}`);
@@ -26,18 +33,56 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
     if (modules[exactPath]) {
       console.log(`✅ Found effect at: ${exactPath}`);
       const mod = await modules[exactPath]();
+      console.log(`✅ Effect module loaded:`, mod);
+      console.log(`🔍 Module keys:`, Object.keys(mod));
+      console.log(`🔍 Module default:`, mod.default);
+      console.log(`🔍 Module default type:`, typeof mod.default);
       return mod.default;
     }
 
     // If exact match not found, try to find by partial match
     const availableFiles = Object.keys(modules);
-    const matchingFile = availableFiles.find(file => 
-      file.includes(effectId) || effectId.includes(file.replace('../effects/', '').replace('.tsx', ''))
-    );
+    console.log(`🔍 Available files:`, availableFiles);
+    
+    // Try to find a file that matches the effectId (could be kebab-case or original filename)
+    const matchingFile = availableFiles.find(file => {
+      const fileName = file.replace('../effects/', '').replace('.tsx', '');
+      
+      // Check if the effectId matches the filename directly
+      if (fileName === effectId) return true;
+      
+      // Check if the effectId is a kebab-case version of the filename
+      const kebabCaseFileName = fileName
+        .replace(/([A-Z]+)(?=[A-Z][a-z]|$)/g, (match) => `-${match.toLowerCase()}`)
+        .replace(/([A-Z])/g, '-$1')
+        .toLowerCase()
+        .replace(/^-/, '')
+        .replace(/-+$/, '')
+        .replace(/-+/g, '-');
+      
+      if (kebabCaseFileName === effectId) return true;
+      
+      // Check if the filename is a kebab-case version of the effectId
+      const camelCaseEffectId = effectId
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join('');
+      
+      if (fileName === camelCaseEffectId || fileName === camelCaseEffectId + 'Effect') return true;
+      
+      // Fallback: check if either contains the other
+      const matches = file.includes(effectId) || effectId.includes(fileName);
+      console.log(`🔍 Checking file: ${file} (${fileName}) against ${effectId} - matches: ${matches}`);
+      return matches;
+    });
     
     if (matchingFile) {
       console.log(`✅ Found effect by partial match: ${matchingFile}`);
       const mod = await modules[matchingFile]();
+      console.log(`✅ Effect module loaded:`, mod);
+      console.log(`🔍 Module keys:`, Object.keys(mod));
+      console.log(`🔍 Module default:`, mod.default);
+      console.log(`🔍 Module default type:`, typeof mod.default);
       return mod.default;
     }
 
@@ -56,9 +101,21 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
  * @returns The loaded effect component or null if still loading
  */
 export const useEffectComponent = (effectId: string): React.ComponentType<any> | null => {
+  console.log(`🎯 useEffectComponent called with effectId: ${effectId}`);
+  
+  // Try to get from registry first
+  const registeredEffect = getEffect(effectId);
+  if (registeredEffect) {
+    console.log(`✅ Found effect in registry: ${effectId}`);
+    return registeredEffect;
+  }
+  
+  // Fallback to dynamic loading if not in registry
   const [EffectComponent, setEffectComponent] = React.useState<React.ComponentType<any> | null>(null);
 
   React.useEffect(() => {
+    console.log(`🔄 useEffect triggered for effectId: ${effectId}`);
+    
     const loadEffect = async () => {
       // Handle undefined or invalid effect IDs
       const validEffectId = effectId && effectId !== 'unknown' && effectId !== 'undefined' 
@@ -66,11 +123,14 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
         : null;
         
       if (!validEffectId) {
+        console.log(`❌ Invalid effectId: ${effectId}`);
         setEffectComponent(null);
         return;
       }
         
+      console.log(`📞 Calling loadEffectComponent with: ${validEffectId}`);
       const component = await loadEffectComponent(validEffectId);
+      console.log(`📦 Component loaded:`, component);
       setEffectComponent(() => component);
     };
 

@@ -7,6 +7,9 @@ import { CompositionSettings } from './components/CompositionSettings';
 import { useStore } from './store/store';
 import './index.css';
 
+// Import effects to trigger self-registration
+import './effects';
+
 // Type declaration for the exposed API
 declare global {
   interface Window {

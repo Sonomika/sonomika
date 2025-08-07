@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
+import { registerEffect } from '../utils/effectRegistry';
 
 interface GenericPulseEffectProps {
   videoTexture?: THREE.VideoTexture;
@@ -111,5 +112,9 @@ const GenericPulseEffect: React.FC<GenericPulseEffectProps> = ({
     }
   ]
 };
+
+// Self-register the effect
+registerEffect('GenericPulseEffect', GenericPulseEffect);
+registerEffect('generic-pulse-effect', GenericPulseEffect); // Also register with kebab-case ID for backward compatibility
 
 export default GenericPulseEffect; 

@@ -152,14 +152,28 @@ const EffectLayer: React.FC<{
 }> = ({ layer, frameCount }) => {
   const effectId = layer.asset?.id || layer.asset?.name;
   
-  // Debug logging
-  console.log('EffectLayer - layer:', layer);
-  console.log('EffectLayer - effectId:', effectId);
+  console.log('🔍 EffectLayer - layer asset:', layer.asset);
+  console.log('🔍 EffectLayer - effectId:', effectId);
   
-  const EffectComponent = useEffectComponent(effectId);
+  // Try to map old effect IDs to new filenames
+  const getUpdatedEffectId = (id: string) => {
+    const idMappings: Record<string, string> = {
+      'pulse-hexagon': 'PulseHexagon',
+      'hexagon': 'PulseHexagon',
+      'bpm-particles-effect': 'bpm-particles-effect',
+      'video-pulse-effect': 'VideoPulseEffect'
+    };
+    
+    return idMappings[id] || id;
+  };
+  
+  const updatedEffectId = getUpdatedEffectId(effectId);
+  console.log('🔍 EffectLayer - updated effectId:', updatedEffectId);
+  
+  const EffectComponent = useEffectComponent(updatedEffectId);
 
   if (!EffectComponent) {
-    console.warn(`No effect component found for ID: ${effectId}`);
+    console.warn(`No effect component found for ID: ${updatedEffectId} (original: ${effectId})`);
     return null;
   }
 

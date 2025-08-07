@@ -1,6 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { registerEffect } from '../utils/effectRegistry';
 
 interface BPMParticlesEffectProps {
   bpm?: number;
@@ -169,5 +170,9 @@ export const BPMParticlesEffectMeta = {
     speed: { type: 'number', default: 1.0, min: 0.1, max: 5.0, label: 'Speed' }
   }
 };
+
+// Self-register the effect
+registerEffect('BPMParticlesEffect', BPMParticlesEffect);
+registerEffect('bpm-particles-effect', BPMParticlesEffect); // Also register with kebab-case ID for backward compatibility
 
 export default BPMParticlesEffect; 
