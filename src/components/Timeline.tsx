@@ -279,6 +279,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [playbackInterval, setPlaybackInterval] = useState<NodeJS.Timeout | null>(null);
   const [intervalCounter, setIntervalCounter] = useState(0);
+  const [draggingClip, setDraggingClip] = useState<{ clipId: string; sourceTrackId: string } | null>(null);
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -482,7 +483,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   // Handle drag and drop from media library
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    // Move if dragging a timeline clip, otherwise copy for assets
+    e.dataTransfer.dropEffect = draggingClip ? 'move' : 'copy';
     
     // Add visual feedback
     const target = e.currentTarget as HTMLElement;
@@ -525,7 +527,67 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     
     if (assetData) {
       try {
-        const asset = JSON.parse(assetData);
+        const data = JSON.parse(assetData);
+
+        // Reorder / move existing timeline clip
+        if (data.type === 'timeline-clip' && data.clipId) {
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const dropX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+          const dropTime = (dropX / rect.width) * duration;
+          // Optional snap to next clip edge when holding Shift
+          let newStart = Math.max(0, Math.min(duration - 0.1, dropTime));
+          if (e.shiftKey) {
+            try {
+              // Find the moving clip and destination track from current state
+              const sourceTrack = tracks.find((t) => t.id === data.sourceTrackId);
+              const movingClip = sourceTrack?.clips.find((c: any) => c.id === data.clipId);
+              const destTrack = tracks.find((t) => t.id === trackId);
+              if (destTrack) {
+                const boundaries: number[] = [];
+                destTrack.clips.forEach((c) => {
+                  if (c.id === data.clipId) return; // exclude self if same track
+                  boundaries.push(c.startTime);
+                  boundaries.push(c.startTime + c.duration);
+                });
+                const next = boundaries.filter((b) => b >= dropTime).sort((a, b) => a - b)[0];
+                if (Number.isFinite(next)) {
+                  // Clamp so clip stays within timeline
+                  const clipDur = movingClip?.duration ?? 0.1;
+                  newStart = Math.max(0, Math.min(next, duration - clipDur));
+                }
+              }
+            } catch {}
+          }
+
+          updateTracks((prev) => {
+            let moving: any | null = null;
+            // Remove from source track first
+            let removed = prev.map((t) => {
+              if (t.id !== data.sourceTrackId) return t;
+              const idx = t.clips.findIndex((c) => c.id === data.clipId);
+              if (idx === -1) return t;
+              moving = t.clips[idx];
+              const newClips = t.clips.filter((c) => c.id !== data.clipId);
+              return { ...t, clips: newClips };
+            });
+
+            if (!moving) return prev; // nothing to move
+
+            const movedClip = { ...moving, startTime: newStart };
+            // Add to destination track
+            removed = removed.map((t) =>
+              t.id === trackId
+                ? { ...t, clips: [...t.clips, movedClip].sort((a, b) => a.startTime - b.startTime) }
+                : t
+            );
+            return removed;
+          });
+
+          setDraggingClip(null);
+          return;
+        }
+
+        const asset = data;
         console.log('Parsed asset:', asset);
         const track = tracks.find(t => t.id === trackId);
         
@@ -583,6 +645,18 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     }
   };
 
+  // Clip drag start/end for reordering/moving
+  const handleClipDragStart = (e: React.DragEvent, clip: TimelineClip, sourceTrackId: string) => {
+    e.stopPropagation();
+    setDraggingClip({ clipId: clip.id, sourceTrackId });
+    e.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip', clipId: clip.id, sourceTrackId }));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleClipDragEnd = () => {
+    setDraggingClip(null);
+  };
+
   // Handle click on track to place clip at specific time
   const handleTrackClick = (e: React.MouseEvent, trackId: string) => {
     if (draggedAsset) {
@@ -590,7 +664,16 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
       if (track) {
         const rect = e.currentTarget.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
-        const clickTime = (clickX / rect.width) * duration;
+        let clickTime = (clickX / rect.width) * duration;
+        // Shift to snap placement to next clip edge
+        if ((e as any).shiftKey) {
+          const boundaries: number[] = [];
+          track.clips.forEach((c) => {
+            boundaries.push(c.startTime, c.startTime + c.duration);
+          });
+          const next = boundaries.filter((b) => b >= clickTime).sort((a, b) => a - b)[0];
+          if (Number.isFinite(next)) clickTime = next;
+        }
         
         // Find the next available slot after the clicked time
         let newStartTime = clickTime;
@@ -1419,6 +1502,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
                         backgroundColor: getTrackColor(clip.type),
                         border: isPlaying ? '2px solid #FFD700' : 'none'
                       }}
+                      draggable
+                      onDragStart={(e) => handleClipDragStart(e, clip, track.id)}
+                      onDragEnd={handleClipDragEnd}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedClip(clip.id);

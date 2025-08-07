@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo, Suspense } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
@@ -105,8 +105,7 @@ const ImageTexture: React.FC<{
   image: HTMLImageElement; 
   opacity: number; 
   blendMode: string;
-  effects?: any;
-}> = ({ image, opacity, blendMode, effects }) => {
+}> = ({ image, opacity, blendMode }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const [aspectRatio, setAspectRatio] = useState(16/9); // Default 16:9
@@ -260,20 +259,30 @@ const ColumnScene: React.FC<{
             video.autoplay = true;
             video.playsInline = true;
             video.style.backgroundColor = 'transparent';
-            
+            video.crossOrigin = 'anonymous';
+
             await new Promise<void>((resolve, reject) => {
-              video.addEventListener('loadeddata', () => {
-                console.log('Video loaded successfully:', asset.name);
-                resolve();
-              });
+              const onReady = () => {
+                // Ensure we have dimensions before resolving
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                  resolve();
+                } else {
+                  // Some browsers fire loadeddata early; poll once more
+                  setTimeout(() => resolve(), 0);
+                }
+              };
+              video.addEventListener('loadeddata', onReady, { once: true });
               video.addEventListener('error', reject);
               video.load();
             });
-            
+
+            try { void video.play(); } catch {}
+
+            // Add to map only once ready to avoid texImage2D errors
             newVideos.set(asset.id, video);
-            console.log(`✅ Video loaded for layer ${layer.name}:`, asset.name);
+            console.log(`✅ Video ready for layer ${layer.name}:`, asset.name);
           } catch (error) {
-            console.error(`❌ Failed to load video for layer ${layer.name}:`, error);
+            console.error(`❌ Failed to prepare video for layer ${layer.name}:`, error);
           }
         }
       }
@@ -408,7 +417,7 @@ const ColumnScene: React.FC<{
           const textures = new Map();
           videoLayers.forEach((videoLayer) => {
             const video = assets.videos.get(videoLayer.asset.id);
-            if (video) {
+            if (video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
               const texture = new THREE.VideoTexture(video);
               texture.minFilter = THREE.LinearFilter;
               texture.magFilter = THREE.LinearFilter;

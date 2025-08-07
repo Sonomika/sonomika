@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { LOOP_MODES, type LoopMode } from '../constants/video';
 import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
@@ -19,6 +19,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   );
   const [blendMode, setBlendMode] = useState(selectedLayer?.blendMode || 'add');
   const [opacity, setOpacity] = useState(selectedLayer?.opacity || 1.0);
+  const opacityRafRef = useRef<number | null>(null);
+  const opacityPendingRef = useRef<number>(selectedLayer?.opacity || 1.0);
   const [localParamValues, setLocalParamValues] = useState<Record<string, number>>({});
 
   // Sync local state with selectedLayer when it changes
@@ -76,12 +78,21 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     }
   };
 
+  const commitOpacity = (value: number) => {
+    if (!selectedLayer) return;
+    onUpdateLayer(selectedLayer.id, {
+      ...(selectedLayer as any),
+      opacity: value,
+    });
+  };
+
   const handleOpacityChange = (value: number) => {
     setOpacity(value);
-    if (selectedLayer) {
-      onUpdateLayer(selectedLayer.id, {
-        ...(selectedLayer as any),
-        opacity: value
+    opacityPendingRef.current = value;
+    if (opacityRafRef.current == null) {
+      opacityRafRef.current = requestAnimationFrame(() => {
+        commitOpacity(opacityPendingRef.current);
+        opacityRafRef.current = null;
       });
     }
   };
@@ -92,7 +103,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       
       // Clean up old parameters that were removed from PulseHexagon
       const cleanedParams = { ...currentParams };
-      if (selectedLayer.asset?.name === 'Pulse Hexagon' || selectedLayer.asset?.id === 'PulseHexagon') {
+      if ((selectedLayer as any).asset?.name === 'Pulse Hexagon' || (selectedLayer as any).asset?.id === 'PulseHexagon') {
         delete cleanedParams.intensity;
         delete cleanedParams.size;
         delete cleanedParams.speed;
@@ -104,17 +115,17 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   };
 
   // Check if the layer has an effect
-  const hasEffect = selectedLayer?.type === 'effect' || selectedLayer?.asset?.type === 'effect' || selectedLayer?.asset?.isEffect;
-  const effectId = selectedLayer?.asset?.id || selectedLayer?.asset?.name;
+  const hasEffect = selectedLayer?.type === 'effect' || (selectedLayer as any)?.asset?.type === 'effect' || (selectedLayer as any)?.asset?.isEffect;
+  const effectId: string | undefined = (selectedLayer as any)?.asset?.id || (selectedLayer as any)?.asset?.name;
   
   // Try multiple ways to find the effect component
   let effectComponent = null;
   if (hasEffect) {
     // Try the exact ID first
-    effectComponent = getEffect(effectId);
+    effectComponent = effectId ? getEffect(effectId) : null;
     
     // If not found, try common variations
-    if (!effectComponent) {
+    if (!effectComponent && effectId) {
       const variations = [
         effectId,
         effectId.replace(/-/g, ''), // Remove hyphens
@@ -137,20 +148,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   
   const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
 
-  // Debug logging
-  console.log('🔍 LayerOptions Debug:', {
-    selectedLayer: selectedLayer,
-    asset: selectedLayer?.asset,
-    assetType: selectedLayer?.asset?.type,
-    assetName: selectedLayer?.asset?.name,
-    assetId: selectedLayer?.asset?.id,
-    layerType: selectedLayer?.type,
-    hasEffect: hasEffect,
-    effectId: effectId,
-    effectComponent: effectComponent,
-    effectMetadata: effectMetadata,
-    params: selectedLayer?.params
-  });
+  // Debug logging removed for performance during slider drags
 
   // List all registered effects for debugging
   if (hasEffect && !effectComponent) {
@@ -227,11 +225,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               step={param.step || 0.1}
                               value={localParamValues[param.name] ?? currentValue}
                               onChange={(value) => {
-                                console.log('🔄 ReactSlider onChange triggered:', param.name, 'value:', value);
                                 setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
                               }}
                               onAfterChange={(value) => {
-                                console.log('🔄 ReactSlider onAfterChange:', param.name, 'value:', value);
                                 handleEffectParamChange(param.name, value);
                               }}
                             />
@@ -250,7 +246,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                     return null;
                   }
                   
-                  const param = selectedLayer.params[paramName];
+                  const param = selectedLayer.params?.[paramName];
                   const currentValue = param?.value ?? 1.0;
                   
                   return (
@@ -275,11 +271,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               step={param?.step || 0.1}
                               value={localParamValues[paramName] ?? currentValue}
                               onChange={(value) => {
-                                console.log('🔄 ReactSlider onChange triggered (fallback):', paramName, 'value:', value);
                                 setLocalParamValues(prev => ({ ...prev, [paramName]: value }));
                               }}
                               onAfterChange={(value) => {
-                                console.log('🔄 ReactSlider onAfterChange (fallback):', paramName, 'value:', value);
                                 handleEffectParamChange(paramName, value);
                               }}
                             />
@@ -418,7 +412,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 step="0.01"
                 value={opacity}
                 onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
-                onInput={(e) => handleOpacityChange(parseFloat(e.currentTarget.value))}
+                onMouseUp={() => commitOpacity(opacity)}
+                onTouchEnd={() => commitOpacity(opacity)}
+                onKeyUp={() => commitOpacity(opacity)}
                 className="opacity-slider"
               />
               <span className="opacity-value">{Math.round(opacity * 100)}%</span>

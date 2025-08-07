@@ -1,6 +1,4 @@
-import React, { useState, startTransition, useEffect, useCallback, Suspense, useRef, useMemo } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import * as THREE from 'three';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerOptions } from './LayerOptions';
@@ -12,9 +10,9 @@ import { Timeline } from './Timeline';
 import TimelineComposer from './TimelineComposer';
 import { BPMManager } from '../engine/BPMManager';
 import { v4 as uuidv4 } from 'uuid';
-import { getAssetPath, getLayerTypeName, getTrackColor, createLayer, createColumn, getDefaultEffectParams, handleResizeStart, handleResizeMove, handleResizeEnd, handleDragOver, handleDragLeave, handleLayerClick, handleColumnClick, handleLayerPlay, handleStop, handleDragEnd } from '../utils/LayerManagerUtils';
+import { getAssetPath, createColumn, getDefaultEffectParams, handleDragOver, handleDragLeave, handleLayerClick, handleStop } from '../utils/LayerManagerUtils';
 import { handleDrop, handleLayerDragStart, handleRemoveZoneDragOver, handleRemoveZoneDrop, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
-import { handleColumnPlay, handleClearLayers, handleForceClear, handleRemoveAsset, handleUpdateLayer } from '../utils/LayerManagementHandlers';
+import { handleColumnPlay, handleUpdateLayer } from '../utils/LayerManagementHandlers';
 import { createSceneContextMenu } from '../utils/SceneManagementHandlers';
 
 
@@ -81,35 +79,35 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     handleLayerClick(layer, columnId, setSelectedLayer, setSelectedColumn);
   };
 
-  const handleColumnClickWrapper = (columnId: string) => {
-    handleColumnClick(columnId, setSelectedColumn);
-  };
+  // const handleColumnClickWrapper = (columnId: string) => {
+  //   handleColumnClick(columnId, setSelectedColumn);
+  // };
 
   // Handle column play button
   const handleColumnPlayWrapper = (columnId: string) => {
     handleColumnPlay(columnId, currentScene, setPreviewContent, setIsPlaying, playColumn);
   };
 
-  const handleLayerPlayWrapper = (layerId: string) => {
-    handleLayerPlay(layerId, currentScene, setPreviewContent, setIsPlaying);
-  };
+  // const handleLayerPlayWrapper = (layerId: string) => {
+  //   handleLayerPlay(layerId, currentScene, setPreviewContent, setIsPlaying);
+  // };
 
   // Handle stop button
   const handleStopWrapper = () => {
     handleStop(setIsPlaying, setPreviewContent, stopColumn, clearStorage);
   };
 
-  const handleClearLayersWrapper = () => {
-    handleClearLayers(currentScene, updateScene, setCurrentScene, setRefreshTrigger, setSelectedLayer, setSelectedColumn, setPreviewContent, setIsPlaying);
-  };
+  // const handleClearLayersWrapper = () => {
+  //   handleClearLayers(currentScene, updateScene, setCurrentScene, setRefreshTrigger, setSelectedLayer, setSelectedColumn, setPreviewContent, setIsPlaying);
+  // };
 
-  const handleForceClearWrapper = () => {
-    handleForceClear(currentScene, updateScene, setSelectedLayer, setSelectedColumn, setPreviewContent, setIsPlaying, setRefreshTrigger);
-  };
+  // const handleForceClearWrapper = () => {
+  //   handleForceClear(currentScene, updateScene, setSelectedLayer, setSelectedColumn, setPreviewContent, setIsPlaying, setRefreshTrigger);
+  // };
 
-  const handleRemoveAssetWrapper = (columnId: string, layerId: string) => {
-    handleRemoveAsset(columnId, layerId, currentScene, updateScene, setRefreshTrigger);
-  };
+  // const handleRemoveAssetWrapper = (columnId: string, layerId: string) => {
+  //   handleRemoveAsset(columnId, layerId, currentScene, updateScene, setRefreshTrigger);
+  // };
 
   const handleUpdateLayerWrapper = (layerId: string, updatedLayer: any) => {
     handleUpdateLayer(layerId, updatedLayer, currentScene, updateScene, setSelectedLayer, setRefreshTrigger);
@@ -140,7 +138,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     });
   };
 
-  const handleResizeEnd = (e?: MouseEvent) => {
+  const handleResizeEnd = () => {
     setIsResizing(false);
   };
 
@@ -151,7 +149,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     document.body.classList.add('resizing');
     
     const handleMouseMove = (e: MouseEvent) => handleResizeMove(e);
-    const handleMouseUp = (e: MouseEvent) => handleResizeEnd(e);
+    const handleMouseUp = () => handleResizeEnd();
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -173,7 +171,18 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   };
 
   const handleDropWrapper = (e: React.DragEvent, columnId: string, layerNum: number) => {
+    const wasPlayingThisColumn = isPlaying && playingColumnId === columnId;
     handleDrop(e, columnId, layerNum, scenes, currentSceneId, updateScene, setDragOverCell);
+    // Keep playback running if this column was already playing
+    if (wasPlayingThisColumn) {
+      // Reassert playing state without disturbing preview content
+      setIsPlaying(true);
+      try {
+        playColumn(columnId);
+      } catch (err) {
+        console.warn('Failed to reassert play after drop', err);
+      }
+    }
   };
 
   const handleLayerDragStartWrapper = (e: React.DragEvent, layer: any, columnId: string) => {
@@ -198,9 +207,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
 
 
-  const handleLayerReorderDragStartWrapper = (e: React.DragEvent, layer: any, columnId: string) => {
-    handleLayerReorderDragStart(e, layer, columnId, setDraggedLayer);
-  };
+  // Drag start wrapper currently unused by UI bindings
+  // const handleLayerReorderDragStartWrapper = (e: React.DragEvent, layer: any, columnId: string) => {
+  //   handleLayerReorderDragStart(e, layer, columnId, setDraggedLayer);
+  // };
 
   const handleLayerReorderDragOverWrapper = (e: React.DragEvent, targetColumnId: string, targetLayerNum: number) => {
     handleLayerReorderDragOver(e, targetColumnId, targetLayerNum, draggedLayer, setDragOverLayer);
@@ -226,11 +236,61 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
       );
     }
 
+    // Render timeline preview using the exact same component as column preview
+    if (previewContent.type === 'timeline') {
+      console.log('🎬 Rendering timeline preview via ColumnPreview');
+      const activeClips = previewContent.activeClips || [];
+      // Convert active clips into a temporary column structure
+      const tempLayers = activeClips.map((clip: any) => {
+        const trackNumber = parseInt((clip.trackId || 'track-1').split('-')[1] || '1', 10);
+        return {
+          id: `timeline-layer-${clip.id}`,
+          name: `Layer ${trackNumber}`,
+          layerNum: trackNumber,
+          type: clip.type === 'effect' ? 'effect' : 'video',
+          asset: clip.asset,
+          opacity: 1,
+          blendMode: 'add',
+          params: clip.params || {},
+          effects: clip.type === 'effect' ? [clip.asset] : undefined,
+        };
+      });
+
+      const tempColumn = {
+        id: 'timeline-preview',
+        name: 'Timeline Preview',
+        layers: tempLayers,
+      } as any;
+
+      const aspectRatio = compositionSettings.width / compositionSettings.height;
+      return (
+        <div className="preview-column">
+          <div
+            className="preview-main-content"
+            data-aspect-ratio={`${compositionSettings.width}:${compositionSettings.height}`}
+            style={{ aspectRatio }}
+          >
+            <ColumnPreview
+              column={tempColumn}
+              width={compositionSettings.width}
+              height={compositionSettings.height}
+              isPlaying={Boolean(previewContent.isPlaying)}
+              bpm={bpm}
+              globalEffects={currentScene?.globalEffects || []}
+            />
+          </div>
+        </div>
+      );
+    }
+
     if (previewContent.type === 'column') {
       console.log('🎨 Rendering column preview');
+      // Always resolve the latest column from the store so updates are live
+      const liveColumn = currentScene?.columns?.find((col: any) => col.id === previewContent.columnId) || previewContent.column;
+
       // Show the first layer with content as the main preview
-      const layersWithContent = previewContent.layers.filter((layer: any) => layer.asset);
-      console.log('🎨 Layers with content:', layersWithContent);
+      const layersWithContent = (liveColumn?.layers || []).filter((layer: any) => layer.asset);
+      console.log('🎨 Layers with content (live):', layersWithContent);
       
       // Check if this is an empty column
       if (previewContent.isEmpty || layersWithContent.length === 0) {
@@ -259,9 +319,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
         );
       }
 
-      // Use the new ColumnPreview component for combined layer rendering
+        // Use the ColumnPreview component with the live column for combined layer rendering
       console.log('🎨 Rendering combined column preview with p5.js');
-      console.log('🎨 Column data:', previewContent.column);
+        console.log('🎨 Column data (live):', liveColumn);
       console.log('🎨 Composition settings:', compositionSettings);
       
               // Calculate aspect ratio dynamically
@@ -275,7 +335,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
               style={{ aspectRatio: aspectRatio }}
             >
               <ColumnPreview
-                column={previewContent.column}
+                column={liveColumn}
                 width={compositionSettings.width}
                 height={compositionSettings.height}
                 isPlaying={isPlaying && playingColumnId === previewContent.columnId}
@@ -677,7 +737,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
             {/* Composition Row */}
             <div className="composition-row">
-              {columns.map((column: any, index: number) => {
+              {columns.map((column: any) => {
                 const isColumnPlaying = playingColumnId === column.id;
                 return (
                   <div key={column.id} className="column-cell">
@@ -695,7 +755,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                         }
                       }}
                     >
-                      <h4>{index + 1}</h4>
+                       <h4>{columns.findIndex(c => c.id === column.id) + 1}</h4>
                       <button 
                         className={`play-btn ${isColumnPlaying ? 'stop' : 'play'}`}
                         onClick={(e) => {
@@ -724,7 +784,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             {[3, 2, 1].map((layerNum) => (
               <div key={layerNum} className={`layer-row ${layerNum === 1 ? 'active' : ''}`}>
                 {/* Column Cells for this Layer */}
-                {columns.map((column: any, colIndex: number) => {
+                {columns.map((column: any) => {
                   // More robust layer finding - check both name and layerNum
                   const layer = column.layers.find((l: any) => 
                     l.name.includes(`Layer ${layerNum}`) || 
@@ -746,7 +806,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                       onDragStart={(e) => {
                         if (hasAsset) {
                           // Always use layer reordering for existing layers
-                          handleLayerReorderDragStartWrapper(e, layer, column.id);
+                          handleLayerReorderDragStart(e, layer, column.id, setDraggedLayer);
                         }
                       }}
                       onDragEnd={handleDragEnd}
