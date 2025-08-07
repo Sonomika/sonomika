@@ -306,16 +306,9 @@ export class EffectDiscovery {
         }
       };
 
-      // Auto-register the effect when discovered
-      if (component) {
-        try {
-          const { registerEffect } = await import('./effectRegistry');
-          registerEffect(id, component);
-          console.log(`🔧 Auto-registered effect: ${id}`);
-        } catch (error) {
-          console.warn(`⚠️ Could not auto-register effect ${id}:`, error);
-        }
-      }
+      // Note: Effects are self-registered in their own files, so we don't need to auto-register here
+      // This prevents duplicate registrations
+      console.log(`🔧 Effect ${id} is self-registered, skipping auto-registration`);
 
       console.log(`✅ Created effect object:`, effect);
       return effect;

@@ -1204,11 +1204,34 @@ body {
 
 .effects-grid {
   flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
   overflow-y: auto;
+  max-height: calc(100vh - 200px);
+}
+
+.effect-category {
+  background: rgba(0, 188, 212, 0.05);
+  border: 1px solid rgba(0, 188, 212, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.category-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #00bcd4;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.category-effects {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .effects-list {
@@ -1371,13 +1394,14 @@ body {
 .effect-item {
   background-color: var(--surface);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 4px;
+  padding: 6px 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
 }
 
 .effect-item:hover {
@@ -1398,8 +1422,9 @@ body {
 }
 
 .effect-icon {
-  font-size: 32px;
+  font-size: 20px;
   opacity: 0.8;
+  flex-shrink: 0;
 }
 
 .effect-type-badge {
@@ -1418,19 +1443,40 @@ body {
 .effect-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
 }
 
 .effect-name {
   font-weight: 600;
   color: var(--on-surface);
-  font-size: 14px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .effect-description {
   color: var(--on-surface-variant);
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 9px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.effect-tag {
+  background: rgba(0, 188, 212, 0.2);
+  color: #00bcd4;
+  font-size: 8px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 /* Drop Zone */
@@ -5026,6 +5072,13 @@ body.dragging .remove-zone {
   border-bottom: 1px solid #444;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
 .effects-tabs {
   display: flex;
   background: #2a2a2a;
@@ -5034,7 +5087,7 @@ body.dragging .remove-zone {
 
 .effects-tab {
   flex: 1;
-  padding: 8px 12px;
+  padding: 4px 12px;
   background: none;
   border: none;
   color: #ccc;
@@ -5081,27 +5134,42 @@ body.dragging .remove-zone {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  max-height: calc(100vh - 120px);
+  /* Ensure content can scroll */
+  min-height: 0;
 }
 
 /* Search Bar */
 .search-bar {
   flex: 1;
   max-width: 200px;
+  padding: 4px 0;
+}
+
+.header-left .search-bar {
+  max-width: 180px;
+  margin-left: 8px;
 }
 
 .effects-header-left .search-bar {
-  padding: 0;
+  padding: 4px 0;
   border-bottom: none;
 }
 
 .search-input {
   width: 100%;
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: #333;
   border: 1px solid #555;
   border-radius: 4px;
   color: #fff;
   font-size: 0.9rem;
+  height: 28px;
+  box-sizing: border-box;
+  /* Prevent browser autocomplete dropdown */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .search-input::placeholder {
@@ -5111,6 +5179,22 @@ body.dragging .remove-zone {
 .search-input:focus {
   outline: none;
   border-color: #00bcd4;
+}
+
+/* Hide browser autocomplete dropdown */
+.search-input::-webkit-autofill,
+.search-input::-webkit-autofill:hover,
+.search-input::-webkit-autofill:focus,
+.search-input::-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #333 inset !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* Remove any browser-generated dropdowns */
+.search-input::-webkit-calendar-picker-indicator,
+.search-input::-webkit-list-button,
+.search-input::-webkit-search-cancel-button {
+  display: none !important;
 }
 
 /* Effects Grid */
@@ -7022,19 +7106,44 @@ body {
 .effects-grid {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 4px;
+  padding: 12px;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  /* Ensure scrollbar is visible */
+  scrollbar-width: thin;
+  scrollbar-color: #555 #2a2a2a;
+}
+
+.effects-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.effects-grid::-webkit-scrollbar-track {
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+.effects-grid::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.effects-grid::-webkit-scrollbar-thumb:hover {
+  background: #777;
 }
 
 .effect-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 8px;
+  padding: 8px 10px;
   background-color: var(--background);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-height: 32px;
 }
 
 .effect-item:hover {
@@ -7085,6 +7194,18 @@ body {
   color: var(--primary-variant);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.effect-tag {
+  font-size: 9px;
+  color: #00bcd4;
+  background: rgba(0, 188, 212, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
 .effect-details {

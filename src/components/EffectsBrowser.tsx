@@ -154,82 +154,45 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   return (
     <div className="effects-browser">
       <div className="effects-browser-header">
-        <h2>Effects Browser</h2>
+        <div className="header-left">
+          <h2>Effects Browser</h2>
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search effects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
+        </div>
         <button onClick={handleClose} className="close-button">×</button>
       </div>
 
       <div className="effects-browser-content">
-        <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search effects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
-        </div>
-
-        <div className="tabs">
-          <button
-            className={`tab ${activeTab === 'effects' ? 'active' : ''}`}
-            onClick={() => setActiveTab('effects')}
-          >
-            Effects
-          </button>
-          <button
-            className={`tab ${activeTab === 'overlays' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overlays')}
-          >
-            Overlays
-          </button>
-        </div>
 
         {activeTab === 'effects' && (
           <div className="effects-grid">
-            {Object.entries(effectsByCategory).map(([category, categoryEffects]) => (
-              <div key={category} className="effect-category">
-                <h3 className="category-title">{category}</h3>
-                <div className="category-effects">
-                  {categoryEffects.map((effect) => (
-                    <div
-                      key={effect.id}
-                      className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
-                      onClick={() => handleEffectSelect(effect)}
-                      draggable
-                      onDragStart={(e) => handleEffectDrag(e, effect)}
-                    >
-                      <div className="effect-icon">{effect.icon}</div>
-                      <div className="effect-info">
-                        <div className="effect-name">{effect.name}</div>
-                        <div className="effect-description">{effect.description}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'overlays' && (
-          <div className="overlays-grid">
-            {allEffects.filter(effect => effect.type === 'overlay').map((effect) => (
+            {allEffects.map((effect) => (
               <div
                 key={effect.id}
                 className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
                 onClick={() => handleEffectSelect(effect)}
                 draggable
                 onDragStart={(e) => handleEffectDrag(e, effect)}
+                title={`${effect.name}: ${effect.description}`}
               >
-                <div className="effect-icon">{effect.icon}</div>
                 <div className="effect-info">
                   <div className="effect-name">{effect.name}</div>
                   <div className="effect-description">{effect.description}</div>
                 </div>
+                <div className="effect-tag">{effect.category}</div>
               </div>
             ))}
           </div>
         )}
+
+
 
         {selectedEffect && (
           <div className="effect-details">
