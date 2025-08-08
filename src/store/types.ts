@@ -84,9 +84,12 @@ export interface AppState {
   sidebarVisible: boolean;
   midiMappings: MIDIMapping[];
   selectedLayerId: string | null;
+  selectedTimelineClip: any | null;
   previewMode: 'composition' | 'layer';
   transitionType: TransitionType;
   transitionDuration: number;
   assets: Asset[];
   compositionSettings: CompositionSettings;
+  timelineSnapEnabled: boolean; // Magnet/Snap toggle
+  timelineDuration: number; // Timeline duration in seconds
 } 

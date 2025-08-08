@@ -99,7 +99,7 @@ interface TimelineClip {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreviewUpdate }) => {
-  const { currentSceneId } = useStore() as any;
+  const { currentSceneId, timelineSnapEnabled, setTimelineSnapEnabled, timelineDuration, setTimelineDuration } = useStore() as any;
   
   // Load saved timeline data from localStorage for current scene
   const loadTimelineData = (): TimelineTrack[] => {
@@ -134,7 +134,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   const [tracks, setTracks] = useState<TimelineTrack[]>(loadTimelineData);
   const [currentTime, setCurrentTime] = useState(0);
-  // Timeline duration adapts to longest clip end; fallback to 60s if no clips
+  // Timeline duration adapts to longest clip end; fallback to store duration if no clips
   const duration = useMemo(() => {
     let maxEnd = 0;
     try {
@@ -145,8 +145,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         });
       });
     } catch {}
-    return maxEnd > 0 ? Math.ceil(maxEnd) : 60;
-  }, [tracks]);
+    // Use the maximum of: longest clip end, or configured timeline duration
+    return Math.max(maxEnd > 0 ? Math.ceil(maxEnd) : 0, timelineDuration);
+  }, [tracks, timelineDuration]);
   
   // Reload timeline data when scene changes
   useEffect(() => {
@@ -423,26 +424,45 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       .filter((c) => (excludeClipId ? c.id !== excludeClipId : true))
       .sort((a, b) => a.startTime - b.startTime);
 
-    // Find neighbors around candidateStart
-    let prevEnd = 0;
-    let nextStart = duration; // allow until end of timeline
-    for (let i = 0; i < sorted.length; i++) {
-      const c = sorted[i];
-      const end = c.startTime + c.duration;
-      if (end <= candidateStart) {
-        prevEnd = Math.max(prevEnd, end);
-        continue;
-      }
-      nextStart = c.startTime;
-      break;
+    // If no clips exist, place at candidate start
+    if (sorted.length === 0) {
+      return Math.max(0, candidateStart);
     }
 
-    // Clamp inside free window [prevEnd, nextStart - clipDuration]
-    const upperBound = Math.max(0, nextStart - clipDuration);
-    let adjusted = Math.min(Math.max(candidateStart, prevEnd), upperBound);
-    // Safety clamp to timeline
-    adjusted = Math.max(0, Math.min(adjusted, Math.max(0, duration - clipDuration)));
-    return adjusted;
+    // Check if we can place at the very beginning (before first clip)
+    const firstClipStart = sorted[0].startTime;
+    if (candidateStart + clipDuration <= firstClipStart) {
+      return Math.max(0, candidateStart);
+    }
+
+    // Find the first available gap
+    for (let i = 0; i < sorted.length; i++) {
+      const currentClip = sorted[i];
+      const currentClipEnd = currentClip.startTime + currentClip.duration;
+      
+      // Check if we can place after this clip
+      const nextClip = sorted[i + 1];
+      if (nextClip) {
+        // There's a gap between current clip and next clip
+        const gapStart = currentClipEnd;
+        const gapEnd = nextClip.startTime;
+        
+        // Check if our clip fits in this gap and candidate start is within this gap
+        if (candidateStart >= gapStart && candidateStart + clipDuration <= gapEnd) {
+          return candidateStart;
+        }
+      } else {
+        // This is the last clip, check if we can place after it
+        if (candidateStart >= currentClipEnd) {
+          return candidateStart;
+        }
+      }
+    }
+
+    // If no valid position found, place at the end of the last clip
+    const lastClip = sorted[sorted.length - 1];
+    const lastClipEnd = lastClip.startTime + lastClip.duration;
+    return Math.max(lastClipEnd, candidateStart);
   };
 
   // Find the first available non-overlapping start time at or after desiredStart
@@ -452,19 +472,49 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     clipDuration: number
   ): number => {
     const sorted = [...clips].sort((a, b) => a.startTime - b.startTime);
-    let windowStart = 0;
-    for (let i = 0; i < sorted.length; i++) {
-      const windowEnd = sorted[i].startTime; // free space until next clip
-      const start = Math.max(windowStart, desiredStart);
-      if (start + clipDuration <= windowEnd) return Math.max(0, start);
-      // advance window to end of this clip
-      windowStart = sorted[i].startTime + sorted[i].duration;
+    
+    // If no clips exist, place at desired start or 0
+    if (sorted.length === 0) {
+      return Math.max(0, desiredStart);
     }
-    // Last window from windowStart to timeline end
-    const lastStart = Math.max(windowStart, desiredStart);
-    if (lastStart + clipDuration <= duration) return Math.max(0, lastStart);
-    // If no room, clamp to end minus duration
-    return Math.max(0, duration - clipDuration);
+    
+    // Check if we can place at the very beginning (before first clip)
+    const firstClipStart = sorted[0].startTime;
+    if (desiredStart + clipDuration <= firstClipStart) {
+      return Math.max(0, desiredStart);
+    }
+    
+    // Find the first available gap
+    for (let i = 0; i < sorted.length; i++) {
+      const currentClip = sorted[i];
+      const currentClipEnd = currentClip.startTime + currentClip.duration;
+      
+      // Check if we can place after this clip
+      const nextClip = sorted[i + 1];
+      if (nextClip) {
+        // There's a gap between current clip and next clip
+        const gapStart = currentClipEnd;
+        const gapEnd = nextClip.startTime;
+        
+        // Check if our clip fits in this gap
+        if (gapStart + clipDuration <= gapEnd) {
+          // Place at the later of: gap start or desired start
+          const placementStart = Math.max(gapStart, desiredStart);
+          if (placementStart + clipDuration <= gapEnd) {
+            return placementStart;
+          }
+        }
+      } else {
+        // This is the last clip, check if we can place after it
+        const placementStart = Math.max(currentClipEnd, desiredStart);
+        return placementStart;
+      }
+    }
+    
+    // If no gap found, place at the end of the last clip
+    const lastClip = sorted[sorted.length - 1];
+    const lastClipEnd = lastClip.startTime + lastClip.duration;
+    return Math.max(lastClipEnd, desiredStart);
   };
 
   // Build snap candidates: existing clip boundaries and second-grid ticks
@@ -502,6 +552,21 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     return nearest;
   };
 
+  // Snap only if within a proximity threshold (in seconds)
+  const snapWithThreshold = (time: number, candidates: number[], thresholdSec: number): number => {
+    if (candidates.length === 0) return time;
+    let nearest = time;
+    let bestDist = thresholdSec + 1; // start above threshold
+    for (let i = 0; i < candidates.length; i++) {
+      const d = Math.abs(time - candidates[i]);
+      if (d < bestDist) {
+        bestDist = d;
+        nearest = candidates[i];
+      }
+    }
+    return bestDist <= thresholdSec ? nearest : time;
+  };
+
   const handleDrop = (e: React.DragEvent, trackId: string, _time: number) => {
     e.preventDefault();
     
@@ -535,7 +600,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           
           let newStart = Math.max(0, Math.min(duration - 0.1, dropTime));
           
-          if (e.shiftKey) {
+          // CapCut-like snapping: magnet toggle OR Shift enables snap
+          if (e.shiftKey || timelineSnapEnabled) {
             try {
               if (hoveredClip) {
                 // If hovering over a clip and holding Shift, snap to its boundaries
@@ -551,10 +617,48 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                   newStart = clipEnd;
                 }
               } else {
-                // Snap to nearest clip boundary or second-grid when holding Shift
+                // Snap to nearest clip boundary, seconds grid, or playhead
                 if (destTrack) {
                   const candidates = buildSnapCandidates(destTrack.clips, true, data.clipId);
-                  newStart = snapToNearest(newStart, candidates);
+                  // include playhead as candidate
+                  candidates.push(currentTime);
+                  
+                  // When magnet is enabled, prioritize snapping to the end of the previous clip
+                  if (timelineSnapEnabled && !e.shiftKey) {
+                    const sortedClips = destTrack.clips
+                      .filter(c => c.id !== data.clipId)
+                      .sort((a, b) => a.startTime - b.startTime);
+                    
+                    // Find the clip that ends just before the drop position
+                    let previousClipEnd = 0;
+                    for (const clip of sortedClips) {
+                      const clipEnd = clip.startTime + clip.duration;
+                      if (clipEnd <= dropTime && clipEnd > previousClipEnd) {
+                        previousClipEnd = clipEnd;
+                      }
+                    }
+                    
+                    // If we found a previous clip end, prioritize snapping to it
+                    if (previousClipEnd > 0) {
+                      const distanceToPreviousEnd = Math.abs(dropTime - previousClipEnd);
+                      const thresholdSec = 8 / Math.max(1, pixelsPerSecond);
+                      if (distanceToPreviousEnd <= thresholdSec) {
+                        newStart = previousClipEnd;
+                      } else {
+                        // Fall back to regular snap logic
+                        const thresholdSec = 8 / Math.max(1, pixelsPerSecond);
+                        newStart = snapWithThreshold(newStart, candidates, thresholdSec);
+                      }
+                    } else {
+                      // No previous clip found, use regular snap logic
+                      const thresholdSec = 8 / Math.max(1, pixelsPerSecond);
+                      newStart = snapWithThreshold(newStart, candidates, thresholdSec);
+                    }
+                  } else {
+                    // Regular snap logic for Shift key or when magnet is disabled
+                    const thresholdSec = 8 / Math.max(1, pixelsPerSecond);
+                    newStart = snapWithThreshold(newStart, candidates, thresholdSec);
+                  }
                 }
               }
             } catch {}
@@ -606,8 +710,25 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               }
 
               if (!didSwap) {
-                // Insert into first available gap starting near newStart
-                const safeStart = findFirstAvailableStart(destTrackClips, newStart, moving.duration);
+                // For cross-track moves, always place at the end of the destination track
+                const isCrossTrackMove = data.sourceTrackId !== trackId;
+                let safeStart;
+                
+                if (isCrossTrackMove) {
+                  // Find the end of the last clip on the destination track
+                  const sortedDestClips = destTrackClips.sort((a, b) => a.startTime - b.startTime);
+                  if (sortedDestClips.length > 0) {
+                    const lastClip = sortedDestClips[sortedDestClips.length - 1];
+                    safeStart = lastClip.startTime + lastClip.duration;
+                  } else {
+                    // No clips on destination track, place at 0
+                    safeStart = 0;
+                  }
+                } else {
+                  // Same track move - use the existing gap-finding logic
+                  safeStart = findFirstAvailableStart(destTrackClips, newStart, moving.duration);
+                }
+                
                 const movedClip = { ...moving, startTime: safeStart };
                 removed = removed.map((t) =>
                   t.id === trackId
@@ -658,8 +779,14 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               // Trim from left: adjust start and duration, ensure not negative, keep within neighbors
               const destTrackClips = (removed.find((t) => t.id === trackId)?.clips ?? []) as TimelineClip[];
               // newStart is the desired new beginning
-              // Shift-key snapping for trim-left too
-              const snappedStart = e.shiftKey ? snapToNearest(newStart, buildSnapCandidates(destTrackClips, true, moving.id)) : newStart;
+              // CapCut-like snapping for trim-left (magnet OR Shift)
+              let snappedStart = newStart;
+              if (e.shiftKey || timelineSnapEnabled) {
+                const candidates = buildSnapCandidates(destTrackClips, true, moving.id);
+                candidates.push(currentTime);
+                const thresholdSec = 8 / Math.max(1, pixelsPerSecond);
+                snappedStart = snapWithThreshold(newStart, candidates, thresholdSec);
+              }
               const safeStart = clampStartToNeighbors(destTrackClips, snappedStart, moving.duration, moving.id);
               const newDuration = Math.max(0.1, moving.duration - (safeStart - moving.startTime));
               // Respect original video duration
@@ -675,8 +802,13 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               // Trim from right: change only duration based on drop position
               const desiredEndRaw = Math.min(duration, Math.max(newStart, moving.startTime + 0.1));
               const destTrackClips = (removed.find((t) => t.id === trackId)?.clips ?? []) as TimelineClip[];
-              const snapCandidates = buildSnapCandidates(destTrackClips, true, moving.id);
-              const desiredEnd = e.shiftKey ? snapToNearest(desiredEndRaw, snapCandidates) : desiredEndRaw;
+              let desiredEnd = desiredEndRaw;
+              if (e.shiftKey || timelineSnapEnabled) {
+                const snapCandidates = buildSnapCandidates(destTrackClips, true, moving.id);
+                snapCandidates.push(currentTime);
+                const thresholdSec = 8 / Math.max(1, pixelsPerSecond);
+                desiredEnd = snapWithThreshold(desiredEndRaw, snapCandidates, thresholdSec);
+              }
               const newDuration = Math.max(0.1, desiredEnd - moving.startTime);
               // Ensure not overlapping next neighbor
               const nextClip = destTrackClips
@@ -743,7 +875,24 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           };
 
           const desiredDuration = asset.duration || 5;
-          const safeStartForNew = findFirstAvailableStart(track.clips, Math.max(0, desiredStart), desiredDuration);
+          // When magnet is enabled, place behind the first clip; otherwise use drop position
+          let safeStartForNew;
+          if (timelineSnapEnabled && !e.shiftKey) {
+            // Find the last clip on the track to place behind it
+            const sortedClips = track.clips.sort((a, b) => a.startTime - b.startTime);
+            if (sortedClips.length > 0) {
+              // Place behind the last clip (not just the first)
+              const lastClip = sortedClips[sortedClips.length - 1];
+              const lastClipEnd = lastClip.startTime + lastClip.duration;
+              safeStartForNew = lastClipEnd;
+            } else {
+              // No clips on track, place at 0
+              safeStartForNew = 0;
+            }
+          } else {
+            // Use original logic: video/audio at 0, effects at drop position
+            safeStartForNew = clipType === 'video' || clipType === 'audio' ? 0 : findFirstAvailableStart(track.clips, Math.max(0, desiredStart), desiredDuration);
+          }
 
           const newClip: TimelineClip = {
             id: `clip-${Date.now()}`,
@@ -825,10 +974,42 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         const rect = e.currentTarget.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         let clickTime = (clickX / rect.width) * duration;
-        // Optional Shift to snap to boundaries or seconds
-        if ((e as any).shiftKey) {
+        // Snap to boundaries/seconds/playhead when magnet is enabled or Shift is held
+        if ((e as any).shiftKey || timelineSnapEnabled) {
           const candidates = buildSnapCandidates(track.clips, true);
-          clickTime = snapToNearest(clickTime, candidates);
+          candidates.push(currentTime);
+          const thresholdSec = 8 / Math.max(1, pixelsPerSecond);
+          
+          // When magnet is enabled, prioritize snapping to the end of the previous clip
+          if (timelineSnapEnabled && !(e as any).shiftKey) {
+            const sortedClips = track.clips.sort((a, b) => a.startTime - b.startTime);
+            
+            // Find the clip that ends just before the click position
+            let previousClipEnd = 0;
+            for (const clip of sortedClips) {
+              const clipEnd = clip.startTime + clip.duration;
+              if (clipEnd <= clickTime && clipEnd > previousClipEnd) {
+                previousClipEnd = clipEnd;
+              }
+            }
+            
+            // If we found a previous clip end, prioritize snapping to it
+            if (previousClipEnd > 0) {
+              const distanceToPreviousEnd = Math.abs(clickTime - previousClipEnd);
+              if (distanceToPreviousEnd <= thresholdSec) {
+                clickTime = previousClipEnd;
+              } else {
+                // Fall back to regular snap logic
+                clickTime = snapWithThreshold(clickTime, candidates, thresholdSec);
+              }
+            } else {
+              // No previous clip found, use regular snap logic
+              clickTime = snapWithThreshold(clickTime, candidates, thresholdSec);
+            }
+          } else {
+            // Regular snap logic for Shift key or when magnet is disabled
+            clickTime = snapWithThreshold(clickTime, candidates, thresholdSec);
+          }
         }
         const desiredDuration = draggedAsset.duration || 5;
         const newStartTime = findFirstAvailableStart(track.clips, Math.max(0, clickTime), desiredDuration);
@@ -863,9 +1044,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           duration: draggedAsset.duration,
         };
 
+        // Always place video and audio clips at 0 seconds
+        const finalStartTime = clipType === 'video' || clipType === 'audio' ? 0 : newStartTime;
+        
         const newClip: TimelineClip = {
           id: `clip-${Date.now()}`,
-          startTime: newStartTime,
+          startTime: finalStartTime,
           duration: draggedAsset.duration || 5,
           asset: assetRef,
           type: clipType,
@@ -960,10 +1144,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       setPlaybackInterval(null);
     }
     
-    // Always start from earliest clip when play button is clicked (or 0)
-    const earliestClipTime = getEarliestClipTime();
-    const startAt = earliestClipTime > 0 ? earliestClipTime : 0;
-    console.log('Resetting timeline to start for playback:', startAt);
+    // Always start from current time when play button is clicked (don't override user's position)
+    const startAt = currentTime;
+    console.log('Starting playback from current time:', startAt);
     setCurrentTime(startAt);
     
     // Get earliest clip time for end-of-timeline reset
@@ -980,7 +1163,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           console.log('⏹️ Timeline reached end, stopping playback');
           setIsPlaying(false);
           // Reset to earliest clip or 0
-          const resetTime = earliestClipTime > 0 ? earliestClipTime : 0;
+          const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
           setCurrentTime(resetTime);
           clearInterval(interval);
           setPlaybackInterval(null);
@@ -1468,6 +1651,32 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
              align-items: center;
              gap: 8px;
            }
+
+           /* Magnet/Snap Button */
+           .magnet-controls {
+             display: flex;
+             align-items: center;
+             gap: 8px;
+             background: rgba(0, 0, 0, 0.3);
+             padding: 6px 10px;
+             border-radius: 4px;
+             border: 1px solid #555;
+           }
+           .magnet-btn {
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             width: 32px;
+             height: 32px;
+             background: #333;
+             border: 1px solid #555;
+             border-radius: 4px;
+             color: #fff;
+             cursor: pointer;
+             transition: all 0.2s ease;
+           }
+           .magnet-btn:hover { background: #444; border-color: #666; }
+           .magnet-btn.active { background: #007acc; border-color: #0099ff; color: #fff; }
            
            .action-btn {
              display: flex;
@@ -1627,6 +1836,85 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               z-index: 1000;
               position: fixed;
             }
+
+           /* Duration Controls */
+           .duration-controls {
+             display: flex;
+             align-items: center;
+             gap: 8px;
+             background: rgba(0, 0, 0, 0.3);
+             padding: 6px 10px;
+             border-radius: 4px;
+             border: 1px solid #555;
+           }
+           
+           .duration-label {
+             color: #ccc;
+             font-size: 12px;
+             font-weight: 600;
+             white-space: nowrap;
+           }
+           
+           .duration-input {
+             width: 50px;
+             height: 28px;
+             background: #333;
+             border: 1px solid #555;
+             border-radius: 3px;
+             color: #fff;
+             text-align: center;
+             font-size: 12px;
+             font-weight: 600;
+             outline: none;
+             transition: all 0.2s ease;
+           }
+           
+           .duration-input:focus {
+             border-color: #007acc;
+             box-shadow: 0 0 0 1px rgba(0, 122, 204, 0.3);
+           }
+           
+           .duration-input:hover {
+             border-color: #666;
+           }
+           
+                       .duration-unit {
+              color: #ccc;
+              font-size: 12px;
+              font-weight: 600;
+            }
+           
+           .duration-presets {
+             display: flex;
+             gap: 2px;
+           }
+           
+           .duration-preset-btn {
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             width: 24px;
+             height: 24px;
+             background: #333;
+             border: 1px solid #555;
+             border-radius: 3px;
+             color: #ccc;
+             cursor: pointer;
+             font-size: 10px;
+             font-weight: 600;
+             transition: all 0.2s ease;
+           }
+           
+           .duration-preset-btn:hover {
+             background: #444;
+             border-color: #666;
+             color: #fff;
+           }
+           
+           .duration-preset-btn:active {
+             background: #555;
+             transform: translateY(1px);
+           }
         `}
       </style>
             <div className="timeline-header">
@@ -1735,7 +2023,70 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
              </button>
            </div>
            
-           {/* Timeline Scrubber */}
+           {/* Timeline Duration Control */}
+           <div className="duration-controls">
+             <label className="duration-label">Duration:</label>
+             <input
+               type="number"
+               min="1"
+               max="3600"
+               step="1"
+               value={timelineDuration}
+               onChange={(e) => {
+                 const newDuration = Math.max(1, Math.min(3600, parseInt(e.target.value) || 60));
+                 setTimelineDuration(newDuration);
+               }}
+               className="duration-input"
+               title="Timeline duration in seconds"
+             />
+             <span className="duration-unit">s</span>
+             <div className="duration-presets">
+               <button
+                 onClick={() => setTimelineDuration(30)}
+                 className="duration-preset-btn"
+                 title="30 seconds"
+               >
+                 30s
+               </button>
+               <button
+                 onClick={() => setTimelineDuration(60)}
+                 className="duration-preset-btn"
+                 title="1 minute"
+               >
+                 1m
+               </button>
+               <button
+                 onClick={() => setTimelineDuration(120)}
+                 className="duration-preset-btn"
+                 title="2 minutes"
+               >
+                 2m
+               </button>
+               <button
+                 onClick={() => setTimelineDuration(300)}
+                 className="duration-preset-btn"
+                 title="5 minutes"
+               >
+                 5m
+               </button>
+             </div>
+           </div>
+           
+            {/* Magnet toggle */}
+            <div className="magnet-controls">
+              <button
+                className={`magnet-btn ${timelineSnapEnabled ? 'active' : ''}`}
+                title={timelineSnapEnabled ? 'Snap: ON' : 'Snap: OFF'}
+                onClick={() => setTimelineSnapEnabled(!timelineSnapEnabled)}
+              >
+                {/* magnet icon */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M3 12V6a3 3 0 013-3h3v4H6v5a6 6 0 0012 0V7h-3V3h3a3 3 0 013 3v6a9 9 0 01-18 0z"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Timeline Scrubber */}
            <div className="timeline-scrubber">
           <input
             type="range"

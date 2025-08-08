@@ -46,6 +46,7 @@ const initialState: AppState = {
   sidebarVisible: true,
   midiMappings: [],
   selectedLayerId: null,
+  selectedTimelineClip: null,
   previewMode: 'composition',
   transitionType: 'fade',
   transitionDuration: 500,
@@ -56,6 +57,8 @@ const initialState: AppState = {
     aspectRatio: '16:9',
     frameRate: 30,
   },
+  timelineSnapEnabled: true,
+  timelineDuration: 60, // 1 minute default
 };
 
 initialState.currentSceneId = initialState.scenes[0].id;
@@ -70,6 +73,7 @@ export const useStore = create<AppState & {
   toggleSidebar: () => void;
   setBpm: (bpm: number) => void;
   setSelectedLayer: (layerId: string | null) => void;
+  setSelectedTimelineClip: (clip: any | null) => void;
   setPreviewMode: (mode: AppState['previewMode']) => void;
   addMIDIMapping: (mapping: MIDIMapping) => void;
   removeMIDIMapping: (index: number) => void;
@@ -89,6 +93,8 @@ export const useStore = create<AppState & {
   moveBetweenColumns: (sourceColumnId: string, destinationColumnId: string, sourceIndex: number, destinationIndex: number) => void;
   savePreset: (presetName?: string) => string | null;
   loadPreset: (file: File) => Promise<boolean>;
+  setTimelineSnapEnabled: (enabled: boolean) => void;
+  setTimelineDuration: (duration: number) => void;
 }>()(
   persist(
     (set, get) => ({
@@ -144,6 +150,8 @@ export const useStore = create<AppState & {
       setBpm: (bpm: number) => set({ bpm }),
 
       setSelectedLayer: (layerId: string | null) => set({ selectedLayerId: layerId }),
+
+      setSelectedTimelineClip: (clip: any | null) => set({ selectedTimelineClip: clip }),
 
       setPreviewMode: (mode: AppState['previewMode']) => set({ previewMode: mode }),
 
@@ -400,6 +408,8 @@ export const useStore = create<AppState & {
           }
         });
       },
+      setTimelineSnapEnabled: (enabled: boolean) => set({ timelineSnapEnabled: enabled }),
+      setTimelineDuration: (duration: number) => set({ timelineDuration: duration }),
     }),
     {
       name: 'vj-app-storage',
@@ -438,6 +448,8 @@ export const useStore = create<AppState & {
            transitionType: state.transitionType,
            transitionDuration: state.transitionDuration,
            compositionSettings: state.compositionSettings,
+           timelineSnapEnabled: state.timelineSnapEnabled,
+           timelineDuration: state.timelineDuration,
          };
        },
              onRehydrateStorage: () => (state) => {
