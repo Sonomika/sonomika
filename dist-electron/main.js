@@ -1,5 +1,6 @@
 "use strict";
 const electron = require("electron");
+const fs = require("fs");
 const path = require("path");
 const gotTheLock = electron.app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -359,6 +360,15 @@ electron.app.whenReady().then(() => {
     console.log("Request URL:", request.url);
     console.log("File path resolved:", filePath);
     callback(filePath);
+  });
+  electron.ipcMain.handle("read-local-file-base64", async (event, filePath) => {
+    try {
+      const data = await fs.promises.readFile(filePath);
+      return data.toString("base64");
+    } catch (err) {
+      console.error("Failed to read local file:", filePath, err);
+      throw err;
+    }
   });
   electron.ipcMain.on("window-minimize", () => {
     console.log("Main: window-minimize IPC received");

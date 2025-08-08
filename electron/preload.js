@@ -32,6 +32,9 @@ try {
         sendCanvasData: (dataUrl) => {
             console.log('Preload: sendCanvasData called');
             electron_1.ipcRenderer.send('canvas-data', dataUrl);
+        },
+        readLocalFileAsBase64: (filePath) => {
+            return electron_1.ipcRenderer.invoke('read-local-file-base64', filePath);
         }
     });
     console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');

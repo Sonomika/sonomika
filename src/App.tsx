@@ -9,6 +9,7 @@ import { MIDIMapper } from './components/MIDIMapper';
 import { MIDISceneMapper } from './components/MIDISceneMapper';
 import { Timeline } from './components/Timeline';
 import TimelineComposer from './components/TimelineComposer';
+
 import { TransitionSettings } from './components/TransitionSettings';
 import { CompositionSettings } from './components/CompositionSettings';
 import { PresetModal } from './components/PresetModal';
@@ -406,6 +407,7 @@ function App() {
         display: 'flex',
         flexDirection: 'column'
       }}>
+
         <div style={{ flex: 1, marginTop: '20px', height: 'calc(100vh - 120px)' }}>
           <LayerManager onClose={() => {}} />
         </div>

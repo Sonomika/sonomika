@@ -1,4 +1,5 @@
 import { app, BrowserWindow, protocol, Menu, ipcMain } from 'electron';
+import fs from 'fs';
 import path from 'path';
 
 // Prevent multiple instances
@@ -408,6 +409,16 @@ app.whenReady().then(() => {
   });
   
   // Set up IPC handlers
+  ipcMain.handle('read-local-file-base64', async (event, filePath: string) => {
+    try {
+      const data = await fs.promises.readFile(filePath);
+      return data.toString('base64');
+    } catch (err: any) {
+      console.error('Failed to read local file:', filePath, err);
+      throw err;
+    }
+  });
+
   ipcMain.on('window-minimize', () => {
     console.log('Main: window-minimize IPC received');
     if (mainWindow) {

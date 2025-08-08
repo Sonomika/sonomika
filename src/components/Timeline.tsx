@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { AudioWaveform } from './AudioWaveform';
 import { useStore } from '../store/store';
 // EffectLoader import removed - using dynamic loading instead
 
@@ -74,84 +75,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete }) =>
   );
 };
 
-// Effect Preview Component
-interface EffectPreviewProps {
-  effectName: string;
-  effectId: string;
-  dimensions: { width: number; height: number };
-}
-
-const EffectPreview: React.FC<EffectPreviewProps> = ({ effectName, effectId, dimensions }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const effectRef = useRef<any>(null);
-  const animationRef = useRef<number>();
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    canvas.width = dimensions.width;
-    canvas.height = dimensions.height;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Create effect instance
-    try {
-      // Using dynamic discovery instead of EffectLoader
-      console.log('Creating effect for timeline:', effectType);
-      // TODO: Implement dynamic effect creation
-      // effectRef.current = EffectLoader.getInstance().createEffect(
-      //   effectName,
-      //   dimensions.width,
-      //   dimensions.height
-      // );
-    } catch (error) {
-      console.warn(`Could not create effect ${effectName}:`, error);
-      return;
-    }
-
-    let time = 0;
-    const animate = (deltaTime: number) => {
-      if (!effectRef.current) return;
-
-      // Render the effect
-      effectRef.current.render(deltaTime);
-      
-      // Draw the effect to canvas
-      ctx.clearRect(0, 0, dimensions.width, dimensions.height);
-      ctx.drawImage(effectRef.current.canvas, 0, 0);
-      
-      time += deltaTime;
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      if (effectRef.current) {
-        effectRef.current.cleanup();
-      }
-    };
-  }, [effectName, dimensions]);
-
-  return (
-    <div className="effect-preview">
-      <canvas 
-        ref={canvasRef} 
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          objectFit: 'cover',
-          borderRadius: '4px'
-        }} 
-      />
-    </div>
-  );
-};
+// (EffectPreview removed as unused)
 
 interface TimelineProps {
   onClose: () => void;
@@ -161,7 +85,7 @@ interface TimelineProps {
 interface TimelineTrack {
   id: string;
   name: string;
-  type: 'video' | 'effect';
+  type: 'video' | 'effect' | 'audio';
   clips: TimelineClip[];
 }
 
@@ -170,12 +94,12 @@ interface TimelineClip {
   startTime: number;
   duration: number;
   asset: any;
-  type: 'video' | 'effect';
+  type: 'video' | 'effect' | 'audio';
   name: string;
 }
 
-export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) => {
-  const { bpm, setBpm, currentSceneId } = useStore() as any;
+export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreviewUpdate }) => {
+  const { currentSceneId } = useStore() as any;
   
   // Load saved timeline data from localStorage for current scene
   const loadTimelineData = (): TimelineTrack[] => {
@@ -183,8 +107,17 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
       const savedData = localStorage.getItem(`timeline-tracks-${currentSceneId}`);
       if (savedData) {
         const parsedData = JSON.parse(savedData);
-        console.log(`Loaded timeline data for scene ${currentSceneId} from localStorage:`, parsedData);
-        return parsedData;
+        let tracksData: TimelineTrack[] = parsedData;
+        // Ensure an audio track exists when loading old saves
+        if (!tracksData.some((t: any) => t.type === 'audio')) {
+          tracksData = [
+            ...tracksData,
+            { id: 'track-audio', name: 'Audio', type: 'audio', clips: [] },
+          ];
+          console.log('Appended missing audio track to saved timeline data');
+        }
+        console.log(`Loaded timeline data for scene ${currentSceneId} from localStorage:`, tracksData);
+        return tracksData;
       }
     } catch (error) {
       console.error('Error loading timeline data:', error);
@@ -192,15 +125,28 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     
     // Default tracks if no saved data
     return [
-    { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
-    { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
-    { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
+      { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
+      { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
+      { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] },
+      { id: 'track-4', name: 'Audio', type: 'audio', clips: [] }
     ];
   };
 
   const [tracks, setTracks] = useState<TimelineTrack[]>(loadTimelineData);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(60); // 60 seconds default
+  // Timeline duration adapts to longest clip end; fallback to 60s if no clips
+  const duration = useMemo(() => {
+    let maxEnd = 0;
+    try {
+      tracks.forEach((track) => {
+        track.clips.forEach((clip) => {
+          const end = (clip.startTime || 0) + (clip.duration || 0);
+          if (end > maxEnd) maxEnd = end;
+        });
+      });
+    } catch {}
+    return maxEnd > 0 ? Math.ceil(maxEnd) : 60;
+  }, [tracks]);
   
   // Reload timeline data when scene changes
   useEffect(() => {
@@ -208,7 +154,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     const newTracks = loadTimelineData();
     setTracks(newTracks);
     setCurrentTime(0);
-    setSelectedClip(null);
+    setSelectedClips(new Set());
     // Clear any existing playback
     if (playbackInterval) {
       clearInterval(playbackInterval);
@@ -237,18 +183,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     }
   };
 
-  // Clear all timeline data for all scenes (for debugging/reset)
-  const clearAllTimelineData = () => {
-    try {
-      // Get all localStorage keys that start with 'timeline-tracks-'
-      const keys = Object.keys(localStorage);
-      const timelineKeys = keys.filter(key => key.startsWith('timeline-tracks-'));
-      timelineKeys.forEach(key => localStorage.removeItem(key));
-      console.log('Cleared all timeline data for all scenes');
-    } catch (error) {
-      console.error('Error clearing all timeline data:', error);
-    }
-  };
+  // (removed unused clearAllTimelineData)
 
   // Custom setTracks function that also saves to localStorage
   const updateTracks = (newTracks: TimelineTrack[] | ((prev: TimelineTrack[]) => TimelineTrack[])) => {
@@ -271,15 +206,30 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     });
     return earliestTime;
   };
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(2); // default more zoomed-in
   const [isPlaying, setIsPlaying] = useState(false);
-  const [selectedClip, setSelectedClip] = useState<string | null>(null);
+  const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
   const [draggedAsset, setDraggedAsset] = useState<any>(null);
-  const [waveformData, setWaveformData] = useState<number[]>([]);
-  const [audioFile, setAudioFile] = useState<File | null>(null);
+  // waveform state managed by wavesurfer
   const [playbackInterval, setPlaybackInterval] = useState<NodeJS.Timeout | null>(null);
-  const [intervalCounter, setIntervalCounter] = useState(0);
   const [draggingClip, setDraggingClip] = useState<{ clipId: string; sourceTrackId: string } | null>(null);
+  // Lasso selection state
+  const [isLassoSelecting, setIsLassoSelecting] = useState(false);
+  const [lassoStart, setLassoStart] = useState<{ x: number; y: number } | null>(null);
+  const [lassoEnd, setLassoEnd] = useState<{ x: number; y: number } | null>(null);
+  const PIXELS_PER_SECOND = 120;
+  const pixelsPerSecond = useMemo(() => PIXELS_PER_SECOND * Math.max(0.1, zoom), [zoom]);
+  const timelinePixelWidth = useMemo(() => Math.max(1, duration * pixelsPerSecond), [duration, pixelsPerSecond]);
+  const TRACK_MIN_HEIGHT = 72;
+  const SHOW_AUDIO_WAVEFORM = false; // Temporarily disable WaveSurfer-based waveform for stability
+  const timelineVisualHeight = useMemo(() => {
+    const baseRuler = 28; // top ruler height
+    const headerHeight = 24; // per-track header
+    const gap = 8; // gap between tracks
+    const perTrack = TRACK_MIN_HEIGHT + headerHeight + gap;
+    // Ensure a sensible minimum height even with few tracks
+    return Math.max(280, tracks.length * perTrack + baseRuler);
+  }, [tracks.length]);
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -298,186 +248,88 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   
   const timelineRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const wavesurferRef = useRef<any>(null);
-  const waveformRef = useRef<HTMLDivElement>(null);
+  const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const lastActiveAudioIdsRef = useRef<Set<string>>(new Set());
+  const ensuredAudioTrackRef = useRef<boolean>(false);
+  const lassoRef = useRef<HTMLDivElement>(null);
+  // Virtualization & scroll state
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const scrollRafRef = useRef<number | null>(null);
 
-  // Initialize audio context
+  const updateViewportMetrics = () => {
+    const el = timelineRef.current;
+    if (!el) return;
+    setViewportWidth(el.clientWidth);
+  };
+
+  const handleScrollThrottled = () => {
+    const el = timelineRef.current;
+    if (!el) return;
+    // rAF throttle to ~60fps
+    if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
+    scrollRafRef.current = requestAnimationFrame(() => {
+      setScrollLeft(el.scrollLeft);
+      setViewportWidth(el.clientWidth);
+    });
+  };
+
   useEffect(() => {
-    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    updateViewportMetrics();
+    const onResize = () => updateViewportMetrics();
+    window.addEventListener('resize', onResize);
+    const el = timelineRef.current;
+    if (el) {
+      // Initialize metrics and subscribe to scroll
+      setScrollLeft(el.scrollLeft);
+    }
     return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
+      window.removeEventListener('resize', onResize);
+      if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Initialize wavesurfer
-  useEffect(() => {
-    const initWaveSurfer = async () => {
-      if (waveformRef.current && !wavesurferRef.current) {
-        try {
-          const WaveSurfer = (await import('wavesurfer.js')).default;
-          
-          wavesurferRef.current = WaveSurfer.create({
-            container: waveformRef.current,
-            waveColor: '#4F4A85',
-            progressColor: '#383351',
-            cursorColor: '#FF6B6B',
-            barWidth: 2,
-            barGap: 1,
-            height: 100,
-            normalize: true,
-            interact: true,
-            hideScrollbar: true,
-          });
+  // Visible window in seconds with small buffer
+  const visibleStartSec = Math.max(0, scrollLeft / Math.max(1, pixelsPerSecond));
+  const visibleEndSec = (scrollLeft + Math.max(1, viewportWidth)) / Math.max(1, pixelsPerSecond);
+  const VISIBLE_BUFFER_SEC = 2; // render a little outside viewport for smoothness
+  
 
-          // Event listeners
-          wavesurferRef.current.on('ready', () => {
-            console.log('WaveSurfer is ready');
-            setDuration(wavesurferRef.current!.getDuration());
-          });
+  // Audio waveform functionality removed
 
-          wavesurferRef.current.on('audioprocess', (currentTime: number) => {
-            // Disable WaveSurfer's automatic timeline control completely
-            // We'll control the timeline manually and sync WaveSurfer to our timeline
-            console.log('WaveSurfer audioprocess event - ignoring to prevent conflicts');
-          });
+  // No waveform setup
 
-          wavesurferRef.current.on('finish', () => {
-            console.log('Audio finished, stopping timeline playback');
-            setIsPlaying(false);
-            setCurrentTime(0);
-          });
+  // No waveform helpers
 
-          wavesurferRef.current.on('interaction', () => {
-            console.log('WaveSurfer interaction detected');
-            // Don't automatically start playing on interaction
-            // Let the user control it explicitly
-          });
-        } catch (error) {
-          console.error('Error initializing WaveSurfer:', error);
-        }
-      }
-    };
+  // Audio waveform functionality fully removed
 
-    initWaveSurfer();
+  // Lasso selection helpers
+  const getClipsInLasso = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+    const selectedClipIds = new Set<string>();
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (!rect) return selectedClipIds;
 
-    return () => {
-      if (wavesurferRef.current) {
-        wavesurferRef.current.destroy();
-        wavesurferRef.current = null;
-      }
-    };
-  }, []);
+    const left = Math.min(start.x, end.x);
+    const right = Math.max(start.x, end.x);
+    const top = Math.min(start.y, end.y);
+    const bottom = Math.max(start.y, end.y);
 
-  // Handle file upload for waveform
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type.startsWith('audio/')) {
-      setAudioFile(file);
-      
-      if (wavesurferRef.current) {
-        try {
-          await wavesurferRef.current.loadBlob(file);
-          setDuration(wavesurferRef.current.getDuration());
-        } catch (error) {
-          console.error('Error loading audio file:', error);
-        }
-      }
-    }
-  };
-
-  // Handle drag and drop for waveform
-  const handleWaveformDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    console.log('Waveform drop event triggered');
-    
-    // Check for files first (direct file drop)
-    const files = e.dataTransfer.files;
-    console.log('Files dropped:', files.length);
-    if (files.length > 0) {
-      const file = files[0];
-      console.log('File type:', file.type);
-      if (file.type.startsWith('audio/')) {
-        console.log('Processing audio file:', file.name);
-        setAudioFile(file);
-        
-        if (wavesurferRef.current) {
-          try {
-            await wavesurferRef.current.loadBlob(file);
-            setDuration(wavesurferRef.current.getDuration());
-            console.log('Successfully loaded audio file into WaveSurfer');
-          } catch (error) {
-            console.error('Error loading audio file:', error);
-          }
-        } else {
-          console.error('WaveSurfer not initialized');
-        }
-      } else {
-        console.log('File is not audio type:', file.type);
-      }
-      return;
-    }
-    
-    // Check for MediaLibrary asset data
-    const assetData = e.dataTransfer.getData('application/json');
-    console.log('Asset data received:', assetData);
-    if (assetData) {
-      try {
-        const asset = JSON.parse(assetData);
-        console.log('Parsed asset:', asset);
-        if (asset.type === 'audio') {
-          console.log('Processing audio asset:', asset.name);
-          // Handle base64 data from MediaLibrary
-          if (asset.base64Data) {
-            console.log('Processing base64 data for:', asset.name);
-            try {
-              // Convert base64 to blob
-              const base64Response = await fetch(asset.base64Data);
-              const blob = await base64Response.blob();
-              console.log('Successfully converted base64 to blob');
-              setAudioFile(new File([blob], asset.name, { type: 'audio/mpeg' }));
-              
-              if (wavesurferRef.current) {
-                await wavesurferRef.current.loadBlob(blob);
-                setDuration(wavesurferRef.current.getDuration());
-                console.log('Successfully loaded audio into WaveSurfer');
-              }
-            } catch (error) {
-              console.error('Error loading audio from base64:', error);
-            }
-          }
-          // Handle blob URL from MediaLibrary
-          else if (asset.path && asset.path.startsWith('blob:')) {
-            try {
-              const response = await fetch(asset.path);
-              const blob = await response.blob();
-              setAudioFile(new File([blob], asset.name, { type: 'audio/mpeg' }));
-              
-              if (wavesurferRef.current) {
-                await wavesurferRef.current.loadBlob(blob);
-                setDuration(wavesurferRef.current.getDuration());
-              }
-            } catch (error) {
-              console.error('Error loading audio from blob URL:', error);
-            }
+    tracks.forEach(track => {
+      track.clips.forEach(clip => {
+        const clipElement = document.querySelector(`[data-clip-id="${clip.id}"]`) as HTMLElement;
+        if (clipElement) {
+          const clipRect = clipElement.getBoundingClientRect();
+          // Check if clip intersects with lasso rectangle
+          if (clipRect.left < right && clipRect.right > left && 
+              clipRect.top < bottom && clipRect.bottom > top) {
+            selectedClipIds.add(clip.id);
           }
         }
-      } catch (error) {
-        console.error('Error parsing asset data:', error);
-      }
-    }
-  };
+      });
+    });
 
-  const handleWaveformDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.currentTarget.classList.add('drag-over');
-  };
-
-  const handleWaveformDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('drag-over');
+    return selectedClipIds;
   };
 
   // Handle drag and drop from media library
@@ -493,7 +345,24 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     console.log('Drag over timeline track');
     console.log('DataTransfer types:', e.dataTransfer.types);
     console.log('DataTransfer items:', e.dataTransfer.items);
+    console.log('Dragging clip:', draggingClip);
   };
+
+  // Ensure an audio lane exists in current state (one-time on mount)
+  useEffect(() => {
+    if (ensuredAudioTrackRef.current) return;
+    ensuredAudioTrackRef.current = true;
+    try {
+      if (!tracks.some((t) => t.type === 'audio')) {
+        updateTracks([
+          ...tracks,
+          { id: 'track-audio', name: 'Audio', type: 'audio', clips: [] },
+        ]);
+        console.log('Ensured audio track exists by appending to current tracks');
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDragLeave = (e: React.DragEvent) => {
     // Remove visual feedback
@@ -501,19 +370,139 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     target.classList.remove('drag-over');
   };
 
-  const handleDragStart = (e: React.DragEvent) => {
-    const assetData = e.dataTransfer.getData('application/json');
-    if (assetData) {
-      try {
-        const asset = JSON.parse(assetData);
-        setDraggedAsset(asset);
-      } catch (error) {
-        console.error('Error parsing dragged asset:', error);
-      }
+  // Lasso selection mouse handlers
+  const handleTimelineMouseDown = (e: React.MouseEvent) => {
+    // Only start lasso if clicking on empty space (not on a clip or track)
+    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('track-content')) {
+      setIsLassoSelecting(true);
+      setLassoStart({ x: e.clientX, y: e.clientY });
+      setLassoEnd({ x: e.clientX, y: e.clientY });
     }
   };
 
-  const handleDrop = (e: React.DragEvent, trackId: string, time: number) => {
+  const handleTimelineMouseMove = (e: React.MouseEvent) => {
+    if (isLassoSelecting && lassoStart) {
+      setLassoEnd({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleTimelineMouseUp = (e: React.MouseEvent) => {
+    if (isLassoSelecting && lassoStart && lassoEnd) {
+      const selectedClipIds = getClipsInLasso(lassoStart, lassoEnd);
+      if (selectedClipIds.size > 0) {
+        if (e.ctrlKey || e.metaKey) {
+          // Add to existing selection
+          setSelectedClips(prev => new Set([...prev, ...selectedClipIds]));
+        } else {
+          // Replace selection
+          setSelectedClips(selectedClipIds);
+        }
+      }
+      setIsLassoSelecting(false);
+      setLassoStart(null);
+      setLassoEnd(null);
+    }
+  };
+
+  // Unused handler removed
+
+  const isAssetAllowedOnTrack = (trackType: TimelineTrack['type'], assetType: string) => {
+    if (trackType === 'audio') return assetType === 'audio';
+    // video/effect tracks accept only video or effect
+    return assetType === 'video' || assetType === 'effect';
+  };
+
+  // Ensure no overlap within a track when positioning a clip
+  const clampStartToNeighbors = (
+    clips: TimelineClip[],
+    candidateStart: number,
+    clipDuration: number,
+    excludeClipId?: string
+  ): number => {
+    const sorted = [...clips]
+      .filter((c) => (excludeClipId ? c.id !== excludeClipId : true))
+      .sort((a, b) => a.startTime - b.startTime);
+
+    // Find neighbors around candidateStart
+    let prevEnd = 0;
+    let nextStart = duration; // allow until end of timeline
+    for (let i = 0; i < sorted.length; i++) {
+      const c = sorted[i];
+      const end = c.startTime + c.duration;
+      if (end <= candidateStart) {
+        prevEnd = Math.max(prevEnd, end);
+        continue;
+      }
+      nextStart = c.startTime;
+      break;
+    }
+
+    // Clamp inside free window [prevEnd, nextStart - clipDuration]
+    const upperBound = Math.max(0, nextStart - clipDuration);
+    let adjusted = Math.min(Math.max(candidateStart, prevEnd), upperBound);
+    // Safety clamp to timeline
+    adjusted = Math.max(0, Math.min(adjusted, Math.max(0, duration - clipDuration)));
+    return adjusted;
+  };
+
+  // Find the first available non-overlapping start time at or after desiredStart
+  const findFirstAvailableStart = (
+    clips: TimelineClip[],
+    desiredStart: number,
+    clipDuration: number
+  ): number => {
+    const sorted = [...clips].sort((a, b) => a.startTime - b.startTime);
+    let windowStart = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      const windowEnd = sorted[i].startTime; // free space until next clip
+      const start = Math.max(windowStart, desiredStart);
+      if (start + clipDuration <= windowEnd) return Math.max(0, start);
+      // advance window to end of this clip
+      windowStart = sorted[i].startTime + sorted[i].duration;
+    }
+    // Last window from windowStart to timeline end
+    const lastStart = Math.max(windowStart, desiredStart);
+    if (lastStart + clipDuration <= duration) return Math.max(0, lastStart);
+    // If no room, clamp to end minus duration
+    return Math.max(0, duration - clipDuration);
+  };
+
+  // Build snap candidates: existing clip boundaries and second-grid ticks
+  const buildSnapCandidates = (
+    clips: TimelineClip[],
+    includeSecondGrid: boolean,
+    excludeClipId?: string
+  ): number[] => {
+    const candidates: number[] = [];
+    // Clip boundaries
+    clips.forEach((c) => {
+      if (excludeClipId && c.id === excludeClipId) return;
+      candidates.push(c.startTime);
+      candidates.push(c.startTime + c.duration);
+    });
+    // Second grid
+    if (includeSecondGrid) {
+      const maxSec = Math.ceil(duration);
+      for (let s = 0; s <= maxSec; s++) candidates.push(s);
+    }
+    return candidates;
+  };
+
+  const snapToNearest = (time: number, candidates: number[]): number => {
+    if (candidates.length === 0) return time;
+    let nearest = candidates[0];
+    let bestDist = Math.abs(time - nearest);
+    for (let i = 1; i < candidates.length; i++) {
+      const d = Math.abs(time - candidates[i]);
+      if (d < bestDist) {
+        bestDist = d;
+        nearest = candidates[i];
+      }
+    }
+    return nearest;
+  };
+
+  const handleDrop = (e: React.DragEvent, trackId: string, _time: number) => {
     e.preventDefault();
     
     console.log('Drop event triggered on track:', trackId);
@@ -530,30 +519,42 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
         const data = JSON.parse(assetData);
 
         // Reorder / move existing timeline clip
-        if (data.type === 'timeline-clip' && data.clipId) {
+        if ((data.type === 'timeline-clip' || data.type === 'timeline-clip-multiple' || data.type === 'timeline-clip-trim-left' || data.type === 'timeline-clip-trim-right') && (data.clipId || data.clipIds)) {
+          console.log('Processing timeline clip drop:', data);
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           const dropX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
           const dropTime = (dropX / rect.width) * duration;
-          // Optional snap to next clip edge when holding Shift
+          
+          // Find if we're hovering over another clip
+          const destTrack = tracks.find((t) => t.id === trackId);
+          const hoveredClip = destTrack?.clips.find((c) => 
+            c.id !== data.clipId && 
+            dropTime >= c.startTime && 
+            dropTime < c.startTime + c.duration
+          );
+          
           let newStart = Math.max(0, Math.min(duration - 0.1, dropTime));
+          
           if (e.shiftKey) {
             try {
-              // Find the moving clip and destination track from current state
-              const sourceTrack = tracks.find((t) => t.id === data.sourceTrackId);
-              const movingClip = sourceTrack?.clips.find((c: any) => c.id === data.clipId);
-              const destTrack = tracks.find((t) => t.id === trackId);
-              if (destTrack) {
-                const boundaries: number[] = [];
-                destTrack.clips.forEach((c) => {
-                  if (c.id === data.clipId) return; // exclude self if same track
-                  boundaries.push(c.startTime);
-                  boundaries.push(c.startTime + c.duration);
-                });
-                const next = boundaries.filter((b) => b >= dropTime).sort((a, b) => a - b)[0];
-                if (Number.isFinite(next)) {
-                  // Clamp so clip stays within timeline
-                  const clipDur = movingClip?.duration ?? 0.1;
-                  newStart = Math.max(0, Math.min(next, duration - clipDur));
+              if (hoveredClip) {
+                // If hovering over a clip and holding Shift, snap to its boundaries
+                const clipStart = hoveredClip.startTime;
+                const clipEnd = hoveredClip.startTime + hoveredClip.duration;
+                const distanceToStart = Math.abs(dropTime - clipStart);
+                const distanceToEnd = Math.abs(dropTime - clipEnd);
+                
+                // Snap to whichever boundary is closer
+                if (distanceToStart < distanceToEnd) {
+                  newStart = clipStart;
+                } else {
+                  newStart = clipEnd;
+                }
+              } else {
+                // Snap to nearest clip boundary or second-grid when holding Shift
+                if (destTrack) {
+                  const candidates = buildSnapCandidates(destTrack.clips, true, data.clipId);
+                  newStart = snapToNearest(newStart, candidates);
                 }
               }
             } catch {}
@@ -573,13 +574,126 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
 
             if (!moving) return prev; // nothing to move
 
-            const movedClip = { ...moving, startTime: newStart };
-            // Add to destination track
-            removed = removed.map((t) =>
-              t.id === trackId
-                ? { ...t, clips: [...t.clips, movedClip].sort((a, b) => a.startTime - b.startTime) }
-                : t
-            );
+            if (data.type === 'timeline-clip') {
+              // Move single clip: try swap if dropped onto another clip in same track
+              const destTrackClips = (removed.find((t) => t.id === trackId)?.clips ?? []) as TimelineClip[];
+
+              const isSameTrackMove = data.sourceTrackId === trackId;
+              let didSwap = false;
+
+              if (isSameTrackMove) {
+                const target = destTrackClips.find((c) => dropTime >= c.startTime && dropTime < c.startTime + c.duration);
+                if (target) {
+                  // Can we swap positions without overlaps?
+                  const movingSafeAtTarget = clampStartToNeighbors(destTrackClips, target.startTime, moving.duration, moving.id);
+                  const withoutTarget = destTrackClips.filter((c) => c.id !== target.id);
+                  const targetSafeAtMoving = clampStartToNeighbors(withoutTarget, moving.startTime, target.duration, target.id);
+                  if (movingSafeAtTarget === target.startTime && targetSafeAtMoving === moving.startTime) {
+                    // Perform swap
+                    const swappedClips = destTrackClips.map((c) => {
+                      if (c.id === target.id) return { ...c, startTime: targetSafeAtMoving };
+                      return c;
+                    });
+                    const movedClip = { ...moving, startTime: movingSafeAtTarget };
+                    removed = removed.map((t) =>
+                      t.id === trackId
+                        ? { ...t, clips: [...swappedClips, movedClip].sort((a, b) => a.startTime - b.startTime) }
+                        : t
+                    );
+                    didSwap = true;
+                  }
+                }
+              }
+
+              if (!didSwap) {
+                // Insert into first available gap starting near newStart
+                const safeStart = findFirstAvailableStart(destTrackClips, newStart, moving.duration);
+                const movedClip = { ...moving, startTime: safeStart };
+                removed = removed.map((t) =>
+                  t.id === trackId
+                    ? { ...t, clips: [...t.clips, movedClip].sort((a, b) => a.startTime - b.startTime) }
+                    : t
+                );
+              }
+            } else if (data.type === 'timeline-clip-multiple') {
+              console.log('Processing multiple clip move');
+              // Move multiple clips as a block
+              const destTrackClips = (removed.find((t) => t.id === trackId)?.clips ?? []) as TimelineClip[];
+              const clipIds = data.clipIds;
+              const anchorClipId = data.anchorClipId;
+              
+              // Find the anchor clip and calculate offset
+              const anchorClip = removed.find(t => t.id === data.sourceTrackId)?.clips.find(c => c.id === anchorClipId);
+              if (!anchorClip) {
+                console.log('Anchor clip not found');
+                return removed;
+              }
+              
+              const timeOffset = newStart - anchorClip.startTime;
+              console.log('Time offset:', timeOffset);
+              
+              // Move all selected clips by the same offset
+              const movedClips = clipIds.map((clipId: string) => {
+                const clip = removed.find(t => t.id === data.sourceTrackId)?.clips.find(c => c.id === clipId);
+                if (!clip) return null;
+                return { ...clip, startTime: Math.max(0, clip.startTime + timeOffset) };
+              }).filter(Boolean) as TimelineClip[];
+              
+              console.log('Moved clips:', movedClips);
+              
+              // Remove clips from source track
+              removed = removed.map((t) =>
+                t.id === data.sourceTrackId
+                  ? { ...t, clips: t.clips.filter(c => !clipIds.includes(c.id)) }
+                  : t
+              );
+              
+              // Add clips to destination track
+              removed = removed.map((t) =>
+                t.id === trackId
+                  ? { ...t, clips: [...t.clips, ...movedClips].sort((a, b) => a.startTime - b.startTime) }
+                  : t
+              );
+            } else if (data.type === 'timeline-clip-trim-left') {
+              // Trim from left: adjust start and duration, ensure not negative, keep within neighbors
+              const destTrackClips = (removed.find((t) => t.id === trackId)?.clips ?? []) as TimelineClip[];
+              // newStart is the desired new beginning
+              // Shift-key snapping for trim-left too
+              const snappedStart = e.shiftKey ? snapToNearest(newStart, buildSnapCandidates(destTrackClips, true, moving.id)) : newStart;
+              const safeStart = clampStartToNeighbors(destTrackClips, snappedStart, moving.duration, moving.id);
+              const newDuration = Math.max(0.1, moving.duration - (safeStart - moving.startTime));
+              // Respect original video duration
+              const maxDuration = moving.asset?.duration || moving.duration;
+              const clampedDuration = Math.min(newDuration, maxDuration);
+              const trimmed = { ...moving, startTime: safeStart, duration: clampedDuration };
+              removed = removed.map((t) =>
+                t.id === trackId
+                  ? { ...t, clips: [...t.clips, trimmed].sort((a, b) => a.startTime - b.startTime) }
+                  : t
+              );
+            } else if (data.type === 'timeline-clip-trim-right') {
+              // Trim from right: change only duration based on drop position
+              const desiredEndRaw = Math.min(duration, Math.max(newStart, moving.startTime + 0.1));
+              const destTrackClips = (removed.find((t) => t.id === trackId)?.clips ?? []) as TimelineClip[];
+              const snapCandidates = buildSnapCandidates(destTrackClips, true, moving.id);
+              const desiredEnd = e.shiftKey ? snapToNearest(desiredEndRaw, snapCandidates) : desiredEndRaw;
+              const newDuration = Math.max(0.1, desiredEnd - moving.startTime);
+              // Ensure not overlapping next neighbor
+              const nextClip = destTrackClips
+                .filter((c) => c.id !== moving.id && c.startTime >= moving.startTime)
+                .sort((a, b) => a.startTime - b.startTime)[0];
+              const maxEnd = nextClip ? nextClip.startTime : duration;
+              const safeDuration = Math.min(newDuration, maxEnd - moving.startTime);
+              // Respect original video duration
+              const maxDuration = moving.asset?.duration || moving.duration;
+              const clampedDuration = Math.min(safeDuration, maxDuration);
+              const trimmed = { ...moving, duration: Math.max(0.1, clampedDuration) };
+              removed = removed.map((t) =>
+                t.id === trackId
+                  ? { ...t, clips: [...t.clips, trimmed].sort((a, b) => a.startTime - b.startTime) }
+                  : t
+              );
+            }
             return removed;
           });
 
@@ -597,33 +711,45 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
             asset.type = 'effect';
           }
           
-          // Check if asset type is video or effect (no audio allowed)
-          if (asset.type !== 'video' && asset.type !== 'effect') {
-            console.warn('This track only accepts video and effect files');
+          // Enforce per-track type acceptance
+          if (!isAssetAllowedOnTrack(track.type, asset.type)) {
+            console.warn(`This track (${track.type}) does not accept asset type: ${asset.type}`);
             return; // Reject the drop
           }
           
           // Determine clip type based on asset type
-          let clipType: 'video' | 'effect' = 'video';
+          let clipType: 'video' | 'effect' | 'audio' = 'video';
           if (asset.type === 'effect') {
             clipType = 'effect';
           } else if (asset.type === 'video') {
             clipType = 'video';
+          } else if (asset.type === 'audio') {
+            clipType = 'audio';
           }
           
-          // Calculate sequential placement
-          let newStartTime = 0;
-          if (track.clips.length > 0) {
-            // Find the end time of the last clip
-            const lastClip = track.clips[track.clips.length - 1];
-            newStartTime = lastClip.startTime + lastClip.duration;
-          }
+          // Calculate placement based on drop position; insert into first available gap
+          const rect2 = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const dropX2 = Math.max(0, Math.min(rect2.width, e.clientX - rect2.left));
+          const desiredStart = (dropX2 / rect2.width) * duration;
           
+          // Store only minimal asset metadata in timeline to avoid large localStorage writes
+          const assetRef = {
+            id: asset.id,
+            name: asset.name,
+            type: asset.type,
+            path: asset.path,
+            filePath: asset.filePath,
+            duration: asset.duration,
+          };
+
+          const desiredDuration = asset.duration || 5;
+          const safeStartForNew = findFirstAvailableStart(track.clips, Math.max(0, desiredStart), desiredDuration);
+
           const newClip: TimelineClip = {
             id: `clip-${Date.now()}`,
-            startTime: newStartTime,
-            duration: asset.duration || 5, // Default 5 seconds
-            asset: asset,
+            startTime: safeStartForNew,
+            duration: desiredDuration, // Default 5 seconds
+            asset: assetRef,
             type: clipType,
             name: asset.name || 'Untitled Clip'
           };
@@ -636,6 +762,25 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
           
           updateTracks(updatedTracks);
           console.log('Successfully added clip to timeline:', newClip);
+
+          // If audio, fetch actual duration and update the clip
+          if (clipType === 'audio') {
+            try {
+              const tempAudio = new Audio(assetRef.path);
+              tempAudio.addEventListener('loadedmetadata', () => {
+                const realDuration = isFinite(tempAudio.duration) && tempAudio.duration > 0 ? tempAudio.duration : newClip.duration;
+                updateTracks(prev => prev.map(tr => {
+                  if (tr.id !== trackId) return tr;
+                  return {
+                    ...tr,
+                    clips: tr.clips.map(c => c.id === newClip.id ? { ...c, duration: realDuration } : c)
+                  };
+                }));
+              });
+              // Trigger load
+              tempAudio.load();
+            } catch {}
+          }
         }
       } catch (error) {
         console.error('Error adding clip to timeline:', error);
@@ -648,9 +793,24 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   // Clip drag start/end for reordering/moving
   const handleClipDragStart = (e: React.DragEvent, clip: TimelineClip, sourceTrackId: string) => {
     e.stopPropagation();
-    setDraggingClip({ clipId: clip.id, sourceTrackId });
-    e.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip', clipId: clip.id, sourceTrackId }));
-    e.dataTransfer.effectAllowed = 'move';
+    
+    // If this clip is part of a selection, drag the entire selection
+    if (selectedClips.has(clip.id) && selectedClips.size > 1) {
+      const selectedClipIds = Array.from(selectedClips);
+      setDraggingClip({ clipId: 'multiple', sourceTrackId });
+      e.dataTransfer.setData('application/json', JSON.stringify({ 
+        type: 'timeline-clip-multiple', 
+        clipIds: selectedClipIds, 
+        sourceTrackId,
+        anchorClipId: clip.id // Use this clip as the anchor point
+      }));
+      e.dataTransfer.effectAllowed = 'move';
+    } else {
+      // Single clip drag
+      setDraggingClip({ clipId: clip.id, sourceTrackId });
+      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip', clipId: clip.id, sourceTrackId }));
+      e.dataTransfer.effectAllowed = 'move';
+    }
   };
 
   const handleClipDragEnd = () => {
@@ -665,47 +825,49 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
         const rect = e.currentTarget.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         let clickTime = (clickX / rect.width) * duration;
-        // Shift to snap placement to next clip edge
+        // Optional Shift to snap to boundaries or seconds
         if ((e as any).shiftKey) {
-          const boundaries: number[] = [];
-          track.clips.forEach((c) => {
-            boundaries.push(c.startTime, c.startTime + c.duration);
-          });
-          const next = boundaries.filter((b) => b >= clickTime).sort((a, b) => a - b)[0];
-          if (Number.isFinite(next)) clickTime = next;
+          const candidates = buildSnapCandidates(track.clips, true);
+          clickTime = snapToNearest(clickTime, candidates);
         }
-        
-        // Find the next available slot after the clicked time
-        let newStartTime = clickTime;
-        const overlappingClips = track.clips.filter(clip => 
-          (clickTime >= clip.startTime && clickTime < clip.startTime + clip.duration) ||
-          (clickTime < clip.startTime && clickTime + (draggedAsset.duration || 5) > clip.startTime)
-        );
-        
-        if (overlappingClips.length > 0) {
-          // Place after the last overlapping clip
-          const lastOverlappingClip = overlappingClips[overlappingClips.length - 1];
-          newStartTime = lastOverlappingClip.startTime + lastOverlappingClip.duration;
-        }
+        const desiredDuration = draggedAsset.duration || 5;
+        const newStartTime = findFirstAvailableStart(track.clips, Math.max(0, clickTime), desiredDuration);
         
         // Handle effects from EffectsBrowser (they have isEffect: true)
         if (draggedAsset.isEffect) {
           draggedAsset.type = 'effect';
         }
         
+        // Enforce per-track type acceptance
+        if (!isAssetAllowedOnTrack(track.type, draggedAsset.type)) {
+          console.warn(`This track (${track.type}) does not accept asset type: ${draggedAsset.type}`);
+          return;
+        }
+
         // Determine clip type based on asset type
-        let clipType: 'video' | 'effect' = 'video';
+        let clipType: 'video' | 'effect' | 'audio' = 'video';
         if (draggedAsset.type === 'effect') {
           clipType = 'effect';
         } else if (draggedAsset.type === 'video') {
           clipType = 'video';
+        } else if (draggedAsset.type === 'audio') {
+          clipType = 'audio';
         }
         
+        const assetRef = {
+          id: draggedAsset.id,
+          name: draggedAsset.name,
+          type: draggedAsset.type,
+          path: draggedAsset.path,
+          filePath: draggedAsset.filePath,
+          duration: draggedAsset.duration,
+        };
+
         const newClip: TimelineClip = {
           id: `clip-${Date.now()}`,
           startTime: newStartTime,
           duration: draggedAsset.duration || 5,
-          asset: draggedAsset,
+          asset: assetRef,
           type: clipType,
           name: draggedAsset.name || 'Untitled Clip'
         };
@@ -718,6 +880,24 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
         
         updateTracks(updatedTracks);
         setDraggedAsset(null);
+
+        // If audio, fetch actual duration and update the clip
+        if (clipType === 'audio') {
+          try {
+            const tempAudio = new Audio(assetRef.path);
+            tempAudio.addEventListener('loadedmetadata', () => {
+              const realDuration = isFinite(tempAudio.duration) && tempAudio.duration > 0 ? tempAudio.duration : newClip.duration;
+              updateTracks(prev => prev.map(tr => {
+                if (tr.id !== trackId) return tr;
+                return {
+                  ...tr,
+                  clips: tr.clips.map(c => c.id === newClip.id ? { ...c, duration: realDuration } : c)
+                };
+              }));
+            });
+            tempAudio.load();
+          } catch {}
+        }
       }
     }
   };
@@ -734,13 +914,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getTrackColor = (type: string) => {
-    switch (type) {
-      case 'video': return '#2196F3';
-      case 'effect': return '#FF9800';
-      default: return '#9E9E9E';
-    }
-  };
+  // Previous per-type colors no longer used for clips (now solid grey)
 
   // Get clips that should be playing at the current time
   const getClipsAtTime = (time: number) => {
@@ -763,56 +937,18 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     return activeClips;
   };
 
-  // Render timeline preview content
-  const renderTimelinePreview = (activeClips: any[]) => {
-    if (activeClips.length === 0) {
-      return (
-        <div className="timeline-preview-empty">
-          <div className="timeline-preview-placeholder">
-            <div className="placeholder-text">No clips playing at current time</div>
-            <div className="placeholder-time">{formatTime(currentTime)}</div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="timeline-preview-content">
-        {activeClips.map((clip, index) => (
-          <div key={`${clip.id}-${index}`} className="timeline-preview-clip">
-            <div className="clip-info">
-              <div className="clip-name">{clip.name}</div>
-              <div className="clip-track">Track {clip.trackId.split('-')[1]}</div>
-              <div className="clip-time">{formatTime(clip.relativeTime)}</div>
-            </div>
-            {clip.asset && (
-              <div className="clip-preview">
-                {clip.asset.type === 'video' && (
-                  <video
-                    src={clip.asset.path}
-                    autoPlay
-                    muted
-                    loop
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                )}
-                {clip.asset.type === 'effect' && (
-                  <EffectPreview 
-                    effectName={clip.asset.name}
-                    effectId={clip.asset.id}
-                    dimensions={{ width: 200, height: 150 }}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
+  // (preview component removed)
 
   // Start timeline playback
   const startTimelinePlayback = () => {
+    // Reset and pause all audio elements before starting
+    try {
+      audioElementsRef.current.forEach((audio) => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
+      lastActiveAudioIdsRef.current.clear();
+    } catch {}
     console.log('Starting timeline playback, current time:', currentTime, 'duration:', duration);
     console.log('🎵 Timeline tracks:', tracks);
     console.log('🎵 Earliest clip time:', getEarliestClipTime());
@@ -824,17 +960,18 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
       setPlaybackInterval(null);
     }
     
-    // Always start from 0 when play button is clicked
-    console.log('Resetting timeline to 0 seconds for playback start');
-    setCurrentTime(0);
+    // Always start from earliest clip when play button is clicked (or 0)
+    const earliestClipTime = getEarliestClipTime();
+    const startAt = earliestClipTime > 0 ? earliestClipTime : 0;
+    console.log('Resetting timeline to start for playback:', startAt);
+    setCurrentTime(startAt);
     
     // Get earliest clip time for end-of-timeline reset
-    const earliestClipTime = getEarliestClipTime();
+    // (reuse earliestClipTime defined above)
     
     console.log('Creating new interval');
     const interval = setInterval(() => {
       console.log('🔄 Interval callback executed at:', Date.now());
-      setIntervalCounter(prev => prev + 1);
       setCurrentTime(prevTime => {
         const newTime = prevTime + 0.05; // 20fps update rate for smoother movement
         console.log('🕒 Timeline time update:', prevTime, '->', newTime, 'duration:', duration);
@@ -842,7 +979,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
           // End of timeline reached
           console.log('⏹️ Timeline reached end, stopping playback');
           setIsPlaying(false);
-          // Reset to 0 if no clips, otherwise reset to earliest clip
+          // Reset to earliest clip or 0
           const resetTime = earliestClipTime > 0 ? earliestClipTime : 0;
           setCurrentTime(resetTime);
           clearInterval(interval);
@@ -867,6 +1004,13 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
       clearInterval(playbackInterval);
       setPlaybackInterval(null);
     }
+    // Pause all audio elements when stopping
+    try {
+      audioElementsRef.current.forEach((audio) => {
+        audio.pause();
+      });
+      lastActiveAudioIdsRef.current.clear();
+    } catch {}
     setIsPlaying(false);
     console.log('Timeline playback stopped, isPlaying set to false');
   };
@@ -899,6 +1043,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     e.preventDefault();
     e.stopPropagation();
     
+    // If this clip isn't in the current selection, select only this one
+    if (!selectedClips.has(clipId)) {
+      setSelectedClips(new Set([clipId]));
+    }
+    
     setContextMenu({
       visible: true,
       x: e.clientX,
@@ -919,25 +1068,26 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   };
 
   const handleDeleteClip = () => {
-    if (contextMenu.clipId && contextMenu.trackId) {
+    if (contextMenu.trackId) {
       updateTracks(prevTracks => 
         prevTracks.map(track => {
           if (track.id === contextMenu.trackId) {
+            // Delete all selected clips on this track
+            const clipsToDelete = selectedClips.size > 0 ? selectedClips : new Set([contextMenu.clipId]);
             return {
               ...track,
-              clips: track.clips.filter(clip => clip.id !== contextMenu.clipId)
+              clips: track.clips.filter(clip => !clipsToDelete.has(clip.id))
             };
           }
           return track;
         })
       );
       
-      // Clear selection if the deleted clip was selected
-      if (selectedClip === contextMenu.clipId) {
-        setSelectedClip(null);
-      }
+      // Clear selection after deleting
+      setSelectedClips(new Set());
       
-      console.log(`Deleted clip ${contextMenu.clipId} from track ${contextMenu.trackId}`);
+      const deletedCount = selectedClips.size > 0 ? selectedClips.size : 1;
+      console.log(`Deleted ${deletedCount} clip(s) from track ${contextMenu.trackId}`);
     }
   };
 
@@ -953,17 +1103,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
   // Debug currentTime changes
   useEffect(() => {
     console.log('🕒 currentTime changed to:', currentTime);
-    
-    // Sync WaveSurfer position with our timeline when playing
-    if (isPlaying && wavesurferRef.current) {
-      try {
-        wavesurferRef.current.setTime(currentTime);
-        console.log('🔄 Synced WaveSurfer to timeline time:', currentTime);
-      } catch (error) {
-        console.warn('Error syncing WaveSurfer time:', error);
-      }
-    }
-  }, [currentTime, isPlaying]);
+  }, [currentTime]);
 
   // Update preview content when timeline is playing
   useEffect(() => {
@@ -971,6 +1111,49 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
       const activeClips = getClipsAtTime(currentTime);
       console.log('Timeline preview update - Time:', currentTime, 'Playing:', isPlaying, 'Active clips:', activeClips.length);
       
+      // AUDIO SYNC: ensure audio clips play/pause in sync with timeline
+      try {
+        const activeAudioClips = activeClips.filter((c: any) => c.type === 'audio');
+        const nextActiveIds = new Set<string>(activeAudioClips.map((c: any) => c.id));
+
+        // Pause any audio that is no longer active
+        lastActiveAudioIdsRef.current.forEach((clipId) => {
+          if (!nextActiveIds.has(clipId)) {
+            const audio = audioElementsRef.current.get(clipId);
+            if (audio) audio.pause();
+          }
+        });
+
+        // For each active audio clip, play and seek to relative time
+        activeAudioClips.forEach((clip: any) => {
+          let audio = audioElementsRef.current.get(clip.id);
+          if (!audio) {
+            audio = new Audio(clip.asset.path);
+            audio.preload = 'auto';
+            // Keep volume as-is; could later be controllable via clip params
+            audioElementsRef.current.set(clip.id, audio);
+          }
+          if (isPlaying) {
+            const desiredTime = Math.max(0, clip.relativeTime);
+            // Seek if drift is noticeable (>100ms)
+            if (Math.abs((audio.currentTime || 0) - desiredTime) > 0.1) {
+              try { audio.currentTime = desiredTime; } catch {}
+            }
+            if (audio.paused) {
+              // Best-effort play; Electron should allow without gesture issues
+              audio.play().catch(() => {});
+            }
+          } else {
+            audio.pause();
+          }
+        });
+
+        // Update last active set
+        lastActiveAudioIdsRef.current = nextActiveIds;
+      } catch (err) {
+        console.warn('Audio sync error:', err);
+      }
+
       if (isPlaying && activeClips.length > 0) {
         // Send timeline preview content to parent
         const timelinePreviewContent = {
@@ -1011,10 +1194,32 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
     };
   }, [playbackInterval]);
 
+  // Cleanup audio elements on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        audioElementsRef.current.forEach((audio) => audio.pause());
+        audioElementsRef.current.clear();
+        lastActiveAudioIdsRef.current.clear();
+      } catch {}
+    };
+  }, []);
+
   return (
     <div className="timeline-container">
       <style>
         {`
+          .timeline-container { 
+            overflow-x: hidden; 
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+          }
+          .timeline-content { 
+            overflow-x: hidden; 
+            flex: 1;
+            min-height: 0;
+          }
           
           .context-menu {
             position: fixed;
@@ -1152,17 +1357,25 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
              color: #ccc;
            }
            
-                       .timeline-controls-single-line {
-              display: flex;
-              align-items: center;
-              gap: 16px;
-              padding: 12px;
-              background: rgba(0, 0, 0, 0.3);
-              border-radius: 6px;
-              border: 1px solid #444;
-              flex-wrap: nowrap;
-              overflow-x: auto;
-            }
+                                  .timeline-controls-single-line {
+             display: flex;
+             align-items: center;
+             gap: 16px;
+             padding: 12px;
+             background: rgba(0, 0, 0, 0.3);
+             border-radius: 6px;
+             border: 1px solid #444;
+             flex-wrap: nowrap;
+             overflow-x: auto;
+           }
+           
+           .timeline-title h2 {
+             margin: 0;
+             color: #fff;
+             font-size: 18px;
+             font-weight: 600;
+             white-space: nowrap;
+           }
             
             .timeline-controls {
               display: flex;
@@ -1284,15 +1497,145 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
              background: #f44336;
              border-color: #ff5722;
           }
+
+           /* Track layout */
+           .timeline-scroll {
+             overflow-x: auto;
+             overflow-y: scroll;
+             height: 350px;
+             min-height: 350px;
+             max-height: none;
+             padding-bottom: 2px; /* very minimal space below audio track */
+             scrollbar-gutter: stable; /* keep space for scrollbar */
+           }
+           
+           /* Hide duplicate scrollbars */
+           .timeline-container {
+             overflow: hidden;
+           }
+           
+           .timeline-content {
+             overflow: hidden;
+           }
+           
+           /* Ensure only timeline-scroll has scrollbars */
+           .timeline-inner {
+             overflow: visible;
+             min-height: 100%;
+           }
+           
+           .timeline-tracks {
+             overflow: visible;
+             min-height: 100%;
+           }
+           .timeline-inner { 
+             position: relative; 
+             padding-bottom: 8px; 
+             will-change: transform; 
+             overflow: visible;
+             min-height: 400px;
+           }
+           .timeline-tracks { 
+             display: flex; 
+             flex-direction: column; 
+             gap: 8px; 
+             overflow: visible;
+             min-height: 0;
+           }
+
+           .timeline-track {
+             display: flex;
+             flex-direction: column;
+             gap: 4px;
+           }
+
+           .track-header {
+             display: flex;
+             align-items: center;
+             gap: 8px;
+             color: #ccc;
+             font-size: 12px;
+             padding: 2px 6px;
+           }
+
+           .track-badge {
+             display: inline-flex;
+             align-items: center;
+             justify-content: center;
+             padding: 2px 6px;
+             border-radius: 4px;
+             font-weight: 600;
+             font-size: 10px;
+             background: #333;
+             border: 1px solid #555;
+             color: #fff;
+           }
+
+           .track-content {
+             position: relative;
+             min-height: ${TRACK_MIN_HEIGHT}px;
+             border-radius: 6px;
+             background: #1b1b1b;
+             box-shadow: inset 0 0 0 1px #333; /* subtle frame, avoids overlap look */
+             margin-bottom: 4px; /* ensure space between tracks */
+           }
+
+           /* Ruler */
+           .timeline-ruler { position: sticky; top: 0; height: 24px; pointer-events: none; z-index: 3; }
+           .timeline-mark { position: absolute; top: 0; height: 24px; border-left: 1px solid #555; }
+           .timeline-mark .timeline-label { position: absolute; top: 6px; left: 4px; font-size: 10px; color: #aaa; pointer-events: none; }
+
+           /* Playhead */
+           .timeline-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff5252; box-shadow: 0 0 0 1px rgba(255,82,82,0.25); will-change: transform; pointer-events: none; z-index: 4; }
+
+                       /* Clips */
+            .timeline-clip {
+              position: absolute;
+              top: 4px;
+              bottom: 4px;
+              border-radius: 4px;
+              box-shadow: none;
+              border: none !important; /* force remove any borders */
+              display: flex;
+              align-items: center;
+              padding: 0 10px;
+              will-change: transform, width;
+              color: #fff;
+              overflow: hidden;
+              z-index: 2;
+              box-sizing: border-box;
+              background: #1e88e5 !important; /* force blue background */
+            }
+            .timeline-clip .clip-name { font-size: 12px; text-shadow: 0 1px 2px rgba(0,0,0,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .timeline-clip .clip-handle { position: absolute; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.8); opacity: 0.6; transition: opacity 0.15s ease; cursor: ew-resize; }
+            .timeline-clip .clip-handle.left { left: 0; border-radius: 4px 0 0 4px; }
+            .timeline-clip .clip-handle.right { right: 0; border-radius: 0 4px 4px 0; }
+            .timeline-clip:hover .clip-handle { opacity: 1; }
+            .timeline-clip.playing { outline: none; box-shadow: none; border: none !important; }
+            .timeline-clip.selected { 
+              border: none !important; 
+              background: #ff6b35 !important; /* Orange color for selected clips */
+              box-shadow: 0 0 0 2px #ff8c42 !important; /* Orange glow */
+            }
+            
+            /* Lasso selection */
+            .lasso-selection {
+              position: absolute;
+              border: 2px dashed #007acc;
+              background: rgba(0, 122, 204, 0.2);
+              pointer-events: none;
+              z-index: 1000;
+              position: fixed;
+            }
         `}
       </style>
-      <div className="timeline-header">
-         <div className="timeline-title">
-        <h2>Timeline</h2>
-         </div>
-         
-         {/* All Controls on One Line */}
-         <div className="timeline-controls-single-line">
+            <div className="timeline-header">
+        {/* All Controls on One Line */}
+        <div className="timeline-controls-single-line">
+          {/* Timeline Title */}
+          <div className="timeline-title">
+            <h2>Timeline</h2>
+          </div>
            {/* Transport Controls */}
            <div className="transport-buttons">
              <button 
@@ -1432,12 +1775,13 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
                  if (window.confirm(`Clear all timeline clips for the current scene?`)) {
                    clearTimelineData();
                    updateTracks([
-                     { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
-                     { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
-                     { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] }
+                      { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
+                      { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
+                      { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] },
+                      { id: 'track-4', name: 'Audio', type: 'audio', clips: [] }
                    ]);
                    setCurrentTime(0);
-                   setSelectedClip(null);
+                   setSelectedClips(new Set());
                  }
                }}
                className="action-btn clear-btn"
@@ -1451,96 +1795,169 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose, onPreviewUpdate }) 
         </div>
       </div>
 
-      <div className="timeline-content">
-        {/* Waveform Display */}
-        <div className="waveform-container">
-          <div className="waveform-header">
-            <h3>Waveform</h3>
-          </div>
+              <div className="timeline-content">
+          {/* Timeline Tracks */}
           <div 
-            className="waveform-display"
-            onDrop={handleWaveformDrop}
-            onDragOver={handleWaveformDragOver}
-            onDragLeave={handleWaveformDragLeave}
+            className="timeline-scroll" 
+            ref={timelineRef} 
+            onScroll={handleScrollThrottled} 
+            onMouseDown={handleTimelineMouseDown}
+            onMouseMove={handleTimelineMouseMove}
+            onMouseUp={handleTimelineMouseUp}
           >
-            <div ref={waveformRef} className="wavesurfer-container"></div>
-            <div className="waveform-drop-overlay">
-              <div className="drop-hint">Drop audio files here</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Timeline Tracks */}
-        <div className="timeline-tracks" ref={timelineRef}>
-          <div className="timeline-ruler">
-            {/* Major second marks only - cleaner look */}
-            {Array.from({ length: Math.ceil(duration) + 1 }, (_, i) => (
-              <div key={`major-${i}`} className="timeline-mark major-mark" style={{ left: `${(i / duration) * 100}%` }}>
-                <span className="timeline-label">{i}s</span>
-              </div>
-            ))}
-          </div>
-
-          {tracks.map((track) => (
-            <div key={track.id} className="timeline-track">
-              <div 
-                className="track-content"
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, track.id, currentTime)}
-                onClick={(e) => handleTrackClick(e, track.id)}
-              >
-                {track.clips.map((clip) => {
-                  const isPlaying = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
-                  return (
-                    <div
-                      key={clip.id}
-                      className={`timeline-clip ${selectedClip === clip.id ? 'selected' : ''} ${isPlaying ? 'playing' : ''}`}
-                      style={{
-                        left: `${(clip.startTime / duration) * 100}%`,
-                        width: `${(clip.duration / duration) * 100}%`,
-                        backgroundColor: getTrackColor(clip.type),
-                        border: isPlaying ? '2px solid #FFD700' : 'none'
-                      }}
-                      draggable
-                      onDragStart={(e) => handleClipDragStart(e, clip, track.id)}
-                      onDragEnd={handleClipDragEnd}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedClip(clip.id);
-                      }}
-                      onContextMenu={(e) => handleClipRightClick(e, clip.id, track.id)}
-                    >
-                      <span className="clip-name">{clip.name}</span>
-                      {isPlaying && <div className="playing-indicator">▶</div>}
-                    </div>
-                  );
-                })}
-                {draggedAsset && (
-                  <div className="drag-preview">
-                    <span>Drop to place: {draggedAsset.name}</span>
+          <div className="timeline-inner" style={{ width: `${timelinePixelWidth}px` }}>
+            <div className="timeline-ruler">
+              {(() => {
+                const start = Math.max(0, Math.floor(visibleStartSec) - 1);
+                const end = Math.min(Math.ceil(duration), Math.ceil(visibleEndSec) + 1);
+                const marks: number[] = [];
+                for (let i = start; i <= end; i++) marks.push(i);
+                return marks.map((sec) => (
+                  <div key={`major-${sec}`} className="timeline-mark major-mark" style={{ left: `${sec * pixelsPerSecond}px`, width: '1px' }}>
+                    <span className="timeline-label">{sec}s</span>
                   </div>
-                )}
-              </div>
+                ));
+              })()}
             </div>
-          ))}
+
+            <div className="timeline-tracks">
+              {tracks.map((track) => (
+                <div key={track.id} className="timeline-track">
+                  <div className="track-header">
+                    <span className="track-badge">{track.type.toUpperCase()}</span>
+                    <span>{track.name}</span>
+                  </div>
+                  <div 
+                    className="track-content"
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, track.id, currentTime)}
+                    onClick={(e) => handleTrackClick(e, track.id)}
+                  >
+                    {(() => {
+                      const startWindow = Math.max(0, visibleStartSec - VISIBLE_BUFFER_SEC);
+                      const endWindow = Math.min(duration, visibleEndSec + VISIBLE_BUFFER_SEC);
+                      const visibleClips = track.clips.filter((clip) => {
+                        const clipStart = clip.startTime;
+                        const clipEnd = clip.startTime + clip.duration;
+                        return clipEnd >= startWindow && clipStart <= endWindow;
+                      });
+                      return visibleClips.map((clip) => {
+                        const isPlaying = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
+                        const translateX = clip.startTime * pixelsPerSecond;
+                        const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
+                        const background = '#1e88e5'; // filled blue, no border
+                        return (
+                          <div
+                            key={clip.id}
+                            data-clip-id={clip.id}
+                            className={`timeline-clip ${selectedClips.has(clip.id) ? 'selected' : ''} ${isPlaying ? 'playing' : ''}`}
+                            style={{
+                              transform: `translate3d(${translateX}px, 0, 0)`,
+                              width: `${widthPx}px`,
+                              background: background,
+                            }}
+                            draggable
+                            onDragStart={(e) => handleClipDragStart(e, clip, track.id)}
+                            onDragEnd={handleClipDragEnd}
+                                                      onClick={(e) => {
+                            e.stopPropagation();
+                            if (e.ctrlKey || e.metaKey) {
+                              // Multi-select: toggle this clip
+                              setSelectedClips(prev => {
+                                const newSet = new Set(prev);
+                                if (newSet.has(clip.id)) {
+                                  newSet.delete(clip.id);
+                                } else {
+                                  newSet.add(clip.id);
+                                }
+                                return newSet;
+                              });
+                            } else {
+                              // Single select: clear others and select this one
+                              setSelectedClips(new Set([clip.id]));
+                            }
+                          }}
+                            onContextMenu={(e) => handleClipRightClick(e, clip.id, track.id)}
+                          >
+                            <div
+                              className="clip-handle left"
+                              draggable
+                              onDragStart={(ev) => {
+                                ev.stopPropagation();
+                                // Mark dragging this clip (reuse payload)
+                                setDraggingClip({ clipId: clip.id, sourceTrackId: track.id });
+                                ev.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip-trim-left', clipId: clip.id, sourceTrackId: track.id }));
+                                ev.dataTransfer.effectAllowed = 'move';
+                              }}
+                            />
+                            <span className="clip-name">{clip.name}</span>
+                            <div
+                              className="clip-handle right"
+                              draggable
+                              onDragStart={(ev) => {
+                                ev.stopPropagation();
+                                setDraggingClip({ clipId: clip.id, sourceTrackId: track.id });
+                                ev.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip-trim-right', clipId: clip.id, sourceTrackId: track.id }));
+                                ev.dataTransfer.effectAllowed = 'move';
+                              }}
+                            />
+                            {clip.type === 'audio' && SHOW_AUDIO_WAVEFORM && (
+                              <div style={{ position: 'absolute', left: 0, right: 0, top: 18, bottom: 6, padding: '0 2px' }}>
+                                <AudioWaveform
+                                  src={clip.asset?.path}
+                                  width={Math.max(1, Math.floor(clip.duration * pixelsPerSecond) - 4)}
+                                  height={Math.max(20, TRACK_MIN_HEIGHT - 28)}
+                                  color="#4CAF50"
+                                  secondaryColor="#1b5e20"
+                                />
+                              </div>
+                            )}
+                            {isPlaying && <div className="playing-indicator">▶</div>}
+                          </div>
+                        );
+                      });
+                    })()}
+                    {draggedAsset && (
+                      <div className="drag-preview">
+                        <span>Drop to place: {draggedAsset.name}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Playhead inside scrollable area */}
+            <div 
+              ref={playheadRef}
+              className="timeline-playhead"
+              style={{ 
+                transform: `translate3d(${currentTime * pixelsPerSecond}px, 0, 0)`,
+                transition: isPlaying ? 'none' : 'transform 0.1s ease'
+              }}
+              title={`Time: ${formatTime(currentTime)}`}
+              data-current-time={currentTime}
+              data-duration={duration}
+              data-position={`${(currentTime / duration) * 100}%`}
+            />
+          </div>
         </div>
-
-        {/* Playhead */}
-        <div 
-          ref={playheadRef}
-          className="timeline-playhead"
-          style={{ 
-            left: `${(currentTime / duration) * 100}%`,
-            transition: isPlaying ? 'none' : 'left 0.1s ease'
-          }}
-          title={`Time: ${formatTime(currentTime)}`}
-          data-current-time={currentTime}
-          data-duration={duration}
-          data-position={`${(currentTime / duration) * 100}%`}
-        />
         
-
+        {/* Lasso selection overlay */}
+        {isLassoSelecting && lassoStart && lassoEnd && (
+          <div
+            ref={lassoRef}
+            className="lasso-selection"
+            style={{
+              left: Math.min(lassoStart.x, lassoEnd.x),
+              top: Math.min(lassoStart.y, lassoEnd.y),
+              width: Math.max(1, Math.abs(lassoEnd.x - lassoStart.x)),
+              height: Math.max(1, Math.abs(lassoEnd.y - lassoStart.y)),
+            }}
+          />
+        )}
+        
 
           </div>
 
