@@ -211,6 +211,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
   const [draggedAsset, setDraggedAsset] = useState<any>(null);
+  const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   // waveform state managed by wavesurfer
   const [playbackInterval, setPlaybackInterval] = useState<NodeJS.Timeout | null>(null);
   const [draggingClip, setDraggingClip] = useState<{ clipId: string; sourceTrackId: string } | null>(null);
@@ -859,10 +860,17 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             clipType = 'audio';
           }
           
-          // Calculate placement based on drop position; insert into first available gap
+          // Calculate placement based on drop position
           const rect2 = (e.currentTarget as HTMLElement).getBoundingClientRect();
           const dropX2 = Math.max(0, Math.min(rect2.width, e.clientX - rect2.left));
           const desiredStart = (dropX2 / rect2.width) * duration;
+          
+          // Check if we're dropping over an existing clip
+          const existingClip = track.clips.find(clip => {
+            const clipStart = clip.startTime;
+            const clipEnd = clip.startTime + clip.duration;
+            return desiredStart >= clipStart && desiredStart < clipEnd;
+          });
           
           // Store only minimal asset metadata in timeline to avoid large localStorage writes
           const assetRef = {
@@ -875,54 +883,87 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           };
 
           const desiredDuration = asset.duration || 5;
-          // When magnet is enabled, place behind the first clip; otherwise use drop position
-          let safeStartForNew;
-          if (timelineSnapEnabled && !e.shiftKey) {
-            // Find the last clip on the track to place behind it
-            const sortedClips = track.clips.sort((a, b) => a.startTime - b.startTime);
-            if (sortedClips.length > 0) {
-              // Place behind the last clip (not just the first)
-              const lastClip = sortedClips[sortedClips.length - 1];
-              const lastClipEnd = lastClip.startTime + lastClip.duration;
-              safeStartForNew = lastClipEnd;
-            } else {
-              // No clips on track, place at 0
-              safeStartForNew = 0;
-            }
+          
+          if (existingClip) {
+            // Replace the existing clip
+            console.log('Replacing existing clip:', existingClip.name, 'with:', asset.name);
+            const updatedTracks = tracks.map(t => 
+              t.id === trackId 
+                ? { 
+                    ...t, 
+                    clips: t.clips.map(c => 
+                      c.id === existingClip.id 
+                        ? {
+                            id: `clip-${Date.now()}`,
+                            startTime: existingClip.startTime,
+                            duration: desiredDuration,
+                            asset: assetRef,
+                            type: clipType,
+                            name: asset.name || 'Untitled Clip'
+                          }
+                        : c
+                    )
+                  }
+                : t
+            );
+            updateTracks(updatedTracks);
           } else {
-            // Use original logic: video/audio at 0, effects at drop position
-            safeStartForNew = clipType === 'video' || clipType === 'audio' ? 0 : findFirstAvailableStart(track.clips, Math.max(0, desiredStart), desiredDuration);
+            // Place in gap as normal
+            // When magnet is enabled, place behind the last clip; otherwise use drop position
+            let safeStartForNew;
+            if (timelineSnapEnabled && !e.shiftKey) {
+              // Find the last clip on the track to place behind it
+              const sortedClips = track.clips.sort((a, b) => a.startTime - b.startTime);
+              if (sortedClips.length > 0) {
+                // Place behind the last clip (not just the first)
+                const lastClip = sortedClips[sortedClips.length - 1];
+                const lastClipEnd = lastClip.startTime + lastClip.duration;
+                safeStartForNew = lastClipEnd;
+              } else {
+                // No clips on track, place at 0
+                safeStartForNew = 0;
+              }
+            } else {
+              // Use original logic: video/audio at 0, effects at drop position
+              safeStartForNew = clipType === 'video' || clipType === 'audio' ? 0 : findFirstAvailableStart(track.clips, Math.max(0, desiredStart), desiredDuration);
+            }
+
+            const newClip: TimelineClip = {
+              id: `clip-${Date.now()}`,
+              startTime: safeStartForNew,
+              duration: desiredDuration, // Default 5 seconds
+              asset: assetRef,
+              type: clipType,
+              name: asset.name || 'Untitled Clip'
+            };
+
+            const updatedTracks = tracks.map(t => 
+              t.id === trackId 
+                ? { ...t, clips: [...t.clips, newClip] }
+                : t
+            );
+            
+            updateTracks(updatedTracks);
+            console.log('Successfully added clip to timeline:', newClip);
           }
 
-          const newClip: TimelineClip = {
-            id: `clip-${Date.now()}`,
-            startTime: safeStartForNew,
-            duration: desiredDuration, // Default 5 seconds
-            asset: assetRef,
-            type: clipType,
-            name: asset.name || 'Untitled Clip'
-          };
-
-          const updatedTracks = tracks.map(t => 
-            t.id === trackId 
-              ? { ...t, clips: [...t.clips, newClip] }
-              : t
-          );
-          
-          updateTracks(updatedTracks);
-          console.log('Successfully added clip to timeline:', newClip);
-
-          // If audio, fetch actual duration and update the clip
+          // If audio, fetch actual duration and update the clip (for both replacement and new clips)
           if (clipType === 'audio') {
             try {
               const tempAudio = new Audio(assetRef.path);
               tempAudio.addEventListener('loadedmetadata', () => {
-                const realDuration = isFinite(tempAudio.duration) && tempAudio.duration > 0 ? tempAudio.duration : newClip.duration;
+                const realDuration = isFinite(tempAudio.duration) && tempAudio.duration > 0 ? tempAudio.duration : desiredDuration;
                 updateTracks(prev => prev.map(tr => {
                   if (tr.id !== trackId) return tr;
                   return {
                     ...tr,
-                    clips: tr.clips.map(c => c.id === newClip.id ? { ...c, duration: realDuration } : c)
+                    clips: tr.clips.map(c => {
+                      // Update the most recently added clip of this type
+                      if (c.type === 'audio' && c.asset.id === assetRef.id) {
+                        return { ...c, duration: realDuration };
+                      }
+                      return c;
+                    })
                   };
                 }));
               });
@@ -1388,6 +1429,79 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     };
   }, []);
 
+  // Playhead drag handlers
+  const handlePlayheadMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDraggingPlayhead(true);
+    // Pause playback when starting to drag playhead
+    if (isPlaying) {
+      stopTimelinePlayback();
+    }
+  };
+
+  const handlePlayheadMouseMove = (e: React.MouseEvent) => {
+    if (isDraggingPlayhead) {
+      const rect = timelineRef.current?.getBoundingClientRect();
+      if (rect) {
+        const clickX = e.clientX - rect.left;
+        const newTime = Math.max(0, Math.min(duration, (clickX + scrollLeft) / pixelsPerSecond));
+        setCurrentTime(newTime);
+      }
+    }
+  };
+
+  const handlePlayheadMouseUp = () => {
+    setIsDraggingPlayhead(false);
+  };
+
+  // Global mouse event listeners for playhead dragging
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (isDraggingPlayhead) {
+        const rect = timelineRef.current?.getBoundingClientRect();
+        if (rect) {
+          const clickX = e.clientX - rect.left;
+          const newTime = Math.max(0, Math.min(duration, (clickX + scrollLeft) / pixelsPerSecond));
+          setCurrentTime(newTime);
+        }
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      setIsDraggingPlayhead(false);
+    };
+
+    if (isDraggingPlayhead) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDraggingPlayhead, duration, scrollLeft, pixelsPerSecond]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle spacebar if not typing in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.code === 'Space') {
+        e.preventDefault(); // Prevent page scroll
+        handlePlayButtonClick();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isPlaying]); // Re-add listener when isPlaying changes
+
   return (
     <div className="timeline-container">
       <style>
@@ -1795,7 +1909,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
            .timeline-mark .timeline-label { position: absolute; top: 6px; left: 4px; font-size: 10px; color: #aaa; pointer-events: none; }
 
            /* Playhead */
-           .timeline-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff5252; box-shadow: 0 0 0 1px rgba(255,82,82,0.25); will-change: transform; pointer-events: none; z-index: 4; }
+           .timeline-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff5252; box-shadow: 0 0 0 1px rgba(255,82,82,0.25); will-change: transform; pointer-events: auto; z-index: 4; cursor: ew-resize; }
 
                        /* Clips */
             .timeline-clip {
@@ -2096,12 +2210,36 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             onChange={(e) => {
               const newTime = parseFloat(e.target.value);
               setCurrentTime(newTime);
-               }}
-               className="scrubber-slider"
+            }}
+            onMouseDown={(e) => {
+              // Pause playback when starting to scrub
+              if (isPlaying) {
+                stopTimelinePlayback();
+              }
+            }}
+            onMouseMove={(e) => {
+              // Update time while dragging (for immediate feedback)
+              if (e.buttons === 1) { // Left mouse button is pressed
+                const rect = e.currentTarget.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+                const newTime = percentage * duration;
+                setCurrentTime(newTime);
+              }
+            }}
+            onMouseUp={(e) => {
+              // Final update when drag ends
+              const rect = e.currentTarget.getBoundingClientRect();
+              const clickX = e.clientX - rect.left;
+              const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+              const newTime = percentage * duration;
+              setCurrentTime(newTime);
+            }}
+            className="scrubber-slider"
             style={{ 
-                 background: `linear-gradient(to right, #007acc 0%, #007acc ${(currentTime / duration) * 100}%, #444 ${(currentTime / duration) * 100}%, #444 100%)`
-               }}
-             />
+              background: `linear-gradient(to right, #007acc 0%, #007acc ${(currentTime / duration) * 100}%, #444 ${(currentTime / duration) * 100}%, #444 100%)`
+            }}
+          />
            </div>
            
            {/* Action Buttons */}
@@ -2291,6 +2429,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               data-current-time={currentTime}
               data-duration={duration}
               data-position={`${(currentTime / duration) * 100}%`}
+              onMouseDown={handlePlayheadMouseDown}
+              onMouseMove={handlePlayheadMouseMove}
+              onMouseUp={handlePlayheadMouseUp}
             />
           </div>
         </div>
