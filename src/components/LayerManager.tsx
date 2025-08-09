@@ -11,7 +11,7 @@ import TimelineComposer from './TimelineComposer';
 import { BPMManager } from '../engine/BPMManager';
 import { v4 as uuidv4 } from 'uuid';
 import { getAssetPath, createColumn, getDefaultEffectParams, handleDragOver, handleDragLeave, handleLayerClick, handleStop } from '../utils/LayerManagerUtils';
-import { handleDrop, handleLayerDragStart, handleRemoveZoneDragOver, handleRemoveZoneDrop, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
+import { handleDrop, handleLayerDragStart, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
 import { handleColumnPlay, handleUpdateLayer } from '../utils/LayerManagementHandlers';
 import { createSceneContextMenu } from '../utils/SceneManagementHandlers';
 
@@ -55,6 +55,32 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [showTimeline, setShowTimeline] = useState(false);
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    layerId: string | null;
+    columnId: string | null;
+  }>({ visible: false, x: 0, y: 0, layerId: null, columnId: null });
+
+  // Close context menu
+  const handleContextMenuClose = useCallback(() => {
+    setContextMenu({ visible: false, x: 0, y: 0, layerId: null, columnId: null });
+  }, []);
+
+  // Close context menu when clicking elsewhere
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu.visible) {
+        handleContextMenuClose();
+      }
+    };
+
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu.visible, handleContextMenuClose]);
 
   // Memoized callback for timeline preview updates
   const handleTimelinePreviewUpdate = useCallback((previewContent: any) => {
@@ -203,20 +229,51 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     handleLayerDragStart(e, layer, columnId);
   };
 
-  const handleRemoveZoneDragOverWrapper = (e: React.DragEvent) => {
-    handleRemoveZoneDragOver(e);
-  };
 
-  const handleRemoveZoneDropWrapper = (e: React.DragEvent) => {
-    handleRemoveZoneDrop(e, scenes, currentSceneId, updateScene, setRefreshTrigger);
-  };
 
-  // Handle drag end to hide removal zone
+  // Handle drag end
   const handleDragEnd = () => {
     setDragOverCell(null);
     setDraggedLayer(null);
     setDragOverLayer(null);
-    document.body.classList.remove('dragging');
+  };
+
+  // Handle right-click on column cells
+  const handleCellRightClick = (e: React.MouseEvent, layer: any, columnId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      layerId: layer?.id || 'unknown',
+      columnId: columnId
+    });
+  };
+
+
+
+  // Delete layer from column
+  const handleDeleteLayer = () => {
+    if (contextMenu.layerId && contextMenu.columnId) {
+      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      if (currentScene) {
+        const updatedColumns = currentScene.columns.map((column: any) => {
+          if (column.id === contextMenu.columnId) {
+            return {
+              ...column,
+              layers: column.layers.filter((layer: any) => layer.id !== contextMenu.layerId)
+            };
+          }
+          return column;
+        });
+
+        updateScene(currentSceneId, { columns: updatedColumns });
+        console.log(`🗑️ Deleted layer ${contextMenu.layerId} from column ${contextMenu.columnId}`);
+      }
+    }
+    handleContextMenuClose();
   };
 
 
@@ -817,6 +874,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                       key={cellId}
                       className={`grid-cell ${hasAsset ? 'has-content' : 'empty'} ${selectedLayer?.id === layer?.id ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''} ${isDragOverLayer ? 'drag-over-layer' : ''}`}
                       onClick={() => hasAsset && handleLayerClickWrapper(layer, column.id)}
+                      onContextMenu={(e) => {
+                        if (hasAsset) {
+                          handleCellRightClick(e, layer, column.id);
+                        }
+                      }}
                       onDragStart={(e) => {
                         if (hasAsset) {
                           // Always use layer reordering for existing layers
@@ -920,17 +982,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             )}
           </div>
 
-          {/* Drag-to-Remove Zone */}
-          <div 
-            className="remove-zone"
-            onDragOver={handleRemoveZoneDragOverWrapper}
-            onDrop={handleRemoveZoneDropWrapper}
-          >
-            <div className="remove-zone-content">
-              <div className="remove-zone-icon">🗑️</div>
-              <div className="remove-zone-text">Drag assets here to remove</div>
-            </div>
-          </div>
+
 
           {/* Resize Handle */}
           <div 
@@ -1033,6 +1085,50 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             </div>
           </div>
         </div>
+
+        {/* Context Menu for Column Clips */}
+        {contextMenu.visible && (
+          <div
+            className="context-menu"
+            style={{
+              position: 'fixed',
+              left: Math.min(contextMenu.x, window.innerWidth - 150), // Ensure it doesn't go off-screen
+              top: Math.min(contextMenu.y, window.innerHeight - 60),
+              zIndex: 10000, // Very high z-index to ensure visibility
+              backgroundColor: '#2a2a2a',
+              border: '2px solid #666',
+              borderRadius: '6px',
+              padding: '8px 0',
+              minWidth: '140px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.8)',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="context-menu-item"
+              style={{
+                padding: '12px 20px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                backgroundColor: 'transparent',
+                transition: 'background-color 0.2s ease',
+                borderBottom: 'none'
+              }}
+              onClick={handleDeleteLayer}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              🗑️ Delete
+            </div>
+          </div>
+        )}
       </div>
     );
   } catch (error) {
@@ -1046,6 +1142,54 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             <button onClick={onClose} className="close-btn">Close</button>
           </div>
         </div>
+
+        {/* Context Menu for Column Clips */}
+        {(() => {
+          console.log('🖱️ Rendering context menu:', contextMenu);
+          return null;
+        })()}
+        {contextMenu.visible && (
+          <div
+            className="context-menu"
+            style={{
+              position: 'fixed',
+              left: Math.min(contextMenu.x, window.innerWidth - 150), // Ensure it doesn't go off-screen
+              top: Math.min(contextMenu.y, window.innerHeight - 60),
+              zIndex: 10000, // Very high z-index to ensure visibility
+              backgroundColor: '#2a2a2a',
+              border: '2px solid #666',
+              borderRadius: '6px',
+              padding: '8px 0',
+              minWidth: '140px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.8)',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="context-menu-item"
+              style={{
+                padding: '12px 20px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                backgroundColor: 'transparent',
+                transition: 'background-color 0.2s ease',
+                userSelect: 'none'
+              }}
+              onClick={handleDeleteLayer}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              🗑️ Delete Clip
+            </div>
+          </div>
+        )}
       </div>
     );
   }

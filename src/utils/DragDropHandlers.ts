@@ -177,68 +177,10 @@ export const handleLayerDragStart = (e: React.DragEvent, layer: any, columnId: s
   
   e.dataTransfer.effectAllowed = 'move';
   
-  // Show removal zone
-  document.body.classList.add('dragging');
+
 };
 
-/**
- * Handle remove zone drag over
- */
-export const handleRemoveZoneDragOver = (e: React.DragEvent) => {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-};
 
-/**
- * Handle remove zone drop
- */
-export const handleRemoveZoneDrop = (
-  e: React.DragEvent,
-  scenes: any[],
-  currentSceneId: string,
-  updateScene: (sceneId: string, updates: any) => void,
-  setRefreshTrigger: (trigger: (prev: number) => number) => void
-) => {
-  e.preventDefault();
-  
-  const dragData = e.dataTransfer.getData('application/json');
-  if (!dragData) return;
-  
-  try {
-    const data = JSON.parse(dragData);
-    
-    if (data.type === 'layer-asset') {
-      console.log('🗑️ Removing asset from layer:', data.layer.name, 'asset:', data.asset.name);
-      
-      // Find the current scene and column
-      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
-      if (!currentScene) return;
-      
-      const column = currentScene.columns.find((col: any) => col.id === data.columnId);
-      if (!column) return;
-      
-      // Find the layer and remove the asset
-      const layer = column.layers.find((l: any) => l.id === data.layer.id);
-      if (layer) {
-        layer.asset = null;
-        layer.type = 'media';
-        
-        console.log('🗑️ Asset removed from layer:', layer.name);
-        
-        // Update the scene
-        updateScene(currentSceneId, { columns: currentScene.columns });
-        
-        // Trigger a refresh
-        setRefreshTrigger(prev => prev + 1);
-      }
-    }
-  } catch (error) {
-    console.error('❌ Error processing removal drop:', error);
-  }
-  
-  // Hide removal zone
-  document.body.classList.remove('dragging');
-};
 
 /**
  * Handle layer reorder drag start
