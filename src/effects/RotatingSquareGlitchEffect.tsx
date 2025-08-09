@@ -270,6 +270,7 @@ RotatingSquareGlitchEffect.metadata = {
   icon: '🎲',
   author: 'VJ System',
   version: '1.0.0',
+  replacesVideo: true, // This effect replaces the video texture
   parameters: [
     { name: 'intensity', type: 'number', value: 1.5, min: 0, max: 3, step: 0.1 },
     { name: 'gridSize', type: 'number', value: 12, min: 4, max: 20, step: 1 },

@@ -166,6 +166,7 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
   icon: '🎬',
   author: 'VJ System',
   version: '1.0.0',
+  replacesVideo: true, // This effect replaces the video texture
   parameters: [
     {
       name: 'slideSpeed',
@@ -196,7 +197,8 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
 
 // Self-register the effect
 console.log('🔧 Registering VideoSlideEffect...');
-registerEffect('VideoSlideEffect', VideoSlideEffect);
+registerEffect('video-slide-effect', VideoSlideEffect);
+registerEffect('VideoSlideEffect', VideoSlideEffect); // Also register with PascalCase for compatibility
 console.log('✅ VideoSlideEffect registered successfully');
 
 export default VideoSlideEffect;

@@ -32,7 +32,13 @@ export class EffectCache {
    */
   async startPreloading(): Promise<void> {
     if (this.preloadPromise) {
+      console.log('🔄 EffectCache: Preloading already in progress, waiting...');
       return this.preloadPromise;
+    }
+
+    if (this.isPreloaded) {
+      console.log('✅ EffectCache: Effects already preloaded');
+      return Promise.resolve();
     }
 
     console.log('🚀 EffectCache: Starting effect preloading...');

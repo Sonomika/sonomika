@@ -59,6 +59,7 @@ const initialState: AppState = {
   },
   timelineSnapEnabled: true,
   timelineDuration: 60, // 1 minute default
+  timelineZoom: 2, // Default zoom level
 };
 
 initialState.currentSceneId = initialState.scenes[0].id;
@@ -95,6 +96,7 @@ export const useStore = create<AppState & {
   loadPreset: (file: File) => Promise<boolean>;
   setTimelineSnapEnabled: (enabled: boolean) => void;
   setTimelineDuration: (duration: number) => void;
+  setTimelineZoom: (zoom: number) => void;
 }>()(
   persist(
     (set, get) => ({
@@ -410,6 +412,7 @@ export const useStore = create<AppState & {
       },
       setTimelineSnapEnabled: (enabled: boolean) => set({ timelineSnapEnabled: enabled }),
       setTimelineDuration: (duration: number) => set({ timelineDuration: duration }),
+      setTimelineZoom: (zoom: number) => set({ timelineZoom: zoom }),
     }),
     {
       name: 'vj-app-storage',
@@ -450,6 +453,7 @@ export const useStore = create<AppState & {
            compositionSettings: state.compositionSettings,
            timelineSnapEnabled: state.timelineSnapEnabled,
            timelineDuration: state.timelineDuration,
+           timelineZoom: state.timelineZoom,
          };
        },
              onRehydrateStorage: () => (state) => {

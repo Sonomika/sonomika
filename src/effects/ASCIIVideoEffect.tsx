@@ -18,7 +18,7 @@ export const ASCIIVideoEffect: React.FC<ASCIIVideoEffectProps> = ({
   videoTexture,
   characters = ` .:,'-^=*+?!|0#X%WM@`,
   fontSize = 54,
-  cellSize = 16,
+  cellSize = 28,
   color = '#ffffff',
   invert = false
 }) => {
@@ -221,7 +221,7 @@ void main() {
   parameters: [
     { name: 'characters', type: 'string', value: ` .:,'-^=*+?!|0#X%WM@` },
     { name: 'fontSize', type: 'number', value: 54, min: 8, max: 100, step: 1 },
-    { name: 'cellSize', type: 'number', value: 16, min: 4, max: 32, step: 1 },
+    { name: 'cellSize', type: 'number', value: 28, min: 4, max: 32, step: 1 },
     { name: 'color', type: 'color', value: '#ffffff' },
     { name: 'invert', type: 'boolean', value: false },
     { name: 'opacity', type: 'number', value: 1, min: 0, max: 1, step: 0.1 }

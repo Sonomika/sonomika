@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
 import EffectLoader from './EffectLoader';
-import { useEffectComponent } from '../utils/EffectLoader';
+import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
 
 interface ColumnPreviewProps {
   column: any;
@@ -520,7 +520,7 @@ const ColumnScene: React.FC<{
             const videoTexture = videoTextures.get(videoLayer.asset.id);
             
             // Check if this effect replaces the video
-            const EffectComponent = useEffectComponent(effectId);
+            const EffectComponent = getEffectComponentSync(effectId);
             const effectMetadata = EffectComponent ? (EffectComponent as any).metadata : null;
             const replacesVideo = effectMetadata?.replacesVideo === true;
             

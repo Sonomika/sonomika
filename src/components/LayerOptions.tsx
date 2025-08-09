@@ -226,8 +226,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               value={localParamValues[param.name] ?? currentValue}
                               onChange={(value) => {
                                 setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
-                              }}
-                              onAfterChange={(value) => {
+                                // Apply changes instantly while dragging
                                 handleEffectParamChange(param.name, value);
                               }}
                             />
@@ -272,8 +271,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               value={localParamValues[paramName] ?? currentValue}
                               onChange={(value) => {
                                 setLocalParamValues(prev => ({ ...prev, [paramName]: value }));
-                              }}
-                              onAfterChange={(value) => {
+                                // Apply changes instantly while dragging
                                 handleEffectParamChange(paramName, value);
                               }}
                             />

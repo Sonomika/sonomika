@@ -103,6 +103,75 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
 export const useEffectComponent = (effectId: string): React.ComponentType<any> | null => {
   console.log(`🎯 useEffectComponent called with effectId: ${effectId}`);
   
+  // ALWAYS call hooks first - never conditionally!
+  const [EffectComponent, setEffectComponent] = React.useState<React.ComponentType<any> | null>(null);
+  const [isLoaded, setIsLoaded] = React.useState(false);
+  
+  // Handle backward compatibility: map kebab-case IDs to camelCase IDs
+  const getUpdatedEffectId = (id: string) => {
+    const idMappings: Record<string, string> = {
+      'pulse-hexagon': 'PulseHexagon',
+      'hexagon': 'PulseHexagon',
+      'generic-pulse-effect': 'GenericPulseEffect'
+    };
+    return idMappings[id] || id;
+  };
+
+  const updatedEffectId = getUpdatedEffectId(effectId);
+  console.log(`🎯 Mapped effectId: ${effectId} -> ${updatedEffectId}`);
+
+  React.useEffect(() => {
+    console.log(`🔄 useEffect triggered for effectId: ${effectId}`);
+    
+    const loadEffect = async () => {
+      // Try to get from registry first
+      const registeredEffect = getEffect(updatedEffectId);
+      if (registeredEffect) {
+        console.log(`✅ Found effect in registry: ${updatedEffectId}`);
+        setEffectComponent(() => registeredEffect);
+        setIsLoaded(true);
+        return;
+      }
+      
+      // Handle undefined or invalid effect IDs
+      const validEffectId = updatedEffectId && updatedEffectId !== 'unknown' && updatedEffectId !== 'undefined' 
+        ? updatedEffectId 
+        : null;
+        
+      if (!validEffectId) {
+        console.log(`❌ Invalid effectId: ${effectId}`);
+        setEffectComponent(null);
+        setIsLoaded(true);
+        return;
+      }
+        
+      console.log(`📞 Calling loadEffectComponent with: ${validEffectId}`);
+      const component = await loadEffectComponent(validEffectId);
+      console.log(`📦 Component loaded:`, component);
+      setEffectComponent(() => component);
+      setIsLoaded(true);
+    };
+
+    loadEffect();
+  }, [effectId, updatedEffectId]);
+
+  return EffectComponent;
+};
+
+/**
+ * Non-hook version to get effect component synchronously from registry
+ * Use this when you need to get effect components inside loops or other places where hooks can't be used
+ * @param effectId - The effect ID to look up
+ * @returns The effect component from registry or null if not found
+ */
+export const getEffectComponentSync = (effectId: string): React.ComponentType<any> | null => {
+  console.log(`🎯 getEffectComponentSync called with effectId: ${effectId}`);
+  
+  if (!effectId || effectId.trim() === '' || effectId === 'undefined') {
+    console.log(`❌ Invalid effectId provided: "${effectId}"`);
+    return null;
+  }
+  
   // Handle backward compatibility: map kebab-case IDs to camelCase IDs
   const getUpdatedEffectId = (id: string) => {
     const idMappings: Record<string, string> = {
@@ -116,39 +185,14 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
   const updatedEffectId = getUpdatedEffectId(effectId);
   console.log(`🎯 Mapped effectId: ${effectId} -> ${updatedEffectId}`);
   
-  // Try to get from registry first
+  // Try to get from registry (synchronous only)
   const registeredEffect = getEffect(updatedEffectId);
   if (registeredEffect) {
     console.log(`✅ Found effect in registry: ${updatedEffectId}`);
     return registeredEffect;
   }
   
-  // Fallback to dynamic loading if not in registry
-  const [EffectComponent, setEffectComponent] = React.useState<React.ComponentType<any> | null>(null);
-
-  React.useEffect(() => {
-    console.log(`🔄 useEffect triggered for effectId: ${effectId}`);
-    
-    const loadEffect = async () => {
-      // Handle undefined or invalid effect IDs
-      const validEffectId = updatedEffectId && updatedEffectId !== 'unknown' && updatedEffectId !== 'undefined' 
-        ? updatedEffectId 
-        : null;
-        
-      if (!validEffectId) {
-        console.log(`❌ Invalid effectId: ${effectId}`);
-        setEffectComponent(null);
-        return;
-      }
-        
-      console.log(`📞 Calling loadEffectComponent with: ${validEffectId}`);
-      const component = await loadEffectComponent(validEffectId);
-      console.log(`📦 Component loaded:`, component);
-      setEffectComponent(() => component);
-    };
-
-    loadEffect();
-  }, [effectId, updatedEffectId]);
-
-  return EffectComponent;
+  // If not in registry, return null (no async loading in sync version)
+  console.log(`❌ Effect not found in registry: ${updatedEffectId}`);
+  return null;
 }; 

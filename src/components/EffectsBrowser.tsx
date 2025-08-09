@@ -154,7 +154,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
     }
   };
 
-  // Show loading state while effects are being preloaded
+  // Render different content based on loading state - all hooks called above
   if (isLoading) {
     return (
       <div className="effects-browser">

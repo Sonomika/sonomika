@@ -293,6 +293,7 @@ const AdvancedGlitchEffect: React.FC<AdvancedGlitchEffectProps> = ({
   icon: '📺',
   author: 'VJ System',
   version: '1.0.0',
+  replacesVideo: true, // This effect replaces the video texture
   parameters: [
     {
       name: 'intensity',

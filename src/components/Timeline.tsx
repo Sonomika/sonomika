@@ -207,7 +207,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     });
     return earliestTime;
   };
-  const [zoom, setZoom] = useState(2); // default more zoomed-in
+  const { timelineZoom, setTimelineZoom } = useStore();
+  const zoom = timelineZoom;
+  const setZoom = setTimelineZoom;
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
   const [draggedAsset, setDraggedAsset] = useState<any>(null);

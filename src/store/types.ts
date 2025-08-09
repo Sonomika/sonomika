@@ -92,4 +92,5 @@ export interface AppState {
   compositionSettings: CompositionSettings;
   timelineSnapEnabled: boolean; // Magnet/Snap toggle
   timelineDuration: number; // Timeline duration in seconds
+  timelineZoom: number; // Timeline zoom level
 } 

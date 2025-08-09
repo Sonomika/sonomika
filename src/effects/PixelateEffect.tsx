@@ -125,6 +125,7 @@ PixelateEffect.metadata = {
   name: 'Pixelate Effect',
   description: 'Applies a pixelation filter to video content',
   category: 'Distortion',
+  replacesVideo: true, // This effect replaces the video texture
   parameters: [
     {
       name: 'pixelSize',

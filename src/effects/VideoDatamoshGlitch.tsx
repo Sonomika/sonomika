@@ -226,6 +226,7 @@ const VideoDatamoshGlitch: React.FC<VideoDatamoshGlitchProps> = ({
   icon: '🎬',
   author: 'VJ System',
   version: '1.0.0',
+  replacesVideo: true, // This effect replaces the video texture
   parameters: [
     {
       name: 'intensity',
@@ -279,8 +280,9 @@ const VideoDatamoshGlitch: React.FC<VideoDatamoshGlitchProps> = ({
 };
 
 // Self-register the effect
-console.log('🔧 Registering VideoDatamoshGlitch...');
-registerEffect('VideoDatamoshGlitch', VideoDatamoshGlitch);
+console.log('🔧 Registering video-datamosh-glitch...');
+registerEffect('video-datamosh-glitch', VideoDatamoshGlitch);
+registerEffect('VideoDatamoshGlitch', VideoDatamoshGlitch); // Also register with PascalCase for compatibility
 console.log('✅ VideoDatamoshGlitch registered successfully');
 
 export default VideoDatamoshGlitch;

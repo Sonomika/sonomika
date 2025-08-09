@@ -171,17 +171,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   };
 
   const handleDropWrapper = (e: React.DragEvent, columnId: string, layerNum: number) => {
-    const wasPlayingThisColumn = isPlaying && playingColumnId === columnId;
+    const wasPlayingThisColumn = playingColumnId === columnId;
+    console.log('🎵 Before drop - Column playing state:', { columnId, wasPlayingThisColumn, playingColumnId });
+    
     handleDrop(e, columnId, layerNum, scenes, currentSceneId, updateScene, setDragOverCell);
+    
     // Keep playback running if this column was already playing
     if (wasPlayingThisColumn) {
-      // Reassert playing state without disturbing preview content
-      setIsPlaying(true);
-      try {
-        playColumn(columnId);
-      } catch (err) {
-        console.warn('Failed to reassert play after drop', err);
-      }
+      console.log('🎵 Restoring playback for column:', columnId);
+      // Use multiple attempts to ensure playback restoration
+      const restorePlayback = (attempts = 0) => {
+        const maxAttempts = 3;
+        try {
+          setIsPlaying(true);
+          playColumn(columnId);
+          console.log('🎵 Playback restored successfully for column:', columnId);
+        } catch (err) {
+          console.warn(`Failed to reassert play after drop (attempt ${attempts + 1}):`, err);
+          if (attempts < maxAttempts - 1) {
+            setTimeout(() => restorePlayback(attempts + 1), 200);
+          }
+        }
+      };
+      
+      // Initial attempt with small delay
+      setTimeout(() => restorePlayback(), 100);
     }
   };
 

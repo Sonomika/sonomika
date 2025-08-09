@@ -14,8 +14,8 @@ interface VideoSliceOffsetEffectProps {
 }
 
 const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
-  sliceCount = 10,
-  offsetAmount = 0.1,
+  sliceCount = 41,
+  offsetAmount = 0.48,
   sliceWidth = 0.05,
   animationSpeed = 1.0,
   sliceDirection = 'horizontal',
@@ -158,11 +158,12 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
   icon: '✂️',
   author: 'VJ System',
   version: '1.0.0',
+  replacesVideo: true, // This effect replaces the video texture
   parameters: [
     {
       name: 'sliceCount',
       type: 'number',
-      value: 10,
+      value: 41,
       min: 2,
       max: 50,
       step: 1,
@@ -171,7 +172,7 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
     {
       name: 'offsetAmount',
       type: 'number',
-      value: 0.1,
+      value: 0.48,
       min: 0.01,
       max: 0.5,
       step: 0.01,
@@ -204,9 +205,10 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
   ]
 };
 
-// Self-register the effect
-console.log('🔧 Registering VideoSliceOffsetEffect...');
-registerEffect('VideoSliceOffsetEffect', VideoSliceOffsetEffect);
+// Self-register the effect - use unique registration name
+console.log('🔧 Registering video-slice-offset-effect...');
+registerEffect('video-slice-offset-effect', VideoSliceOffsetEffect);
+registerEffect('VideoSliceOffsetEffect', VideoSliceOffsetEffect); // Also register with PascalCase for compatibility
 console.log('✅ VideoSliceOffsetEffect registered successfully');
 
 export default VideoSliceOffsetEffect;
