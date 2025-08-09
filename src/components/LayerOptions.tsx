@@ -3,6 +3,7 @@ import { LOOP_MODES, type LoopMode } from '../constants/video';
 import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
 import ReactSlider from 'react-slider';
+import { useLFOStore } from '../store/lfoStore';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
@@ -10,6 +11,17 @@ interface LayerOptionsProps {
 }
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
+  // Get LFO modulated values from LFO store
+  const lfoModulatedValues = useLFOStore((state) => state.modulatedValues);
+  
+  // Helper function to get display value (LFO modulated or base value)
+  const getDisplayValue = (paramName: string, baseValue: number): number => {
+    if (!selectedLayer) return baseValue;
+    const key = `${selectedLayer.id}-${paramName}`;
+    const lfoValue = lfoModulatedValues[key];
+    return lfoValue ? lfoValue.modulatedValue : baseValue;
+  };
+
   // Update local state when selectedLayer changes
   const [loopMode, setLoopMode] = useState<LoopMode>(
     (selectedLayer as any)?.loopMode || LOOP_MODES.NONE
@@ -223,14 +235,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               min={param.min || 0}
                               max={param.max || 1}
                               step={param.step || 0.1}
-                              value={localParamValues[param.name] ?? currentValue}
+                              value={getDisplayValue(param.name, localParamValues[param.name] ?? currentValue)}
                               onChange={(value) => {
                                 setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
                                 // Apply changes instantly while dragging
                                 handleEffectParamChange(param.name, value);
                               }}
                             />
-                            <span className="param-value">{localParamValues[param.name] ?? currentValue}</span>
+                            <span className="param-value">{getDisplayValue(param.name, localParamValues[param.name] ?? currentValue).toFixed(2)}</span>
                           </div>
                         )}
                       </div>
@@ -268,14 +280,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               min={param?.min || 0}
                               max={param?.max || 2}
                               step={param?.step || 0.1}
-                              value={localParamValues[paramName] ?? currentValue}
+                              value={getDisplayValue(paramName, localParamValues[paramName] ?? currentValue)}
                               onChange={(value) => {
                                 setLocalParamValues(prev => ({ ...prev, [paramName]: value }));
                                 // Apply changes instantly while dragging
                                 handleEffectParamChange(paramName, value);
                               }}
                             />
-                            <span className="param-value">{localParamValues[paramName] ?? currentValue}</span>
+                            <span className="param-value">{getDisplayValue(paramName, localParamValues[paramName] ?? currentValue).toFixed(2)}</span>
                           </div>
                         )}
                       </div>

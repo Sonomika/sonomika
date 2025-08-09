@@ -3,6 +3,7 @@ import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerOptions } from './LayerOptions';
 import { MIDIMapper } from './MIDIMapper';
+import { LFOMapper } from './LFOMapper';
 import { CanvasRenderer } from './CanvasRenderer';
 import { ColumnPreview } from './ColumnPreview';
 import { EffectsBrowser } from './EffectsBrowser';
@@ -51,7 +52,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [activeTab, setActiveTab] = useState<'media' | 'effects' | 'midi'>('media');
+  const [activeTab, setActiveTab] = useState<'media' | 'effects' | 'midi' | 'lfo'>('media');
   const [showTimeline, setShowTimeline] = useState(false);
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
@@ -1067,6 +1068,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 >
                   MIDI
                 </button>
+                <button 
+                  className={`tab-button ${activeTab === 'lfo' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('lfo')}
+                >
+                  LFO
+                </button>
 
               </div>
               
@@ -1078,6 +1085,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   <EffectsBrowser />
                 ) : activeTab === 'midi' ? (
                   <MIDIMapper />
+                ) : activeTab === 'lfo' ? (
+                  <LFOMapper 
+                    selectedLayer={selectedLayer}
+                    onUpdateLayer={handleUpdateLayerWrapper}
+                  />
                 ) : (
                   <MediaLibrary onClose={() => {}} isEmbedded={true} />
                 )}
