@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllRegisteredEffects, getEffect } from '../utils/effectRegistry';
+import { effectCache, CachedEffect } from '../utils/EffectCache';
 
 interface EffectsBrowserProps {
   onClose?: () => void;
@@ -10,49 +11,91 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   const [selectedEffect, setSelectedEffect] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'effects' | 'overlays'>('effects');
-  const [registeredEffects, setRegisteredEffects] = useState<string[]>([]);
+  const [cachedEffects, setCachedEffects] = useState<CachedEffect[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState('Initializing...');
 
-  // Get all registered effects from the registry and trigger discovery
+  // Use effect cache for much faster loading
   useEffect(() => {
     const loadEffects = async () => {
+      setIsLoading(true);
+      setLoadingProgress('Starting effect preloading...');
+      
       try {
-        // Trigger dynamic discovery first
-        const { EffectDiscovery } = await import('../utils/EffectDiscovery');
-        const discovery = EffectDiscovery.getInstance();
-        await discovery.discoverEffects();
-        console.log('🔧 EffectsBrowser: Triggered dynamic discovery');
+        // Check if effects are already preloaded
+        if (effectCache.isEffectsPreloaded()) {
+          console.log('🚀 EffectsBrowser: Using preloaded effects cache');
+          setCachedEffects(effectCache.getCachedEffects());
+          setIsLoading(false);
+          return;
+        }
+
+        // Start preloading effects
+        setLoadingProgress('Preloading effects...');
+        await effectCache.startPreloading();
+        
+        // Get cached effects
+        const effects = effectCache.getCachedEffects();
+        setCachedEffects(effects);
+        setLoadingProgress(`Loaded ${effects.length} effects`);
+        
+        console.log(`🔧 EffectsBrowser: Loaded ${effects.length} effects from cache`);
       } catch (error) {
-        console.warn('⚠️ Could not trigger dynamic discovery:', error);
+        console.warn('⚠️ Cache loading failed, falling back to registry:', error);
+        setLoadingProgress('Falling back to discovery...');
+        
+        // Fallback to old discovery method
+        try {
+          const { EffectDiscovery } = await import('../utils/EffectDiscovery');
+          const discovery = EffectDiscovery.getInstance();
+          await discovery.discoverEffects();
+          
+          // Get registered effects from registry
+          const registeredEffectIds = getAllRegisteredEffects();
+          const effects = registeredEffectIds.map(effectId => {
+            const effectComponent = getEffect(effectId);
+            if (!effectComponent) return null;
+
+            const metadata = (effectComponent as any).metadata || {};
+            return {
+              id: effectId,
+              name: metadata.name || effectId,
+              description: metadata.description || 'No description available',
+              category: metadata.category || 'Effects', 
+              icon: metadata.icon || '✨',
+              author: metadata.author || 'Unknown',
+              version: metadata.version || '1.0.0',
+              component: effectComponent,
+              metadata,
+              loadTime: 0
+            };
+          }).filter((effect): effect is CachedEffect => effect !== null);
+          
+          setCachedEffects(effects);
+          setLoadingProgress(`Loaded ${effects.length} effects via registry`);
+        } catch (fallbackError) {
+          console.error('❌ Both cache and registry loading failed:', fallbackError);
+          setLoadingProgress('Failed to load effects');
+        }
       }
       
-      // Then get registered effects
-      const effects = getAllRegisteredEffects();
-      setRegisteredEffects(effects);
-      console.log('🔧 EffectsBrowser: Found registered effects:', effects);
+      setIsLoading(false);
     };
     
     loadEffects();
   }, []);
 
-  // Convert registered effect IDs to effect objects for display
-  const allEffects = registeredEffects.map(effectId => {
-    const effectComponent = getEffect(effectId);
-    if (!effectComponent) return null;
-
-    // Get metadata from the component
-    const metadata = (effectComponent as any).metadata || {};
-    
-    return {
-      id: effectId,
-      name: metadata.name || effectId,
-      type: metadata.type || 'threejs',
-      description: metadata.description || 'No description available',
-      category: metadata.category || 'Effects',
-      icon: metadata.icon || '✨',
-      author: metadata.author || 'Unknown',
-      version: metadata.version || '1.0.0'
-    };
-  }).filter((effect): effect is NonNullable<typeof effect> => effect !== null);
+  // Use cached effects for display (much faster than registry lookup)
+  const allEffects = cachedEffects.map(effect => ({
+    id: effect.id,
+    name: effect.name,
+    type: 'threejs',
+    description: effect.description,
+    category: effect.category,
+    icon: effect.icon,
+    author: effect.author,
+    version: effect.version
+  }));
 
   // Filter effects based on search term
   const filteredEffects = allEffects.filter(effect =>
@@ -111,8 +154,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
     }
   };
 
-  // Show loading state while effects are being registered
-  if (registeredEffects.length === 0) {
+  // Show loading state while effects are being preloaded
+  if (isLoading) {
     return (
       <div className="effects-browser">
         <div className="effects-browser-header">
@@ -120,7 +163,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
           <button onClick={handleClose} className="close-button">×</button>
         </div>
         <div className="effects-browser-content">
-          <div className="loading">Loading effects...</div>
+          <div className="loading">
+            <div className="loading-spinner"></div>
+            <div className="loading-text">{loadingProgress}</div>
+          </div>
         </div>
       </div>
     );

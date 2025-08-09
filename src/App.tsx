@@ -29,6 +29,7 @@ import { MIDIMapping } from './midi/MIDIMapping';
 import { BPMManager } from './engine/BPMManager';
 import { CanvasStreamManager } from './utils/CanvasStream';
 import { usePreviewRenderer } from './hooks/usePreviewRenderer';
+import { effectCache } from './utils/EffectCache';
 import './index.css';
 
 // Effects are loaded dynamically - no hardcoded imports needed
@@ -108,6 +109,7 @@ function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
   const [compositionSettingsOpen, setCompositionSettingsOpen] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
+  const usingDummyCanvas = useRef<boolean>(false);
   const { savePreset, loadPreset } = useStore();
   const lastSaveRef = useRef<number>(0);
   
@@ -219,6 +221,64 @@ function App() {
     }
   }, []);
 
+  // Start effect preloading early for faster effects browser
+  useEffect(() => {
+    console.log('🚀 App: Starting early effect preloading...');
+    effectCache.startPreloading().catch(error => {
+      console.warn('⚠️ Early effect preloading failed:', error);
+    });
+  }, []);
+
+  // Monitor for real Three.js canvas when using dummy canvas
+  useEffect(() => {
+    if (!isMirrorOpen || !usingDummyCanvas.current || !streamManagerRef.current) {
+      return;
+    }
+
+    const checkForRealCanvas = () => {
+      // Look for a Three.js canvas (not our dummy one)
+      const canvases = document.querySelectorAll('canvas');
+      const realCanvas = Array.from(canvases).find(canvas => 
+        canvas.id !== 'dummy-mirror-canvas' && 
+        canvas.width > 0 && 
+        canvas.height > 0
+      ) as HTMLCanvasElement;
+
+      if (realCanvas) {
+        console.log('Real canvas found, switching from dummy canvas');
+        streamManagerRef.current?.updateCanvas(realCanvas);
+        usingDummyCanvas.current = false;
+        
+        // Remove dummy canvas
+        const dummyCanvas = document.getElementById('dummy-mirror-canvas');
+        if (dummyCanvas) {
+          dummyCanvas.remove();
+        }
+        
+        // Stop checking
+        return true;
+      }
+      return false;
+    };
+
+    // Check immediately
+    if (checkForRealCanvas()) {
+      return;
+    }
+
+    // Set up interval to check for real canvas
+    const interval = setInterval(() => {
+      if (checkForRealCanvas()) {
+        clearInterval(interval);
+      }
+    }, 500);
+
+    // Cleanup
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isMirrorOpen]);
+
   const handleMirrorToggle = async () => {
     try {
       if (isMirrorOpen) {
@@ -226,33 +286,50 @@ function App() {
         streamManagerRef.current?.closeMirrorWindow();
         setIsMirrorOpen(false);
       } else {
-        // Find the main canvas element
+        // Find or create the main canvas element
         let canvas = document.querySelector('canvas') as HTMLCanvasElement;
         
         if (!canvas) {
-          console.error('No canvas found for streaming');
-          // Removed alert to reduce popups
-          return;
+          console.log('No canvas found yet, mirror will open and wait for content');
+          // Create a dummy canvas to allow mirror window to open
+          canvas = document.createElement('canvas');
+          canvas.width = 1920;
+          canvas.height = 1080;
+          // Add it to DOM temporarily (hidden)
+          canvas.style.display = 'none';
+          canvas.id = 'dummy-mirror-canvas';
+          document.body.appendChild(canvas);
+          usingDummyCanvas.current = true;
+          
+          // Fill with black background
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Waiting for content...', canvas.width / 2, canvas.height / 2);
+          }
+        } else {
+          usingDummyCanvas.current = false;
         }
 
-        console.log('Found canvas for streaming:', canvas);
+        console.log('Found/created canvas for streaming:', canvas);
         console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-        console.log('Canvas style dimensions:', canvas.style.width, 'x', canvas.style.height);
         
-        // Wait a bit for the Three.js canvas to be fully rendered
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Reduced wait time for faster opening
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Check canvas dimensions again after delay
-        console.log('Canvas dimensions after delay:', canvas.width, 'x', canvas.height);
-        
+        // Set minimum dimensions if canvas is too small
         if (canvas.width === 0 || canvas.height === 0) {
-          console.error('Canvas has zero dimensions, cannot stream');
-          // Removed alert to reduce popups
-          return;
+          console.log('Canvas has zero dimensions, setting default size');
+          canvas.width = 1920;
+          canvas.height = 1080;
         }
         
-                  // Create stream manager and open mirror window
-          streamManagerRef.current = new CanvasStreamManager(canvas);
+        // Create stream manager and open mirror window immediately
+        streamManagerRef.current = new CanvasStreamManager(canvas);
         await streamManagerRef.current.openMirrorWindow();
         setIsMirrorOpen(true);
       }

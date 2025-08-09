@@ -41,7 +41,15 @@ const VideoTexture: React.FC<{
     }
   });
 
-  if (!texture) return null;
+  if (!texture) {
+    // Render a transparent placeholder instead of null to prevent black flash
+    return (
+      <mesh>
+        <planeGeometry args={[2, 2]} />
+        <meshBasicMaterial color={0x000000} transparent opacity={0} />
+      </mesh>
+    );
+  }
 
   return (
     <mesh ref={meshRef}>
@@ -75,7 +83,15 @@ const ImageTexture: React.FC<{
     }
   }, [image]);
 
-  if (!texture) return null;
+  if (!texture) {
+    // Render a transparent placeholder instead of null to prevent black flash
+    return (
+      <mesh>
+        <planeGeometry args={[2, 2]} />
+        <meshBasicMaterial color={0x000000} transparent opacity={0} />
+      </mesh>
+    );
+  }
 
   return (
     <mesh ref={meshRef}>

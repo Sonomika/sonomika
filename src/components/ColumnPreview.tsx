@@ -57,7 +57,13 @@ const VideoTexture: React.FC<{
   });
 
   if (!texture || video.readyState < 2) {
-    return null;
+    // Render a transparent placeholder instead of null to prevent black flash
+    return (
+      <mesh>
+        <planeGeometry args={[aspectRatio * 2, 2]} />
+        <meshBasicMaterial color={0x000000} transparent opacity={0} />
+      </mesh>
+    );
   }
 
   // Check if any effects are applied
@@ -211,6 +217,11 @@ const ColumnScene: React.FC<{
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
 
+  // Global asset cache to persist videos across column switches
+  const globalAssetCacheRef = useRef<{
+    videos: Map<string, HTMLVideoElement>;
+  }>({ videos: new Map() });
+
   // Performance optimization: removed excessive logging
 
   // Load assets with caching
@@ -250,37 +261,50 @@ const ColumnScene: React.FC<{
           }
         } else if (asset.type === 'video') {
           try {
-            const video = document.createElement('video');
-            const assetPath = getAssetPath(asset);
-            console.log('Loading video with path:', assetPath, 'for asset:', asset.name);
-            video.src = assetPath;
-            video.muted = true;
-            video.loop = true;
-            video.autoplay = true;
-            video.playsInline = true;
-            video.style.backgroundColor = 'transparent';
-            video.crossOrigin = 'anonymous';
+            // Check global cache first to prevent flash during column switches
+            let video = globalAssetCacheRef.current.videos.get(asset.id);
+            
+            if (video) {
+              console.log('✅ Using cached video for asset:', asset.name);
+              newVideos.set(asset.id, video);
+            } else {
+              console.log('Loading new video with path:', getAssetPath(asset), 'for asset:', asset.name);
+              video = document.createElement('video');
+              const assetPath = getAssetPath(asset);
+              video.src = assetPath;
+              video.muted = true;
+              video.loop = true;
+              video.autoplay = true;
+              video.playsInline = true;
+              video.style.backgroundColor = 'transparent';
+              video.crossOrigin = 'anonymous';
+              
+              // Performance optimization for column switching
+              video.preload = 'auto'; // Preload video data to reduce flash on column switch
+              video.style.imageRendering = 'optimizeSpeed';
 
-            await new Promise<void>((resolve, reject) => {
-              const onReady = () => {
-                // Ensure we have dimensions before resolving
-                if (video.videoWidth > 0 && video.videoHeight > 0) {
-                  resolve();
-                } else {
-                  // Some browsers fire loadeddata early; poll once more
-                  setTimeout(() => resolve(), 0);
-                }
-              };
-              video.addEventListener('loadeddata', onReady, { once: true });
-              video.addEventListener('error', reject);
-              video.load();
-            });
+              await new Promise<void>((resolve, reject) => {
+                const onReady = () => {
+                  // Ensure we have dimensions before resolving
+                  if (video!.videoWidth > 0 && video!.videoHeight > 0) {
+                    resolve();
+                  } else {
+                    // Some browsers fire loadeddata early; poll once more
+                    setTimeout(() => resolve(), 0);
+                  }
+                };
+                video!.addEventListener('loadeddata', onReady, { once: true });
+                video!.addEventListener('error', reject);
+                video!.load();
+              });
 
-            try { void video.play(); } catch {}
+              try { void video.play(); } catch {}
 
-            // Add to map only once ready to avoid texImage2D errors
-            newVideos.set(asset.id, video);
-            console.log(`✅ Video ready for layer ${layer.name}:`, asset.name);
+              // Cache the video globally for future column switches
+              globalAssetCacheRef.current.videos.set(asset.id, video);
+              newVideos.set(asset.id, video);
+              console.log(`✅ Video ready and cached for layer ${layer.name}:`, asset.name);
+            }
           } catch (error) {
             console.error(`❌ Failed to prepare video for layer ${layer.name}:`, error);
           }
@@ -495,6 +519,13 @@ const ColumnScene: React.FC<{
             // Get video texture from the map
             const videoTexture = videoTextures.get(videoLayer.asset.id);
             
+            // Check if this effect replaces the video
+            const EffectComponent = useEffectComponent(effectId);
+            const effectMetadata = EffectComponent ? (EffectComponent as any).metadata : null;
+            const replacesVideo = effectMetadata?.replacesVideo === true;
+            
+            console.log('🎬 Effect metadata check:', { effectId, replacesVideo, metadata: effectMetadata });
+            
             // Create a stable key for the effect component
             const effectKey = `effect-${effectId}-${key}`;
             
@@ -514,28 +545,40 @@ const ColumnScene: React.FC<{
               blendMode: firstEffect.blendMode || 'add'
             };
 
-            // Render both the base video and the effect on top
-            renderedElements.push(
-              <React.Fragment key={`${key}-container`}>
-                {/* Render the base video first */}
-                <mesh key={`${key}-video`}>
-                  <planeGeometry args={[finalScaleX, finalScaleY]} />
-                  <meshBasicMaterial 
-                    map={videoTexture}
-                    transparent
-                    opacity={videoLayer.opacity || 1}
-                    blending={getBlendMode(videoLayer.blendMode || 'add')}
-                  />
-                </mesh>
-                
-                {/* Render the effect on top */}
+            if (replacesVideo) {
+              // Only render the effect, skip the base video
+              console.log('🎬 Effect replaces video, skipping base video render');
+              renderedElements.push(
                 <EffectLayer 
                   key={effectKey}
                   layer={mockEffectLayer}
                   frameCount={frameCount}
                 />
-              </React.Fragment>
-            );
+              );
+            } else {
+              // Render both the base video and the effect on top
+              renderedElements.push(
+                <React.Fragment key={`${key}-container`}>
+                  {/* Render the base video first */}
+                  <mesh key={`${key}-video`}>
+                    <planeGeometry args={[finalScaleX, finalScaleY]} />
+                    <meshBasicMaterial 
+                      map={videoTexture}
+                      transparent
+                      opacity={videoLayer.opacity || 1}
+                      blending={getBlendMode(videoLayer.blendMode || 'add')}
+                    />
+                  </mesh>
+                  
+                  {/* Render the effect on top */}
+                  <EffectLayer 
+                    key={effectKey}
+                    layer={mockEffectLayer}
+                    frameCount={frameCount}
+                  />
+                </React.Fragment>
+              );
+            }
           } else {
             // Render normal video
             renderedElements.push(

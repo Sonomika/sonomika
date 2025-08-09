@@ -7,6 +7,17 @@ export class CanvasStreamManager {
     this.canvas = canvas;
   }
 
+  // Method to update canvas reference when real canvas becomes available
+  updateCanvas(newCanvas: HTMLCanvasElement): void {
+    console.log('CanvasStreamManager: Updating canvas reference');
+    this.canvas = newCanvas;
+    
+    // If we're already streaming, the next frame will use the new canvas
+    if (this.isWindowOpen) {
+      console.log('CanvasStreamManager: Will use new canvas for next frame');
+    }
+  }
+
   async openMirrorWindow(): Promise<void> {
     try {
       // Use Electron IPC to open mirror window
@@ -14,10 +25,10 @@ export class CanvasStreamManager {
         window.electron.openMirrorWindow();
         this.isWindowOpen = true;
         
-        // Wait a bit for the window to be created, then start streaming
+        // Reduced wait time for faster opening - start streaming immediately
         setTimeout(() => {
           this.startCanvasCapture();
-        }, 500);
+        }, 100);
         
       } else {
         // Fallback to browser window if not in Electron

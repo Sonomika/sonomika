@@ -2,6 +2,7 @@ import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import EffectLoader from './EffectLoader';
+import { useEffectComponent } from '../utils/EffectLoader';
 
 interface TimelineComposerProps {
   activeClips: any[];
@@ -58,7 +59,13 @@ const VideoTexture: React.FC<{
 
   if (!texture || video.readyState < 2) {
     console.log('Video not ready, readyState:', video.readyState);
-    return null;
+    // Render a transparent placeholder instead of null to prevent black flash
+    return (
+      <mesh>
+        <planeGeometry args={[aspectRatio * 2, 2]} />
+        <meshBasicMaterial color={0x000000} transparent opacity={0} />
+      </mesh>
+    );
   }
 
   // Check if any effects are applied
@@ -138,6 +145,11 @@ const TimelineScene: React.FC<{
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
 
+  // Global asset cache to persist videos across timeline changes
+  const globalAssetCacheRef = useRef<{
+    videos: Map<string, HTMLVideoElement>;
+  }>({ videos: new Map() });
+
   console.log('TimelineScene rendering with:', { activeClips, isPlaying, currentTime, assetsCount: assets.images.size + assets.videos.size });
 
   // Load assets with caching
@@ -177,15 +189,28 @@ const TimelineScene: React.FC<{
           }
         } else if (asset.type === 'video') {
           try {
-            const video = document.createElement('video');
+            // Check global cache first to prevent flash during timeline changes
+            let video = globalAssetCacheRef.current.videos.get(asset.id);
+            
+            if (video) {
+              console.log('✅ Using cached video for asset:', asset.name);
+              newVideos.set(asset.id, video);
+              continue; // Skip the loading process
+            }
+            
+            console.log('Loading new video with path:', getAssetPath(asset), 'for asset:', asset.name);
+            video = document.createElement('video');
             const assetPath = getAssetPath(asset);
-            console.log('Loading video with path:', assetPath, 'for asset:', asset.name);
             video.src = assetPath;
             video.muted = true;
             video.loop = true;
             video.autoplay = true;
             video.playsInline = true;
             video.style.backgroundColor = 'transparent';
+            
+            // Performance optimization for timeline playback and column switching
+            video.style.imageRendering = 'optimizeSpeed';
+            video.preload = 'auto'; // Changed from 'metadata' to 'auto' for better caching
             
             await new Promise<void>((resolve, reject) => {
               video.addEventListener('loadeddata', () => {
@@ -196,32 +221,88 @@ const TimelineScene: React.FC<{
               video.load();
             });
             
+            // Cache the video globally for future timeline/column switches
+            globalAssetCacheRef.current.videos.set(asset.id, video);
             newVideos.set(asset.id, video);
-            console.log(`✅ Video loaded for clip ${clip.name}:`, asset.name);
+            console.log(`✅ Video loaded and cached for clip ${clip.name}:`, asset.name);
           } catch (error) {
             console.error(`❌ Failed to load video for clip ${clip.name}:`, error);
           }
         }
       }
 
-      // Store in ref for future use
-      loadedAssetsRef.current = { images: newImages, videos: newVideos };
-      setAssets({ images: newImages, videos: newVideos });
+      // Performance optimization: limit to 5 concurrent videos to prevent memory issues
+      const MAX_CONCURRENT_VIDEOS = 5;
+      if (newVideos.size > MAX_CONCURRENT_VIDEOS) {
+        console.log(`Limiting videos to ${MAX_CONCURRENT_VIDEOS} for better performance`);
+        const videoArray = Array.from(newVideos.entries());
+        const limitedVideos = new Map(videoArray.slice(0, MAX_CONCURRENT_VIDEOS));
+        
+        // Store in ref for future use
+        loadedAssetsRef.current = { images: newImages, videos: limitedVideos };
+        setAssets({ images: newImages, videos: limitedVideos });
+      } else {
+        // Store in ref for future use
+        loadedAssetsRef.current = { images: newImages, videos: newVideos };
+        setAssets({ images: newImages, videos: newVideos });
+      }
     };
 
     loadAssets();
   }, [activeClips]);
 
-  // Handle play/pause
+  // Handle play/pause and video synchronization
   useEffect(() => {
-    assets.videos.forEach(video => {
-      if (isPlaying) {
-        video.play().catch(console.warn);
+    assets.videos.forEach((video, assetId) => {
+      // Find the clip that corresponds to this video
+      const activeClip = activeClips.find(clip => clip.asset && clip.asset.id === assetId);
+      
+      if (isPlaying && activeClip) {
+        const targetTime = activeClip.relativeTime || 0;
+        
+        // Sync video to correct time position to prevent positioning flashes
+        if (Math.abs(video.currentTime - targetTime) > 0.15) {
+          console.log(`Syncing video ${assetId} to time:`, targetTime);
+          video.currentTime = targetTime;
+        }
+        
+        if (video.paused) {
+          video.play().catch(() => {
+            console.warn('Could not auto-play video');
+          });
+        }
       } else {
-        video.pause();
+        // Pause video if not playing or not in active clips
+        if (!video.paused) {
+          video.pause();
+        }
       }
     });
-  }, [isPlaying, assets.videos]);
+  }, [isPlaying, assets.videos, activeClips, currentTime]);
+
+  // Additional video sync check during playback to prevent drift
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const syncInterval = setInterval(() => {
+      assets.videos.forEach((video, assetId) => {
+        const activeClip = activeClips.find(clip => clip.asset && clip.asset.id === assetId);
+        
+        if (activeClip) {
+          const targetTime = activeClip.relativeTime || 0;
+          const drift = Math.abs(video.currentTime - targetTime);
+          
+          // Only sync if drift is significant (>200ms) to avoid constant seeking
+          if (drift > 0.2) {
+            console.log(`Correcting video drift for ${assetId}: ${drift.toFixed(2)}s`);
+            video.currentTime = targetTime;
+          }
+        }
+      });
+    }, 200); // Check every 200ms - reduced frequency for better performance
+
+    return () => clearInterval(syncInterval);
+  }, [isPlaying, assets.videos, activeClips]);
 
   // Set up camera
   useEffect(() => {
@@ -317,6 +398,13 @@ const TimelineScene: React.FC<{
           const video = assets.videos.get(videoClip.asset.id);
           if (!video) return;
 
+          // Ensure video is at the correct time before rendering (performance optimized)
+          const targetTime = videoClip.relativeTime || 0;
+          if (Math.abs(video.currentTime - targetTime) > 0.1) {
+            // Increased threshold to reduce seeking frequency for better performance
+            video.currentTime = targetTime;
+          }
+
           const key = `video-${videoClip.id}-${index}`;
 
           // Check if there are any effect layers that should be applied to this video
@@ -330,15 +418,31 @@ const TimelineScene: React.FC<{
             const firstEffect = effectLayersForVideo[0];
             const effectNames = [firstEffect.asset.id].filter(Boolean);
 
-            
-            renderedElements.push(
-              <React.Fragment key={`${key}-container`}>
-                <mesh key={`${key}-video`}>
-                  <planeGeometry args={[2, 2]} />
-                  <meshBasicMaterial map={new THREE.VideoTexture(video)} />
-                </mesh>
+            // Check if this effect replaces the video
+            const effectId = firstEffect.asset.id || firstEffect.asset.name;
+            const EffectComponent = useEffectComponent(effectId);
+            const effectMetadata = EffectComponent ? (EffectComponent as any).metadata : null;
+            const replacesVideo = effectMetadata?.replacesVideo === true;
+
+            console.log('🎬 Timeline effect metadata check:', { effectId, replacesVideo, metadata: effectMetadata });
+
+            const videoTexture = new THREE.VideoTexture(video);
+            videoTexture.minFilter = THREE.LinearFilter;
+            videoTexture.magFilter = THREE.LinearFilter;
+            videoTexture.format = THREE.RGBAFormat;
+            videoTexture.generateMipmaps = false;
+
+            if (replacesVideo) {
+              // Only render the effect, skip the base video
+              console.log('🎬 Timeline effect replaces video, skipping base video render');
+              renderedElements.push(
                 <EffectLoader
                   key={`${key}-effects`}
+                  effectId={effectId}
+                  params={{
+                    ...firstEffect.params,
+                    videoTexture: videoTexture
+                  }}
                   fallback={
                     <mesh>
                       <planeGeometry args={[2, 2]} />
@@ -346,8 +450,32 @@ const TimelineScene: React.FC<{
                     </mesh>
                   }
                 />
-              </React.Fragment>
-            );
+              );
+            } else {
+              // Render both the base video and the effect on top
+              renderedElements.push(
+                <React.Fragment key={`${key}-container`}>
+                  <mesh key={`${key}-video`}>
+                    <planeGeometry args={[2, 2]} />
+                    <meshBasicMaterial map={videoTexture} />
+                  </mesh>
+                  <EffectLoader
+                    key={`${key}-effects`}
+                    effectId={effectId}
+                    params={{
+                      ...firstEffect.params,
+                      videoTexture: videoTexture
+                    }}
+                    fallback={
+                      <mesh>
+                        <planeGeometry args={[2, 2]} />
+                        <meshBasicMaterial color={0xff0000} />
+                      </mesh>
+                    }
+                  />
+                </React.Fragment>
+              );
+            }
           } else {
             // Render normal video
             renderedElements.push(
