@@ -74,34 +74,22 @@ export class EffectCache {
     const startTime = performance.now();
     console.log('🔄 EffectCache: Preloading effects...');
 
-    // Known effect files - we can expand this dynamically later
-    const knownEffects = [
-      'ASCIIVideoEffect',
-      'RotatingSquareGlitchEffect', 
-      'MatrixNumbersEffect',
-      'Video3DSliceEffect',
-      'DataVisualizationEffect',
-      'PixelateEffect',
-      'AdvancedGlitchEffect',
-      'MonjoriShaderEffect',
-      'VideoWarpEffect',
-      'VideoSliceOffsetEffect',
-      'VideoSlideEffect',
-      'RotatingParticleEffect',
-      'ChromaticAberrationEffect',
-      'ShaderToyEffect',
-      'VideoDatamoshGlitch',
-      'PCDPointCloudEffect',
-      'PointCloudEffect',
-      'PulseHexagon',
-      'TestEffect',
-      'GenericPulseEffect'
-    ];
+    // Dynamically discover ALL effects in the effects folder (no hardcoding)
+    let discoveredEffectNames: string[] = [];
+    try {
+      // Discover all effects dynamically; no hardcoded fallbacks allowed
+      const modules = (import.meta as any).glob('../effects/**/*.tsx');
+      const modulePaths = Object.keys(modules);
+      discoveredEffectNames = modulePaths.map(p => p.replace('../effects/', '').replace('.tsx', ''));
+      console.log('🔍 EffectCache: Discovered effect modules:', discoveredEffectNames);
+    } catch (e) {
+      console.warn('⚠️ EffectCache: Dynamic discovery failed, no fallback list will be used', e);
+      // Keep discoveredEffectNames as an empty array to comply with dynamic-only rule
+    }
 
     // Load effects in parallel for maximum speed
-    const loadPromises = knownEffects.map(effectName => 
-      this.loadAndCacheEffect(effectName)
-    );
+    const uniqueEffectNames = Array.from(new Set(discoveredEffectNames));
+    const loadPromises = uniqueEffectNames.map(effectName => this.loadAndCacheEffect(effectName));
 
     // Wait for all effects to load (or fail)
     const results = await Promise.allSettled(loadPromises);

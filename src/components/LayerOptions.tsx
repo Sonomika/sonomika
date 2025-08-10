@@ -113,14 +113,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     if (selectedLayer) {
       const currentParams = selectedLayer.params || {};
       
-      // Clean up old parameters that were removed from PulseHexagon
+      // Clean up params generically without effect-specific cases
       const cleanedParams = { ...currentParams };
-      if ((selectedLayer as any).asset?.name === 'Pulse Hexagon' || (selectedLayer as any).asset?.id === 'PulseHexagon') {
-        delete cleanedParams.intensity;
-        delete cleanedParams.size;
-        delete cleanedParams.speed;
-      }
-      
       const newParams = { ...cleanedParams, [paramName]: { ...cleanedParams[paramName], value } };
       onUpdateLayer(selectedLayer.id, { params: newParams });
     }
@@ -250,13 +244,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   );
                 })
               ) : (
-                // Fallback: show parameters from layer.params, but filter out removed ones
+                // Fallback: show parameters from layer.params
                 selectedLayer.params && Object.keys(selectedLayer.params).map((paramName) => {
-                  // Skip parameters that were removed from PulseHexagon
-                  if (paramName === 'intensity' || paramName === 'size' || paramName === 'speed') {
-                    return null;
-                  }
-                  
                   const param = selectedLayer.params?.[paramName];
                   const currentValue = param?.value ?? 1.0;
                   

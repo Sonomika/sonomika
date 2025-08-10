@@ -2,7 +2,7 @@ import React from 'react';
 import { getEffect } from './effectRegistry';
 
 // Test what modules are available
-const testModules = (import.meta as any).glob('../effects/*.tsx');
+const testModules = (import.meta as any).glob('../effects/**/*.tsx');
 console.log('🧪 TEST: Available effect modules:', Object.keys(testModules));
 
 /**
@@ -105,16 +105,26 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
   
   // ALWAYS call hooks first - never conditionally!
   const [EffectComponent, setEffectComponent] = React.useState<React.ComponentType<any> | null>(null);
-  const [isLoaded, setIsLoaded] = React.useState(false);
   
-  // Handle backward compatibility: map kebab-case IDs to camelCase IDs
+  // Resolve common ID variants dynamically without hardcoded mappings
   const getUpdatedEffectId = (id: string) => {
-    const idMappings: Record<string, string> = {
-      'pulse-hexagon': 'PulseHexagon',
-      'hexagon': 'PulseHexagon',
-      'generic-pulse-effect': 'GenericPulseEffect'
-    };
-    return idMappings[id] || id;
+    if (!id) return id;
+    const camelCase = id
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('');
+    const withoutEffectSuffix = camelCase.replace(/Effect$/, '');
+    // Prefer exact id first, then camelCase, then with Effect suffix
+    const candidates = [id, camelCase, `${camelCase}Effect`, withoutEffectSuffix];
+    // Return the first candidate that matches a discovered module filename
+    try {
+      const modules = (import.meta as any).glob('../effects/**/*.tsx');
+      const available = new Set(Object.keys(modules).map((p: string) => p.replace('../effects/', '').replace('.tsx', '')));
+      const match = candidates.find(c => available.has(c));
+      return match || id;
+    } catch {
+      return id;
+    }
   };
 
   const updatedEffectId = getUpdatedEffectId(effectId);
@@ -129,7 +139,6 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
       if (registeredEffect) {
         console.log(`✅ Found effect in registry: ${updatedEffectId}`);
         setEffectComponent(() => registeredEffect);
-        setIsLoaded(true);
         return;
       }
       
@@ -141,7 +150,6 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
       if (!validEffectId) {
         console.log(`❌ Invalid effectId: ${effectId}`);
         setEffectComponent(null);
-        setIsLoaded(true);
         return;
       }
         
@@ -149,7 +157,7 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
       const component = await loadEffectComponent(validEffectId);
       console.log(`📦 Component loaded:`, component);
       setEffectComponent(() => component);
-      setIsLoaded(true);
+      // no-op
     };
 
     loadEffect();
@@ -172,14 +180,23 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
     return null;
   }
   
-  // Handle backward compatibility: map kebab-case IDs to camelCase IDs
+  // Resolve common ID variants dynamically without hardcoded mappings
   const getUpdatedEffectId = (id: string) => {
-    const idMappings: Record<string, string> = {
-      'pulse-hexagon': 'PulseHexagon',
-      'hexagon': 'PulseHexagon',
-      'generic-pulse-effect': 'GenericPulseEffect'
-    };
-    return idMappings[id] || id;
+    if (!id) return id;
+    const camelCase = id
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('');
+    const withoutEffectSuffix = camelCase.replace(/Effect$/, '');
+    const candidates = [id, camelCase, `${camelCase}Effect`, withoutEffectSuffix];
+    try {
+      const modules = (import.meta as any).glob('../effects/**/*.tsx');
+      const available = new Set(Object.keys(modules).map((p: string) => p.replace('../effects/', '').replace('.tsx', '')));
+      const match = candidates.find(c => available.has(c));
+      return match || id;
+    } catch {
+      return id;
+    }
   };
 
   const updatedEffectId = getUpdatedEffectId(effectId);

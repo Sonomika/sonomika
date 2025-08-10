@@ -94,7 +94,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
     category: effect.category,
     icon: effect.icon,
     author: effect.author,
-    version: effect.version
+    version: effect.version,
+    metadata: effect.metadata // Preserve effect metadata (including parameters)
   }));
 
   // Filter effects based on search term
