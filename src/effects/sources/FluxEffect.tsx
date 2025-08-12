@@ -61,6 +61,7 @@ const FluxEffect: React.FC<FluxEffectProps> = ({
       uniform float uBPM;
       uniform sampler2D uVideoTexture;
       uniform bool uHasVideo;
+      uniform float uGlobalOpacity;
       
       varying vec2 vUv;
       varying vec3 vPosition;
@@ -191,7 +192,10 @@ const FluxEffect: React.FC<FluxEffectProps> = ({
         float grain = random(uv + time) * 0.05;
         color += grain;
         
-        gl_FragColor = vec4(color, 1.0);
+        // Compute alpha from brightness to keep background transparent where effect is dark
+        float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+        float alpha = smoothstep(0.03, 0.15, luminance) * uGlobalOpacity;
+        gl_FragColor = vec4(color, alpha);
       }
     `;
 
@@ -210,7 +214,8 @@ const FluxEffect: React.FC<FluxEffectProps> = ({
         uPulseStrength: { value: pulseStrength },
         uBPM: { value: bpm },
         uVideoTexture: { value: videoTexture || null },
-        uHasVideo: { value: !!videoTexture }
+        uHasVideo: { value: !!videoTexture },
+        uGlobalOpacity: { value: 1.0 }
       },
       transparent: true,
       side: THREE.DoubleSide

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useEffectComponent } from '../utils/EffectLoader';
+import { useStore } from '../store/store';
 
 interface CanvasRendererProps {
   assets: Array<{
@@ -138,7 +139,8 @@ const CanvasScene: React.FC<{
   }>;
   isPlaying: boolean;
   frameCount: number;
-}> = ({ assets, isPlaying, frameCount }) => {
+  backgroundColor: string;
+}> = ({ assets, isPlaying, frameCount, backgroundColor }) => {
   const { camera } = useThree();
   const [loadedAssets, setLoadedAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -176,7 +178,7 @@ const CanvasScene: React.FC<{
             video.loop = true;
             video.autoplay = true;
             video.playsInline = true;
-            video.style.backgroundColor = '#000000';
+            video.style.backgroundColor = backgroundColor || '#000000';
             
             await new Promise((resolve, reject) => {
               video.addEventListener('loadeddata', resolve);
@@ -217,7 +219,7 @@ const CanvasScene: React.FC<{
   return (
     <>
       {/* Background */}
-      <color attach="background" args={[0, 0, 0]} />
+      <color attach="background" args={[backgroundColor || '#000000']} />
       
       {/* Render assets */}
       {assets.map((assetData, index) => {
@@ -328,6 +330,8 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
   });
   
   const [frameCount, setFrameCount] = useState(0);
+  const { compositionSettings } = useStore() as any;
+  const backgroundColor = compositionSettings?.backgroundColor || '#000000';
 
   // Animation frame counter
   useEffect(() => {
@@ -360,7 +364,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         <span className="renderer-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
       </div>
       <div className="renderer-main-content">
-        <div style={{ width: '100%', height: '100%', backgroundColor: '#000000' }}>
+        <div style={{ width: '100%', height: '100%', backgroundColor }}>
           <Canvas
             camera={{ position: [0, 0, 2], fov: 75 }}
             style={{ width: '100%', height: '100%' }}
@@ -369,6 +373,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
               assets={assets} 
               isPlaying={isPlaying} 
               frameCount={frameCount}
+              backgroundColor={backgroundColor}
             />
           </Canvas>
         </div>

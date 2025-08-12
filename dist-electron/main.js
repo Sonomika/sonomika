@@ -132,6 +132,8 @@ function createMirrorWindow() {
     // Keep borderless but add custom controls
     titleBarStyle: "hidden",
     transparent: false,
+    fullscreenable: true,
+    autoHideMenuBar: true,
     minWidth: 480,
     // Minimum size
     minHeight: 270
@@ -372,6 +374,31 @@ electron.app.whenReady().then(() => {
       throw err;
     }
   });
+  electron.ipcMain.on("toggle-app-fullscreen", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const { screen } = require("electron");
+      if (mainWindow.isKiosk() || mainWindow.isFullScreen()) {
+        mainWindow.setKiosk(false);
+        mainWindow.setFullScreen(false);
+        mainWindow.setBounds({ width: 1200, height: 800 });
+        mainWindow.center();
+      } else {
+        const bounds = mainWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mainWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mainWindow.setMenuBarVisibility(false);
+        mainWindow.setFullScreenable(true);
+        mainWindow.setAlwaysOnTop(true);
+        mainWindow.setKiosk(true);
+        mainWindow.setFullScreen(true);
+      }
+    }
+  });
   electron.ipcMain.on("window-minimize", () => {
     console.log("Main: window-minimize IPC received");
     if (mainWindow) {
@@ -459,22 +486,32 @@ electron.app.whenReady().then(() => {
       `);
     }
   });
-  electron.ipcMain.on("toggle-fullscreen", (event) => {
+  electron.ipcMain.on("toggle-fullscreen", () => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      if (mirrorWindow.isFullScreen()) {
+      const { screen } = require("electron");
+      if (mirrorWindow.isKiosk() || mirrorWindow.isFullScreen()) {
+        mirrorWindow.setKiosk(false);
         mirrorWindow.setFullScreen(false);
-      } else {
-        const display = require("electron").screen.getPrimaryDisplay();
-        const { width, height } = display.size;
-        const aspectRatio = 16 / 9;
-        let targetWidth = width;
-        let targetHeight = width / aspectRatio;
-        if (targetHeight > height) {
-          targetHeight = height;
-          targetWidth = height * aspectRatio;
-        }
-        mirrorWindow.setSize(Math.floor(targetWidth), Math.floor(targetHeight));
+        mirrorWindow.setBounds({
+          x: void 0,
+          y: void 0,
+          width: 960,
+          height: 540
+        });
         mirrorWindow.center();
+      } else {
+        const bounds = mirrorWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mirrorWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mirrorWindow.setMenuBarVisibility(false);
+        mirrorWindow.setFullScreenable(true);
+        mirrorWindow.setAlwaysOnTop(true);
+        mirrorWindow.setKiosk(true);
         mirrorWindow.setFullScreen(true);
       }
     }

@@ -445,7 +445,14 @@ const BlobDetectionEffect: React.FC<BlobDetectionEffectProps> = ({
           visible={false}
         >
           <sphereGeometry args={[0.1, 16, 16]} />
-          <meshBasicMaterial color={blobColor} />
+          <meshBasicMaterial 
+            color={blobColor}
+            transparent
+            opacity={0.8}
+            blending={THREE.AdditiveBlending}
+            depthTest={false}
+            depthWrite={false}
+          />
         </mesh>
       );
     }

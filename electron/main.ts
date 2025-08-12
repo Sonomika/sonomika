@@ -163,6 +163,8 @@ function createMirrorWindow() {
     frame: false, // Keep borderless but add custom controls
     titleBarStyle: 'hidden',
     transparent: false,
+    fullscreenable: true,
+    autoHideMenuBar: true,
     minWidth: 480, // Minimum size
     minHeight: 270
   });
@@ -421,6 +423,33 @@ app.whenReady().then(() => {
     }
   });
 
+  // App (main window) fullscreen toggle that covers taskbar on Windows
+  ipcMain.on('toggle-app-fullscreen', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const { screen } = require('electron');
+      if (mainWindow.isKiosk() || mainWindow.isFullScreen()) {
+        mainWindow.setKiosk(false);
+        mainWindow.setFullScreen(false);
+        mainWindow.setBounds({ width: 1200, height: 800 });
+        mainWindow.center();
+      } else {
+        const bounds = mainWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mainWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mainWindow.setMenuBarVisibility(false);
+        mainWindow.setFullScreenable(true);
+        mainWindow.setAlwaysOnTop(true);
+        mainWindow.setKiosk(true);
+        mainWindow.setFullScreen(true);
+      }
+    }
+  });
+
   ipcMain.on('window-minimize', () => {
     console.log('Main: window-minimize IPC received');
     if (mainWindow) {
@@ -519,29 +548,37 @@ app.whenReady().then(() => {
     }
   });
 
-  // Handle fullscreen toggle from mirror window
-  ipcMain.on('toggle-fullscreen', (event) => {
+  // Handle fullscreen toggle from mirror window (cover taskbar)
+  ipcMain.on('toggle-fullscreen', () => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      if (mirrorWindow.isFullScreen()) {
+      const { screen } = require('electron');
+      if (mirrorWindow.isKiosk() || mirrorWindow.isFullScreen()) {
+        // Exit full coverage
+        mirrorWindow.setKiosk(false);
         mirrorWindow.setFullScreen(false);
-      } else {
-        // Set the window to 16:9 aspect ratio before going fullscreen
-        const display = require('electron').screen.getPrimaryDisplay();
-        const { width, height } = display.size;
-        
-        // Calculate the largest 16:9 rectangle that fits in the screen
-        const aspectRatio = 16 / 9;
-        let targetWidth = width;
-        let targetHeight = width / aspectRatio;
-        
-        if (targetHeight > height) {
-          targetHeight = height;
-          targetWidth = height * aspectRatio;
-        }
-        
-        // Set the window size to maintain 16:9 aspect ratio
-        mirrorWindow.setSize(Math.floor(targetWidth), Math.floor(targetHeight));
+        // Restore reasonable size when exiting
+        mirrorWindow.setBounds({
+          x: undefined as unknown as number,
+          y: undefined as unknown as number,
+          width: 960,
+          height: 540
+        });
         mirrorWindow.center();
+      } else {
+        // Ensure we target the display where the mirror window currently is
+        const bounds = mirrorWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        // Move and size to full display bounds (not workArea) to cover taskbar, then enter kiosk+fullscreen
+        mirrorWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mirrorWindow.setMenuBarVisibility(false);
+        mirrorWindow.setFullScreenable(true);
+        mirrorWindow.setAlwaysOnTop(true);
+        mirrorWindow.setKiosk(true);
         mirrorWindow.setFullScreen(true);
       }
     }

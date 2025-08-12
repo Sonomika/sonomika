@@ -22,6 +22,7 @@ declare global {
       openMirrorWindow: () => void;
       closeMirrorWindow: () => void;
       sendCanvasData: (dataUrl: string) => void;
+        toggleAppFullscreen: () => void;
     };
   }
 }
@@ -339,6 +340,12 @@ function App() {
     }
   };
 
+  const handleToggleAppFullscreen = () => {
+    if (window.electron && window.electron.toggleAppFullscreen) {
+      window.electron.toggleAppFullscreen();
+    }
+  };
+
   const handleWindowClose = () => {
     console.log('=== HANDLE WINDOW CLOSE CALLED ===');
     console.log('window.electron available:', !!window.electron);
@@ -458,6 +465,7 @@ function App() {
         onMaximize={handleWindowMaximize}
         onClose={handleWindowClose}
         onMirror={handleMirrorToggle}
+        onToggleAppFullscreen={handleToggleAppFullscreen}
         onNewPreset={handleNewPreset}
         onSavePreset={handleSavePreset}
         onLoadPreset={handleLoadPreset}

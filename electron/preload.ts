@@ -59,6 +59,10 @@ try {
       console.log('Preload: resizeMirrorWindow called', width, height);
       ipcRenderer.send('resize-mirror-window', width, height);
     },
+    toggleAppFullscreen: () => {
+      console.log('Preload: toggleAppFullscreen called');
+      ipcRenderer.send('toggle-app-fullscreen');
+    },
     // Read a local file from disk and return base64 string (renderer-safe)
     readLocalFileAsBase64: (filePath: string): Promise<string> => {
       return ipcRenderer.invoke('read-local-file-base64', filePath);
@@ -146,6 +150,7 @@ declare global {
       sendCanvasData: (dataUrl: string) => void;
       toggleFullscreen: () => void;
       resizeMirrorWindow: (width: number, height: number) => void;
+      toggleAppFullscreen: () => void;
       readLocalFileAsBase64: (filePath: string) => Promise<string>;
     };
     fsApi: {

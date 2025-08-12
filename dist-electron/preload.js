@@ -61,6 +61,10 @@ try {
             console.log('Preload: resizeMirrorWindow called', width, height);
             electron_1.ipcRenderer.send('resize-mirror-window', width, height);
         },
+        toggleAppFullscreen: () => {
+            console.log('Preload: toggleAppFullscreen called');
+            electron_1.ipcRenderer.send('toggle-app-fullscreen');
+        },
         // Read a local file from disk and return base64 string (renderer-safe)
         readLocalFileAsBase64: (filePath) => {
             return electron_1.ipcRenderer.invoke('read-local-file-base64', filePath);

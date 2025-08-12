@@ -31,7 +31,7 @@ export const handleDrop = (
   
   if (assetData) {
     try {
-      const asset = JSON.parse(assetData);
+      const asset = normalizeDroppedAsset(JSON.parse(assetData));
       console.log('🟢 Dropped asset:', asset, 'onto column:', columnId, 'layer:', layerNum);
       
       // Find the current scene and column
@@ -138,6 +138,35 @@ export const handleDrop = (
       console.error('❌ Error processing asset drop:', error);
     }
   }
+};
+
+/**
+ * Ensure dropped assets have a correct type and normalized path fields
+ */
+const normalizeDroppedAsset = (raw: any) => {
+  const result = { ...raw };
+  const name = (result.name || '').toLowerCase();
+  const path = (result.path || '').toLowerCase();
+  const filePath = (result.filePath || '').toLowerCase();
+
+  const isVideoExt = (s: string) => /\.(mp4|mov|webm|m4v|avi|mkv)$/.test(s);
+  const isImageExt = (s: string) => /\.(png|jpg|jpeg|gif|bmp|webp)$/.test(s);
+  const isAudioExt = (s: string) => /\.(mp3|wav|aiff|flac|ogg)$/.test(s);
+
+  // Derive type from extension if missing or incorrect
+  if (!result.type || result.type === 'unknown') {
+    const ref = name || path || filePath;
+    if (isVideoExt(ref)) result.type = 'video';
+    else if (isImageExt(ref)) result.type = 'image';
+    else if (isAudioExt(ref)) result.type = 'audio';
+  }
+
+  // Normalize local-file scheme if we have a system path
+  if (!result.path && result.filePath) {
+    result.path = `local-file://${result.filePath}`;
+  }
+
+  return result;
 };
 
 /**

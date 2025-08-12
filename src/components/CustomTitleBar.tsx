@@ -5,6 +5,7 @@ interface CustomTitleBarProps {
   onMaximize?: () => void;
   onClose?: () => void;
   onMirror?: () => void;
+  onToggleAppFullscreen?: () => void;
   onNewPreset?: () => void;
   onSavePreset?: () => void;
   onLoadPreset?: () => void;
@@ -16,6 +17,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onMaximize,
   onClose,
   onMirror,
+  onToggleAppFullscreen,
   onNewPreset,
   onSavePreset,
   onLoadPreset,
@@ -59,6 +61,9 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         <div className="menu-bar">
           <button className="menu-item" onClick={onMirror}>
             Mirror
+          </button>
+          <button className="menu-item" onClick={onToggleAppFullscreen}>
+            Fullscreen
           </button>
           <div className="menu-item-dropdown" ref={fileMenuRef}>
             <button 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { generateVideoThumbnail } from '../utils/ThumbnailCache';
 import { getAllRegisteredEffects, getEffect } from '../utils/effectRegistry';
 import { effectCache, CachedEffect } from '../utils/EffectCache';
 
@@ -49,6 +50,22 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
   const sep = fsApi?.sep || '/';
 
   const allowedVideo = new Set(['.mp4', '.mov', '.webm', '.m4v', '.avi', '.mkv']);
+  const InlineThumb: React.FC<{ path: string }> = ({ path }) => {
+    const [thumb, setThumb] = React.useState<string>('');
+    const normalized = path.startsWith('local-file://') ? path : path;
+    useEffect(() => {
+      let mounted = true;
+      generateVideoThumbnail(normalized, { width: 80, height: 45, captureTimeSec: 0.1 })
+        .then((d) => { if (mounted) setThumb(d); })
+        .catch(() => { if (mounted) setThumb(''); });
+      return () => { mounted = false; };
+    }, [normalized]);
+    return thumb ? (
+      <img src={thumb} alt="thumb" style={{ width: 80, height: 45, objectFit: 'cover', borderRadius: 2 }} />
+    ) : (
+      <div style={{ width: 80, height: 45, background: '#111', border: '1px solid #222' }} />
+    );
+  };
   const allowedImage = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']);
   const allowedAudio = new Set(['.mp3', '.wav', '.aiff', '.flac', '.ogg']);
 
@@ -431,7 +448,8 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
 
             <div className="file-list" style={{ marginTop: 8 }}>
               {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 180px', padding: '6px 8px', color: '#aaa', borderBottom: '1px solid #333' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 120px 180px', padding: '6px 8px', color: '#aaa', borderBottom: '1px solid #333' }}>
+                <div>Preview</div>
                 <div>Name</div>
                 <div>Type</div>
                 <div>Modified</div>
@@ -446,7 +464,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                       <div
                         key={it.path}
                         className="file-row"
-                        style={{ display: 'grid', gridTemplateColumns: '1fr 120px 180px', padding: '8px', cursor: 'default' }}
+                        style={{ display: 'grid', gridTemplateColumns: '80px 1fr 120px 180px', padding: '8px', cursor: 'default', alignItems: 'center' }}
                         onDoubleClick={() => {
                           if (it.isDirectory) loadDirectory(it.path);
                         }}
@@ -457,6 +475,11 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                         onClick={() => setSelectedItem({ id: it.path, name: it.name, type })}
                         title={it.path}
                       >
+                        <div>
+                          {!it.isDirectory && typeof type === 'string' && type === 'video' ? (
+                            <InlineThumb path={it.path} />
+                          ) : null}
+                        </div>
                         <div style={{ color: it.isDirectory ? '#7fbfff' : '#fff' }}>{it.name}</div>
                         <div style={{ textTransform: 'capitalize', color: '#ccc' }}>{typeof type === 'string' ? type : ''}</div>
                         <div style={{ color: '#aaa' }}>{modified}</div>

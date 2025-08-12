@@ -527,40 +527,12 @@ const ColumnScene: React.FC<{
 
   return (
     <>
-      {/* Background - Only show for non-source effects, make transparent for sources */}
+      {/* Background - always use composition background color so sources reveal it */}
       {(() => {
-        // Check if this column contains only source effects (from sources/ folder)
-        const hasOnlySourceEffects = column.layers.every((layer: any) => {
-          if (!layer.asset) return true; // Empty layers don't count
-          
-          // Check multiple locations for source effect identification
-          const isSource = 
-            // Direct asset metadata
-            layer.asset.metadata?.folder === 'sources' || 
-            layer.asset.metadata?.isSource === true ||
-            layer.asset.category === 'Sources' ||
-            // Nested effect metadata (from EffectsBrowser drag)
-            layer.asset.effect?.metadata?.folder === 'sources' ||
-            layer.asset.effect?.metadata?.isSource === true ||
-            layer.asset.effect?.category === 'Sources' ||
-            // Check if the asset itself is marked as a source
-            layer.asset.isSource === true;
-          
-          return isSource;
-        });
-        
-        // Don't render background for source-only columns - they should be transparent
-        if (hasOnlySourceEffects) {
-          console.log('🎨 Column contains only source effects - rendering with transparent background');
-          return null;
-        }
-        
-        // For mixed or non-source columns, use composition background color (converted to linear)
         try {
           const { compositionSettings } = useStore.getState();
           const hexStr = compositionSettings.backgroundColor || '#000000';
           const color = new THREE.Color(hexStr);
-          // Convert from sRGB hex to linear for correct internal representation
           if ((color as any).convertSRGBToLinear) {
             (color as any).convertSRGBToLinear();
           }

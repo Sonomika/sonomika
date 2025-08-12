@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { generateVideoThumbnail } from '../utils/ThumbnailCache';
 import { useStore } from '../store/store';
 
 interface MediaLibraryProps {
@@ -421,6 +422,23 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     console.log('Removed asset:', assetId);
   };
 
+  // Lightweight component to render a cached video thumbnail
+  const VideoThumb: React.FC<{ path: string; name: string }> = ({ path, name }) => {
+    const [thumb, setThumb] = useState<string>('');
+    useEffect(() => {
+      let isMounted = true;
+      generateVideoThumbnail(path, { captureTimeSec: 0.1, width: 160, height: 90 })
+        .then((url) => { if (isMounted) setThumb(url); })
+        .catch(() => { if (isMounted) setThumb(''); });
+      return () => { isMounted = false; };
+    }, [path]);
+    return thumb ? (
+      <img src={thumb} alt={name} />
+    ) : (
+      <div className="asset-placeholder video">VIDEO</div>
+    );
+  };
+
 
 
   const renderMediaTab = () => (
@@ -499,6 +517,8 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                 <div className="asset-preview">
                   {asset.type === 'image' ? (
                     <img src={asset.path} alt={asset.name} />
+                  ) : asset.type === 'video' ? (
+                    <VideoThumb path={asset.path} name={asset.name} />
                   ) : asset.type === 'audio' ? (
                     <div className="asset-placeholder audio">
                       <div className="audio-icon">🎵</div>

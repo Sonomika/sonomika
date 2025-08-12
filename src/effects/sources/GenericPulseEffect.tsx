@@ -61,7 +61,8 @@ const GenericPulseEffect: React.FC<GenericPulseEffectProps> = ({
       opacity: 0.8,
       blending: THREE.AdditiveBlending,
       depthTest: false,
-      depthWrite: false
+      depthWrite: false,
+      alphaTest: 0.01 // ensure fully black remains transparent
     });
   }, [color]);
 
