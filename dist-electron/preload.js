@@ -50,7 +50,8 @@ try {
         closeMirrorWindow: () => electron_1.ipcRenderer.send('close-mirror-window'),
         sendCanvasData: (dataUrl) => {
             console.log('Preload: sendCanvasData called');
-            electron_1.ipcRenderer.send('canvas-data', dataUrl);
+            // Forward to mirror renderer via dedicated channel
+            electron_1.ipcRenderer.send('sendCanvasData', dataUrl);
         },
         toggleFullscreen: () => {
             console.log('Preload: toggleFullscreen called');

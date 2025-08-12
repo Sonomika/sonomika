@@ -32,6 +32,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
       preload: path.join(__dirname, 'preload.js')
@@ -145,6 +146,7 @@ function createMirrorWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
       preload: path.join(__dirname, 'mirror-preload.js')
@@ -262,8 +264,8 @@ function createMirrorWindow() {
         
         function toggleFullscreen() {
           // Send message to main process to toggle fullscreen
-          if (window.electron) {
-            window.electron.toggleFullscreen();
+          if (window.mirrorAPI && window.mirrorAPI.toggleFullscreen) {
+            window.mirrorAPI.toggleFullscreen();
           }
         }
         
@@ -277,14 +279,14 @@ function createMirrorWindow() {
           event.stopPropagation();
           
           // Toggle between 50% and full size
-          if (window.electron) {
+          if (window.mirrorAPI && window.mirrorAPI.resizeMirrorWindow) {
             if (isFullSize) {
               // Switch back to 50% size
-              window.electron.resizeMirrorWindow(960, 540);
+              window.mirrorAPI.resizeMirrorWindow(960, 540);
               isFullSize = false;
             } else {
               // Switch to full size
-              window.electron.resizeMirrorWindow(1920, 1080);
+              window.mirrorAPI.resizeMirrorWindow(1920, 1080);
               isFullSize = true;
             }
           }

@@ -20,6 +20,22 @@ electron_1.contextBridge.exposeInMainWorld('mirrorAPI', {
         else {
             console.log('Mirror preload: elements not found');
         }
+    },
+    toggleFullscreen: () => {
+        try {
+            electron_1.ipcRenderer.send('toggle-fullscreen');
+        }
+        catch (e) {
+            console.warn('Mirror preload: toggleFullscreen failed', e);
+        }
+    },
+    resizeMirrorWindow: (width, height) => {
+        try {
+            electron_1.ipcRenderer.send('resize-mirror-window', width, height);
+        }
+        catch (e) {
+            console.warn('Mirror preload: resizeMirrorWindow failed', e);
+        }
     }
 });
 // Listen for canvas updates from main process
@@ -31,5 +47,17 @@ electron_1.ipcRenderer.on('update-canvas', (event, dataUrl) => {
     }
     else {
         console.log('Mirror preload: window.mirrorAPI not available');
+    }
+});
+
+// Listen for sendCanvasData events from CanvasStream
+electron_1.ipcRenderer.on('sendCanvasData', (event, dataUrl) => {
+    console.log('Mirror preload: received sendCanvasData event');
+    if (window.mirrorAPI && window.mirrorAPI.updateCanvas) {
+        console.log('Mirror preload: calling window.mirrorAPI.updateCanvas for sendCanvasData');
+        window.mirrorAPI.updateCanvas(dataUrl);
+    }
+    else {
+        console.log('Mirror preload: window.mirrorAPI not available for sendCanvasData');
     }
 });

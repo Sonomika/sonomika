@@ -27,6 +27,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
       preload: path.join(__dirname, "preload.js")
@@ -111,9 +112,10 @@ function createMirrorWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      preload: path.join(__dirname, "preload.js")
+      preload: path.join(__dirname, "mirror-preload.js")
     },
     show: false,
     resizable: true,
@@ -230,8 +232,8 @@ function createMirrorWindow() {
         
         function toggleFullscreen() {
           // Send message to main process to toggle fullscreen
-          if (window.electron) {
-            window.electron.toggleFullscreen();
+          if (window.mirrorAPI && window.mirrorAPI.toggleFullscreen) {
+            window.mirrorAPI.toggleFullscreen();
           }
         }
         
@@ -245,14 +247,14 @@ function createMirrorWindow() {
           event.stopPropagation();
           
           // Toggle between 50% and full size
-          if (window.electron) {
+          if (window.mirrorAPI && window.mirrorAPI.resizeMirrorWindow) {
             if (isFullSize) {
               // Switch back to 50% size
-              window.electron.resizeMirrorWindow(960, 540);
+              window.mirrorAPI.resizeMirrorWindow(960, 540);
               isFullSize = false;
             } else {
               // Switch to full size
-              window.electron.resizeMirrorWindow(1920, 1080);
+              window.mirrorAPI.resizeMirrorWindow(1920, 1080);
               isFullSize = true;
             }
           }
@@ -414,6 +416,28 @@ electron.app.whenReady().then(() => {
     closeMirrorWindow();
   });
   electron.ipcMain.on("canvas-data", (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
+      mirrorWindow.webContents.executeJavaScript(`
+        (function() {
+          const noStreamDiv = document.getElementById('no-stream');
+          const mirrorImage = document.getElementById('mirror-image');
+          
+          if (noStreamDiv && mirrorImage) {
+            // Hide the waiting message
+            noStreamDiv.style.display = 'none';
+            
+            // Only update if the image source is different to prevent flashing
+            if (mirrorImage.src !== '${escapedDataUrl}') {
+              mirrorImage.src = '${escapedDataUrl}';
+              mirrorImage.style.display = 'block';
+            }
+          }
+        })();
+      `);
+    }
+  });
+  electron.ipcMain.on("sendCanvasData", (event, dataUrl) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
       const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
       mirrorWindow.webContents.executeJavaScript(`
