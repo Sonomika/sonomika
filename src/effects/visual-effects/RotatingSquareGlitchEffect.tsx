@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { registerEffect } from '../utils/effectRegistry';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface RotatingSquareGlitchEffectProps {
   videoTexture?: THREE.VideoTexture;
@@ -267,7 +267,7 @@ RotatingSquareGlitchEffect.metadata = {
   name: 'Rotating Square Glitch',
   description: 'Splits video texture into 3D rotating squares with advanced glitch effects',
   category: 'Glitch',
-  icon: '🎲',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture

@@ -2,8 +2,8 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface VideoWarpEffectProps {
   intensity?: number;
@@ -158,7 +158,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
   name: 'Video Warp',
   description: 'Distorts video texture with wave patterns synchronized to BPM',
   category: 'Video',
-  icon: '🌊',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture

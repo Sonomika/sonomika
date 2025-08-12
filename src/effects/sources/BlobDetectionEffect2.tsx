@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { registerEffect } from '../utils/effectRegistry';
+import { registerEffect } from '../../utils/effectRegistry';
 
 // Blob data structure
 interface Blob {

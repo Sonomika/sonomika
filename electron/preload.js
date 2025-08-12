@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 console.log('=== PRELOAD SCRIPT LOADED ===');
 console.log('contextBridge available:', !!electron_1.contextBridge);
 console.log('ipcRenderer available:', !!electron_1.ipcRenderer);
@@ -38,6 +41,67 @@ try {
         }
     });
     console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
+    // Expose safe fs API
+    electron_1.contextBridge.exposeInMainWorld('fsApi', {
+        listDirectory: (dirPath) => {
+            try {
+                const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+                return entries.map((entry) => {
+                    const full = path.join(dirPath, entry.name);
+                    let size = undefined;
+                    let mtimeMs = undefined;
+                    try {
+                        const st = fs.statSync(full);
+                        size = entry.isDirectory() ? undefined : st.size;
+                        mtimeMs = st.mtimeMs;
+                    }
+                    catch (_a) { }
+                    return {
+                        name: entry.name,
+                        path: full,
+                        isDirectory: entry.isDirectory(),
+                        size,
+                        mtimeMs,
+                    };
+                });
+            }
+            catch (e) {
+                console.warn('fsApi.listDirectory error:', e);
+                return [];
+            }
+        },
+        exists: (p) => { try {
+            return fs.existsSync(p);
+        }
+        catch (_a) {
+            return false;
+        } },
+        join: (...parts) => path.join(...parts),
+        sep: path.sep,
+        homedir: () => os.homedir(),
+        platform: () => process.platform,
+        roots: () => {
+            const roots = [];
+            try {
+                if (process.platform === 'win32') {
+                    for (let i = 65; i <= 90; i++) {
+                        const letter = String.fromCharCode(i);
+                        const drive = `${letter}:${path.sep}`;
+                        try {
+                            if (fs.existsSync(drive))
+                                roots.push(drive);
+                        }
+                        catch (_a) { }
+                    }
+                }
+                else {
+                    roots.push(path.sep);
+                }
+            }
+            catch (_b) { }
+            return roots;
+        }
+    });
 }
 catch (error) {
     console.error('=== PRELOAD SCRIPT ERROR ===', error);

@@ -107,6 +107,15 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
         
         <div className="modal-body">
           <div className="setting-group">
+            <label>Background Color:</label>
+            <input
+              type="color"
+              value={settings.backgroundColor || '#000000'}
+              onChange={e => setSettings(prev => ({ ...prev, backgroundColor: e.target.value }))}
+            />
+          </div>
+
+          <div className="setting-group">
             <label>Name:</label>
             <input 
               type="text" 

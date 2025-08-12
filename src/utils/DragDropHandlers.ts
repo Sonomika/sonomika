@@ -7,7 +7,7 @@ export const handleDrop = (
   e: React.DragEvent, 
   columnId: string, 
   layerNum: number,
-  scenes: any[],
+  scenes: any[], 
   currentSceneId: string,
   updateScene: (sceneId: string, updates: any) => void,
   setDragOverCell: (value: string | null) => void
@@ -18,6 +18,14 @@ export const handleDrop = (
   console.log('🟢 DataTransfer types:', e.dataTransfer.types);
   console.log('🟢 DataTransfer items:', e.dataTransfer.items);
   
+  // Check if this is a system file drop (from Windows File Explorer)
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    console.log('🟢 System file drop detected:', e.dataTransfer.files.length, 'files');
+    handleSystemFileDrop(e, columnId, layerNum, scenes, currentSceneId, updateScene);
+    return;
+  }
+  
+  // Handle regular asset drops (from Media Browser, Effects, etc.)
   const assetData = e.dataTransfer.getData('application/json');
   console.log('🟢 Asset data from drop:', assetData);
   
@@ -70,93 +78,195 @@ export const handleDrop = (
       );
       
       if (!layer) {
-        // Create a new layer
-        layer = createLayer(columnId, layerNum);
-        
-        if (!column.layers) {
-          column.layers = [];
-        }
+        // Create new layer
+        layer = createLayer(`Layer ${layerNum}`, layerNum);
         column.layers.push(layer);
-        console.log('🟢 Created new layer:', layer);
-      } else {
-        console.log('🟢 Found existing layer:', layer);
+        console.log('🆕 Created new layer:', layer);
       }
       
-      // Check asset type
-      const isVideo = asset.type === 'video';
-      const isEffect = asset.isEffect || asset.type === 'p5js' || asset.type === 'threejs';
+      // Update layer with asset
+      layer.asset = asset;
+      layer.assetType = asset.type || 'unknown';
+      layer.name = `Layer ${layerNum}`;
+      layer.layerNum = layerNum;
       
-      console.log('🟢 Asset type check - isVideo:', isVideo, 'isEffect:', isEffect, 'asset type:', asset.type, 'asset isEffect:', asset.isEffect);
+      console.log('🎯 Layer asset assigned:', {
+        layerName: layer.name,
+        assetType: layer.assetType,
+        asset: layer.asset,
+        assetKeys: Object.keys(layer.asset),
+        isEffect: layer.asset.isEffect,
+        hasEffect: !!layer.asset.effect,
+        isSource: layer.asset.isSource
+      });
       
-      // Handle effects
-      if (isEffect) {
-        // Handle nested effect structure from EffectsBrowser
-        const effectData = asset.effect || asset;
-        console.log('🟢 Dropping effect asset:', effectData.name, 'type:', effectData.type, 'id:', effectData.id);
-        console.log('🟢 Full effect data:', effectData);
-        console.log('🟢 Asset structure:', asset);
+      // Set default effect parameters if this is an effect
+      if (asset.isEffect || asset.type === 'effect') {
+        console.log('🎨 Processing effect drop:', {
+          asset,
+          metadata: asset.metadata,
+          effectMetadata: asset.effect?.metadata,
+          isSource: asset.isSource
+        });
         
-        layer.asset = effectData;
-        layer.type = 'effect'; // Set layer type to effect
-        layer.effectType = effectData.type; // Store the effect type (p5js or threejs)
-        layer.effectFile = effectData.filePath; // Store the effect file path
+        // Get parameters from the nested effect object or metadata
+        const effectParams = asset.metadata?.parameters || 
+                           asset.effect?.metadata?.parameters || 
+                           getDefaultEffectParams(asset.id);
         
-        // Set the effects array for the layer (required by ColumnPreview)
-        layer.effects = [effectData];
+        console.log('🎨 Effect parameters resolved:', effectParams);
         
-        // Set default parameters for effects
-        layer.params = getDefaultEffectParams(effectData.id);
-        console.log('🟢 Set layer as effect with params:', layer);
+        layer.effects = [{
+          id: asset.id,
+          name: asset.name,
+          type: 'effect',
+          parameters: effectParams
+        }];
+        
+        // Also set the asset type to indicate this is an effect
+        layer.assetType = 'effect';
+        
+        console.log('🎨 Layer effects set:', layer.effects);
       }
-      // Handle videos
-      else if (isVideo && layer.asset && layer.asset.type === 'video') {
-        console.log('🟢 Replacing existing video in layer:', layer.id);
-        layer.asset = asset;
-        layer.type = 'video';
-        // Auto-set video to loop mode
-        layer.loopMode = 'loop';
-        console.log('🟢 Auto-set video to loop mode');
-      } else if (isVideo && layer.asset) {
-        // If layer has a non-video asset, replace it
-        console.log('🟢 Replacing non-video asset with video in layer:', layer.id);
-        layer.asset = asset;
-        layer.type = 'video';
-        // Auto-set video to loop mode
-        layer.loopMode = 'loop';
-        console.log('🟢 Auto-set video to loop mode');
-      } else if (!isVideo && layer.asset && layer.asset.type === 'video') {
-        // If dropping non-video on video layer, replace video
-        console.log('🟢 Replacing video with non-video asset in layer:', layer.id);
-        layer.asset = asset;
-        layer.type = 'image';
-        // Reset loop mode for non-video
-        layer.loopMode = 'none';
-      } else {
-        // Normal case - just set the asset
-        layer.asset = asset;
-        layer.type = asset.type === 'image' ? 'image' : 'video';
-        // Auto-set video to loop mode if it's a video
-        if (isVideo) {
-          layer.loopMode = 'loop';
-          console.log('🟢 Auto-set video to loop mode');
-        }
-      }
-      
-      console.log('🟢 Layer after asset assignment:', layer);
-      console.log('🟢 Column layers after:', column.layers);
       
       // Update the scene
-      updateScene(currentScene.id, { columns: currentScene.columns });
-      console.log('✅ Updated scene with new asset');
+      updateScene(currentSceneId, { columns: currentScene.columns });
+      console.log('🟢 Layer updated with asset:', layer);
+      console.log('🟢 Column layers after:', column.layers);
       
     } catch (error) {
-      console.error('❌ Error processing dropped asset:', error);
+      console.error('❌ Error processing asset drop:', error);
     }
-  } else {
-    console.log('❌ No asset data found in drop event');
-    console.log('❌ Available data types:', e.dataTransfer.types);
-    console.log('❌ DataTransfer items:', e.dataTransfer.items);
   }
+};
+
+/**
+ * Handle system file drops from Windows File Explorer
+ */
+const handleSystemFileDrop = (
+  e: React.DragEvent,
+  columnId: string,
+  layerNum: number,
+  scenes: any[],
+  currentSceneId: string,
+  updateScene: (sceneId: string, updates: any) => void
+) => {
+  const files = Array.from(e.dataTransfer.files);
+  console.log('🟢 Processing system files:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
+  
+  // Filter for supported media files
+  const supportedFiles = files.filter(file => {
+    const isVideo = file.type.startsWith('video/') || 
+                   ['.mp4', '.mov', '.webm', '.m4v', '.avi', '.mkv'].some(ext => 
+                     file.name.toLowerCase().endsWith(ext)
+                   );
+    const isImage = file.type.startsWith('image/') || 
+                   ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'].some(ext => 
+                     file.name.toLowerCase().endsWith(ext)
+                   );
+    const isAudio = file.type.startsWith('audio/') || 
+                   ['.mp3', '.wav', '.aiff', '.flac', '.ogg'].some(ext => 
+                     file.name.toLowerCase().endsWith(ext)
+                   );
+    
+    return isVideo || isImage || isAudio;
+  });
+  
+  if (supportedFiles.length === 0) {
+    console.warn('⚠️ No supported media files found in drop');
+    return;
+  }
+  
+  console.log('🟢 Supported files:', supportedFiles.length);
+  
+  // Find the current scene and column
+  const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+  if (!currentScene) {
+    console.error('❌ No current scene found');
+    return;
+  }
+  
+  let column = currentScene.columns.find((col: any) => col.id === columnId);
+  if (!column) {
+    // Handle placeholder columns by auto-creating a real column
+    const placeholderMatch = /^column-(\d+)$/.exec(columnId);
+    if (placeholderMatch) {
+      const colIndex = parseInt(placeholderMatch[1], 10) - 1;
+      const newColumn = createColumn();
+      newColumn.name = `Column ${colIndex + 1}`;
+      const updatedColumns = [...currentScene.columns];
+      // Ensure array is large enough
+      while (updatedColumns.length <= colIndex) {
+        const newCol = createColumn();
+        newCol.name = `Column ${updatedColumns.length + 1}`;
+        updatedColumns.push(newCol);
+      }
+      updatedColumns[colIndex] = newColumn;
+      updateScene(currentSceneId, { columns: updatedColumns });
+      console.log('🆕 Auto-created column for system file drop:', newColumn);
+      column = newColumn;
+    } else {
+      console.error('❌ Column not found and not a placeholder:', columnId);
+      return;
+    }
+  }
+  
+  // Process each supported file
+  supportedFiles.forEach((file, index) => {
+    const targetLayerNum = layerNum + index; // Spread files across layers if multiple
+    
+    // Find or create the layer
+    let layer = column.layers.find((l: any) => 
+      l.name.includes(`Layer ${targetLayerNum}`) || 
+      l.layerNum === targetLayerNum ||
+      l.name === `Layer ${targetLayerNum}`
+    );
+    
+    if (!layer) {
+      // Create new layer
+      layer = createLayer(`Layer ${targetLayerNum}`, targetLayerNum);
+      column.layers.push(layer);
+      console.log('🆕 Created new layer for system file:', layer);
+    }
+    
+    // Determine file type
+    let assetType = 'unknown';
+    if (file.type.startsWith('video/') || ['.mp4', '.mov', '.webm', '.m4v', '.avi', '.mkv'].some(ext => 
+      file.name.toLowerCase().endsWith(ext))) {
+      assetType = 'video';
+    } else if (file.type.startsWith('image/') || ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'].some(ext => 
+      file.name.toLowerCase().endsWith(ext))) {
+      assetType = 'image';
+    } else if (file.type.startsWith('audio/') || ['.mp3', '.wav', '.aiff', '.flac', '.ogg'].some(ext => 
+      file.name.toLowerCase().endsWith(ext))) {
+      assetType = 'audio';
+    }
+    
+    // Create asset object for the file
+    const asset = {
+      id: `system-file-${Date.now()}-${index}`,
+      name: file.name,
+      type: assetType,
+      filePath: (file as any).path || file.name, // Try to get system path
+      path: URL.createObjectURL(file), // Create blob URL for immediate use
+      date: Date.now(),
+      size: file.size,
+      isSystemFile: true,
+      originalFile: file // Keep reference to original file object
+    };
+    
+    // Update layer with asset
+    layer.asset = asset;
+    layer.assetType = assetType;
+    layer.name = `Layer ${targetLayerNum}`;
+    layer.layerNum = targetLayerNum;
+    
+    console.log('🟢 Layer updated with system file:', layer);
+  });
+  
+  // Update the scene
+  updateScene(currentSceneId, { columns: currentScene.columns });
+  console.log('🟢 Scene updated with system files');
 };
 
 /**

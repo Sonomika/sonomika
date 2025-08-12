@@ -1,8 +1,8 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface ShaderFeedbackEffectProps {
   // Feedback controls
@@ -357,7 +357,7 @@ const ShaderFeedbackEffect: React.FC<ShaderFeedbackEffectProps> = ({
   name: 'Shader Feedback',
   description: 'TouchDesigner-style feedback with noise and light leaks',
   category: 'Feedback',
-  icon: '🔁',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   parameters: [

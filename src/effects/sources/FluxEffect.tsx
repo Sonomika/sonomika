@@ -1,8 +1,8 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface FluxEffectProps {
   intensity?: number;
@@ -254,7 +254,7 @@ FluxEffect.metadata = {
   name: 'Flux Effect',
   description: 'Dynamic flowing effect with noise and light leaks',
   category: 'Distortion',
-  icon: '🌊',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   parameters: [

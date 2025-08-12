@@ -2,8 +2,8 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface DataVisualizationEffectProps {
   color?: string;
@@ -281,7 +281,7 @@ const FlashingLine: React.FC<{
   name: 'Data Visualization',
   description: 'Shows animated system data with flashing text and lines',
   category: 'Data',
-  icon: '📊',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   parameters: [

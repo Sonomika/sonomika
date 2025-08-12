@@ -20,8 +20,8 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
   }
 
   try {
-    // Try to load the effect by filename directly
-    const modules = (import.meta as any).glob('../effects/*.tsx');
+    // Try to load the effect by filename directly (search subfolders)
+    const modules = (import.meta as any).glob('../effects/**/*.tsx');
     
     // Try the exact filename first
     const exactPath = `../effects/${effectId}.tsx`;
@@ -71,7 +71,7 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
       if (fileName === camelCaseEffectId || fileName === camelCaseEffectId + 'Effect') return true;
       
       // Fallback: check if either contains the other
-      const matches = file.includes(effectId) || effectId.includes(fileName);
+      const matches = file.includes(effectId) || effectId.includes(fileName) || fileName.endsWith(`/${camelCaseEffectId}`) || fileName.endsWith(`/${camelCaseEffectId}Effect`);
       console.log(`🔍 Checking file: ${file} (${fileName}) against ${effectId} - matches: ${matches}`);
       return matches;
     });

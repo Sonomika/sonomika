@@ -17,4 +17,5 @@
 - KEEP UI minimal and clean - avoid unnecessary visual clutter
 - NEVER add unneeded icons unless essential for functionality
 - ONLY use icons for essential controls (play, fast-forward, rewind, stop, etc.)
+- NEVER use emoji anywhere in the code or UI
 - Prioritize functionality over decorative elements

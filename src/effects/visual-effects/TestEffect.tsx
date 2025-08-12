@@ -2,8 +2,8 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface TestEffectProps {
   color?: string;
@@ -64,7 +64,7 @@ const TestEffect: React.FC<TestEffectProps> = ({
   name: 'Test Effect',
   description: 'A simple test effect with rotating cube',
   category: 'Test',
-  icon: '🧪',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   parameters: [

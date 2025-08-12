@@ -99,10 +99,34 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
       </div>
       
       <div className="title-bar-right">
-        <button className="window-control minimize" onClick={onMinimize}>
+        <button className="window-control minimize" onClick={(e) => { 
+          console.log('=== MINIMIZE BUTTON CLICKED ===');
+          console.log('Event:', e);
+          console.log('onMinimize function:', onMinimize);
+          e.preventDefault(); 
+          e.stopPropagation(); 
+          if (onMinimize) {
+            console.log('Calling onMinimize...');
+            onMinimize();
+          } else {
+            console.log('onMinimize is undefined!');
+          }
+        }}>
           <span>─</span>
         </button>
-        <button className="window-control maximize" onClick={onMaximize}>
+        <button className="window-control maximize" onClick={(e) => { 
+          console.log('=== MAXIMIZE BUTTON CLICKED ===');
+          console.log('Event:', e);
+          console.log('onMaximize function:', onMaximize);
+          e.preventDefault(); 
+          e.stopPropagation(); 
+          if (onMaximize) {
+            console.log('Calling onMaximize...');
+            onMaximize();
+          } else {
+            console.log('onMaximize is undefined!');
+          }
+        }}>
           <span>□</span>
         </button>
         <button 
@@ -121,12 +145,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               console.log('onClose function is undefined!');
             }
           }}
-          style={{
-            backgroundColor: 'rgba(0, 0, 255, 0.1)',
-            border: '1px solid rgba(0, 0, 255, 0.3)',
-            position: 'relative',
-            zIndex: 1002
-          }}
+          style={{ position: 'relative', zIndex: 5001 }}
           title="Close Window"
         >
           <span>×</span>

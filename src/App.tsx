@@ -1,35 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LayerManager } from './components/LayerManager';
-import { CompositionScreen } from './components/CompositionScreen';
-import { LayerScreen } from './components/LayerScreen';
-import { MediaLibrary } from './components/MediaLibrary';
-import { EffectsBrowser } from './components/EffectsBrowser';
-import { LayerOptions } from './components/LayerOptions';
-import { MIDIMapper } from './components/MIDIMapper';
-import { MIDISceneMapper } from './components/MIDISceneMapper';
-import { Timeline } from './components/Timeline';
-import TimelineComposer from './components/TimelineComposer';
-
-import { TransitionSettings } from './components/TransitionSettings';
 import { CompositionSettings } from './components/CompositionSettings';
 import { PresetModal } from './components/PresetModal';
-import { ShortcutHelp } from './components/ShortcutHelp';
 import { CustomTitleBar } from './components/CustomTitleBar';
 import { useStore } from './store/store';
-import { Layer } from './store/types';
-import { KeyboardShortcuts } from './utils/KeyboardShortcuts';
-import { ProjectManager } from './utils/ProjectManager';
-import { RenderLoop } from './utils/RenderLoop';
-import { VideoLoopManager } from './utils/VideoLoopManager';
-import { PerformanceMonitor } from './utils/PerformanceMonitor';
-
-import { MIDIProcessor } from './utils/MIDIProcessor';
-import { MIDIManager } from './midi/MIDIManager';
-import { MIDIMapping } from './midi/MIDIMapping';
-import { BPMManager } from './engine/BPMManager';
-import { CanvasStreamManager } from './utils/CanvasStream';
-import { usePreviewRenderer } from './hooks/usePreviewRenderer';
 import { effectCache } from './utils/EffectCache';
+import { CanvasStreamManager } from './utils/CanvasStream';
 import './index.css';
 
 // Effects are loaded dynamically - no hardcoded imports needed
@@ -340,14 +316,26 @@ function App() {
   };
 
   const handleWindowMinimize = () => {
+    console.log('=== HANDLE WINDOW MINIMIZE CALLED ===');
+    console.log('window.electron available:', !!window.electron);
+    console.log('window.electron.minimize available:', !!(window.electron && window.electron.minimize));
     if (window.electron) {
+      console.log('Calling window.electron.minimize()...');
       window.electron.minimize();
+    } else {
+      console.log('window.electron is not available!');
     }
   };
 
   const handleWindowMaximize = () => {
+    console.log('=== HANDLE WINDOW MAXIMIZE CALLED ===');
+    console.log('window.electron available:', !!window.electron);
+    console.log('window.electron.maximize available:', !!(window.electron && window.electron.maximize));
     if (window.electron) {
+      console.log('Calling window.electron.maximize()...');
       window.electron.maximize();
+    } else {
+      console.log('window.electron is not available!');
     }
   };
 

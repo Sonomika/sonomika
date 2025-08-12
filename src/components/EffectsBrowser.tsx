@@ -7,10 +7,24 @@ interface EffectsBrowserProps {
   isEmbedded?: boolean;
 }
 
+// Interface for the mapped effects with isSource property
+interface MappedEffect {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  category: string;
+  icon: string;
+  author: string;
+  version: string;
+  metadata: any;
+  isSource: boolean;
+}
+
 export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbedded = false }) => {
   const [selectedEffect, setSelectedEffect] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'effects' | 'overlays'>('effects');
+  const [activeTab, setActiveTab] = useState<'effects' | 'sources'>('effects');
   const [cachedEffects, setCachedEffects] = useState<CachedEffect[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState('Initializing...');
@@ -36,7 +50,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
         
         // Get cached effects
         const effects = effectCache.getCachedEffects();
-        setCachedEffects(effects);
+        setCachedEffects(effects.filter((effect): effect is CachedEffect => effect !== null));
         setLoadingProgress(`Loaded ${effects.length} effects`);
         
         console.log(`🔧 EffectsBrowser: Loaded ${effects.length} effects from cache`);
@@ -62,14 +76,14 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
               name: metadata.name || effectId,
               description: metadata.description || 'No description available',
               category: metadata.category || 'Effects', 
-              icon: metadata.icon || '✨',
+              icon: '',
               author: metadata.author || 'Unknown',
               version: metadata.version || '1.0.0',
               component: effectComponent,
               metadata,
               loadTime: 0
             };
-          }).filter((effect): effect is CachedEffect => effect !== null);
+          }).filter((effect) => effect !== null);
           
           setCachedEffects(effects);
           setLoadingProgress(`Loaded ${effects.length} effects via registry`);
@@ -86,24 +100,40 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   }, []);
 
   // Use cached effects for display (much faster than registry lookup)
-  const allEffects = cachedEffects.map(effect => ({
+  const allEffects: MappedEffect[] = cachedEffects.map(effect => ({
     id: effect.id,
     name: effect.name,
     type: 'threejs',
     description: effect.description,
     category: effect.category,
-    icon: effect.icon,
+    icon: '',
     author: effect.author,
     version: effect.version,
-    metadata: effect.metadata // Preserve effect metadata (including parameters)
+    metadata: effect.metadata, // Preserve effect metadata (including parameters)
+    // Determine if this is an effect or source based on the folder location and metadata
+    isSource: effect.metadata?.folder === 'sources' || 
+              effect.metadata?.isSource === true ||
+              // Fallback: check if the effect ID contains source-related keywords
+              effect.id.toLowerCase().includes('particle') ||
+              effect.id.toLowerCase().includes('noise') ||
+              effect.id.toLowerCase().includes('matrix') ||
+              effect.id.toLowerCase().includes('pointcloud') ||
+              effect.id.toLowerCase().includes('blob') ||
+              effect.id.toLowerCase().includes('flux') ||
+              effect.id.toLowerCase().includes('pulse') ||
+              effect.id.toLowerCase().includes('generative')
   }));
 
-  // Filter effects based on search term
+  // Filter effects based on search term - search across all effects regardless of tab
   const filteredEffects = allEffects.filter(effect =>
     effect.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     effect.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     effect.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Separate effects into Effects vs Sources for tab display
+  const visualEffects = filteredEffects.filter(effect => !effect.isSource);
+  const generativeSources = filteredEffects.filter(effect => effect.isSource);
 
   // Group effects by category
   const effectsByCategory = filteredEffects.reduce((acc, effect) => {
@@ -121,14 +151,19 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   const handleEffectDrag = (e: React.DragEvent, effect: any) => {
     // Set the drag data in the format expected by the drop handlers
     e.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'effect',
+      type: 'effect', // Always use 'effect' type for both effects and sources
       isEffect: true,
       id: effect.id,
       name: effect.name,
       description: effect.description,
       category: effect.category,
       icon: effect.icon,
-      effect: effect // Include the full effect object for backward compatibility
+      // Include the full effect object and metadata for proper handling
+      effect: effect,
+      metadata: effect.metadata, // Include metadata for parameters
+      // Ensure the drop handler can access effect properties
+      assetType: 'effect', // Always use 'effect' for proper detection
+      isSource: effect.metadata?.folder === 'sources' || effect.metadata?.isSource === true
     }));
     console.log('🔧 Dragging effect:', effect);
   };
@@ -216,11 +251,26 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
         <button onClick={handleClose} className="close-button">×</button>
       </div>
 
+      <div className="effects-tabs">
+        <button
+          className={`effects-tab ${activeTab === 'effects' ? 'active' : ''}`}
+          onClick={() => setActiveTab('effects')}
+        >
+          Visual Effects
+        </button>
+        <button
+          className={`effects-tab ${activeTab === 'sources' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sources')}
+        >
+          Generative Sources
+        </button>
+      </div>
+
       <div className="effects-browser-content">
 
         {activeTab === 'effects' && (
           <div className="effects-grid">
-            {filteredEffects.map((effect) => (
+            {visualEffects.map((effect) => (
               <div
                 key={effect.id}
                 className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
@@ -239,6 +289,26 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
           </div>
         )}
 
+        {activeTab === 'sources' && (
+          <div className="effects-grid">
+            {generativeSources.map((effect) => (
+              <div
+                key={effect.id}
+                className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
+                onClick={() => handleEffectSelect(effect)}
+                draggable
+                onDragStart={(e) => handleEffectDrag(e, effect)}
+                title={`${effect.name}: ${effect.description}`}
+              >
+                <div className="effect-info">
+                  <div className="effect-name">{effect.name}</div>
+                  <div className="effect-description">{effect.description}</div>
+                </div>
+                <div className="effect-tag">{effect.category}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
 
         {selectedEffect && (
