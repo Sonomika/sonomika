@@ -147,7 +147,7 @@ function createMirrorWindow() {
       contextIsolation: true,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'mirror-preload.js')
     },
     show: false,
     resizable: true, // Allow resizing
@@ -469,6 +469,31 @@ app.whenReady().then(() => {
   });
 
   ipcMain.on('canvas-data', (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      // Use a more efficient update mechanism to prevent glitching
+      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
+      mirrorWindow.webContents.executeJavaScript(`
+        (function() {
+          const noStreamDiv = document.getElementById('no-stream');
+          const mirrorImage = document.getElementById('mirror-image');
+          
+          if (noStreamDiv && mirrorImage) {
+            // Hide the waiting message
+            noStreamDiv.style.display = 'none';
+            
+            // Only update if the image source is different to prevent flashing
+            if (mirrorImage.src !== '${escapedDataUrl}') {
+              mirrorImage.src = '${escapedDataUrl}';
+              mirrorImage.style.display = 'block';
+            }
+          }
+        })();
+      `);
+    }
+  });
+
+  // Handle sendCanvasData from CanvasStream
+  ipcMain.on('sendCanvasData', (event, dataUrl) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
       // Use a more efficient update mechanism to prevent glitching
       const escapedDataUrl = dataUrl.replace(/'/g, "\\'");

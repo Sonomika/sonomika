@@ -4,6 +4,7 @@ import { LayerOptions } from './LayerOptions';
 import { CanvasRenderer } from './CanvasRenderer';
 import { ColumnPreview } from './ColumnPreview';
 import { MediaBrowser } from './MediaBrowser';
+import { MediaLibrary } from './MediaLibrary';
 import { Timeline } from './Timeline';
 import TimelineComposer from './TimelineComposer';
 import { BPMManager } from '../engine/BPMManager';
@@ -12,7 +13,9 @@ import { getAssetPath, createColumn, getDefaultEffectParams, handleDragOver, han
 import { handleDrop, handleLayerDragStart, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
 import { handleColumnPlay, handleUpdateLayer } from '../utils/LayerManagementHandlers';
 import { createSceneContextMenu } from '../utils/SceneManagementHandlers';
-
+import { EffectsBrowser } from './EffectsBrowser';
+import { MIDIMapper } from './MIDIMapper';
+import { LFOMapper } from './LFOMapper';
 
 
 interface LayerManagerProps {
@@ -51,6 +54,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [showTimeline, setShowTimeline] = useState(false);
+  const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
@@ -1056,9 +1060,177 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
             {/* Media Library / MIDI Mapper - Bottom Right */}
             <div className="layer-manager-media-library">
-              {/* Unified Media Browser */}
+              {/* Tab Navigation */}
+              <div className="media-tabs" style={{
+                display: 'flex',
+                borderBottom: '2px solid #444',
+                marginBottom: '10px',
+                backgroundColor: '#1a1a1a'
+              }}>
+                <button 
+                  className={`media-tab ${!showMediaLibrary ? 'active' : ''}`}
+                  onClick={() => setShowMediaLibrary(false)}
+                  style={{
+                    padding: '8px 16px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#ccc',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    borderBottom: '2px solid transparent',
+                    transition: 'all 0.2s ease',
+                    ...(!showMediaLibrary ? {
+                      backgroundColor: '#333',
+                      color: '#fff',
+                      borderBottomColor: '#007acc'
+                    } : {})
+                  }}
+                  onMouseEnter={(e) => {
+                    if (showMediaLibrary) {
+                      e.currentTarget.style.backgroundColor = '#2a2a2a';
+                      e.currentTarget.style.color = '#fff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (showMediaLibrary) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#ccc';
+                    }
+                  }}
+                >
+                  Media
+                </button>
+                <button 
+                  className={`media-tab ${showMediaLibrary === 'effects' ? 'active' : ''}`}
+                  onClick={() => setShowMediaLibrary('effects')}
+                  style={{
+                    padding: '8px 16px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#ccc',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    borderBottom: '2px solid transparent',
+                    transition: 'all 0.2s ease',
+                    ...(showMediaLibrary === 'effects' ? {
+                      backgroundColor: '#333',
+                      color: '#fff',
+                      borderBottomColor: '#007acc'
+                    } : {})
+                  }}
+                  onMouseEnter={(e) => {
+                    if (showMediaLibrary !== 'effects') {
+                      e.currentTarget.style.backgroundColor = '#2a2a2a';
+                      e.currentTarget.style.color = '#fff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (showMediaLibrary !== 'effects') {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#ccc';
+                    }
+                  }}
+                >
+                  Effects
+                </button>
+                <button 
+                  className={`media-tab ${showMediaLibrary === 'midi' ? 'active' : ''}`}
+                  onClick={() => setShowMediaLibrary('midi')}
+                  style={{
+                    padding: '8px 16px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#ccc',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    borderBottom: '2px solid transparent',
+                    transition: 'all 0.2s ease',
+                    ...(showMediaLibrary === 'midi' ? {
+                      backgroundColor: '#333',
+                      color: '#fff',
+                      borderBottomColor: '#007acc'
+                    } : {})
+                  }}
+                  onMouseEnter={(e) => {
+                    if (showMediaLibrary !== 'midi') {
+                      e.currentTarget.style.backgroundColor = '#2a2a2a';
+                      e.currentTarget.style.color = '#fff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (showMediaLibrary !== 'midi') {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#ccc';
+                    }
+                  }}
+                >
+                  MIDI
+                </button>
+                <button 
+                  className={`media-tab ${showMediaLibrary === 'lfo' ? 'active' : ''}`}
+                  onClick={() => setShowMediaLibrary('lfo')}
+                  style={{
+                    padding: '8px 16px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#ccc',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    borderBottom: '2px solid transparent',
+                    transition: 'all 0.2s ease',
+                    ...(showMediaLibrary === 'lfo' ? {
+                      backgroundColor: '#333',
+                      color: '#fff',
+                      borderBottomColor: '#007acc'
+                    } : {})
+                  }}
+                  onMouseEnter={(e) => {
+                    if (showMediaLibrary !== 'lfo') {
+                      e.currentTarget.style.backgroundColor = '#2a2a2a';
+                      e.currentTarget.style.color = '#fff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (showMediaLibrary !== 'lfo') {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#ccc';
+                    }
+                  }}
+                >
+                  LFO
+                </button>
+              </div>
+              
+              {/* Tab Content */}
               <div className="tab-content">
-                <MediaBrowser onClose={() => {}} isEmbedded={true} />
+                {!showMediaLibrary && (
+                  <MediaLibrary onClose={() => {}} isEmbedded={true} />
+                )}
+                {showMediaLibrary === 'effects' && (
+                  <div className="effects-tab">
+                    <h3>Effects</h3>
+                    <EffectsBrowser />
+                  </div>
+                )}
+                {showMediaLibrary === 'midi' && (
+                  <div className="midi-tab">
+                    <h3>MIDI</h3>
+                    <MIDIMapper />
+                  </div>
+                )}
+                {showMediaLibrary === 'lfo' && (
+                  <div className="lfo-tab">
+                    <h3>LFO</h3>
+                    <LFOMapper 
+                      selectedLayer={selectedLayer}
+                      onUpdateLayer={handleUpdateLayerWrapper}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
