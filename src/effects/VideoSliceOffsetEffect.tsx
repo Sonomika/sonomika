@@ -9,6 +9,7 @@ interface VideoSliceOffsetEffectProps {
   sliceWidth?: number;
   animationSpeed?: number;
   sliceDirection?: 'horizontal' | 'vertical';
+  removeGaps?: boolean;
   videoTexture?: THREE.VideoTexture;
   bpm?: number;
 }
@@ -19,6 +20,7 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
   sliceWidth = 0.05,
   animationSpeed = 1.0,
   sliceDirection = 'horizontal',
+  removeGaps = true,
   videoTexture,
   bpm = 120
 }) => {
@@ -45,6 +47,7 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
       uniform float animationSpeed;
       uniform int sliceDirection;
       uniform float bpm;
+      uniform float removeGaps;
       
       varying vec2 vUv;
       
@@ -64,30 +67,36 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
         return offsetUV;
       }
       
-             void main() {
-         vec2 slicedUV = sliceOffset(vUv, time, sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection);
-         
-         // Create slice mask - show only the slice areas, hide the gaps
-         float sliceMask = 0.0;
-         if (sliceDirection == 0) { // horizontal
-           float sliceY = fract(vUv.y * sliceCount);
-           // Show content only in the slice areas (not in the gaps)
-           sliceMask = step(sliceWidth, sliceY) * step(sliceY, 1.0 - sliceWidth);
-         } else { // vertical
-           float sliceX = fract(vUv.x * sliceCount);
-           // Show content only in the slice areas (not in the gaps)
-           sliceMask = step(sliceWidth, sliceX) * step(sliceX, 1.0 - sliceWidth);
-         }
-         
-         vec4 texColor = texture2D(tDiffuse, slicedUV);
-         
-         // Apply slice mask - make gaps black (opaque) to hide underlying video
-         if (sliceMask > 0.0) {
-           gl_FragColor = texColor;
-         } else {
-           gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); // Black gaps
-         }
-       }
+      void main() {
+        vec2 slicedUV = sliceOffset(vUv, time, sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection);
+        
+        // Create slice mask - show only the slice areas, hide the gaps
+        float sliceMask = 0.0;
+        if (sliceDirection == 0) { // horizontal
+          float sliceY = fract(vUv.y * sliceCount);
+          // Show content only in the slice areas (not in the gaps)
+          sliceMask = step(sliceWidth, sliceY) * step(sliceY, 1.0 - sliceWidth);
+        } else { // vertical
+          float sliceX = fract(vUv.x * sliceCount);
+          // Show content only in the slice areas (not in the gaps)
+          sliceMask = step(sliceWidth, sliceX) * step(sliceX, 1.0 - sliceWidth);
+        }
+        
+        vec4 texColor = texture2D(tDiffuse, slicedUV);
+        
+        // Apply slice mask - make gaps black (opaque) to hide underlying video
+        if (removeGaps > 0.5) {
+          // Remove gaps completely - show full video
+          gl_FragColor = texColor;
+        } else {
+          // Show slices with gaps
+          if (sliceMask > 0.0) {
+            gl_FragColor = texColor;
+          } else {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); // Black gaps
+          }
+        }
+      }
     `;
 
          return new THREE.ShaderMaterial({
@@ -101,11 +110,12 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
          sliceWidth: { value: sliceWidth },
          animationSpeed: { value: animationSpeed },
          sliceDirection: { value: 0 },
+         removeGaps: { value: removeGaps ? 1.0 : 0.0 },
          bpm: { value: bpm }
        },
        transparent: false
      });
-  }, [videoTexture, sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection, bpm]);
+  }, [videoTexture, sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection, removeGaps, bpm]);
 
   // Calculate aspect ratio from video texture if available
   const aspectRatio = useMemo(() => {
@@ -128,12 +138,59 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
       materialRef.current.uniforms.bpm.value = bpm;
       
-      // Update parameter uniforms
-      materialRef.current.uniforms.sliceCount.value = sliceCount;
-      materialRef.current.uniforms.offsetAmount.value = offsetAmount;
-      materialRef.current.uniforms.sliceWidth.value = sliceWidth;
-      materialRef.current.uniforms.animationSpeed.value = animationSpeed;
-      materialRef.current.uniforms.sliceDirection.value = sliceDirection === 'horizontal' ? 0 : 1;
+      // Debug: Log the current parameter values being received
+      if (state.clock.elapsedTime % 2 < 0.1) { // Log every 2 seconds
+        console.log('🔍 VideoSliceOffsetEffect - Current props:', {
+          sliceCount,
+          offsetAmount,
+          sliceWidth,
+          animationSpeed,
+          sliceDirection,
+          removeGaps,
+          bpm
+        });
+        console.log('🔍 VideoSliceOffsetEffect - Current uniforms:', {
+          sliceCount: materialRef.current.uniforms.sliceCount.value,
+          offsetAmount: materialRef.current.uniforms.offsetAmount.value,
+          sliceWidth: materialRef.current.uniforms.sliceWidth.value,
+          animationSpeed: materialRef.current.uniforms.animationSpeed.value,
+          sliceDirection: materialRef.current.uniforms.sliceDirection.value,
+          removeGaps: materialRef.current.uniforms.removeGaps.value
+        });
+      }
+      
+      // Get current uniform values to compare against
+      const currentSliceCount = materialRef.current.uniforms.sliceCount.value;
+      const currentOffsetAmount = materialRef.current.uniforms.offsetAmount.value;
+      const currentSliceWidth = materialRef.current.uniforms.sliceWidth.value;
+      const currentAnimationSpeed = materialRef.current.uniforms.animationSpeed.value;
+      const currentSliceDirection = materialRef.current.uniforms.sliceDirection.value;
+      const currentRemoveGaps = materialRef.current.uniforms.removeGaps.value;
+      
+      // Use the current prop values (which come from the layer's current parameters)
+      // This ensures the effect reflects the user's current settings
+      if (currentSliceCount !== sliceCount) {
+        materialRef.current.uniforms.sliceCount.value = sliceCount;
+      }
+      if (currentOffsetAmount !== offsetAmount) {
+        materialRef.current.uniforms.offsetAmount.value = offsetAmount;
+      }
+      if (currentSliceWidth !== sliceWidth) {
+        materialRef.current.uniforms.sliceWidth.value = sliceWidth;
+      }
+      if (currentAnimationSpeed !== animationSpeed) {
+        materialRef.current.uniforms.animationSpeed.value = animationSpeed;
+      }
+      
+      const newSliceDirection = sliceDirection === 'horizontal' ? 0 : 1;
+      if (currentSliceDirection !== newSliceDirection) {
+        materialRef.current.uniforms.sliceDirection.value = newSliceDirection;
+      }
+      
+      const newRemoveGaps = removeGaps ? 1.0 : 0.0;
+      if (currentRemoveGaps !== newRemoveGaps) {
+        materialRef.current.uniforms.removeGaps.value = newRemoveGaps;
+      }
       
       // Update video texture if available
       if (videoTexture && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
@@ -198,9 +255,19 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
     },
     {
       name: 'sliceDirection',
-      type: 'string',
+      type: 'select',
       value: 'horizontal',
+      options: [
+        { value: 'horizontal', label: 'Horizontal' },
+        { value: 'vertical', label: 'Vertical' }
+      ],
       description: 'Direction of slices'
+    },
+    {
+      name: 'removeGaps',
+      type: 'boolean',
+      value: true,
+      description: 'Remove gaps between slices'
     }
   ]
 };

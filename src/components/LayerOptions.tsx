@@ -35,6 +35,40 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const opacityPendingRef = useRef<number>(selectedLayer?.opacity || 1.0);
   const [localParamValues, setLocalParamValues] = useState<Record<string, number>>({});
 
+  // Check if the layer has an effect
+  const hasEffect = selectedLayer?.type === 'effect' || (selectedLayer as any)?.asset?.type === 'effect' || (selectedLayer as any)?.asset?.isEffect;
+  const effectId: string | undefined = (selectedLayer as any)?.asset?.id || (selectedLayer as any)?.asset?.name;
+  
+  // Try multiple ways to find the effect component
+  let effectComponent = null;
+  if (hasEffect) {
+    // Try the exact ID first
+    effectComponent = effectId ? getEffect(effectId) : null;
+    
+    // If not found, try common variations
+    if (!effectComponent && effectId) {
+      const variations = [
+        effectId,
+        effectId.replace(/-/g, ''), // Remove hyphens
+        effectId.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, ''), // Add hyphens
+        effectId.toLowerCase(),
+        effectId.toUpperCase(),
+        effectId.replace(/Effect$/, ''), // Remove "Effect" suffix
+        effectId + 'Effect', // Add "Effect" suffix
+      ];
+      
+      for (const variation of variations) {
+        effectComponent = getEffect(variation);
+        if (effectComponent) {
+          console.log(`✅ Found effect using variation: ${variation}`);
+          break;
+        }
+      }
+    }
+  }
+  
+  const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
+
   // Sync local state with selectedLayer when it changes
   React.useEffect(() => {
     if (selectedLayer) {
@@ -43,19 +77,46 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       setBlendMode(selectedLayer.blendMode || 'add');
       setOpacity(selectedLayer.opacity || 1.0);
       
-      // Sync local param values
-      const paramValues: Record<string, number> = {};
+      // Initialize effect parameters if they don't exist
+      if (hasEffect && effectMetadata && selectedLayer.params) {
+        const updatedParams = { ...selectedLayer.params };
+        let hasChanges = false;
+        
+        effectMetadata.parameters?.forEach((param: any) => {
+          if (updatedParams[param.name] === undefined) {
+            updatedParams[param.name] = { value: param.value };
+            hasChanges = true;
+            console.log(`Initializing param ${param.name} with default value:`, param.value);
+          }
+        });
+        
+        // Update layer with initialized parameters if needed
+        if (hasChanges) {
+          console.log('Initializing effect parameters:', updatedParams);
+          onUpdateLayer(selectedLayer.id, { params: updatedParams });
+        }
+      }
+      
+      // Sync local param values - only update if they're different
+      const paramValues: Record<string, any> = {};
       if (selectedLayer.params) {
         Object.keys(selectedLayer.params).forEach(paramName => {
           const param = selectedLayer.params?.[paramName];
-          if (param && typeof param.value === 'number') {
+          if (param && param.value !== undefined) {
             paramValues[paramName] = param.value;
           }
         });
       }
-      setLocalParamValues(paramValues);
+      
+      // Only update local param values if they're actually different
+      setLocalParamValues(prev => {
+        const hasChanges = Object.keys(paramValues).some(key => 
+          prev[key] !== paramValues[key]
+        );
+        return hasChanges ? paramValues : prev;
+      });
     }
-  }, [selectedLayer]);
+  }, [selectedLayer?.id, hasEffect, effectMetadata?.parameters]); // Only re-run when these specific values change
 
   const handleLoopModeChange = (mode: LoopMode) => {
     console.log('🎬 Loop mode changed to:', mode, 'for layer:', selectedLayer?.name);
@@ -113,46 +174,29 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     if (selectedLayer) {
       const currentParams = selectedLayer.params || {};
       
-      // Clean up params generically without effect-specific cases
-      const cleanedParams = { ...currentParams };
-      const newParams = { ...cleanedParams, [paramName]: { ...cleanedParams[paramName], value } };
-      onUpdateLayer(selectedLayer.id, { params: newParams });
-    }
-  };
-
-  // Check if the layer has an effect
-  const hasEffect = selectedLayer?.type === 'effect' || (selectedLayer as any)?.asset?.type === 'effect' || (selectedLayer as any)?.asset?.isEffect;
-  const effectId: string | undefined = (selectedLayer as any)?.asset?.id || (selectedLayer as any)?.asset?.name;
-  
-  // Try multiple ways to find the effect component
-  let effectComponent = null;
-  if (hasEffect) {
-    // Try the exact ID first
-    effectComponent = effectId ? getEffect(effectId) : null;
-    
-    // If not found, try common variations
-    if (!effectComponent && effectId) {
-      const variations = [
-        effectId,
-        effectId.replace(/-/g, ''), // Remove hyphens
-        effectId.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, ''), // Add hyphens
-        effectId.toLowerCase(),
-        effectId.toUpperCase(),
-        effectId.replace(/Effect$/, ''), // Remove "Effect" suffix
-        effectId + 'Effect', // Add "Effect" suffix
-      ];
-      
-      for (const variation of variations) {
-        effectComponent = getEffect(variation);
-        if (effectComponent) {
-          console.log(`✅ Found effect using variation: ${variation}`);
-          break;
+      // Ensure boolean parameters are properly initialized with their default values
+      if (effectMetadata) {
+        const paramDef = effectMetadata.parameters?.find((p: any) => p.name === paramName);
+        if (paramDef && paramDef.type === 'boolean' && currentParams[paramName] === undefined) {
+          // Initialize boolean parameter with default value if not already set
+          currentParams[paramName] = { value: paramDef.value };
         }
       }
+      
+      // Preserve all existing parameters and only update the changed one
+      const updatedParams = { ...currentParams };
+      updatedParams[paramName] = { value: value };
+      
+      // Update the layer with the new parameters
+      onUpdateLayer(selectedLayer.id, { params: updatedParams });
+      
+      // Also update local state for immediate UI feedback
+      setLocalParamValues(prev => ({
+        ...prev,
+        [paramName]: value
+      }));
     }
-  }
-  
-  const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
+  };
 
   // Debug logging removed for performance during slider drags
 
@@ -193,7 +237,18 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               {effectMetadata ? (
                 // Use metadata if available
                 effectMetadata.parameters?.map((param: any) => {
-                  const currentValue = selectedLayer.params?.[param.name]?.value ?? param.value;
+                  const currentValue = localParamValues[param.name] ?? selectedLayer.params?.[param.name]?.value ?? param.value;
+                  
+                  // Debug logging for boolean parameters
+                  if (param.type === 'boolean') {
+                    console.log(`Boolean param ${param.name}:`, {
+                      defaultValue: param.value,
+                      layerValue: selectedLayer.params?.[param.name]?.value,
+                      localValue: localParamValues[param.name],
+                      currentValue: currentValue,
+                      type: typeof currentValue
+                    });
+                  }
                   
                   return (
                     <div key={param.name} className="effect-param">
@@ -219,6 +274,39 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               </option>
                             ))}
                           </select>
+                        )}
+                        {param.type === 'boolean' && (
+                          <div className="boolean-control">
+                            <button
+                              type="button"
+                              className={`toggle-button ${Boolean(currentValue) ? 'active' : 'inactive'}`}
+                              onClick={() => {
+                                const newValue = !Boolean(currentValue);
+                                console.log(`Boolean param ${param.name} toggled to:`, newValue);
+                                
+                                // Update the parameter in the effect
+                                handleEffectParamChange(param.name, newValue);
+                                
+                                // Update local state for immediate UI feedback
+                                setLocalParamValues(prev => ({
+                                  ...prev,
+                                  [param.name]: newValue
+                                }));
+                              }}
+                              style={{
+                                padding: '8px 16px',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                userSelect: 'none',
+                                minWidth: '60px'
+                              }}
+                            >
+                              {Boolean(currentValue) ? 'ON' : 'OFF'}
+                            </button>
+                          </div>
                         )}
                         {param.type === 'number' && (
                           <div className="number-control">
