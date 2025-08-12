@@ -1,8 +1,8 @@
 import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface PCDPointCloudEffectProps {
   pointSize?: number;
@@ -149,7 +149,7 @@ const PCDPointCloudEffect: React.FC<PCDPointCloudEffectProps> = ({
   name: 'PCD Point Cloud',
   description: 'Renders animated 3D point cloud with BPM synchronization',
   category: '3D',
-  icon: '☁️',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   parameters: [

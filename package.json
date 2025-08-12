@@ -5,10 +5,11 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "start": "electron .",
-    "build": "tsc && vite build",
+    "build": "tsc -p tsconfig.electron.json && tsc && vite build",
     "build:watch": "tsc --watch",
+    "build:electron": "tsc -p tsconfig.electron.json",
     "dev": "vite",
-    "dev:electron": "concurrently \"vite\" \"wait-on tcp:localhost:5173 tcp:localhost:5174 tcp:localhost:5175 && electron .\"",
+    "dev:electron": "npm run build:electron && concurrently \"vite\" \"wait-on tcp:localhost:5173 tcp:localhost:5174 tcp:localhost:5175 && electron .\"",
     "type-check": "tsc --noEmit"
   },
   "keywords": [

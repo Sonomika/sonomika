@@ -74,22 +74,23 @@ export class EffectCache {
     const startTime = performance.now();
     console.log('🔄 EffectCache: Preloading effects...');
 
-    // Dynamically discover ALL effects in the effects folder (no hardcoding)
-    let discoveredEffectNames: string[] = [];
+    // Use the existing EffectDiscovery system instead of reinventing the wheel
+    let discoveredEffects: any[] = [];
     try {
-      // Discover all effects dynamically; no hardcoded fallbacks allowed
-      const modules = (import.meta as any).glob('../effects/**/*.tsx');
-      const modulePaths = Object.keys(modules);
-      discoveredEffectNames = modulePaths.map(p => p.replace('../effects/', '').replace('.tsx', ''));
-      console.log('🔍 EffectCache: Discovered effect modules:', discoveredEffectNames);
+      // Import and use EffectDiscovery for consistent effect loading
+      const { EffectDiscovery } = await import('./EffectDiscovery');
+      const discovery = EffectDiscovery.getInstance();
+      discoveredEffects = await discovery.discoverEffects();
+      console.log('🔍 EffectCache: Using EffectDiscovery, found effects:', discoveredEffects.length);
     } catch (e) {
-      console.warn('⚠️ EffectCache: Dynamic discovery failed, no fallback list will be used', e);
-      // Keep discoveredEffectNames as an empty array to comply with dynamic-only rule
+      console.warn('⚠️ EffectCache: EffectDiscovery failed, no effects will be loaded', e);
+      discoveredEffects = [];
     }
 
     // Load effects in parallel for maximum speed
-    const uniqueEffectNames = Array.from(new Set(discoveredEffectNames));
-    const loadPromises = uniqueEffectNames.map(effectName => this.loadAndCacheEffect(effectName));
+    const loadPromises = discoveredEffects.map(effect => 
+      this.loadAndCacheEffectFromDiscovery(effect)
+    );
 
     // Wait for all effects to load (or fail)
     const results = await Promise.allSettled(loadPromises);
@@ -109,16 +110,75 @@ export class EffectCache {
   }
 
   /**
-   * Load and cache a single effect
+   * Load and cache a single effect from EffectDiscovery
    */
-  private async loadAndCacheEffect(effectName: string): Promise<void> {
+  private async loadAndCacheEffectFromDiscovery(effect: any): Promise<void> {
     const startTime = performance.now();
     
     try {
-      console.log(`🔄 Loading effect: ${effectName}`);
+      console.log(`🔄 Loading effect from discovery: ${effect.id}`);
+      
+      // Extract metadata from the discovered effect
+      const metadata = effect.metadata || {};
+      
+      // Generate effect ID (use kebab-case for consistency)
+      const id = this.generateEffectId(effect.id);
+      
+      const cachedEffect: CachedEffect = {
+        id,
+        name: metadata.name || this.generateEffectName(this.basename(effect.id)),
+        description: metadata.description || `${metadata.name || this.basename(effect.id)} effect`,
+        category: metadata.category || 'Effects',
+        icon: metadata.icon || '✨',
+        author: metadata.author || 'VJ System',
+        version: metadata.version || '1.0.0',
+        component: effect.component || effect.createEffect,
+        metadata,
+        loadTime: performance.now() - startTime
+      };
+
+      // Cache the effect
+      this.cache.set(id, cachedEffect);
+      
+      console.log(`✅ Cached effect: ${id} (${cachedEffect.loadTime.toFixed(2)}ms)`);
+      
+    } catch (error) {
+      console.warn(`❌ Failed to load effect ${effect.id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load and cache a single effect (legacy method - kept for compatibility)
+   */
+  private async loadAndCacheEffect(effectName: string, modulePath: string): Promise<void> {
+    const startTime = performance.now();
+    
+    try {
+      console.log(`🔄 Loading effect: ${effectName} from ${modulePath}`);
       
       // Dynamic import with @vite-ignore for faster builds
-      const module = await import(/* @vite-ignore */ `../effects/${effectName}`);
+      // Use the full module path for import
+      console.log(`📁 Importing from path: ${modulePath}`);
+      
+      // Try different import strategies
+      let module;
+      try {
+        // First try the direct path
+        module = await import(/* @vite-ignore */ modulePath);
+      } catch (directImportError) {
+        console.warn(`⚠️ Direct import failed for ${modulePath}, trying alternative:`, directImportError);
+        
+        // Try with the effect name as a fallback
+        try {
+          const fallbackPath = `../effects/${effectName}`;
+          console.log(`🔄 Trying fallback path: ${fallbackPath}`);
+          module = await import(/* @vite-ignore */ fallbackPath);
+        } catch (fallbackError) {
+          console.error(`❌ Both import methods failed for ${effectName}:`, fallbackError);
+          throw fallbackError;
+        }
+      }
       const component = module.default || module[effectName];
       
       if (!component) {
@@ -152,14 +212,15 @@ export class EffectCache {
     } catch (error) {
       console.warn(`❌ Failed to load effect ${effectName}:`, error);
       throw error;
+      }
     }
-  }
 
   /**
    * Generate effect ID from filename (consistent with existing system)
    */
   private generateEffectId(fileName: string): string {
-    return fileName
+    const base = this.basename(fileName);
+    return base
       .replace(/([A-Z]+)(?=[A-Z][a-z]|$)/g, (match) => `-${match.toLowerCase()}`)
       .replace(/([A-Z])/g, '-$1')
       .toLowerCase()
@@ -172,11 +233,18 @@ export class EffectCache {
    * Generate effect name from filename
    */
   private generateEffectName(fileName: string): string {
-    return fileName
+    const base = this.basename(fileName);
+    return base
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, str => str.toUpperCase())
       .replace(/Effect$/, '')
       .trim();
+  }
+
+  private basename(pathStr: string): string {
+    const norm = pathStr.replace(/\\/g, '/');
+    const parts = norm.split('/');
+    return (parts.pop() || pathStr).replace(/\.tsx?$/i, '');
   }
 
   /**

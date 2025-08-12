@@ -51,11 +51,11 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
 
   return (
     <div className="custom-title-bar">
-      <div className="title-bar-left">
+      <div className="title-bar-left" style={{ WebkitAppRegion: 'drag' as any }}>
         <div className="app-title">VJ App</div>
       </div>
       
-      <div className="title-bar-center">
+      <div className="title-bar-center" style={{ WebkitAppRegion: 'no-drag' as any }}>
         <div className="menu-bar">
           <button className="menu-item" onClick={onMirror}>
             Mirror
@@ -98,11 +98,11 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         </div>
       </div>
       
-      <div className="title-bar-right">
-        <button className="window-control minimize" onClick={onMinimize}>
+      <div className="title-bar-right" style={{ WebkitAppRegion: 'no-drag' as any }}>
+        <button className="window-control minimize" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMinimize && onMinimize(); }}>
           <span>─</span>
         </button>
-        <button className="window-control maximize" onClick={onMaximize}>
+        <button className="window-control maximize" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMaximize && onMaximize(); }}>
           <span>□</span>
         </button>
         <button 
@@ -121,12 +121,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               console.log('onClose function is undefined!');
             }
           }}
-          style={{
-            backgroundColor: 'rgba(0, 0, 255, 0.1)',
-            border: '1px solid rgba(0, 0, 255, 0.3)',
-            position: 'relative',
-            zIndex: 1002
-          }}
+          style={{ position: 'relative', zIndex: 5001 }}
           title="Close Window"
         >
           <span>×</span>

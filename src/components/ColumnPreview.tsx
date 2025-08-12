@@ -46,6 +46,14 @@ const VideoTexture: React.FC<{
       videoTexture.magFilter = THREE.LinearFilter;
       videoTexture.format = THREE.RGBAFormat;
       videoTexture.generateMipmaps = false;
+      // Ensure correct color space to avoid washed-out appearance
+      // Support both newer and older Three.js versions
+      try {
+        (videoTexture as any).colorSpace = (THREE as any).SRGBColorSpace || (videoTexture as any).colorSpace;
+        if (!(videoTexture as any).colorSpace && (THREE as any).sRGBEncoding) {
+          (videoTexture as any).encoding = (THREE as any).sRGBEncoding;
+        }
+      } catch {}
       setTexture(videoTexture);
     }
   }, [video]);
@@ -96,11 +104,10 @@ const VideoTexture: React.FC<{
       <planeGeometry args={[finalScaleX, finalScaleY]} />
       <meshBasicMaterial 
         map={texture} 
-        transparent 
+        transparent={false}
         opacity={opacity}
-        blending={getBlendMode(blendMode)}
+        blending={THREE.NormalBlending}
         side={THREE.DoubleSide}
-        alphaTest={0.1}
       />
     </mesh>
   );
@@ -224,6 +231,23 @@ const ColumnScene: React.FC<{
 
   // Performance optimization: removed excessive logging
 
+  // Cleanup function to revoke blob URLs
+  useEffect(() => {
+    return () => {
+      // Clean up blob URLs when component unmounts
+      assets.images.forEach((img) => {
+        if (img.src && img.src.startsWith('blob:')) {
+          URL.revokeObjectURL(img.src);
+        }
+      });
+      assets.videos.forEach((video) => {
+        if (video.src && video.src.startsWith('blob:')) {
+          URL.revokeObjectURL(video.src);
+        }
+      });
+    };
+  }, [assets.images, assets.videos]);
+
   // Load assets with caching
   useEffect(() => {
     const loadAssets = async () => {
@@ -249,10 +273,34 @@ const ColumnScene: React.FC<{
           try {
             const img = new Image();
             img.crossOrigin = 'anonymous';
+            
+            // Ensure we have a valid path before loading
+            let assetPath = asset.path;
+            if (!assetPath || (assetPath.startsWith('blob:') && !assetPath.includes('localhost')) || 
+                (assetPath.startsWith('blob:') && assetPath.includes('localhost') && assetPath.includes('5173'))) {
+              // Try to restore from base64 if available
+              if (asset.base64Data) {
+                console.log('Restoring image from base64 for:', asset.name);
+                const restoredBlobURL = convertBase64ToBlobURL(asset.base64Data, asset.type);
+                if (restoredBlobURL) {
+                  assetPath = restoredBlobURL;
+                  console.log('Image restored successfully from base64');
+                }
+              }
+            }
+            
+            if (!assetPath) {
+              console.warn('No valid path for image asset:', asset.name);
+              continue;
+            }
+            
             await new Promise((resolve, reject) => {
               img.onload = resolve;
-              img.onerror = reject;
-              img.src = asset.path;
+              img.onerror = (e) => {
+                console.error('Failed to load image:', asset.name, 'path:', assetPath, 'error:', e);
+                reject(e);
+              };
+              img.src = assetPath;
             });
             newImages.set(asset.id, img);
             console.log(`✅ Image loaded for layer ${layer.name}:`, asset.name);
@@ -270,7 +318,27 @@ const ColumnScene: React.FC<{
             } else {
               console.log('Loading new video with path:', getAssetPath(asset), 'for asset:', asset.name);
               video = document.createElement('video');
-              const assetPath = getAssetPath(asset);
+              
+              // Ensure we have a valid path before loading
+              let assetPath = getAssetPath(asset);
+              if (!assetPath || (assetPath.startsWith('blob:') && !assetPath.includes('localhost')) || 
+                  (assetPath.startsWith('blob:') && assetPath.includes('localhost') && assetPath.includes('5173'))) {
+                // Try to restore from base64 if available
+                if (asset.base64Data) {
+                  console.log('Restoring video from base64 for:', asset.name);
+                  const restoredBlobURL = convertBase64ToBlobURL(asset.base64Data, asset.type);
+                  if (restoredBlobURL) {
+                    assetPath = restoredBlobURL;
+                    console.log('Video restored successfully from base64');
+                  }
+                }
+              }
+              
+              if (!assetPath) {
+                console.warn('No valid path for video asset:', asset.name);
+                continue;
+              }
+              
               video.src = assetPath;
               video.muted = true;
               video.loop = true;
@@ -294,7 +362,10 @@ const ColumnScene: React.FC<{
                   }
                 };
                 video!.addEventListener('loadeddata', onReady, { once: true });
-                video!.addEventListener('error', reject);
+                video!.addEventListener('error', (e) => {
+                  console.error('Video loading error:', asset.name, 'path:', assetPath, 'error:', e);
+                  reject(e);
+                });
                 video!.load();
               });
 
@@ -381,6 +452,51 @@ const ColumnScene: React.FC<{
     return asset.path || '';
   };
 
+  // Helper function to convert base64 data back to blob URL
+  const convertBase64ToBlobURL = (base64Data: string, type: string) => {
+    try {
+      // Remove the data URL prefix if present
+      const base64WithoutPrefix = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+      
+      // Validate base64 data
+      if (!base64WithoutPrefix || base64WithoutPrefix.length === 0) {
+        console.error('Invalid base64 data');
+        return null;
+      }
+      
+      // Decode base64 to binary
+      const byteCharacters = atob(base64WithoutPrefix);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      
+      // Create blob with proper MIME type
+      const blob = new Blob([byteArray], { type });
+      
+      // Validate blob
+      if (blob.size === 0) {
+        console.error('Created blob is empty');
+        return null;
+      }
+      
+      const blobURL = URL.createObjectURL(blob);
+      
+      // Validate blob URL format
+      if (!blobURL.startsWith('blob:')) {
+        console.error('Invalid blob URL format:', blobURL);
+        return null;
+      }
+      
+      console.log('Successfully created blob URL:', blobURL, 'for type:', type, 'size:', byteArray.length);
+      return blobURL;
+    } catch (error) {
+      console.error('Error converting base64 to blob URL:', error);
+      return null;
+    }
+  };
+
   // Unified effect rendering system
   const renderEffect = (effectId: string, effectName: string, params: any = {}, isGlobal: boolean = false) => {
     const effectKey = isGlobal ? `global-${effectId}` : `layer-${effectId}`;
@@ -411,8 +527,48 @@ const ColumnScene: React.FC<{
 
   return (
     <>
-      {/* Background */}
-      <color attach="background" args={[0, 0, 0]} />
+      {/* Background - Only show for non-source effects, make transparent for sources */}
+      {(() => {
+        // Check if this column contains only source effects (from sources/ folder)
+        const hasOnlySourceEffects = column.layers.every((layer: any) => {
+          if (!layer.asset) return true; // Empty layers don't count
+          
+          // Check multiple locations for source effect identification
+          const isSource = 
+            // Direct asset metadata
+            layer.asset.metadata?.folder === 'sources' || 
+            layer.asset.metadata?.isSource === true ||
+            layer.asset.category === 'Sources' ||
+            // Nested effect metadata (from EffectsBrowser drag)
+            layer.asset.effect?.metadata?.folder === 'sources' ||
+            layer.asset.effect?.metadata?.isSource === true ||
+            layer.asset.effect?.category === 'Sources' ||
+            // Check if the asset itself is marked as a source
+            layer.asset.isSource === true;
+          
+          return isSource;
+        });
+        
+        // Don't render background for source-only columns - they should be transparent
+        if (hasOnlySourceEffects) {
+          console.log('🎨 Column contains only source effects - rendering with transparent background');
+          return null;
+        }
+        
+        // For mixed or non-source columns, use composition background color (converted to linear)
+        try {
+          const { compositionSettings } = useStore.getState();
+          const hexStr = compositionSettings.backgroundColor || '#000000';
+          const color = new THREE.Color(hexStr);
+          // Convert from sRGB hex to linear for correct internal representation
+          if ((color as any).convertSRGBToLinear) {
+            (color as any).convertSRGBToLinear();
+          }
+          return <color attach="background" args={[color.r, color.g, color.b]} />;
+        } catch {
+          return <color attach="background" args={[0, 0, 0]} />;
+        }
+      })()}
       
 
       
@@ -422,16 +578,75 @@ const ColumnScene: React.FC<{
         const videoLayers = sortedLayers.filter(layer => 
           layer.asset && layer.asset.type === 'video'
         );
-        const effectLayers = sortedLayers.filter(layer => 
-          layer.asset && (
+        const effectLayers = sortedLayers.filter(layer => {
+          if (!layer.asset) return false;
+          
+          // Check multiple ways an asset can be identified as an effect
+          const isEffect = 
             layer.asset.type === 'p5js' || 
             layer.asset.type === 'effect' || 
             layer.asset.type === 'threejs' ||
-            layer.asset.isEffect
-          )
-        );
+            layer.asset.isEffect === true ||
+            // Check if it's a source effect from EffectsBrowser
+            (layer.asset.type === 'effect' && layer.asset.effect) ||
+            // Check if it has effects array
+            (layer.effects && layer.effects.length > 0);
+          
+          console.log('🔍 Layer filtering check:', {
+            name: layer.name,
+            assetType: layer.asset.type,
+            isEffect: layer.asset.isEffect,
+            hasEffect: !!layer.asset.effect,
+            hasEffects: !!layer.effects,
+            effectsCount: layer.effects?.length || 0,
+            isEffectResult: isEffect,
+            asset: layer.asset
+          });
+          
+          if (isEffect) {
+            console.log('🎨 Effect layer detected:', {
+              name: layer.name,
+              assetType: layer.asset.type,
+              isEffect: layer.asset.isEffect,
+              hasEffects: !!layer.effects,
+              effectsCount: layer.effects?.length || 0,
+              asset: layer.asset
+            });
+          }
+          
+          return isEffect;
+        });
 
         console.log('Layers - Video:', videoLayers.map(l => l.name), 'Effects:', effectLayers.map(l => l.name));
+        
+        // Debug: Show full layer structure for source effects
+        console.log('🔍 Full layer structure for debugging:', sortedLayers.map(layer => ({
+          name: layer.name,
+          asset: layer.asset,
+          effects: layer.effects,
+          assetType: layer.asset?.type,
+          isEffect: layer.asset?.isEffect,
+          hasEffects: !!layer.effects,
+          effectsCount: layer.effects?.length || 0
+        })));
+        
+        // Debug: Show detailed layer content
+        console.log('🔍 Detailed layer content:', sortedLayers.map(layer => {
+          if (layer.asset) {
+            return {
+              name: layer.name,
+              assetKeys: Object.keys(layer.asset),
+              assetType: layer.asset.type,
+              isEffect: layer.asset.isEffect,
+              hasEffect: !!layer.asset.effect,
+              effectKeys: layer.asset.effect ? Object.keys(layer.asset.effect) : null,
+              metadata: layer.asset.metadata,
+              effectMetadata: layer.asset.effect?.metadata,
+              effects: layer.effects
+            };
+          }
+          return { name: layer.name, asset: null };
+        }));
 
         const renderedElements: React.ReactElement[] = [];
 
@@ -464,6 +679,7 @@ const ColumnScene: React.FC<{
         }, [videoTextures, isPlaying]);
 
         videoLayers.forEach((videoLayer, index) => {
+          const isBottomVideo = index === videoLayers.length - 1;
           const video = assets.videos.get(videoLayer.asset.id);
           if (!video) return;
 
@@ -560,13 +776,13 @@ const ColumnScene: React.FC<{
               renderedElements.push(
                 <React.Fragment key={`${key}-container`}>
                   {/* Render the base video first */}
-                  <mesh key={`${key}-video`}>
+                   <mesh key={`${key}-video`}>
                     <planeGeometry args={[finalScaleX, finalScaleY]} />
                     <meshBasicMaterial 
                       map={videoTexture}
-                      transparent
-                      opacity={videoLayer.opacity || 1}
-                      blending={getBlendMode(videoLayer.blendMode || 'add')}
+                       transparent={false}
+                       opacity={videoLayer.opacity || 1}
+                       blending={THREE.NormalBlending}
                     />
                   </mesh>
                   
@@ -586,7 +802,7 @@ const ColumnScene: React.FC<{
                 key={key}
                 video={video}
                 opacity={videoLayer.opacity || 1}
-                blendMode={videoLayer.blendMode || 'add'}
+                blendMode={'normal'}
                 effects={videoLayer.effects}
                 compositionWidth={compositionWidth}
                 compositionHeight={compositionHeight}
@@ -602,7 +818,7 @@ const ColumnScene: React.FC<{
 
           console.log('🎨 Processing effect layer:', effectLayer.name, 'asset:', effectAsset, 'asset keys:', Object.keys(effectAsset));
           
-          // Use unified effect renderer for all effects
+            // Use unified effect renderer for all effects
           // Handle different effect data structures
           let effectId = null;
           if (effectAsset.effect) {
@@ -633,7 +849,7 @@ const ColumnScene: React.FC<{
           
           console.log('🎨 Using effect ID:', effectId, 'name:', effectName, 'asset:', effectAsset);
           
-          const renderedEffect = renderEffect(
+           const renderedEffect = renderEffect(
             effectId, 
             effectName, 
             effectLayer.params, 
@@ -771,7 +987,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
         <div style={{ 
           width: '100%', 
           height: '100%', 
-          backgroundColor: '#000000', 
+          backgroundColor: 'transparent', 
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
@@ -782,7 +998,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
           <div style={{
             width: '100%',
             height: '100%',
-            backgroundColor: '#000000',
+            backgroundColor: 'transparent',
             position: 'relative',
             overflow: 'hidden'
           }}>
@@ -815,10 +1031,51 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 alpha: true,
                 preserveDrawingBuffer: true,
                 antialias: true,
-                powerPreference: 'high-performance'
+                powerPreference: 'high-performance',
+                premultipliedAlpha: false
               }}
               onCreated={({ gl, camera }) => {
-                gl.setClearColor(0x000000, 0); // transparent black
+                // Check if this column contains only source effects
+                const hasOnlySourceEffects = column.layers.every((layer: any) => {
+                  if (!layer.asset) return true;
+                  
+                  // Check multiple locations for source effect identification
+                  const isSource = 
+                    // Direct asset metadata
+                    layer.asset.metadata?.folder === 'sources' || 
+                    layer.asset.metadata?.isSource === true ||
+                    layer.asset.category === 'Sources' ||
+                    // Nested effect metadata (from EffectsBrowser drag)
+                    layer.asset.effect?.metadata?.folder === 'sources' ||
+                    layer.asset.effect?.metadata?.isSource === true ||
+                    layer.asset.effect?.category === 'Sources' ||
+                    // Check if the asset itself is marked as a source
+                    layer.asset.isSource === true;
+                  
+                  return isSource;
+                });
+                
+                // Renderer color management to prevent washed-out colors
+                try {
+                  if ((gl as any).outputColorSpace !== undefined && (THREE as any).SRGBColorSpace) {
+                    (gl as any).outputColorSpace = (THREE as any).SRGBColorSpace;
+                  } else if ((gl as any).outputEncoding !== undefined && (THREE as any).sRGBEncoding) {
+                    (gl as any).outputEncoding = (THREE as any).sRGBEncoding;
+                  }
+                  (gl as any).toneMapping = (THREE as any).NoToneMapping;
+                } catch {}
+
+                if (hasOnlySourceEffects) {
+                  // For source effects, keep canvas transparent and let composition layer underneath show through
+                  try { gl.setClearAlpha(0); } catch {}
+                  gl.domElement.style.background = 'transparent';
+                  console.log('🎨 R3F Canvas created with transparent background for sources');
+                } else {
+                  // Non-source: ensure opaque clear so content is not blended with page background
+                  try { gl.setClearAlpha(1); } catch {}
+                  console.log('🎨 R3F Canvas created with opaque background for mixed/non-source content');
+                }
+                
                 console.log('R3F Canvas created successfully');
                 
                 // Force the renderer to respect the container's aspect ratio

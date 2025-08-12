@@ -1,8 +1,8 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface ChromaticAberrationEffectProps {
   intensity?: number;
@@ -206,7 +206,7 @@ const ChromaticAberrationEffect: React.FC<ChromaticAberrationEffectProps> = ({
   name: 'Chromatic Aberration',
   description: 'A chromatic aberration effect with displacement mapping',
   category: 'Video',
-  icon: '🌈',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture

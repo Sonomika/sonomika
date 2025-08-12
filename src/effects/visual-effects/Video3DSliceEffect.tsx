@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { registerEffect } from '../utils/effectRegistry';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface Video3DSliceEffectProps {
   videoTexture?: THREE.VideoTexture;
@@ -272,7 +272,7 @@ Video3DSliceEffect.metadata = {
   name: '3D Video Slices',
   description: 'Splits video into 3D horizontal slices that move independently in 3D space',
   category: '3D Effects',
-  icon: '📐',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect completely replaces the video instead of overlaying

@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store/store';
-import { MediaLibrary } from './MediaLibrary';
 import { LayerOptions } from './LayerOptions';
-import { MIDIMapper } from './MIDIMapper';
-import { LFOMapper } from './LFOMapper';
 import { CanvasRenderer } from './CanvasRenderer';
 import { ColumnPreview } from './ColumnPreview';
-import { EffectsBrowser } from './EffectsBrowser';
+import { MediaBrowser } from './MediaBrowser';
 import { Timeline } from './Timeline';
 import TimelineComposer from './TimelineComposer';
 import { BPMManager } from '../engine/BPMManager';
@@ -52,7 +49,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [activeTab, setActiveTab] = useState<'media' | 'effects' | 'midi' | 'lfo'>('media');
+
   const [showTimeline, setShowTimeline] = useState(false);
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
@@ -874,6 +871,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                     <div
                       key={cellId}
                       className={`grid-cell ${hasAsset ? 'has-content' : 'empty'} ${selectedLayer?.id === layer?.id ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''} ${isDragOverLayer ? 'drag-over-layer' : ''}`}
+                      data-system-files={isDragOver && (() => {
+                        // Check if drag contains system files
+                        const dragData = (window as any).currentDragData;
+                        return dragData && dragData.files && dragData.files.length > 0 ? 'true' : 'false';
+                      })()}
                       onClick={() => hasAsset && handleLayerClickWrapper(layer, column.id)}
                       onContextMenu={(e) => {
                         if (hasAsset) {
@@ -888,6 +890,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                       }}
                       onDragEnd={handleDragEnd}
                       onDragOver={(e) => {
+                        // Store current drag data for styling
+                        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                          (window as any).currentDragData = { files: e.dataTransfer.files };
+                        }
                         // Handle both asset dropping and layer reordering
                         handleDragOverWrapper(e, cellId);
                         if (draggedLayer && draggedLayer.sourceColumnId === column.id) {
@@ -896,6 +902,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                       }}
                       onDragLeave={(e) => handleDragLeaveWrapper(e)}
                       onDrop={(e) => {
+                        // Clear drag data
+                        (window as any).currentDragData = null;
                         // Check if this is a layer reorder (from existing layer) or asset drop (from Media/Effects)
                         const dragData = e.dataTransfer.getData('application/json');
                         if (dragData) {
@@ -1048,51 +1056,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
             {/* Media Library / MIDI Mapper - Bottom Right */}
             <div className="layer-manager-media-library">
-              {/* Tab Navigation */}
-              <div className="bottom-tabs">
-                <button 
-                  className={`tab-button ${activeTab === 'media' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('media')}
-                >
-                  Media
-                </button>
-                <button 
-                  className={`tab-button ${activeTab === 'effects' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('effects')}
-                >
-                  Effects
-                </button>
-                <button 
-                  className={`tab-button ${activeTab === 'midi' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('midi')}
-                >
-                  MIDI
-                </button>
-                <button 
-                  className={`tab-button ${activeTab === 'lfo' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('lfo')}
-                >
-                  LFO
-                </button>
-
-              </div>
-              
-              {/* Tab Content */}
+              {/* Unified Media Browser */}
               <div className="tab-content">
-                {activeTab === 'media' ? (
-                  <MediaLibrary onClose={() => {}} isEmbedded={true} />
-                ) : activeTab === 'effects' ? (
-                  <EffectsBrowser />
-                ) : activeTab === 'midi' ? (
-                  <MIDIMapper />
-                ) : activeTab === 'lfo' ? (
-                  <LFOMapper 
-                    selectedLayer={selectedLayer}
-                    onUpdateLayer={handleUpdateLayerWrapper}
-                  />
-                ) : (
-                  <MediaLibrary onClose={() => {}} isEmbedded={true} />
-                )}
+                <MediaBrowser onClose={() => {}} isEmbedded={true} />
               </div>
             </div>
           </div>

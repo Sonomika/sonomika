@@ -1,9 +1,9 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
-import { createShaderToyMaterial, updateShaderToyUniforms } from '../utils/ShaderToyLoader';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
+import { createShaderToyMaterial, updateShaderToyUniforms } from '../../utils/ShaderToyLoader';
 
 interface ShaderToyEffectProps {
   shaderCode?: string;
@@ -120,7 +120,7 @@ const ShaderToyEffect: React.FC<ShaderToyEffectProps> = ({
   name: 'ShaderToy Effect',
   description: 'A generic ShaderToy-compatible effect loader',
   category: 'ShaderToy',
-  icon: '🎨',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   parameters: [

@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { registerEffect } from '../utils/effectRegistry';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface VideoSliceOffsetEffectProps {
   sliceCount?: number;
@@ -155,7 +155,7 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
   name: 'Video Slice Offset Effect',
   description: 'Slices video into strips and offsets them for glitch-like effects',
   category: 'Video',
-  icon: '✂️',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture

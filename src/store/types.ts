@@ -72,6 +72,7 @@ export interface CompositionSettings {
   height: number;
   aspectRatio: string; // e.g., "16:9", "4:3", "1:1"
   frameRate: number;
+  backgroundColor: string; // Hex color string, e.g. #000000
   name?: string;
   description?: string;
 }

@@ -2,7 +2,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { registerEffect } from '../utils/effectRegistry';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface ASCIIVideoEffectProps {
   videoTexture?: THREE.VideoTexture;
@@ -214,7 +214,7 @@ void main() {
   name: 'ASCII Video',
   description: 'Converts video texture to ASCII characters using GPU fragment shader - exact reference implementation',
   category: 'Video Effects',
-  icon: '🖥️',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture

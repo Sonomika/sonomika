@@ -1,8 +1,8 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface MonjoriShaderEffectProps {
   speed?: number;
@@ -148,7 +148,7 @@ const MonjoriShaderEffect: React.FC<MonjoriShaderEffectProps> = ({
   name: 'Monjori Shader',
   description: 'Famous Monjori shader demo with BPM synchronization and color modes',
   category: 'Shader',
-  icon: '🌀',
+  icon: '',
   author: 'Mic (adapted by VJ System)',
   version: '1.0.0',
   parameters: [

@@ -56,6 +56,7 @@ const initialState: AppState = {
     height: 1080,
     aspectRatio: '16:9',
     frameRate: 30,
+    backgroundColor: '#000000',
   },
   timelineSnapEnabled: true,
   timelineDuration: 60, // 1 minute default

@@ -2,8 +2,8 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 import { Text } from '@react-three/drei';
 
 interface MatrixNumbersEffectProps {
@@ -84,7 +84,10 @@ export const MatrixNumbersEffect: React.FC<MatrixNumbersEffectProps> = ({
     const material = new THREE.LineBasicMaterial({ 
       color: 0x00ff44, 
       transparent: true, 
-      opacity: 0.3 
+      opacity: 0.3,
+      depthTest: false,
+      depthWrite: false,
+      alphaTest: 0.01
     });
     
     const positions = new Float32Array(nodeCount * nodeCount * 6); // Max possible connections
@@ -187,6 +190,9 @@ export const MatrixNumbersEffect: React.FC<MatrixNumbersEffectProps> = ({
           anchorY="middle"
           material-transparent
           material-opacity={node.currentOpacity || opacity}
+          material-depthTest={false}
+          material-depthWrite={false}
+          material-alphaTest={0.01}
           rotation={[0, 0, Math.sin(Date.now() * 0.001 + node.phase) * 0.2]}
         >
           {node.number.toString()}
@@ -197,13 +203,15 @@ export const MatrixNumbersEffect: React.FC<MatrixNumbersEffectProps> = ({
 };
 
 // Register the effect with metadata
-MatrixNumbersEffect.metadata = {
+(MatrixNumbersEffect as any).metadata = {
   name: 'Matrix Numbers',
   description: 'Standalone 3D effect with floating numbers connected by glowing lines in digital matrix style',
-  category: '3D Effects',
-  icon: '🔢',
+  category: 'Sources',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
+  folder: 'sources',
+  isSource: true,
   replacesVideo: false, // This is a standalone effect that doesn't need video
   parameters: [
     { name: 'nodeCount', type: 'number', value: 100, min: 30, max: 200, step: 10 },

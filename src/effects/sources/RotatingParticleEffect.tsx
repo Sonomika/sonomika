@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { registerEffect } from '../utils/effectRegistry';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface RotatingParticleEffectProps {
   rotationSpeed?: number;
@@ -179,7 +179,7 @@ const RotatingParticleEffect: React.FC<RotatingParticleEffectProps> = ({
   name: 'Rotating Particle Effect',
   description: '3D rotating object surrounded by animated particles in orbital patterns',
   category: '3D',
-  icon: '🌌',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   parameters: [

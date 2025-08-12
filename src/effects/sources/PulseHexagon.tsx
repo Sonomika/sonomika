@@ -2,8 +2,8 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface PulseHexagonEffectProps {
   color?: string;
@@ -50,6 +50,8 @@ const PulseHexagon: React.FC<PulseHexagonEffectProps> = ({
         blending={THREE.AdditiveBlending}
         depthTest={false}
         depthWrite={false}
+        side={THREE.DoubleSide}
+        alphaTest={0.01}
       />
     </mesh>
   );
@@ -59,10 +61,12 @@ const PulseHexagon: React.FC<PulseHexagonEffectProps> = ({
 (PulseHexagon as any).metadata = {
   name: 'Pulse Hexagon',
   description: 'A hexagonal shape that pulses with the BPM',
-  category: 'Pulse',
-  icon: '⬡',
+  category: 'Sources',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
+  folder: 'sources',
+  isSource: true,
   parameters: [
     {
       name: 'color',

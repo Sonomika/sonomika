@@ -31,6 +31,8 @@ export interface ReactEffectMetadata {
   category: string;
   type: 'react-component';
   component?: React.ComponentType<any>;
+  folder?: string; // Add folder information for categorization
+  isSource?: boolean; // Add source flag for categorization
 }
 
 /**
@@ -128,11 +130,30 @@ export class EffectDiscovery {
         const fs = (window as any).require('fs');
         const path = (window as any).require('path');
         
-        // Get the effects folder path
+        // Get the effects folder paths - now we have visual-effects and sources subfolders
         const effectsFolder = path.join(__dirname, '../effects');
+        const visualEffectsFolder = path.join(effectsFolder, 'visual-effects');
+        const sourcesFolder = path.join(effectsFolder, 'sources');
         
-        // Recursively scan for all .tsx files
-        const effectFiles = this.scanDirectoryRecursively(fs, path, effectsFolder);
+        // Recursively scan for all .tsx files in all effect folders
+        let effectFiles: string[] = [];
+        
+        // Scan main effects folder (for any remaining effects)
+        if (fs.existsSync(effectsFolder)) {
+          effectFiles = effectFiles.concat(this.scanDirectoryRecursively(fs, path, effectsFolder));
+        }
+        
+        // Scan visual-effects folder (visual effects that modify content)
+        if (fs.existsSync(visualEffectsFolder)) {
+          const visualEffectFiles = this.scanDirectoryRecursively(fs, path, visualEffectsFolder);
+          effectFiles = effectFiles.concat(visualEffectFiles);
+        }
+        
+        // Scan sources folder (generative content that creates new material)
+        if (fs.existsSync(sourcesFolder)) {
+          const sourceFiles = this.scanDirectoryRecursively(fs, path, sourcesFolder);
+          effectFiles = effectFiles.concat(sourceFiles);
+        }
         
         return effectFiles;
         
@@ -147,7 +168,7 @@ export class EffectDiscovery {
         try {
           console.log('🔍 Attempting to use import.meta.glob for dynamic discovery...');
           
-          // This should dynamically discover all .tsx files in the effects directory
+          // This should dynamically discover all .tsx files in the effects directory and subdirectories
           const effectModules = (import.meta as any).glob('../effects/**/*.tsx', { eager: false });
           
           console.log('🔍 Found effect modules:', Object.keys(effectModules));
@@ -156,7 +177,7 @@ export class EffectDiscovery {
           for (const [modulePath, importFn] of Object.entries(effectModules)) {
             try {
               // Try to import the module to verify it's a valid effect
-              const module = await (importFn as any)();
+              await (importFn as any)();
               
               // Extract the effect name from the path
               // Remove '../effects/' prefix and '.tsx' extension
@@ -266,11 +287,18 @@ export class EffectDiscovery {
         return null;
       }
 
-      // Generate effect ID from filename
-      const id = this.generateEffectId(fileName);
+      // Normalize path and use basename for IDs/names
+      const normalizedPath = fileName.replace(/\\/g, '/');
+      const baseFileName = normalizedPath.split('/').pop() || fileName;
+
+      // Determine the folder category (visual-effects or sources)
+      const folderCategory = this.getFolderCategory(normalizedPath);
+
+      // Generate effect ID from basename
+      const id = this.generateEffectId(baseFileName);
       
-      // Get effect name from metadata or generate from filename
-      const name = metadata?.name || this.generateEffectName(fileName);
+      // Get effect name from metadata or generate from basename
+      const name = metadata?.name || this.generateEffectName(baseFileName);
       
       // Get category from metadata or default to 'Other'
       const category = metadata?.category || 'Other';
@@ -278,8 +306,8 @@ export class EffectDiscovery {
       // Get description from metadata or generate default
       const description = metadata?.description || `${name} effect`;
       
-      // Get icon from metadata or use default
-      const icon = metadata?.icon || '🎨';
+      // Get icon from metadata; no emoji/icons per project rules
+      const icon = metadata?.icon || '';
 
       const effect: ReactSelfContainedEffect = {
         id,
@@ -293,7 +321,9 @@ export class EffectDiscovery {
           parameters: metadata?.parameters || [],
           category,
           type: 'react-component',
-          component
+          component,
+          folder: folderCategory, // Add folder information for proper categorization
+          isSource: folderCategory === 'sources' // Mark as source if in sources folder
         },
         createEffect: (width: number, height: number): ReactEffectInstance => {
           return {
@@ -444,6 +474,18 @@ export class EffectDiscovery {
     this.discoveredEffects.clear();
     this.effectComponents.clear();
     await this.discoverEffects();
+  }
+
+  /**
+   * Determine the folder category (visual-effects or sources) from a normalized path
+   */
+  private getFolderCategory(normalizedPath: string): string {
+    if (normalizedPath.includes('visual-effects')) {
+      return 'visual-effects';
+    } else if (normalizedPath.includes('sources')) {
+      return 'sources';
+    }
+    return 'other'; // Default category
   }
 }
 

@@ -1,8 +1,8 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/store';
-import { registerEffect } from '../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface AdvancedGlitchEffectProps {
   intensity?: number;
@@ -290,7 +290,7 @@ const AdvancedGlitchEffect: React.FC<AdvancedGlitchEffectProps> = ({
   name: 'Advanced Glitch',
   description: 'Advanced glitch effect with analog, digital, and CRT distortion types',
   category: 'Video',
-  icon: '📺',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture

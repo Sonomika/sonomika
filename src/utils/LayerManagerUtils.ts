@@ -160,6 +160,37 @@ export const handleDragOver = (e: React.DragEvent, cellId: string, setDragOverCe
   console.log('🔵 Drag over cell:', cellId);
   console.log('🔵 DataTransfer types:', e.dataTransfer.types);
   console.log('🔵 DataTransfer items:', e.dataTransfer.items);
+  
+  // Check if this is a system file drag (from Windows File Explorer)
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    // Filter for supported media files
+    const supportedFiles = Array.from(e.dataTransfer.files).filter(file => {
+      const isVideo = file.type.startsWith('video/') || 
+                     ['.mp4', '.mov', '.webm', '.m4v', '.avi', '.mkv'].some(ext => 
+                       file.name.toLowerCase().endsWith(ext)
+                     );
+      const isImage = file.type.startsWith('image/') || 
+                     ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'].some(ext => 
+                       file.name.toLowerCase().endsWith(ext)
+                     );
+      const isAudio = file.type.startsWith('audio/') || 
+                     ['.mp3', '.wav', '.aiff', '.flac', '.ogg'].some(ext => 
+                       file.name.toLowerCase().endsWith(ext)
+                     );
+      
+      return isVideo || isImage || isAudio;
+    });
+    
+    if (supportedFiles.length > 0) {
+      console.log('🔵 System file drag over detected:', supportedFiles.length, 'supported files');
+      // Set drag effect to copy for system files
+      e.dataTransfer.dropEffect = 'copy';
+      setDragOverCell(cellId);
+      return;
+    }
+  }
+  
+  // Handle regular asset drags
   setDragOverCell(cellId);
 };
 

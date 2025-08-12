@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { registerEffect } from '../utils/effectRegistry';
+import { registerEffect } from '../../utils/effectRegistry';
 
 interface VideoSlideEffectProps {
   slideSpeed?: number;
@@ -163,7 +163,7 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
   name: 'Video Slide Effect',
   description: 'Slides and pans video texture with various motion patterns',
   category: 'Video',
-  icon: '🎬',
+  icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture
