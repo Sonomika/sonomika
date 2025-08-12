@@ -8,9 +8,11 @@ export interface Asset {
   type: 'image' | 'video' | 'shader' | 'p5js' | 'threejs';
   path: string;
   filePath?: string; // Actual file path on disk
+  originalPath?: string; // Original file path for persistence
   base64Data?: string; // For persistence
   size: number;
   date: string;
+  addedAt?: number; // Timestamp when asset was added
   file?: File;
 }
 

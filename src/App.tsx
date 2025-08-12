@@ -316,14 +316,26 @@ function App() {
   };
 
   const handleWindowMinimize = () => {
+    console.log('=== HANDLE WINDOW MINIMIZE CALLED ===');
+    console.log('window.electron available:', !!window.electron);
+    console.log('window.electron.minimize available:', !!(window.electron && window.electron.minimize));
     if (window.electron) {
+      console.log('Calling window.electron.minimize()...');
       window.electron.minimize();
+    } else {
+      console.log('window.electron is not available!');
     }
   };
 
   const handleWindowMaximize = () => {
+    console.log('=== HANDLE WINDOW MAXIMIZE CALLED ===');
+    console.log('window.electron available:', !!window.electron);
+    console.log('window.electron.maximize available:', !!(window.electron && window.electron.maximize));
     if (window.electron) {
+      console.log('Calling window.electron.maximize()...');
       window.electron.maximize();
+    } else {
+      console.log('window.electron is not available!');
     }
   };
 

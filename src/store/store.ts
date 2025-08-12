@@ -87,9 +87,11 @@ export const useStore = create<AppState & {
   stopColumn: () => void;
   clearStorage: () => void;
   resetToDefault: () => void;
-  addAsset: (asset: Asset) => void;
-  updateAsset: (assetId: string, updates: Partial<Asset>) => void;
-  removeAsset: (assetId: string) => void;
+      addAsset: (asset: Asset) => void;
+    updateAsset: (assetId: string, updates: Partial<Asset>) => void;
+    removeAsset: (assetId: string) => void;
+    ensureVideoPersistence: (assetId: string) => void;
+    debugStorage: () => void;
   updateCompositionSettings: (settings: Partial<CompositionSettings>) => void;
   reorderLayers: (columnId: string, startIndex: number, endIndex: number) => void;
   moveBetweenColumns: (sourceColumnId: string, destinationColumnId: string, sourceIndex: number, destinationIndex: number) => void;
@@ -228,8 +230,19 @@ export const useStore = create<AppState & {
       addAsset: (asset: Asset) => set((state) => {
         console.log('Adding asset to store:', asset.name, asset.id);
         console.log('Current assets count:', state.assets.length);
+        
+        // Ensure the asset has a persistent identifier
+        const persistentAsset = {
+          ...asset,
+          // Store the original file path if available
+          originalPath: asset.filePath || asset.path || asset.name,
+          // Add timestamp for better tracking
+          addedAt: Date.now(),
+        };
+        
+        console.log('Persistent asset data:', persistentAsset);
         return {
-          assets: [...state.assets, asset],
+          assets: [...state.assets, persistentAsset],
         };
       }),
 
@@ -246,6 +259,41 @@ export const useStore = create<AppState & {
       removeAsset: (assetId: string) => set((state) => ({
         assets: state.assets.filter(asset => asset.id !== assetId),
       })),
+
+      // Helper function to ensure video files persist their paths
+      ensureVideoPersistence: (assetId: string) => set((state) => ({
+        assets: state.assets.map(asset => 
+          asset.id === assetId && asset.type === 'video' 
+            ? { 
+                ...asset, 
+                originalPath: asset.filePath || asset.path,
+                videoPath: asset.filePath || asset.path 
+              }
+            : asset
+        ),
+      })),
+
+      // Debug function to check storage state
+      debugStorage: () => {
+        const state = get();
+        console.log('🔍 Current Storage State:');
+        console.log('  - Total Assets:', state.assets.length);
+        console.log('  - Video Assets:', state.assets.filter(a => a.type === 'video').length);
+        console.log('  - Assets with paths:', state.assets.filter(a => a.filePath || a.originalPath).length);
+        console.log('  - Video assets with paths:', state.assets.filter(a => a.type === 'video' && (a.filePath || a.originalPath)).length);
+        
+        // Check localStorage
+        try {
+          const storageData = localStorage.getItem('vj-app-storage');
+          console.log('  - localStorage size:', storageData?.length || 0, 'bytes');
+          if (storageData) {
+            const parsed = JSON.parse(storageData);
+            console.log('  - Stored assets count:', parsed.assets?.length || 0);
+          }
+        } catch (error) {
+          console.error('  - Error reading localStorage:', error);
+        }
+      },
 
       reorderLayers: (columnId: string, startIndex: number, endIndex: number) => set((state) => ({
         scenes: state.scenes.map(scene => ({
@@ -428,14 +476,22 @@ export const useStore = create<AppState & {
                type: asset.type,
                path: asset.path,
                filePath: asset.filePath,
+               originalPath: asset.originalPath,
                size: asset.size,
                date: asset.date,
+               addedAt: asset.addedAt,
              };
              
              // Include base64Data for small files (under 500KB to prevent quota issues)
              if (asset.size < 500 * 1024 && asset.base64Data) {
                persistedAsset.base64Data = asset.base64Data;
                console.log('Including base64Data for asset:', asset.name);
+             }
+             
+             // For video files, ensure we store the file path for persistence
+             if (asset.type === 'video' && asset.filePath) {
+               console.log('Persisting video file path:', asset.filePath);
+               persistedAsset.videoPath = asset.filePath;
              }
              
              return persistedAsset;

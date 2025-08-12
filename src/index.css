@@ -6319,11 +6319,14 @@ body.resizing input[type="range"] {
   z-index: 5000; /* Keep above most app content; modals use 10000 */
   -webkit-app-region: drag;
   user-select: none;
+  cursor: grab;
 }
 
 .title-bar-left {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
+  min-width: 120px;
 }
 
 .app-title {
@@ -6331,6 +6334,13 @@ body.resizing input[type="range"] {
   font-size: 14px;
   font-weight: bold;
   margin-left: 10px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.app-title:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .title-bar-center {
@@ -6441,7 +6451,6 @@ body.resizing input[type="range"] {
   display: flex;
   align-items: center;
   gap: 5px;
-  -webkit-app-region: no-drag; /* ensure clicks on controls are handled */
 }
 
 .window-control {
@@ -6467,6 +6476,52 @@ body.resizing input[type="range"] {
 
 .window-control.close:hover {
   background-color: #e81123;
+}
+
+/* Ensure window controls are properly clickable */
+.window-control {
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px !important;
+  position: relative !important;
+  z-index: 5001 !important;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+  width: 32px !important;
+  height: 32px !important;
+  border: none !important;
+  background: none !important;
+  color: #cccccc !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Specific button styles */
+.window-control.minimize,
+.window-control.maximize,
+.window-control.close {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+  user-select: none !important;
+}
+
+/* Debug: Make buttons more visible */
+.window-control:hover {
+  background-color: #444 !important;
+  color: #ffffff !important;
+}
+
+.window-control.close:hover {
+  background-color: #e81123 !important;
+}
+
+/* Ensure title bar right section doesn't interfere with buttons */
+.title-bar-right {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 5002 !important;
 }
 /* Adjust main content to account for title bar */
 body {

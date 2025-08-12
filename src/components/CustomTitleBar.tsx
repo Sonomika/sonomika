@@ -51,11 +51,11 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
 
   return (
     <div className="custom-title-bar">
-      <div className="title-bar-left" style={{ WebkitAppRegion: 'drag' as any }}>
+      <div className="title-bar-left">
         <div className="app-title">VJ App</div>
       </div>
       
-      <div className="title-bar-center" style={{ WebkitAppRegion: 'no-drag' as any }}>
+      <div className="title-bar-center">
         <div className="menu-bar">
           <button className="menu-item" onClick={onMirror}>
             Mirror
@@ -98,11 +98,35 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         </div>
       </div>
       
-      <div className="title-bar-right" style={{ WebkitAppRegion: 'no-drag' as any }}>
-        <button className="window-control minimize" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMinimize && onMinimize(); }}>
+      <div className="title-bar-right">
+        <button className="window-control minimize" onClick={(e) => { 
+          console.log('=== MINIMIZE BUTTON CLICKED ===');
+          console.log('Event:', e);
+          console.log('onMinimize function:', onMinimize);
+          e.preventDefault(); 
+          e.stopPropagation(); 
+          if (onMinimize) {
+            console.log('Calling onMinimize...');
+            onMinimize();
+          } else {
+            console.log('onMinimize is undefined!');
+          }
+        }}>
           <span>─</span>
         </button>
-        <button className="window-control maximize" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMaximize && onMaximize(); }}>
+        <button className="window-control maximize" onClick={(e) => { 
+          console.log('=== MAXIMIZE BUTTON CLICKED ===');
+          console.log('Event:', e);
+          console.log('onMaximize function:', onMaximize);
+          e.preventDefault(); 
+          e.stopPropagation(); 
+          if (onMaximize) {
+            console.log('Calling onMaximize...');
+            onMaximize();
+          } else {
+            console.log('onMaximize is undefined!');
+          }
+        }}>
           <span>□</span>
         </button>
         <button 
