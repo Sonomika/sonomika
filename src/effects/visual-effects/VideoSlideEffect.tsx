@@ -21,6 +21,20 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const meshRef = useRef<THREE.Mesh>(null);
 
+  // Persistent buffer to hold last good frame and avoid background bleed
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const bufferTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    // Initialize with 1x1 transparent pixel
+    canvas.width = 1;
+    canvas.height = 1;
+    offscreenCanvasRef.current = canvas;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    return tex;
+  }, []);
+
   // Create shader material
   const shaderMaterial = useMemo(() => {
     const vertexShader = `
@@ -82,16 +96,18 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
       vertexShader,
       fragmentShader,
       uniforms: {
-        tDiffuse: { value: videoTexture || new THREE.Texture() },
+        // Always sample from our persistent buffer
+        tDiffuse: { value: bufferTexture },
         time: { value: 0.0 },
         slideSpeed: { value: slideSpeed },
         slideAmount: { value: slideAmount },
         slideDirection: { value: 0 },
         bpm: { value: bpm }
       },
+      // Start transparent, we will make opaque once the first frame is captured
       transparent: true
     });
-  }, [videoTexture, slideSpeed, slideAmount, slideDirection, bpm]);
+  }, [bufferTexture, slideSpeed, slideAmount, slideDirection, bpm]);
 
   // Calculate aspect ratio from video texture if available
   const aspectRatio = useMemo(() => {
@@ -143,9 +159,34 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
       materialRef.current.uniforms.slideSpeed.value = slideSpeed;
       materialRef.current.uniforms.slideAmount.value = slideAmount;
       
-      // Update video texture if available
-      if (videoTexture && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
-        materialRef.current.uniforms.tDiffuse.value = videoTexture;
+      // Update buffer from the video element when ready
+      if (videoTexture) {
+        const videoEl: any = (videoTexture as any).image;
+        const canvas = offscreenCanvasRef.current;
+        if (videoEl && canvas) {
+          const ready = typeof videoEl.readyState === 'number' ? videoEl.readyState >= 2 : true;
+          if (ready && videoEl.videoWidth && videoEl.videoHeight) {
+            if (canvas.width !== videoEl.videoWidth || canvas.height !== videoEl.videoHeight) {
+              canvas.width = videoEl.videoWidth;
+              canvas.height = videoEl.videoHeight;
+            }
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              try {
+                ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+                bufferTexture.needsUpdate = true;
+                // Make material opaque after first valid frame to avoid background bleed
+                if (materialRef.current.transparent) {
+                  materialRef.current.transparent = false;
+                }
+              } catch {}
+            }
+          }
+        }
+        // Ensure shader samples from our buffer
+        if (materialRef.current.uniforms.tDiffuse.value !== bufferTexture) {
+          materialRef.current.uniforms.tDiffuse.value = bufferTexture;
+        }
       }
     }
   });

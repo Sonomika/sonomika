@@ -14,17 +14,28 @@ interface ColumnPreviewProps {
   globalEffects?: any[];
 }
 
+// Cache last frame canvases per asset to avoid flashes across mounts
+const lastFrameCanvasCache: Map<string, HTMLCanvasElement> = new Map();
+
 // Video texture component for R3F
 const VideoTexture: React.FC<{ 
   video: HTMLVideoElement; 
   opacity: number; 
-  blendMode: string;
   effects?: any;
   compositionWidth?: number;
   compositionHeight?: number;
-}> = ({ video, opacity, blendMode, effects, compositionWidth, compositionHeight }) => {
+  cacheKey?: string;
+}> = ({ video, opacity, effects, compositionWidth, compositionHeight, cacheKey }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [fallbackTexture, setFallbackTexture] = useState<THREE.CanvasTexture | null>(null);
+  const liveMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const fallbackMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const liveAlphaRef = useRef(1);
+  const fallbackReadyRef = useRef(false);
+  const lastTimeRef = useRef(0);
+  const loopGuardUntilRef = useRef(0);
   
   // Use composition settings for aspect ratio instead of video's natural ratio
   const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
@@ -58,14 +69,160 @@ const VideoTexture: React.FC<{
     }
   }, [video]);
 
+  // Initialize and keep an updated canvas-based fallback texture with the last good frame
+  useEffect(() => {
+    if (!video) return;
+    const onTimeUpdate = () => {
+      const current = video.currentTime || 0;
+      const duration = video.duration || 0;
+      if (duration > 0) {
+        // Detect loop wrap-around (from end to start)
+        if (lastTimeRef.current > duration - 0.08 && current < 0.08) {
+          loopGuardUntilRef.current = performance.now() + 400; // hold fallback a bit longer across loop
+          liveAlphaRef.current = 0;
+        }
+        // Pre-capture last frame shortly before loop to avoid black
+        if (current > duration - 0.2) {
+          const canvas = offscreenCanvasRef.current;
+          if (canvas && fallbackTexture) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              try {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                fallbackTexture.needsUpdate = true;
+              } catch {}
+            }
+          }
+        }
+      }
+      lastTimeRef.current = current;
+    };
+    const armGuard = () => {
+      loopGuardUntilRef.current = performance.now() + 400;
+      liveAlphaRef.current = 0;
+    };
+    const ensureCanvasAndTexture = () => {
+      if (!offscreenCanvasRef.current) {
+        // Try to reuse from cache first
+        if (cacheKey && lastFrameCanvasCache.has(cacheKey)) {
+          offscreenCanvasRef.current = lastFrameCanvasCache.get(cacheKey)!;
+        } else {
+          offscreenCanvasRef.current = document.createElement('canvas');
+        }
+      }
+      const canvas = offscreenCanvasRef.current;
+      if (video.videoWidth && video.videoHeight) {
+        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
+        if (!fallbackTexture) {
+          const tex = new THREE.CanvasTexture(canvas);
+          tex.minFilter = THREE.LinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+          try {
+            (tex as any).colorSpace = (THREE as any).SRGBColorSpace || (tex as any).colorSpace;
+            if (!(tex as any).colorSpace && (THREE as any).sRGBEncoding) {
+              (tex as any).encoding = (THREE as any).sRGBEncoding;
+            }
+          } catch {}
+          setFallbackTexture(tex);
+        }
+        // Try to seed the fallback immediately from the current frame
+        try {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const draw = () => {
+              try {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                if (fallbackTexture) fallbackTexture.needsUpdate = true;
+                if (cacheKey) lastFrameCanvasCache.set(cacheKey, canvas);
+              } catch {}
+            };
+            // Prefer requestVideoFrameCallback if available for accurate timing
+            const anyVideo: any = video as any;
+            if (typeof anyVideo.requestVideoFrameCallback === 'function') {
+              anyVideo.requestVideoFrameCallback(() => draw());
+            } else {
+              // Fallback to RAF to give video element a tick
+              requestAnimationFrame(draw);
+            }
+          }
+        } catch {}
+      }
+    };
+    ensureCanvasAndTexture();
+    const onLoadedData = () => ensureCanvasAndTexture();
+    video.addEventListener('loadeddata', onLoadedData);
+    video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('seeking', armGuard);
+    video.addEventListener('waiting', armGuard);
+    video.addEventListener('stalled', armGuard);
+    video.addEventListener('suspend', armGuard);
+    video.addEventListener('ended', armGuard);
+    return () => {
+      video.removeEventListener('loadeddata', onLoadedData);
+      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('seeking', armGuard);
+      video.removeEventListener('waiting', armGuard);
+      video.removeEventListener('stalled', armGuard);
+      video.removeEventListener('suspend', armGuard);
+      video.removeEventListener('ended', armGuard);
+    };
+  }, [video, fallbackTexture, cacheKey]);
+
   useFrame(() => {
-    if (texture && video.readyState >= 2) {
+    const ready = !!(texture && video.readyState >= 2);
+    const canvas = offscreenCanvasRef.current;
+    const hasFallback = !!(fallbackTexture && canvas && canvas.width > 0 && canvas.height > 0);
+    const guardActive = performance.now() < loopGuardUntilRef.current;
+
+    let liveAlpha = 1;
+    let fallbackAlpha = 0;
+
+    if (guardActive || !ready) {
+      // Show cached frame only (no fade)
+      liveAlpha = 0;
+      fallbackAlpha = hasFallback ? 1 : 0;
+    }
+
+    if (liveMaterialRef.current) {
+      liveMaterialRef.current.opacity = opacity * liveAlpha;
+      liveMaterialRef.current.transparent = true;
+    }
+    if (fallbackMaterialRef.current) {
+      fallbackMaterialRef.current.opacity = opacity * fallbackAlpha;
+      fallbackMaterialRef.current.transparent = true;
+    }
+
+    if (texture && ready) {
       texture.needsUpdate = true;
+      // Update fallback with the latest frame
+      if (canvas && fallbackTexture) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          try {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            fallbackTexture.needsUpdate = true;
+            fallbackReadyRef.current = true;
+            if (cacheKey) {
+              lastFrameCanvasCache.set(cacheKey, canvas);
+            }
+          } catch {}
+        }
+      }
     }
   });
 
-  if (!texture || video.readyState < 2) {
-    // Render a transparent placeholder instead of null to prevent black flash
+  // Compute geometry scale for both live and fallback
+  const compositionAspectRatio = aspectRatio;
+  const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
+  const scaleY = Math.max(videoAspectRatio / compositionAspectRatio, 1);
+  const finalScaleX = compositionAspectRatio * 2 * scaleX;
+  const finalScaleY = 2 * scaleY;
+
+  if (!texture && !fallbackTexture) {
+    // Nothing to render yet
     return (
       <mesh>
         <planeGeometry args={[aspectRatio * 2, 2]} />
@@ -81,7 +238,7 @@ const VideoTexture: React.FC<{
     // Use EffectLoader for any effects
     return (
       <EffectLoader 
-        videoTexture={texture}
+        videoTexture={texture ?? undefined}
         fallback={
           <mesh>
             <planeGeometry args={[aspectRatio * 2, 2]} />
@@ -93,65 +250,30 @@ const VideoTexture: React.FC<{
   }
 
   // For square preview (1080x1080), use square geometry and scale video to cover
-  const compositionAspectRatio = aspectRatio;
-  const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
-  const scaleY = Math.max(videoAspectRatio / compositionAspectRatio, 1);
-  const finalScaleX = compositionAspectRatio * 2 * scaleX;
-  const finalScaleY = 2 * scaleY;
-  
   return (
-    <mesh ref={meshRef}>
-      <planeGeometry args={[finalScaleX, finalScaleY]} />
-      <meshBasicMaterial 
-        map={texture} 
-        transparent={false}
-        opacity={opacity}
-        blending={THREE.NormalBlending}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  );
-};
-
-// Image texture component for R3F
-const ImageTexture: React.FC<{ 
-  image: HTMLImageElement; 
-  opacity: number; 
-  blendMode: string;
-}> = ({ image, opacity, blendMode }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [texture, setTexture] = useState<THREE.Texture | null>(null);
-  const [aspectRatio, setAspectRatio] = useState(16/9); // Default 16:9
-
-  useEffect(() => {
-    if (image) {
-      const imageTexture = new THREE.Texture(image);
-      imageTexture.minFilter = THREE.LinearFilter;
-      imageTexture.magFilter = THREE.LinearFilter;
-      setTexture(imageTexture);
-      
-      // Calculate aspect ratio
-      if (image.naturalWidth && image.naturalHeight) {
-        const ratio = image.naturalWidth / image.naturalHeight;
-        console.log('Image aspect ratio:', ratio, 'Dimensions:', image.naturalWidth, 'x', image.naturalHeight);
-        setAspectRatio(ratio);
-      }
-    }
-  }, [image]);
-
-  if (!texture) return null;
-
-  return (
-    <mesh ref={meshRef}>
-      <planeGeometry args={[aspectRatio * 2, 2]} />
-      <meshBasicMaterial 
-        map={texture} 
-        transparent 
-        opacity={opacity}
-        blending={getBlendMode(blendMode)}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
+    <group>
+      {/* Render fallback first so it sits behind */}
+      {fallbackTexture && (
+        <mesh>
+          <planeGeometry args={[finalScaleX, finalScaleY]} />
+          <meshBasicMaterial ref={fallbackMaterialRef} map={fallbackTexture} transparent opacity={opacity} side={THREE.DoubleSide} />
+        </mesh>
+      )}
+      {/* Render live video on top; if not ready, we'll keep it transparent while fallback shows */}
+      {texture && (
+        <mesh ref={meshRef}>
+          <planeGeometry args={[finalScaleX, finalScaleY]} />
+          <meshBasicMaterial 
+            ref={liveMaterialRef}
+            map={texture} 
+            transparent
+            opacity={1}
+            blending={THREE.NormalBlending}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+    </group>
   );
 };
 
@@ -160,13 +282,14 @@ const ImageTexture: React.FC<{
 
 const EffectLayer: React.FC<{ 
   layer: any; 
-  frameCount: number;
-}> = ({ layer, frameCount }) => {
+  isGlobal?: boolean;
+}> = ({ layer, isGlobal = false }) => {
   const effectId = layer.asset?.id || layer.asset?.name;
   
   console.log('🔍 EffectLayer - layer asset:', layer.asset);
   console.log('🔍 EffectLayer - effectId:', effectId);
   console.log('🔍 EffectLayer - layer params:', layer.params);
+  console.log('🔍 EffectLayer - isGlobal:', isGlobal);
   
   const EffectComponent = useEffectComponent(effectId);
 
@@ -178,7 +301,8 @@ const EffectLayer: React.FC<{
   console.log('✅ EffectLayer - EffectComponent found, rendering with props:', {
     ...layer.params,
     opacity: layer.opacity,
-    blendMode: layer.blendMode
+    blendMode: layer.blendMode,
+    isGlobal
   });
 
   // Convert parameter objects to direct values for the effect component
@@ -198,6 +322,7 @@ const EffectLayer: React.FC<{
       {...effectProps}
       opacity={layer.opacity}
       blendMode={layer.blendMode}
+      isGlobal={isGlobal}
     />
   );
 };
@@ -207,12 +332,11 @@ const ColumnScene: React.FC<{
   column: any;
   isPlaying: boolean;
   frameCount: number;
-  bpm: number;
   globalEffects?: any[];
   compositionWidth?: number;
   compositionHeight?: number;
-}> = ({ column, isPlaying, frameCount, bpm, globalEffects = [], compositionWidth, compositionHeight }) => {
-  const { camera } = useThree();
+}> = ({ column, isPlaying, frameCount, globalEffects = [], compositionWidth, compositionHeight }) => {
+  const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
     videos: Map<string, HTMLVideoElement>;
@@ -316,11 +440,11 @@ const ColumnScene: React.FC<{
               console.log('✅ Using cached video for asset:', asset.name);
               newVideos.set(asset.id, video);
             } else {
-              console.log('Loading new video with path:', getAssetPath(asset), 'for asset:', asset.name);
+              console.log('Loading new video with path:', getAssetPath(asset, true), 'for asset:', asset.name);
               video = document.createElement('video');
               
               // Ensure we have a valid path before loading
-              let assetPath = getAssetPath(asset);
+              let assetPath = getAssetPath(asset, true); // Use file path for video playback
               if (!assetPath || (assetPath.startsWith('blob:') && !assetPath.includes('localhost')) || 
                   (assetPath.startsWith('blob:') && assetPath.includes('localhost') && assetPath.includes('5173'))) {
                 // Try to restore from base64 if available
@@ -421,33 +545,61 @@ const ColumnScene: React.FC<{
     });
   }, [column.layers]);
 
+  // (Removed conditional background logic; canvas kept transparent)
+
   // Helper function to get proper file path for Electron
-  const getAssetPath = (asset: any) => {
+  const getAssetPath = (asset: any, useForPlayback: boolean = false) => {
     if (!asset) return '';
-    console.log('getAssetPath called with asset:', asset);
+    console.log('getAssetPath called with asset:', asset, 'useForPlayback:', useForPlayback);
+    
+    // For video playback, prioritize file paths over blob URLs
+    if (useForPlayback && asset.type === 'video') {
+      if (asset.filePath) {
+        const filePath = `file://${asset.filePath}`;
+        console.log('Using file path for video playback:', filePath);
+        return filePath;
+      }
+      if (asset.path && asset.path.startsWith('file://')) {
+        console.log('Using existing file URL for video playback:', asset.path);
+        return asset.path;
+      }
+      if (asset.path && asset.path.startsWith('local-file://')) {
+        const filePath = asset.path.replace('local-file://', '');
+        const standardPath = `file://${filePath}`;
+        console.log('Converting local-file to file for video playback:', standardPath);
+        return standardPath;
+      }
+    }
+    
+    // For thumbnails and other uses, prioritize blob URLs
     if (asset.path && asset.path.startsWith('blob:')) {
       console.log('Using blob URL:', asset.path);
       return asset.path;
     }
+    
     if (asset.filePath) {
       const filePath = `file://${asset.filePath}`;
       console.log('Using file protocol:', filePath);
       return filePath;
     }
+    
     if (asset.path && asset.path.startsWith('file://')) {
       console.log('Using existing file URL:', asset.path);
       return asset.path;
     }
+    
     if (asset.path && asset.path.startsWith('local-file://')) {
       const filePath = asset.path.replace('local-file://', '');
       const standardPath = `file://${filePath}`;
       console.log('Converting local-file to file:', standardPath);
       return standardPath;
     }
+    
     if (asset.path && asset.path.startsWith('data:')) {
       console.log('Using data URL:', asset.path);
       return asset.path;
     }
+    
     console.log('Using fallback path:', asset.path);
     return asset.path || '';
   };
@@ -520,26 +672,18 @@ const ColumnScene: React.FC<{
       <EffectLayer 
         key={effectKey}
         layer={mockLayer}
-        frameCount={frameCount}
+        isGlobal={isGlobal}
       />
     );
   };
 
   return (
     <>
-      {/* Background - always use composition background color so sources reveal it */}
+      {/* Keep canvas fully transparent; placeholder sits behind persistently */}
       {(() => {
-        try {
-          const { compositionSettings } = useStore.getState();
-          const hexStr = compositionSettings.backgroundColor || '#000000';
-          const color = new THREE.Color(hexStr);
-          if ((color as any).convertSRGBToLinear) {
-            (color as any).convertSRGBToLinear();
-          }
-          return <color attach="background" args={[color.r, color.g, color.b]} />;
-        } catch {
-          return <color attach="background" args={[0, 0, 0]} />;
-        }
+        try { gl.setClearAlpha(0); } catch {}
+        try { (scene as any).background = null; } catch {}
+        return null;
       })()}
       
 
@@ -650,12 +794,11 @@ const ColumnScene: React.FC<{
           }
         }, [videoTextures, isPlaying]);
 
-        videoLayers.forEach((videoLayer, index) => {
-          const isBottomVideo = index === videoLayers.length - 1;
+        videoLayers.forEach((videoLayer) => {
           const video = assets.videos.get(videoLayer.asset.id);
           if (!video) return;
 
-          const key = `video-${videoLayer.id}-${index}`;
+          const key = `video-${videoLayer.id}`;
 
           // Check if there are any effect layers that should be applied to this video
           const effectLayersForVideo = effectLayers.filter(effectLayer => {
@@ -694,15 +837,10 @@ const ColumnScene: React.FC<{
             // Use filename directly - no conversion needed
             console.log('🎨 Using effect ID for video:', effectId);
             
-            // Calculate proper aspect ratio for video (memoized)
-            const videoAspectRatio = video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 16/9;
-            const compositionAspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
+            // Calculate proper aspect ratio for video (handled in VideoTexture)
             
             // Scale video to fit composition while maintaining aspect ratio
-            const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
-            const scaleY = Math.max(videoAspectRatio / compositionAspectRatio, 1);
-            const finalScaleX = compositionAspectRatio * 2 * scaleX;
-            const finalScaleY = 2 * scaleY;
+            // (computed in VideoTexture instead)
             
             // Get video texture from the map
             const videoTexture = videoTextures.get(videoLayer.asset.id);
@@ -734,35 +872,38 @@ const ColumnScene: React.FC<{
             };
 
             if (replacesVideo) {
-              // Only render the effect, skip the base video
-              console.log('🎬 Effect replaces video, skipping base video render');
+              // Render a fading fallback/live video underneath the replacing effect to avoid flashes
               renderedElements.push(
-                <EffectLayer 
-                  key={effectKey}
-                  layer={mockEffectLayer}
-                  frameCount={frameCount}
-                />
-              );
-            } else {
-              // Render both the base video and the effect on top
-              renderedElements.push(
-                <React.Fragment key={`${key}-container`}>
-                  {/* Render the base video first */}
-                   <mesh key={`${key}-video`}>
-                    <planeGeometry args={[finalScaleX, finalScaleY]} />
-                    <meshBasicMaterial 
-                      map={videoTexture}
-                       transparent={false}
-                       opacity={videoLayer.opacity || 1}
-                       blending={THREE.NormalBlending}
-                    />
-                  </mesh>
-                  
-                  {/* Render the effect on top */}
+                <React.Fragment key={`${key}-replaced`}>
+                  <VideoTexture
+                    video={video}
+                    opacity={videoLayer.opacity || 1}
+                    effects={undefined}
+                    compositionWidth={compositionWidth}
+                    compositionHeight={compositionHeight}
+                    cacheKey={videoLayer.asset?.id || String(key)}
+                  />
                   <EffectLayer 
                     key={effectKey}
                     layer={mockEffectLayer}
-                    frameCount={frameCount}
+                  />
+                </React.Fragment>
+              );
+            } else {
+              // Render both the base video (with fading fallback) and the effect on top
+              renderedElements.push(
+                <React.Fragment key={`${key}-container`}>
+                  <VideoTexture
+                    video={video}
+                    opacity={videoLayer.opacity || 1}
+                    effects={undefined}
+                    compositionWidth={compositionWidth}
+                    compositionHeight={compositionHeight}
+                    cacheKey={videoLayer.asset?.id || String(key)}
+                  />
+                  <EffectLayer 
+                    key={effectKey}
+                    layer={mockEffectLayer}
                   />
                 </React.Fragment>
               );
@@ -774,17 +915,17 @@ const ColumnScene: React.FC<{
                 key={key}
                 video={video}
                 opacity={videoLayer.opacity || 1}
-                blendMode={'normal'}
                 effects={videoLayer.effects}
                 compositionWidth={compositionWidth}
                 compositionHeight={compositionHeight}
+                cacheKey={videoLayer.asset?.id || String(key)}
               />
             );
           }
         });
 
         // Then, render standalone effects using unified system
-        effectLayers.forEach((effectLayer, index) => {
+        effectLayers.forEach((effectLayer) => {
           const effectAsset = effectLayer.asset;
           if (!effectAsset) return;
 
@@ -866,21 +1007,8 @@ const ColumnScene: React.FC<{
   );
 };
 
-// Helper function to convert blend modes
-const getBlendMode = (blendMode: string): THREE.Blending => {
-  switch (blendMode) {
-    case 'add':
-      return THREE.AdditiveBlending;
-    case 'multiply':
-      return THREE.MultiplyBlending;
-    case 'screen':
-      return THREE.CustomBlending;
-    case 'overlay':
-      return THREE.CustomBlending;
-    default:
-      return THREE.AdditiveBlending;
-  }
-};
+// Note: kept for compatibility in case of future use (no-op here)
+const getBlendMode = (_blendMode: string): THREE.Blending => THREE.AdditiveBlending;
 
 export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({ 
   column, 
@@ -959,7 +1087,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
         <div style={{ 
           width: '100%', 
           height: '100%', 
-          backgroundColor: 'transparent', 
+          background: 'transparent',
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
@@ -991,6 +1119,16 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               R3F
             </div>
             
+            {/* Persistent last-frame placeholder layer */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: '#111',
+              overflow: 'hidden'
+            }}>
+              {/* This element is visually behind the canvas; video frames render on top */}
+            </div>
+
             <Canvas
               camera={{ position: [0, 0, 1], fov: 90 }}
               style={{ 
@@ -1123,15 +1261,14 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 setError(`Canvas Error: ${error instanceof Error ? error.message : String(error)}`);
               }}
             >
-                      <ColumnScene 
-          column={column} 
-          isPlaying={isPlaying} 
-          frameCount={frameCount} 
-          bpm={bpm}
-          globalEffects={globalEffects}
-          compositionWidth={width}
-          compositionHeight={height}
-        />
+              <ColumnScene 
+                column={column} 
+                isPlaying={isPlaying} 
+                frameCount={frameCount} 
+                globalEffects={globalEffects}
+                compositionWidth={width}
+                compositionHeight={height}
+              />
             </Canvas>
           </div>
         </div>

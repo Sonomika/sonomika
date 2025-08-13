@@ -1,24 +1,46 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { registerEffect } from '../../utils/effectRegistry';
 
 interface PixelateEffectProps {
   pixelSize?: number;
   intensity?: number;
   videoTexture?: THREE.VideoTexture;
+  isGlobal?: boolean; // New prop to indicate if this is a global effect
 }
 
 export const PixelateEffect: React.FC<PixelateEffectProps> = ({ 
   pixelSize = 0.02, 
   intensity = 1.0,
-  videoTexture 
+  videoTexture,
+  isGlobal = false // Default to false
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const { gl, scene, camera } = useThree(); // Destructure gl, scene, camera
+
+  console.log('🎨 PixelateEffect component rendered with props:', { pixelSize, intensity, isGlobal });
+
+  // For global effects, we need to capture the current render target
+  const renderTarget = useMemo(() => {
+    if (isGlobal) {
+      const rt = new THREE.WebGLRenderTarget(1920, 1080, {
+        format: THREE.RGBAFormat,
+        type: THREE.UnsignedByteType,
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter
+      });
+      return rt;
+    }
+    return null;
+  }, [isGlobal]);
 
   // Create shader material
   const shaderMaterial = useMemo(() => {
+    // For global effects, we'll use a fallback texture initially
+    const inputTexture = videoTexture || new THREE.Color(0, 0, 0); // Fallback for global
+
     const vertexShader = `
       precision mediump float;
       precision mediump int;
@@ -58,7 +80,7 @@ export const PixelateEffect: React.FC<PixelateEffectProps> = ({
       vertexShader,
       fragmentShader,
       uniforms: {
-        tDiffuse: { value: videoTexture || new THREE.Texture() },
+        tDiffuse: { value: inputTexture }, // Initial value
         uPixelSize: { value: pixelSize },
         uIntensity: { value: intensity },
         uResolution: { value: new THREE.Vector2(1920, 1080) }
@@ -67,11 +89,11 @@ export const PixelateEffect: React.FC<PixelateEffectProps> = ({
     });
 
     return mat;
-  }, []);
+  }, [videoTexture, pixelSize, intensity, isGlobal]); // Added isGlobal
 
   // Calculate aspect ratio from video texture if available
   const aspectRatio = useMemo(() => {
-    if (videoTexture && (videoTexture as any).image) {
+    if (videoTexture && (videoTexture as any).image && !isGlobal) { // Added !isGlobal
       try {
         const { width, height } = (videoTexture as any).image;
         if (width && height && width > 0 && height > 0) {
@@ -82,7 +104,7 @@ export const PixelateEffect: React.FC<PixelateEffectProps> = ({
       }
     }
     return 16/9; // Default aspect ratio
-  }, [videoTexture]);
+  }, [videoTexture, isGlobal]); // Added isGlobal
 
   // Update uniforms when props change
   useEffect(() => {
@@ -94,6 +116,20 @@ export const PixelateEffect: React.FC<PixelateEffectProps> = ({
 
   // Animation loop
   useFrame((state) => {
+    // For global effects, capture the current scene and apply pixelation effect
+    if (isGlobal && renderTarget && shaderMaterial) {
+      // Capture current scene to render target
+      const currentRenderTarget = gl.getRenderTarget();
+      gl.setRenderTarget(renderTarget);
+      gl.render(scene, camera);
+      gl.setRenderTarget(currentRenderTarget);
+
+      // Update the input buffer to use the captured scene
+      if (materialRef.current) {
+        materialRef.current.uniforms.tDiffuse.value = renderTarget.texture;
+      }
+    }
+
     if (materialRef.current) {
       // Update resolution
       materialRef.current.uniforms.uResolution.value.set(
@@ -101,8 +137,8 @@ export const PixelateEffect: React.FC<PixelateEffectProps> = ({
         state.gl.domElement.height
       );
       
-      // Update video texture if available
-      if (videoTexture && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
+      // Update video texture if available (for layer effects)
+      if (videoTexture && !isGlobal && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
         materialRef.current.uniforms.tDiffuse.value = videoTexture;
       }
       
@@ -111,6 +147,16 @@ export const PixelateEffect: React.FC<PixelateEffectProps> = ({
       materialRef.current.uniforms.uIntensity.value = intensity;
     }
   });
+
+  // Don't render if missing dependencies
+  if (!shaderMaterial) {
+    console.log('🚫 Missing dependencies for PixelateEffect:', {
+      videoTexture: !!videoTexture,
+      shaderMaterial: !!shaderMaterial,
+      isGlobal
+    });
+    return null;
+  }
 
   return (
     <mesh ref={meshRef} position={[0, 0, 0.1]}>
@@ -123,9 +169,10 @@ export const PixelateEffect: React.FC<PixelateEffectProps> = ({
 // Metadata for the effect
 PixelateEffect.metadata = {
   name: 'Pixelate Effect',
-  description: 'Applies a pixelation filter to video content',
+  description: 'Applies a pixelation filter to video content - works as both layer and global effect',
   category: 'Distortion',
   replacesVideo: true, // This effect replaces the video texture
+  canBeGlobal: true, // NEW: This effect can be used as a global effect
   parameters: [
     {
       name: 'pixelSize',

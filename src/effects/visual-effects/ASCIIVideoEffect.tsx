@@ -1,6 +1,6 @@
 // src/effects/ASCIIVideoEffect.tsx
 import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
 
@@ -12,6 +12,7 @@ interface ASCIIVideoEffectProps {
   color?: string;
   invert?: boolean;
   opacity?: number;
+  isGlobal?: boolean; // New prop to indicate if this is a global effect
 }
 
 export const ASCIIVideoEffect: React.FC<ASCIIVideoEffectProps> = ({
@@ -20,12 +21,14 @@ export const ASCIIVideoEffect: React.FC<ASCIIVideoEffectProps> = ({
   fontSize = 54,
   cellSize = 28,
   color = '#ffffff',
-  invert = false
+  invert = false,
+  isGlobal = false
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const { gl, scene, camera } = useThree();
 
-  console.log('📺 ASCIIVideoEffect rendering with videoTexture:', !!videoTexture);
+  console.log('📺 ASCIIVideoEffect rendering with videoTexture:', !!videoTexture, 'isGlobal:', isGlobal);
 
   /** Draws the characters on a Canvas and returns a texture - EXACT CODE FROM REFERENCE */
   const createCharactersTexture = (characters: string, fontSize: number): THREE.Texture => {
@@ -74,6 +77,20 @@ export const ASCIIVideoEffect: React.FC<ASCIIVideoEffectProps> = ({
   const asciiTexture = useMemo(() => {
     return createCharactersTexture(characters, fontSize);
   }, [characters, fontSize]);
+
+  // For global effects, we need to capture the current render target
+  const renderTarget = useMemo(() => {
+    if (isGlobal) {
+      const rt = new THREE.WebGLRenderTarget(1920, 1080, {
+        format: THREE.RGBAFormat,
+        type: THREE.UnsignedByteType,
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter
+      });
+      return rt;
+    }
+    return null;
+  }, [isGlobal]);
 
   // Adapt the EXACT fragment shader from reference for our use
   const adaptedFragment = `
@@ -124,11 +141,14 @@ void main() {
 
   // Create shader material using exact reference code logic
   const shaderMaterial = useMemo(() => {
-    if (!videoTexture || !asciiTexture) return null;
+    if (!asciiTexture) return null;
+
+    // For global effects, we'll use a fallback texture initially
+    const inputTexture = videoTexture || new THREE.Color(0, 0, 0);
 
     return new THREE.ShaderMaterial({
       uniforms: {
-        inputBuffer: { value: videoTexture },
+        inputBuffer: { value: inputTexture },
         uCharacters: { value: asciiTexture },
         uCellSize: { value: cellSize },
         uCharactersCount: { value: characters.length },
@@ -152,16 +172,30 @@ void main() {
     });
   }, [videoTexture, asciiTexture, cellSize, characters.length, color, invert]);
 
-  // Update uniforms on each frame
+  // For global effects, capture the current scene and apply ASCII effect
   useFrame(() => {
+    if (isGlobal && renderTarget && shaderMaterial) {
+      // Capture current scene to render target
+      const currentRenderTarget = gl.getRenderTarget();
+      gl.setRenderTarget(renderTarget);
+      gl.render(scene, camera);
+      gl.setRenderTarget(currentRenderTarget);
+
+      // Update the input buffer to use the captured scene
+      if (materialRef.current) {
+        materialRef.current.uniforms.inputBuffer.value = renderTarget.texture;
+      }
+    }
+
+    // Update uniforms on each frame
     if (materialRef.current && shaderMaterial) {
       materialRef.current.uniforms.uCellSize.value = cellSize;
       materialRef.current.uniforms.uCharactersCount.value = characters.length;
       materialRef.current.uniforms.uColor.value.set(color);
       materialRef.current.uniforms.uInvert.value = invert;
       
-      // Update video texture if available
-      if (videoTexture && materialRef.current.uniforms.inputBuffer.value !== videoTexture) {
+      // Update video texture if available (for layer effects)
+      if (videoTexture && !isGlobal && materialRef.current.uniforms.inputBuffer.value !== videoTexture) {
         materialRef.current.uniforms.inputBuffer.value = videoTexture;
       }
       
@@ -174,7 +208,7 @@ void main() {
 
   // Calculate aspect ratio from video texture if available
   const aspectRatio = useMemo(() => {
-    if (videoTexture && videoTexture.image) {
+    if (videoTexture && videoTexture.image && !isGlobal) {
       try {
         const { width, height } = videoTexture.image;
         if (width && height && width > 0 && height > 0) {
@@ -185,14 +219,15 @@ void main() {
       }
     }
     return 16/9; // Default aspect ratio
-  }, [videoTexture]);
+  }, [videoTexture, isGlobal]);
 
   // Don't render if missing dependencies
-  if (!videoTexture || !shaderMaterial || !asciiTexture) {
+  if (!shaderMaterial || !asciiTexture) {
     console.log('🚫 Missing dependencies for ASCIIVideoEffect:', {
       videoTexture: !!videoTexture,
       shaderMaterial: !!shaderMaterial,
-      asciiTexture: !!asciiTexture
+      asciiTexture: !!asciiTexture,
+      isGlobal
     });
     return null;
   }
@@ -212,12 +247,13 @@ void main() {
 // Register the effect with metadata - EXACT defaults from reference
 (ASCIIVideoEffect as any).metadata = {
   name: 'ASCII Video',
-  description: 'Converts video texture to ASCII characters using GPU fragment shader - exact reference implementation',
+  description: 'Converts video texture to ASCII characters using GPU fragment shader - works as both layer and global effect',
   category: 'Video Effects',
   icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture
+  canBeGlobal: true, // NEW: This effect can be used as a global effect
   parameters: [
     { name: 'characters', type: 'string', value: ` .:,'-^=*+?!|0#X%WM@` },
     { name: 'fontSize', type: 'number', value: 54, min: 8, max: 100, step: 1 },

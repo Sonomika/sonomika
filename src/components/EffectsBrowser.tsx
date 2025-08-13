@@ -280,7 +280,12 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
                 title={`${effect.name}: ${effect.description}`}
               >
                 <div className="effect-info">
-                  <div className="effect-name">{effect.name}</div>
+                  <div className="effect-name">
+                    {effect.name}
+                    {effect.metadata?.canBeGlobal && (
+                      <span className="global-effect-indicator" title="Can be used as a global effect">🌐</span>
+                    )}
+                  </div>
                   <div className="effect-description">{effect.description}</div>
                 </div>
                 <div className="effect-tag">{effect.category}</div>
@@ -301,7 +306,12 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
                 title={`${effect.name}: ${effect.description}`}
               >
                 <div className="effect-info">
-                  <div className="effect-name">{effect.name}</div>
+                  <div className="effect-name">
+                    {effect.name}
+                    {effect.metadata?.canBeGlobal && (
+                      <span className="global-effect-indicator" title="Can be used as a global effect">🌐</span>
+                    )}
+                  </div>
                   <div className="effect-description">{effect.description}</div>
                 </div>
                 <div className="effect-tag">{effect.category}</div>

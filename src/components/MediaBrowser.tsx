@@ -52,18 +52,71 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
   const allowedVideo = new Set(['.mp4', '.mov', '.webm', '.m4v', '.avi', '.mkv']);
   const InlineThumb: React.FC<{ path: string }> = ({ path }) => {
     const [thumb, setThumb] = React.useState<string>('');
+    const [isVisible, setIsVisible] = React.useState(false);
+    const [isGenerating, setIsGenerating] = React.useState(false);
+    const thumbRef = React.useRef<HTMLDivElement>(null);
     const normalized = path.startsWith('local-file://') ? path : path;
-    useEffect(() => {
-      let mounted = true;
-      generateVideoThumbnail(normalized, { width: 80, height: 45, captureTimeSec: 0.1 })
-        .then((d) => { if (mounted) setThumb(d); })
-        .catch(() => { if (mounted) setThumb(''); });
-      return () => { mounted = false; };
-    }, [normalized]);
+    
+    // Intersection Observer to only generate thumbnails for visible items
+    React.useEffect(() => {
+      if (!thumbRef.current) return;
+      
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              setIsVisible(true);
+              observer.disconnect(); // Only trigger once
+            }
+          });
+        },
+        {
+          rootMargin: '200px', // Start loading before item becomes visible
+          threshold: 0.1
+        }
+      );
+      
+      observer.observe(thumbRef.current);
+      return () => observer.disconnect();
+    }, []);
+    
+    // Generate thumbnail only when visible
+    React.useEffect(() => {
+      if (!isVisible || thumb || isGenerating) return;
+      
+      setIsGenerating(true);
+      generateVideoThumbnail(normalized, { width: 80, height: 45, captureTimeSec: 0.1 }, 0) // Lower priority for browser
+        .then((d) => { 
+          setThumb(d); 
+        })
+        .catch(() => { 
+          setThumb(''); 
+        })
+        .finally(() => {
+          setIsGenerating(false);
+        });
+    }, [isVisible, normalized, thumb, isGenerating]);
+    
     return thumb ? (
       <img src={thumb} alt="thumb" style={{ width: 80, height: 45, objectFit: 'cover', borderRadius: 2 }} />
     ) : (
-      <div style={{ width: 80, height: 45, background: '#111', border: '1px solid #222' }} />
+      <div 
+        ref={thumbRef}
+        style={{ 
+          width: 80, 
+          height: 45, 
+          background: '#111', 
+          border: '1px solid #222',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '8px',
+          color: '#666'
+        }}
+        title={isGenerating ? 'Generating thumbnail...' : 'Waiting to generate...'}
+      >
+        {isGenerating ? 'GEN...' : 'WAIT...'}
+      </div>
     );
   };
   const allowedImage = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']);

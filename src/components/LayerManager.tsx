@@ -3,14 +3,14 @@ import { useStore } from '../store/store';
 import { LayerOptions } from './LayerOptions';
 import { CanvasRenderer } from './CanvasRenderer';
 import { ColumnPreview } from './ColumnPreview';
-import { MediaBrowser } from './MediaBrowser';
+// import { MediaBrowser } from './MediaBrowser';
 import { MediaLibrary } from './MediaLibrary';
 import { Timeline } from './Timeline';
 import TimelineComposer from './TimelineComposer';
 import { BPMManager } from '../engine/BPMManager';
 import { v4 as uuidv4 } from 'uuid';
 import { getAssetPath, createColumn, getDefaultEffectParams, handleDragOver, handleDragLeave, handleLayerClick, handleStop } from '../utils/LayerManagerUtils';
-import { handleDrop, handleLayerDragStart, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
+import { handleDrop, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
 import { handleColumnPlay, handleUpdateLayer } from '../utils/LayerManagementHandlers';
 import { createSceneContextMenu } from '../utils/SceneManagementHandlers';
 import { EffectsBrowser } from './EffectsBrowser';
@@ -42,7 +42,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
   
   const [selectedLayer, setSelectedLayer] = useState<any>(null);
-  const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
+  const [selectedGlobalEffectKey, setSelectedGlobalEffectKey] = useState<string | null>(null);
+  // Selected column is currently not used in UI state; pass no-op where needed
   const [paneSizes, setPaneSizes] = useState({
     gridHeight: 50, // percentage of viewport height - start at 50/50
     mediaLibraryHeight: 50 // percentage of viewport height
@@ -51,7 +52,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [, setRefreshTrigger] = useState(0);
 
   const [showTimeline, setShowTimeline] = useState(false);
   const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
@@ -104,7 +105,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
   console.log('Current scene:', currentScene);
 
   const handleLayerClickWrapper = (layer: any, columnId: string) => {
-    handleLayerClick(layer, columnId, setSelectedLayer, setSelectedColumn);
+    handleLayerClick(layer, columnId, setSelectedLayer, () => {});
   };
 
   // const handleColumnClickWrapper = (columnId: string) => {
@@ -139,6 +140,32 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
 
   const handleUpdateLayerWrapper = (layerId: string, updatedLayer: any) => {
     handleUpdateLayer(layerId, updatedLayer, currentScene, updateScene, setSelectedLayer, setRefreshTrigger);
+  };
+
+  // Unified updater: handles real layers and pseudo global-effect layers
+  const handleUpdateSelectedLayer = (layerId: string, options: any) => {
+    if (layerId.startsWith('global-effect-layer-')) {
+      if (!currentScene) return;
+      if (!selectedGlobalEffectKey) return;
+      const [indexStr] = selectedGlobalEffectKey.split(':');
+      const idx = parseInt(indexStr, 10);
+      if (isNaN(idx)) return;
+      const currentGlobalEffects = currentScene.globalEffects || [];
+      if (!currentGlobalEffects[idx]) return;
+      const updatedEffects = [...currentGlobalEffects];
+      const updatedSlot = { ...updatedEffects[idx] } as any;
+      if (options.params) {
+        updatedSlot.params = options.params;
+      }
+      // Future: support blend/opacity if needed for global context
+      updatedEffects[idx] = updatedSlot;
+      updateScene(currentSceneId, { globalEffects: updatedEffects });
+      // Keep the pseudo layer in sync for instant UI feedback
+      setSelectedLayer((prev: any) => (prev && prev.id === layerId ? { ...prev, ...options } : prev));
+      return;
+    }
+    // Fallback to regular layer update
+    handleUpdateLayerWrapper(layerId, options);
   };
 
   const handleResizeStart = (e: React.MouseEvent) => {
@@ -227,9 +254,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
     }
   };
 
-  const handleLayerDragStartWrapper = (e: React.DragEvent, layer: any, columnId: string) => {
-    handleLayerDragStart(e, layer, columnId);
-  };
+  // const handleLayerDragStartWrapper = (e: React.DragEvent, layer: any, columnId: string) => {
+  //   handleLayerDragStart(e, layer, columnId);
+  // };
 
 
 
@@ -418,7 +445,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             </div>
           <div className="preview-layers-info">
             <h5>Layers in Column:</h5>
-            {layersWithContent.map((layer: any, index: number) => (
+            {layersWithContent.map((layer: any) => (
               <div key={layer.id} className="preview-layer-item">
                 <div className="preview-layer-name">{layer.name}</div>
                 <div className="preview-layer-asset-type">{layer.asset.type}</div>
@@ -505,8 +532,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 
                 <div className="preview-layers-info">
                   <h5>Active Timeline Clips:</h5>
-                  {activeClips.map((clip: any, index: number) => (
-                    <div key={`info-${clip.id}-${index}`} className="preview-layer-item">
+            {activeClips.map((clip: any) => (
+              <div key={`info-${clip.id}`} className="preview-layer-item">
                       <div className="preview-layer-name">Track {clip.trackId.split('-')[1]}</div>
                       <div className="preview-layer-asset-type">{clip.name}</div>
                     </div>
@@ -762,37 +789,57 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                         if (effectSlot) {
                           // Render existing effect slot
                           return (
-                            <div key={effectSlot.id || `effect-${index}`} className={`global-effect-slot ${effectSlot.enabled ? 'active' : ''}`}>
-                              <div 
-                                className="effect-slot-content"
-                                onClick={() => {
-                                  // Toggle this effect on/off, disable all others
-                                  const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
-                                    ...slot,
-                                    enabled: i === index ? !slot.enabled : false
-                                  }));
-                                  updateScene(currentSceneId, { globalEffects: updatedEffects });
-                                }}
-                                style={{ cursor: 'pointer' }}
-                                title="Click to toggle effect on/off"
-                              >
-                               <span className="effect-name">
-                                 {effectSlot.name || effectSlot.effectId || 'Unknown Effect'}
-                               </span>
-                               {effectSlot.enabled && <div className="effect-active-indicator">●</div>}
-                             </div>
-                            <button 
-                              className="remove-effect-btn"
-                              onClick={() => {
+                            <div
+                              key={effectSlot.id || `effect-${index}`}
+                              className={`global-effect-slot ${effectSlot.enabled ? 'active' : ''}`}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
                                 const updatedEffects = currentScene.globalEffects.filter((_: any, i: number) => i !== index);
                                 updateScene(currentSceneId, { globalEffects: updatedEffects });
                               }}
-                              title="Remove effect"
+                              title="Right-click to remove"
                             >
-                              ×
-                            </button>
-                          </div>
-                        );
+                              <div 
+                                className="effect-slot-content"
+                                onClick={() => {
+                                  // Select this effect to edit in layer options panel
+                                  const pseudoLayer = {
+                                    id: `global-effect-layer-${effectSlot.id}-${index}`,
+                                    name: effectSlot.effectId || 'Global Effect',
+                                    type: 'effect',
+                                    asset: { id: effectSlot.effectId, name: effectSlot.effectId, type: 'effect', isEffect: true },
+                                    params: effectSlot.params || {},
+                                    blendMode: 'add',
+                                    opacity: 1.0,
+                                  };
+                                  setSelectedLayer(pseudoLayer);
+                                  setSelectedGlobalEffectKey(`${index}:${effectSlot.id}`);
+                                }}
+                                style={{ cursor: 'pointer' }}
+                                title="Click to edit effect parameters"
+                              >
+                                <button
+                                  className={`play-btn ${effectSlot.enabled ? 'stop' : 'play'}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
+                                      ...slot,
+                                      enabled: i === index ? !slot.enabled : false
+                                    }));
+                                    updateScene(currentSceneId, { globalEffects: updatedEffects });
+                                  }}
+                                  title={effectSlot.enabled ? 'Stop Global Effect' : 'Play Global Effect'}
+                                >
+                                  {effectSlot.enabled ? '⏹' : '▶'}
+                                </button>
+                                <span className="effect-name">
+                                  {effectSlot.name || effectSlot.effectId || 'Unknown Effect'}
+                                </span>
+                                {effectSlot.enabled && <div className="effect-active-indicator">●</div>}
+                              </div>
+                            </div>
+                          );
                       } else {
                         // Render empty slot
                         return (
@@ -952,7 +999,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                             )}
                             {layer.asset.type === 'video' && (
                               <video
-                                src={getAssetPath(layer.asset)}
+                                src={getAssetPath(layer.asset, true)} // Use file path for video playback
                                 className="layer-preview-video"
                                 muted
                                 onLoadStart={() => console.log('Layer video loading:', layer.asset.name)}
@@ -1054,7 +1101,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             <div className="layer-options-panel">
               <LayerOptions 
                 selectedLayer={selectedLayer}
-                onUpdateLayer={handleUpdateLayerWrapper}
+                onUpdateLayer={handleUpdateSelectedLayer}
               />
             </div>
 

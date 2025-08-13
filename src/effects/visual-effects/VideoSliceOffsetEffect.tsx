@@ -1,5 +1,5 @@
 import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
 
@@ -12,6 +12,7 @@ interface VideoSliceOffsetEffectProps {
   removeGaps?: boolean;
   videoTexture?: THREE.VideoTexture;
   bpm?: number;
+  isGlobal?: boolean; // New prop to indicate if this is a global effect
 }
 
 const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
@@ -22,13 +23,47 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
   sliceDirection = 'horizontal',
   removeGaps = true,
   videoTexture,
-  bpm = 120
+  bpm = 120,
+  isGlobal = false // Default to false
 }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const meshRef = useRef<THREE.Mesh>(null);
+  const { gl, scene, camera } = useThree(); // Destructure gl, scene, camera
+
+  console.log('🎨 VideoSliceOffsetEffect component rendered with props:', { 
+    sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection, removeGaps, bpm, isGlobal 
+  });
+
+  // For global effects, we need to capture the current render target
+  const renderTarget = useMemo(() => {
+    if (isGlobal) {
+      const rt = new THREE.WebGLRenderTarget(1920, 1080, {
+        format: THREE.RGBAFormat,
+        type: THREE.UnsignedByteType,
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter
+      });
+      return rt;
+    }
+    return null;
+  }, [isGlobal]);
+
+  // Canvas buffer to persist the last good frame (prevents black and background bleed)
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const bufferTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    offscreenCanvasRef.current = canvas;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    return tex;
+  }, []);
 
   // Create shader material
   const shaderMaterial = useMemo(() => {
+    // Always render from our persistent canvas buffer
+    const inputTexture: THREE.Texture = bufferTexture;
+
     const vertexShader = `
       varying vec2 vUv;
       
@@ -99,27 +134,27 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
       }
     `;
 
-         return new THREE.ShaderMaterial({
-       vertexShader,
-       fragmentShader,
-       uniforms: {
-         tDiffuse: { value: videoTexture || new THREE.Texture() },
-         time: { value: 0.0 },
-         sliceCount: { value: sliceCount },
-         offsetAmount: { value: offsetAmount },
-         sliceWidth: { value: sliceWidth },
-         animationSpeed: { value: animationSpeed },
-         sliceDirection: { value: 0 },
-         removeGaps: { value: removeGaps ? 1.0 : 0.0 },
-         bpm: { value: bpm }
-       },
-       transparent: false
-     });
-  }, [videoTexture, sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection, removeGaps, bpm]);
+    return new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        tDiffuse: { value: inputTexture }, // Initial value
+        time: { value: 0.0 },
+        sliceCount: { value: sliceCount },
+        offsetAmount: { value: offsetAmount },
+        sliceWidth: { value: sliceWidth },
+        animationSpeed: { value: animationSpeed },
+        sliceDirection: { value: 0 },
+        removeGaps: { value: removeGaps ? 1.0 : 0.0 },
+        bpm: { value: bpm }
+      },
+      transparent: true
+    });
+  }, [bufferTexture, sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection, removeGaps, bpm]);
 
   // Calculate aspect ratio from video texture if available
   const aspectRatio = useMemo(() => {
-    if (videoTexture && videoTexture.image) {
+    if (videoTexture && videoTexture.image && !isGlobal) { // Added !isGlobal
       try {
         const { width, height } = videoTexture.image;
         if (width && height && width > 0 && height > 0) {
@@ -130,10 +165,24 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
       }
     }
     return 16/9; // Default aspect ratio
-  }, [videoTexture]);
+  }, [videoTexture, isGlobal]); // Added isGlobal
 
   // Animation loop
   useFrame((state) => {
+    // For global effects, capture the current scene and apply slice offset effect
+    if (isGlobal && renderTarget && shaderMaterial) {
+      // Capture current scene to render target
+      const currentRenderTarget = gl.getRenderTarget();
+      gl.setRenderTarget(renderTarget);
+      gl.render(scene, camera);
+      gl.setRenderTarget(currentRenderTarget);
+
+      // Update the input buffer to use the captured scene
+      if (materialRef.current) {
+        materialRef.current.uniforms.tDiffuse.value = renderTarget.texture;
+      }
+    }
+
     if (materialRef.current) {
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
       materialRef.current.uniforms.bpm.value = bpm;
@@ -147,7 +196,8 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
           animationSpeed,
           sliceDirection,
           removeGaps,
-          bpm
+          bpm,
+          isGlobal
         });
         console.log('🔍 VideoSliceOffsetEffect - Current uniforms:', {
           sliceCount: materialRef.current.uniforms.sliceCount.value,
@@ -192,12 +242,47 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
         materialRef.current.uniforms.removeGaps.value = newRemoveGaps;
       }
       
-      // Update video texture if available
-      if (videoTexture && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
-        materialRef.current.uniforms.tDiffuse.value = videoTexture;
+      // Update buffer from video texture when ready (layer effects)
+      if (!isGlobal && videoTexture) {
+        const videoEl: any = (videoTexture as any).image;
+        const canvas = offscreenCanvasRef.current;
+        if (videoEl && canvas) {
+          const ready = typeof videoEl.readyState === 'number' ? videoEl.readyState >= 2 : true;
+          if (ready && videoEl.videoWidth && videoEl.videoHeight) {
+            if (canvas.width !== videoEl.videoWidth || canvas.height !== videoEl.videoHeight) {
+              canvas.width = videoEl.videoWidth;
+              canvas.height = videoEl.videoHeight;
+            }
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              try {
+                ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+                bufferTexture.needsUpdate = true;
+                // Once we have a frame, make material opaque to avoid background bleed
+                if (materialRef.current.transparent) {
+                  materialRef.current.transparent = false;
+                }
+              } catch {}
+            }
+          }
+        }
+        // Ensure shader samples from our buffer
+        if (materialRef.current.uniforms.tDiffuse.value !== bufferTexture) {
+          materialRef.current.uniforms.tDiffuse.value = bufferTexture;
+        }
       }
     }
   });
+
+  // Don't render if missing dependencies
+  if (!shaderMaterial) {
+    console.log('🚫 Missing dependencies for VideoSliceOffsetEffect:', {
+      videoTexture: !!videoTexture,
+      shaderMaterial: !!shaderMaterial,
+      isGlobal
+    });
+    return null;
+  }
 
   return (
     <mesh ref={meshRef} position={[0, 0, 0.1]}>
@@ -210,12 +295,13 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
 // Metadata for dynamic discovery
 (VideoSliceOffsetEffect as any).metadata = {
   name: 'Video Slice Offset Effect',
-  description: 'Slices video into strips and offsets them for glitch-like effects',
+  description: 'Slices video into strips and offsets them for glitch-like effects - works as both layer and global effect',
   category: 'Video',
   icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture
+  canBeGlobal: true, // NEW: This effect can be used as a global effect
   parameters: [
     {
       name: 'sliceCount',

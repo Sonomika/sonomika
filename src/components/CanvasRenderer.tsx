@@ -173,7 +173,7 @@ const CanvasScene: React.FC<{
         } else if (assetData.type === 'video') {
           try {
             const video = document.createElement('video');
-            video.src = getAssetPath(asset);
+            video.src = getAssetPath(asset, true); // Use file path for video playback
             video.muted = true;
             video.loop = true;
             video.autoplay = true;
@@ -270,32 +270,58 @@ const CanvasScene: React.FC<{
 };
 
 // Helper function to get proper file path for Electron
-  const getAssetPath = (asset: any) => {
+  const getAssetPath = (asset: any, useForPlayback: boolean = false) => {
     if (!asset) return '';
-    console.log('getAssetPath called with asset:', asset);
+    console.log('getAssetPath called with asset:', asset, 'useForPlayback:', useForPlayback);
+    
+    // For video playback, prioritize file paths over blob URLs
+    if (useForPlayback && asset.type === 'video') {
+      if (asset.filePath) {
+        const filePath = `file://${asset.filePath}`;
+        console.log('Using file path for video playback:', filePath);
+        return filePath;
+      }
+      if (asset.path && asset.path.startsWith('file://')) {
+        console.log('Using existing file URL for video playback:', asset.path);
+        return asset.path;
+      }
+      if (asset.path && asset.path.startsWith('local-file://')) {
+        const filePath = asset.path.replace('local-file://', '');
+        const standardPath = `file://${filePath}`;
+        console.log('Converting local-file to file for video playback:', standardPath);
+        return standardPath;
+      }
+    }
+    
+    // For thumbnails and other uses, prioritize blob URLs
     if (asset.path && asset.path.startsWith('blob:')) {
       console.log('Using blob URL:', asset.path);
       return asset.path;
     }
+    
     if (asset.filePath) {
       const filePath = `file://${asset.filePath}`;
       console.log('Using file protocol:', filePath);
       return filePath;
     }
+    
     if (asset.path && asset.path.startsWith('file://')) {
       console.log('Using existing file URL:', asset.path);
       return asset.path;
     }
+    
     if (asset.path && asset.path.startsWith('local-file://')) {
       const filePath = asset.path.replace('local-file://', '');
       const standardPath = `file://${filePath}`;
       console.log('Converting local-file to file:', standardPath);
       return standardPath;
     }
+    
     if (asset.path && asset.path.startsWith('data:')) {
       console.log('Using data URL:', asset.path);
       return asset.path;
     }
+    
     console.log('Using fallback path:', asset.path);
     return asset.path || '';
   };

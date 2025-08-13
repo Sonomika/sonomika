@@ -1,5 +1,13 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { generateVideoThumbnail } from '../utils/ThumbnailCache';
+import { 
+  generateVideoThumbnail, 
+  getQueueStatus, 
+  setMaxConcurrentThumbnails, 
+  clearThumbnailQueue,
+  getCacheStats,
+  clearPersistentThumbnailCache,
+  removeThumbnailFromCache
+} from '../utils/ThumbnailCache';
 import { useStore } from '../store/store';
 
 interface MediaLibraryProps {
@@ -13,10 +21,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   const { assets, addAsset, removeAsset, updateAsset } = useStore() as any;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  // Removed unused viewMode state
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string>('');
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; asset: any } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasRestoredRef = useRef(false);
@@ -134,13 +143,30 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           console.log('Will rely on file path for persistence');
         }
         
+        // For video files, ensure we have both blob URL and file path
+        let finalPath = blobURL;
+        if (file.type.startsWith('video/')) {
+          // For videos, store the file path for persistence, but use blob URL for immediate use
+          if (filePath) {
+            finalPath = `file://${filePath}`;
+            console.log('Video file - using file path for persistence:', finalPath);
+          } else {
+            finalPath = blobURL;
+            console.log('Video file - no file path available, using blob URL:', finalPath);
+          }
+        } else if (filePath) {
+          // For other files, prefer file path if available
+          finalPath = `file://${filePath}`;
+          console.log('Non-video file - using file path:', finalPath);
+        }
+        
         const asset = {
           id: `asset-${Date.now()}-${Math.random()}`,
           name: file.name,
           type: file.type.startsWith('image/') ? 'image' : 
                 file.type.startsWith('video/') ? 'video' : 
                 file.type.startsWith('audio/') ? 'audio' : 'unknown',
-          path: filePath ? `file://${filePath}` : blobURL, // Use file path if available, otherwise blob URL
+          path: finalPath, // Store file path for persistence
           filePath: filePath, // Store actual file path if available
           base64Data: base64Data, // Store base64 for persistence (small files only)
           file: file, // Keep file object for blob URL recreation
@@ -255,66 +281,62 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     console.log('Raw assets:', assets);
     
     const processed = (assets || []).map((asset: any) => {
-      // If asset has a file path, use it directly (highest priority)
-      if (asset.filePath && asset.filePath.length > 0) {
-        console.log('Using file path for asset:', asset.name, asset.filePath);
-        return {
-          ...asset,
-          path: `file://${asset.filePath}` // Use file:// protocol for local files
-        };
-      }
-      
-      // If asset has a File object, create a fresh blob URL
+      // If asset has a File object, create a fresh blob URL for immediate use
       if (asset.file && asset.file instanceof File) {
         try {
           const blobURL = URL.createObjectURL(asset.file);
           console.log('Created fresh blob URL for asset:', asset.name, blobURL);
           return {
             ...asset,
-            path: blobURL
+            // Store the file path for persistence, but keep blob URL for immediate use
+            path: asset.filePath ? `file://${asset.filePath}` : asset.path,
+            blobURL: blobURL, // Store blob URL separately for immediate use
+            filePath: asset.filePath || asset.path?.replace('file://', '') || asset.path?.replace('blob:', '')
           };
         } catch (error) {
           console.error('Failed to create blob URL for asset:', asset.name, error);
         }
       }
       
-      // If asset has base64Data, try to recreate blob URL
-      if (asset.base64Data && !asset.path.startsWith('blob:')) {
-        let mimeType = 'image/*';
-        if (asset.type === 'video') mimeType = 'video/*';
-        else if (asset.type === 'audio') mimeType = 'audio/*';
-        
-        const newPath = convertBase64ToBlobURL(asset.base64Data, mimeType);
-        if (newPath) {
-          console.log('Recreated blob URL for asset:', asset.name, 'from:', asset.path, 'to:', newPath);
-          return {
-            ...asset,
-            path: newPath
-          };
-        } else {
-          console.error('Failed to recreate blob URL for asset:', asset.name);
-        }
-      }
-      
-      // If asset has no base64Data but has a filePath, try to use the file path
-      if (!asset.base64Data && asset.filePath) {
-        console.log('Asset has file path but no base64 data:', asset.name, asset.filePath);
+      // If asset has base64Data, ensure we have the file path for persistence
+      if (asset.base64Data && asset.filePath) {
+        console.log('Asset has base64Data and filePath, ensuring file path is stored:', asset.name);
         return {
           ...asset,
-          path: `file://${asset.filePath}`
+          // Store file path for persistence
+          path: `file://${asset.filePath}`,
+          filePath: asset.filePath
         };
       }
       
-      // If asset has a blob URL that's still valid, keep it
-      if (asset.path && asset.path.startsWith('blob:')) {
-        console.log('Asset already has blob URL:', asset.name, asset.path);
-        return asset;
+      // If asset has a filePath, ensure it's stored as the main path
+      if (asset.filePath && !asset.path.startsWith('file://')) {
+        console.log('Asset has filePath, storing as main path for persistence:', asset.name, asset.filePath);
+        return {
+          ...asset,
+          path: `file://${asset.filePath}`,
+          filePath: asset.filePath
+        };
       }
       
-      // If asset has a file:// path, keep it
+      // If asset has a blob URL, try to preserve the file path if available
+      if (asset.path && asset.path.startsWith('blob:') && asset.filePath) {
+        console.log('Asset has blob URL, but storing file path for persistence:', asset.name);
+        return {
+          ...asset,
+          path: `file://${asset.filePath}`,
+          blobURL: asset.path, // Keep blob URL for immediate use
+          filePath: asset.filePath
+        };
+      }
+      
+      // If asset has a file:// path, ensure we have filePath
       if (asset.path && asset.path.startsWith('file://')) {
         console.log('Asset already has file path:', asset.name, asset.path);
-        return asset;
+        return {
+          ...asset,
+          filePath: asset.filePath || asset.path.replace('file://', '')
+        };
       }
       
       // If asset has no valid path, create a placeholder
@@ -391,23 +413,51 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   };
 
   // Filter assets based on search and type
-  const filteredAssets = processedAssets.filter((asset: any) => {
-    const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || asset.type === filterType;
-    return matchesSearch && matchesType;
-  });
+  const filteredAssets = useMemo(() => {
+    return processedAssets.filter((asset: any) => {
+      const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'all' || asset.type === filterType;
+      return matchesSearch && matchesType;
+    });
+  }, [processedAssets, searchTerm, filterType]);
 
-  // Debug logging
-  console.log('MediaLibrary Debug:', {
-    assetsCount: assets?.length || 0,
-    processedAssetsCount: processedAssets?.length || 0,
-    filteredAssetsCount: filteredAssets?.length || 0,
-    searchTerm,
-    filterType,
-    assets: assets,
-    processedAssets: processedAssets,
-    filteredAssets: filteredAssets
-  });
+  // Update queue status display
+  useEffect(() => {
+    const updateStatus = () => {
+      const status = getQueueStatus();
+      const cacheStats = getCacheStats();
+      
+      const statusElement = document.getElementById('queue-status');
+      if (statusElement) {
+        statusElement.textContent = `${status.activeGenerations}/${status.maxConcurrent} (${status.queueLength} queued)`;
+      }
+      
+      const cacheElement = document.getElementById('cache-stats');
+      if (cacheElement) {
+        cacheElement.textContent = `${cacheStats.memoryCacheCount} mem, ${cacheStats.persistentCacheCount} stored`;
+      }
+    };
+
+    // Update immediately
+    updateStatus();
+    
+    // Update every second
+    const interval = setInterval(updateStatus, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu) {
+        setContextMenu(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [contextMenu]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -422,20 +472,188 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     console.log('Removed asset:', assetId);
   };
 
+  // Handle right-click context menu
+  const handleAssetContextMenu = (e: React.MouseEvent, asset: any) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, asset });
+  };
+
+  // Close context menu
+  const closeContextMenu = () => {
+    setContextMenu(null);
+  };
+
+  // Regenerate thumbnail for specific asset
+  const regenerateThumbnail = (asset: any) => {
+    if (asset.type === 'video') {
+      // Remove from cache to force regeneration
+      // We need to get the thumbnail path first to know what to remove from cache
+      getThumbnailPath(asset).then((thumbnailPath) => {
+        if (thumbnailPath) {
+          removeThumbnailFromCache(thumbnailPath, { captureTimeSec: 0.1, width: 160, height: 90 });
+          console.log('Regenerating thumbnail for:', asset.name);
+        } else {
+          console.error('Cannot regenerate thumbnail - no valid path available for:', asset.name);
+        }
+      }).catch((err) => {
+        console.error('Failed to get thumbnail path for regeneration:', asset.name, err);
+      });
+    }
+    closeContextMenu();
+  };
+
+  // Function to get a valid path for thumbnail generation
+  const getThumbnailPath = async (asset: any): Promise<string> => {
+    // If we have a blob URL stored separately, use it directly
+    if (asset.blobURL && asset.blobURL.startsWith('blob:')) {
+      return asset.blobURL;
+    }
+    
+    // If we have base64 data, convert it to a blob URL
+    if (asset.base64Data) {
+      const mimeType = asset.type === 'video' ? 'video/*' : 
+                      asset.type === 'image' ? 'image/*' : 'application/octet-stream';
+      const blobURL = convertBase64ToBlobURL(asset.base64Data, mimeType);
+      if (blobURL) {
+        return blobURL;
+      }
+    }
+    
+    // If we have a file:// path, try to read the file and create a blob URL
+    if (asset.path && asset.path.startsWith('file://')) {
+      try {
+        // In Electron, we can use the file system API to read the file
+        const fsApi = (window as any).fsApi;
+        if (fsApi && asset.filePath) {
+          console.log('🎬 Reading file for thumbnail generation:', asset.filePath);
+          // This is a placeholder - in a real implementation, you'd read the file
+          // and create a blob URL from the file data
+          return asset.path; // For now, return the file path
+        }
+      } catch (error) {
+        console.error('🎬 Failed to read file for thumbnail:', error);
+      }
+    }
+    
+    // Fallback to the original path
+    return asset.path || '';
+  };
+
   // Lightweight component to render a cached video thumbnail
-  const VideoThumb: React.FC<{ path: string; name: string }> = ({ path, name }) => {
+  const VideoThumb: React.FC<{ asset: any }> = ({ asset }) => {
     const [thumb, setThumb] = useState<string>('');
+    const [error, setError] = useState<string>('');
+    const [isVisible, setIsVisible] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const thumbRef = useRef<HTMLDivElement>(null);
+    
+    // Intersection Observer to only generate thumbnails for visible items
     useEffect(() => {
-      let isMounted = true;
-      generateVideoThumbnail(path, { captureTimeSec: 0.1, width: 160, height: 90 })
-        .then((url) => { if (isMounted) setThumb(url); })
-        .catch(() => { if (isMounted) setThumb(''); });
-      return () => { isMounted = false; };
-    }, [path]);
-    return thumb ? (
-      <img src={thumb} alt={name} />
-    ) : (
-      <div className="asset-placeholder video">VIDEO</div>
+      if (!thumbRef.current) return;
+      
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              setIsVisible(true);
+              observer.disconnect(); // Only trigger once
+            }
+          });
+        },
+        {
+          rootMargin: '100px', // Start loading slightly before item becomes visible
+          threshold: 0.1
+        }
+      );
+      
+      observer.observe(thumbRef.current);
+      return () => observer.disconnect();
+    }, []);
+    
+    // Generate thumbnail only when visible
+    useEffect(() => {
+      if (!isVisible || thumb || error || isGenerating) return;
+      
+      setIsGenerating(true);
+      console.log('🎬 VideoThumb: Starting thumbnail generation for:', asset.name);
+      
+      // Get a valid path for thumbnail generation
+      getThumbnailPath(asset).then((thumbnailPath) => {
+        if (!thumbnailPath) {
+          setError('No valid path available for thumbnail generation');
+          setIsGenerating(false);
+          return;
+        }
+        
+        console.log('🎬 VideoThumb: Using path for thumbnail generation:', thumbnailPath);
+        
+        // Higher priority for visible items
+        const priority = 1;
+        
+        generateVideoThumbnail(thumbnailPath, { captureTimeSec: 0.1, width: 160, height: 90 }, priority)
+          .then((url) => { 
+            console.log('🎬 VideoThumb: Thumbnail generated successfully for:', asset.name, 'URL length:', url.length);
+            if (url.startsWith('data:image/jpeg;base64,')) {
+              setThumb(url);
+              setError('');
+            } else {
+              console.error('🎬 VideoThumb: Invalid thumbnail URL format for:', asset.name, 'URL:', url.substring(0, 100));
+              setError('Invalid thumbnail format');
+            }
+          })
+          .catch((err) => { 
+            console.error('🎬 VideoThumb: Failed to generate thumbnail for:', asset.name, 'error:', err);
+            setError(err.message || 'Thumbnail generation failed');
+            setThumb('');
+          })
+          .finally(() => {
+            setIsGenerating(false);
+          });
+      }).catch((err) => {
+        console.error('🎬 VideoThumb: Failed to get thumbnail path for:', asset.name, 'error:', err);
+        setError('Failed to get file path');
+        setIsGenerating(false);
+      });
+    }, [isVisible, asset, thumb, error, isGenerating]);
+    
+    if (error) {
+      console.warn('🎬 VideoThumb: Showing error state for:', asset.name, 'error:', error);
+      return (
+        <div className="asset-placeholder video error" title={`Error: ${error}`}>
+          <div>VIDEO</div>
+          <div style={{ fontSize: '8px', color: '#ff6b6b' }}>ERROR</div>
+        </div>
+      );
+    }
+    
+    if (thumb) {
+      return (
+        <img 
+          src={thumb} 
+          alt={asset.name} 
+          draggable={false}
+          onError={() => {
+            console.error('🎬 VideoThumb: Image failed to load for:', asset.name, 'src:', thumb.substring(0, 100));
+            setError('Image load failed');
+          }}
+          onLoad={() => {
+            console.log('🎬 VideoThumb: Image loaded successfully for:', asset.name);
+          }}
+        />
+      );
+    }
+    
+    return (
+      <div 
+        ref={thumbRef}
+        className="asset-placeholder video loading"
+        title={isGenerating ? 'Generating thumbnail...' : 'Waiting to generate...'}
+      >
+        <div>VIDEO</div>
+        <div style={{ fontSize: '8px', color: '#666' }}>
+          {isGenerating ? 'GENERATING...' : 'WAITING...'}
+        </div>
+      </div>
     );
   };
 
@@ -461,6 +679,70 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         </div>
 
         <button className="import-button" onClick={handleImportClick}>Import</button>
+        
+        {/* Performance Monitor */}
+        <div style={{ 
+          marginLeft: '8px', 
+          padding: '4px 8px', 
+          fontSize: '10px', 
+          backgroundColor: '#444', 
+          color: '#fff',
+          border: 'none',
+          borderRadius: '3px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span>📸</span>
+          <span id="queue-status">-</span>
+          <select 
+            value="2" 
+            onChange={(e) => setMaxConcurrentThumbnails(parseInt(e.target.value))}
+            style={{ 
+              fontSize: '10px', 
+              backgroundColor: '#333', 
+              color: '#fff',
+              border: '1px solid #555',
+              borderRadius: '2px',
+              padding: '1px 4px'
+            }}
+          >
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+            <option value="4">4x</option>
+            <option value="5">5x</option>
+          </select>
+          <button 
+            onClick={clearThumbnailQueue}
+            style={{ 
+              fontSize: '8px', 
+              backgroundColor: '#666', 
+              color: '#fff',
+              border: 'none',
+              borderRadius: '2px',
+              padding: '1px 4px'
+            }}
+            title="Clear thumbnail queue"
+          >
+            Clear
+          </button>
+          <span id="cache-stats" style={{ fontSize: '8px', color: '#aaa' }}>-</span>
+          <button 
+            onClick={clearPersistentThumbnailCache}
+            style={{ 
+              fontSize: '8px', 
+              backgroundColor: '#8b0000', 
+              color: '#fff',
+              border: 'none',
+              borderRadius: '2px',
+              padding: '1px 4px'
+            }}
+            title="Clear all persistent thumbnails (will regenerate on next load)"
+          >
+            Clear All
+          </button>
+        </div>
       </div>
 
       {duplicateWarning && (
@@ -505,47 +787,66 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
             )}
           </div>
         ) : (
-          filteredAssets.map((asset: any) => {
-            return (
-              <div
-                key={asset.id}
-                className={`asset-item ${selectedAsset?.id === asset.id ? 'selected' : ''}`}
-                onClick={() => setSelectedAsset(asset)}
-                draggable
-                onDragStart={(e) => handleDragStart(e, asset)}
-              >
-                <div className="asset-preview">
-                  {asset.type === 'image' ? (
-                    <img src={asset.path} alt={asset.name} />
-                  ) : asset.type === 'video' ? (
-                    <VideoThumb path={asset.path} name={asset.name} />
-                  ) : asset.type === 'audio' ? (
-                    <div className="asset-placeholder audio">
-                      <div className="audio-icon">🎵</div>
-                      <div className="audio-name">{asset.name}</div>
-                    </div>
-                  ) : (
-                    <div className="asset-placeholder">
+          <>
+            {/* Performance hint for large asset lists */}
+            {filteredAssets.length > 50 && (
+              <div className="performance-hint" style={{
+                padding: '8px 12px',
+                margin: '8px 0',
+                backgroundColor: '#2a2a2a',
+                border: '1px solid #444',
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: '#ccc'
+              }}>
+                <strong>💡 Performance Tip:</strong> Large asset lists ({filteredAssets.length} items) are optimized with lazy thumbnail generation. 
+                Only visible items generate thumbnails to improve performance. <strong>✅ Thumbnails are now persistent and won't be lost on refresh!</strong>
+              </div>
+            )}
+            
+            {filteredAssets.map((asset: any) => {
+              return (
+                <div
+                  key={asset.id}
+                  className={`asset-item ${selectedAsset?.id === asset.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedAsset(asset)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, asset)}
+                  onContextMenu={(e) => handleAssetContextMenu(e, asset)}
+                >
+                  <div className="asset-preview">
+                    {asset.type === 'image' ? (
+                      <img src={asset.path} alt={asset.name} draggable={false} />
+                    ) : asset.type === 'video' ? (
+                      <VideoThumb asset={asset} />
+                    ) : asset.type === 'audio' ? (
+                      <div className="asset-placeholder audio">
+                        <div className="audio-icon">🎵</div>
+                        <div className="audio-name">{asset.name}</div>
+                      </div>
+                    ) : (
+                      <div className="asset-placeholder">
+                        {asset.type.toUpperCase()}
+                      </div>
+                    )}
+                    <div className="asset-type-badge">
                       {asset.type.toUpperCase()}
                     </div>
-                  )}
-                  <div className="asset-type-badge">
-                    {asset.type.toUpperCase()}
+                  </div>
+                  <div className="asset-info">
+                    <div className="asset-name">{asset.name}</div>
+                    <div className="asset-meta">
+                      <span>{formatFileSize(asset.size)}</span>
+                      <span>{asset.date}</span>
+                    </div>
+                  </div>
+                  <div className="asset-actions">
+                    <button className="delete-button" onClick={(e) => { e.stopPropagation(); handleRemoveAsset(asset.id); }}>🗑️</button>
                   </div>
                 </div>
-                <div className="asset-info">
-                  <div className="asset-name">{asset.name}</div>
-                  <div className="asset-meta">
-                    <span>{formatFileSize(asset.size)}</span>
-                    <span>{asset.date}</span>
-                  </div>
-                </div>
-                <div className="asset-actions">
-                  <button className="delete-button" onClick={(e) => { e.stopPropagation(); handleRemoveAsset(asset.id); }}>🗑️</button>
-                </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </>
         )}
       </div>
     </>
@@ -571,6 +872,63 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
         {renderMediaTab()}
       </div>
+      
+      {/* Context Menu */}
+      {contextMenu && (
+        <div 
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            backgroundColor: '#2a2a2a',
+            border: '1px solid #444',
+            borderRadius: '4px',
+            padding: '4px 0',
+            zIndex: 1000,
+            minWidth: '150px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+          }}
+          onMouseLeave={closeContextMenu}
+        >
+          {contextMenu.asset.type === 'video' && (
+            <button
+              onClick={() => regenerateThumbnail(contextMenu.asset)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#fff',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#444'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              🔄 Regenerate Thumbnail
+            </button>
+          )}
+          <button
+            onClick={() => { handleRemoveAsset(contextMenu.asset.id); closeContextMenu(); }}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: '#ff6b6b',
+              textAlign: 'left',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#444'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            🗑️ Delete Asset
+          </button>
+        </div>
+      )}
     </div>
   );
 }; 

@@ -3,32 +3,58 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * Helper function to get proper file path for Electron
  */
-export const getAssetPath = (asset: any): string => {
+export const getAssetPath = (asset: any, useForPlayback: boolean = false): string => {
   if (!asset) return '';
-  console.log('getAssetPath called with asset:', asset);
+  console.log('getAssetPath called with asset:', asset, 'useForPlayback:', useForPlayback);
+  
+  // For video playback, prioritize file paths over blob URLs
+  if (useForPlayback && asset.type === 'video') {
+    if (asset.filePath) {
+      const filePath = `file://${asset.filePath}`;
+      console.log('Using file path for video playback:', filePath);
+      return filePath;
+    }
+    if (asset.path && asset.path.startsWith('file://')) {
+      console.log('Using existing file URL for video playback:', asset.path);
+      return asset.path;
+    }
+    if (asset.path && asset.path.startsWith('local-file://')) {
+      const filePath = asset.path.replace('local-file://', '');
+      const standardPath = `file://${filePath}`;
+      console.log('Converting local-file to file for video playback:', standardPath);
+      return standardPath;
+    }
+  }
+  
+  // For thumbnails and other uses, prioritize blob URLs
   if (asset.path && asset.path.startsWith('blob:')) {
     console.log('Using blob URL:', asset.path);
     return asset.path;
   }
+  
   if (asset.filePath) {
     const filePath = `file://${asset.filePath}`;
     console.log('Using file protocol:', filePath);
     return filePath;
   }
+  
   if (asset.path && asset.path.startsWith('file://')) {
     console.log('Using existing file URL:', asset.path);
     return asset.path;
   }
+  
   if (asset.path && asset.path.startsWith('local-file://')) {
     const filePath = asset.path.replace('local-file://', '');
     const standardPath = `file://${filePath}`;
     console.log('Converting local-file to file:', standardPath);
     return standardPath;
   }
+  
   if (asset.path && asset.path.startsWith('data:')) {
     console.log('Using data URL:', asset.path);
     return asset.path;
   }
+  
   console.log('Using fallback path:', asset.path);
   return asset.path || '';
 };

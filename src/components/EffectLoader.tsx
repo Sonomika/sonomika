@@ -7,6 +7,7 @@ interface EffectLoaderProps {
   fallback?: React.ReactNode;
   effectId?: string; // Optional: if provided, render only this specific effect
   params?: any; // Optional: parameters to pass to the effect
+  isGlobal?: boolean; // Optional: indicates if this is a global effect
 }
 
 // Component to render a single specific effect
@@ -15,7 +16,8 @@ export const SingleEffectLoader: React.FC<{
   videoTexture?: THREE.VideoTexture;
   fallback?: React.ReactNode;
   params?: any;
-}> = ({ effectId, videoTexture, fallback = null, params = {} }) => {
+  isGlobal?: boolean;
+}> = ({ effectId, videoTexture, fallback = null, params = {}, isGlobal = false }) => {
   console.log(`🎯 SingleEffectLoader called with effectId: ${effectId}`);
   
   const EffectComponent = getEffect(effectId);
@@ -33,13 +35,14 @@ export const SingleEffectLoader: React.FC<{
     <Suspense fallback={fallback}>
       <EffectComponent 
         videoTexture={videoTexture}
+        isGlobal={isGlobal}
         {...params}
       />
     </Suspense>
   );
 };
 
-export default function EffectLoader({ videoTexture, fallback = null, effectId, params }: EffectLoaderProps) {
+export default function EffectLoader({ videoTexture, fallback = null, effectId, params, isGlobal = false }: EffectLoaderProps) {
   // If a specific effectId is provided, render only that effect
   if (effectId) {
     return (
@@ -48,6 +51,7 @@ export default function EffectLoader({ videoTexture, fallback = null, effectId, 
         videoTexture={videoTexture}
         fallback={fallback}
         params={params}
+        isGlobal={isGlobal}
       />
     );
   }

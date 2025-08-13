@@ -1,6 +1,6 @@
 // src/effects/VideoWarpEffect.tsx
 import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
 import { registerEffect } from '../../utils/effectRegistry';
@@ -11,6 +11,7 @@ interface VideoWarpEffectProps {
   speed?: number;
   waveType?: 'sine' | 'cosine' | 'tangent';
   videoTexture?: THREE.VideoTexture;
+  isGlobal?: boolean; // New prop to indicate if this is a global effect
 }
 
 const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
@@ -18,16 +19,35 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
   frequency = 3.0,
   speed = 1.0,
   waveType = 'sine',
-  videoTexture
+  videoTexture,
+  isGlobal = false // Default to false
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { bpm } = useStore();
+  const { gl, scene, camera } = useThree(); // Destructure gl, scene, camera
 
-  console.log('🎨 VideoWarpEffect component rendered with props:', { intensity, frequency, speed, waveType });
+  console.log('🎨 VideoWarpEffect component rendered with props:', { intensity, frequency, speed, waveType, isGlobal });
+
+  // For global effects, we need to capture the current render target
+  const renderTarget = useMemo(() => {
+    if (isGlobal) {
+      const rt = new THREE.WebGLRenderTarget(1920, 1080, {
+        format: THREE.RGBAFormat,
+        type: THREE.UnsignedByteType,
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter
+      });
+      return rt;
+    }
+    return null;
+  }, [isGlobal]);
 
   // Create shader material that warps the video texture
   const shaderMaterial = useMemo(() => {
+    // For global effects, we'll use a fallback texture initially
+    const inputTexture = videoTexture || new THREE.Color(0, 0, 0); // Fallback for global
+
     return new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0.0 },
@@ -36,7 +56,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
         speed: { value: speed },
         bpm: { value: bpm },
         waveType: { value: waveType === 'sine' ? 0 : waveType === 'cosine' ? 1 : 2 },
-        tDiffuse: { value: videoTexture }
+        tDiffuse: { value: inputTexture } // Initial value
       },
       vertexShader: `
         varying vec2 vUv;
@@ -109,9 +129,23 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
       depthTest: false,
       depthWrite: false
     });
-  }, [intensity, frequency, speed, waveType, bpm, videoTexture]);
+  }, [intensity, frequency, speed, waveType, bpm, videoTexture, isGlobal]);
 
   useFrame((state) => {
+    // For global effects, capture the current scene and apply warp effect
+    if (isGlobal && renderTarget && shaderMaterial) {
+      // Capture current scene to render target
+      const currentRenderTarget = gl.getRenderTarget();
+      gl.setRenderTarget(renderTarget);
+      gl.render(scene, camera);
+      gl.setRenderTarget(currentRenderTarget);
+
+      // Update the input buffer to use the captured scene
+      if (materialRef.current) {
+        materialRef.current.uniforms.tDiffuse.value = renderTarget.texture;
+      }
+    }
+
     if (materialRef.current) {
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
       materialRef.current.uniforms.bpm.value = bpm;
@@ -123,8 +157,8 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
       materialRef.current.uniforms.waveType.value = waveType === 'sine' ? 0.0 : 
                                                    waveType === 'cosine' ? 1.0 : 2.0;
       
-      // Update video texture if available
-      if (videoTexture && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
+      // Update video texture if available (for layer effects)
+      if (videoTexture && !isGlobal && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
         materialRef.current.uniforms.tDiffuse.value = videoTexture;
       }
     }
@@ -132,7 +166,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
 
   // Calculate aspect ratio from video texture if available
   const aspectRatio = useMemo(() => {
-    if (videoTexture && videoTexture.image) {
+    if (videoTexture && videoTexture.image && !isGlobal) { // Added !isGlobal
       try {
         const { width, height } = videoTexture.image;
         if (width && height && width > 0 && height > 0) {
@@ -143,7 +177,17 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
       }
     }
     return 16/9; // Default aspect ratio
-  }, [videoTexture]);
+  }, [videoTexture, isGlobal]); // Added isGlobal
+
+  // Don't render if missing dependencies
+  if (!shaderMaterial) {
+    console.log('🚫 Missing dependencies for VideoWarpEffect:', {
+      videoTexture: !!videoTexture,
+      shaderMaterial: !!shaderMaterial,
+      isGlobal
+    });
+    return null;
+  }
 
   return (
     <mesh ref={meshRef} position={[0, 0, 0.1]}>
@@ -156,12 +200,13 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
 // Metadata for dynamic discovery
 (VideoWarpEffect as any).metadata = {
   name: 'Video Warp',
-  description: 'Distorts video texture with wave patterns synchronized to BPM',
+  description: 'Distorts video texture with wave patterns synchronized to BPM - works as both layer and global effect',
   category: 'Video',
   icon: '',
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect replaces the video texture
+  canBeGlobal: true, // NEW: This effect can be used as a global effect
   parameters: [
     {
       name: 'intensity',
