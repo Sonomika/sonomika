@@ -1047,6 +1047,14 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   globalEffects = []
 }) => {
   const [error, setError] = useState<string | null>(null);
+  // Use composition background color behind the transparent canvas so sources show correct bg
+  const compositionBg = (() => {
+    try {
+      return useStore.getState().compositionSettings?.backgroundColor || '#000000';
+    } catch {
+      return '#000000';
+    }
+  })();
 
   // No React state-driven frame loop; R3F useFrame handles rendering
 
@@ -1098,7 +1106,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
            <div style={{ 
           width: '100%', 
           height: '100%', 
-          background: 'transparent',
+             background: compositionBg,
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
@@ -1131,15 +1139,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               R3F
             </div>
             
-            {/* Persistent last-frame placeholder layer */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundColor: '#111',
-              overflow: 'hidden'
-            }}>
-              {/* This element is visually behind the canvas; video frames render on top */}
-            </div>
+            {/* Background is provided by wrapper via compositionBg; keep this layer transparent */}
+            <div style={{ position: 'absolute', inset: 0, background: 'transparent', pointerEvents: 'none' }} />
 
             <Canvas
               camera={{ position: [0, 0, 1], fov: 90 }}
@@ -1190,6 +1191,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 if (hasOnlySourceEffects) {
                   // For source effects, keep canvas transparent and let composition layer underneath show through
                   try { gl.setClearAlpha(0); } catch {}
+                  try { (gl as any).setClearColor?.(0x000000, 0); } catch {}
+                  try { (gl as any).domElement.style.background = 'transparent'; } catch {}
                   gl.domElement.style.background = 'transparent';
                   console.log('🎨 R3F Canvas created with transparent background for sources');
                 } else {

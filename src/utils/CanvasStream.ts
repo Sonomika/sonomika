@@ -1,3 +1,5 @@
+import { useStore } from '../store/store';
+
 export class CanvasStreamManager {
   private canvas: HTMLCanvasElement | null = null;
   private isWindowOpen: boolean = false;
@@ -116,6 +118,14 @@ export class CanvasStreamManager {
       return;
     }
 
+    // Set mirror background to match composition
+    try {
+      const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
+      if (typeof window.electron?.setMirrorBackground === 'function') {
+        window.electron.setMirrorBackground(bg);
+      }
+    } catch {}
+
     let lastFrameTime = 0;
     const targetFPS = 60; // Match main preview window at 60 FPS
     const frameInterval = 1000 / targetFPS;
@@ -132,38 +142,28 @@ export class CanvasStreamManager {
             const originalWidth = this.canvas!.width;
             const originalHeight = this.canvas!.height;
             
-            // Temporarily resize canvas to composition resolution if needed
+            // Composite on a temp canvas with the composition background to avoid black alpha in JPEG
             const targetWidth = 1920;
             const targetHeight = 1080;
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = targetWidth;
+            tempCanvas.height = targetHeight;
+            const tempCtx = tempCanvas.getContext('2d');
             
-            if (this.canvas!.width !== targetWidth || this.canvas!.height !== targetHeight) {
-              // Create a temporary canvas for high-res capture
-              const tempCanvas = document.createElement('canvas');
-              tempCanvas.width = targetWidth;
-              tempCanvas.height = targetHeight;
-              const tempCtx = tempCanvas.getContext('2d');
-              
-              if (tempCtx) {
-                // Draw the original canvas scaled to target resolution
-                tempCtx.drawImage(this.canvas!, 0, 0, targetWidth, targetHeight);
-                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9); // Higher quality for mirror
-                
-                if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
-                  if (window.electron && window.electron.sendCanvasData) {
-                    window.electron.sendCanvasData(dataUrl);
-                    lastDataUrl = dataUrl;
-                  }
-                }
-              }
-            } else {
-              // Canvas is already at target resolution
-              const dataUrl = this.canvas!.toDataURL('image/jpeg', 0.9);
-              
+            if (tempCtx) {
+              const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
+              // Fill background
+              tempCtx.fillStyle = bg;
+              tempCtx.fillRect(0, 0, targetWidth, targetHeight);
+              // Draw original canvas scaled to target
+              tempCtx.drawImage(this.canvas!, 0, 0, targetWidth, targetHeight);
+              const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
               if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
                 if (window.electron && window.electron.sendCanvasData) {
                   window.electron.sendCanvasData(dataUrl);
                   lastDataUrl = dataUrl;
                 }
+
               }
             }
           } catch (error) {
@@ -196,4 +196,4 @@ export class CanvasStreamManager {
   isMirrorWindowOpen(): boolean {
     return this.isWindowOpen;
   }
-} 
+}

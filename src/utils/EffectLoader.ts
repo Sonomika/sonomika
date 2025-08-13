@@ -1,9 +1,17 @@
 import React from 'react';
 import { getEffect } from './effectRegistry';
 
-// Test what modules are available
+// Preload all effect modules eagerly once so they self-register synchronously
+try {
+  const eagerModules = (import.meta as any).glob('../effects/**/*.tsx', { eager: true });
+  console.log('🧪 Eager-loaded effect modules:', Object.keys(eagerModules));
+} catch (e) {
+  console.warn('⚠️ Eager preload failed; will rely on lazy loading only');
+}
+
+// Test what modules are available (lazy map)
 const testModules = (import.meta as any).glob('../effects/**/*.tsx');
-console.log('🧪 TEST: Available effect modules:', Object.keys(testModules));
+console.log('🧪 Available effect modules (lazy map):', Object.keys(testModules));
 
 /**
  * Loads an effect component dynamically from the effects folder
@@ -115,12 +123,19 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
       .join('');
     const withoutEffectSuffix = camelCase.replace(/Effect$/, '');
     // Prefer exact id first, then camelCase, then with Effect suffix
-    const candidates = [id, camelCase, `${camelCase}Effect`, withoutEffectSuffix];
+    const baseCandidates = [id, camelCase, `${camelCase}Effect`, withoutEffectSuffix];
     // Return the first candidate that matches a discovered module filename
     try {
       const modules = (import.meta as any).glob('../effects/**/*.tsx');
       const available = new Set(Object.keys(modules).map((p: string) => p.replace('../effects/', '').replace('.tsx', '')));
-      const match = candidates.find(c => available.has(c));
+      // Expand candidates with subfolder prefixes to handle sources/ and visual-effects/
+      const expanded: string[] = [];
+      for (const c of baseCandidates) {
+        expanded.push(c);
+        expanded.push(`sources/${c}`);
+        expanded.push(`visual-effects/${c}`);
+      }
+      const match = expanded.find(c => available.has(c));
       return match || id;
     } catch {
       return id;
@@ -192,7 +207,13 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
     try {
       const modules = (import.meta as any).glob('../effects/**/*.tsx');
       const available = new Set(Object.keys(modules).map((p: string) => p.replace('../effects/', '').replace('.tsx', '')));
-      const match = candidates.find(c => available.has(c));
+      const expanded: string[] = [];
+      for (const c of candidates) {
+        expanded.push(c);
+        expanded.push(`sources/${c}`);
+        expanded.push(`visual-effects/${c}`);
+      }
+      const match = expanded.find(c => available.has(c));
       return match || id;
     } catch {
       return id;
@@ -204,6 +225,11 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
   
   // Try to get from registry (synchronous only)
   const registeredEffect = getEffect(updatedEffectId);
+  // Special case: Allow sources to be resolved by base id as well
+  if (!registeredEffect) {
+    const alt = getEffect(`sources/${updatedEffectId}`);
+    if (alt) return alt;
+  }
   if (registeredEffect) {
     console.log(`✅ Found effect in registry: ${updatedEffectId}`);
     return registeredEffect;

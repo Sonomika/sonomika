@@ -46,6 +46,7 @@ try {
     },
     openMirrorWindow: () => ipcRenderer.send('open-mirror-window'),
     closeMirrorWindow: () => ipcRenderer.send('close-mirror-window'),
+    setMirrorBackground: (color: string) => ipcRenderer.send('set-mirror-bg', color),
     sendCanvasData: (dataUrl: string) => {
       console.log('Preload: sendCanvasData called');
       // Forward to mirror renderer via dedicated channel

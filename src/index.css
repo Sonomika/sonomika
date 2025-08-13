@@ -38,7 +38,7 @@ body {
   font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #1a1a1a !important;
+  background-color: #1a1a1a; /* keep app shell dark */
   color: var(--on-background);
   overflow: hidden;
   height: 100vh;
@@ -46,10 +46,8 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Force dark background on all elements to prevent any blue flash */
-* {
-  background-color: #1a1a1a !important;
-}
+/* Remove global background override so canvas/backgrounds can show */
+/* do not force background-color on every element */
 
 /* Exception for specific elements that need different backgrounds */
 .sidebar,
@@ -1545,7 +1543,7 @@ body {
 
 /* Asset Items */
 .asset-item {
-  background-color: transparent;
+  background-color: #1a1a1a;
   border-radius: 0;
   border: none;
   cursor: pointer;
@@ -3613,7 +3611,7 @@ body {
 }
 
 .grid-cell.empty {
-  background-color: #1a1a1a;
+  background-color: transparent;
   color: #666;
   border: 1px dashed #444;
 }
@@ -4130,7 +4128,7 @@ body.resizing input[type="range"] {
 
 .layer-options-panel .option-control input[type="range"] {
   padding: 0;
-  background: transparent;
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
   border: none;
 }
 
@@ -4768,7 +4766,7 @@ body.resizing input[type="range"] {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  background: #1a1a1a;
   color: #e0e0e0;
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 12px;
@@ -4947,7 +4945,7 @@ body.resizing input[type="range"] {
 .param-control input[type="range"] {
   flex: 1;
   height: 20px;
-  background: transparent;
+  background: #1a1a1a;
   outline: none;
   -webkit-appearance: none;
 }
@@ -5017,7 +5015,7 @@ body.resizing input[type="range"] {
 
 /* Parameter Mappings */
 .mappings-section {
-  background: #1a1a1a;
+  background: transparent;
   border: 1px solid #333;
   border-radius: 6px;
   padding: 12px;
@@ -5188,7 +5186,7 @@ body.resizing input[type="range"] {
   position: relative;
   width: 100%;
   height: 100%;
-  background-color: #1a1a1a;
+  background-color: transparent; /* Allow composition background to show */
   border-radius: 4px;
   overflow: hidden;
 }
@@ -5420,7 +5418,7 @@ body.resizing input[type="range"] {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1a1a1a;
+  background: transparent;
   color: #fff;
 }
 
@@ -7619,7 +7617,7 @@ body {
   width: 100%;
   height: 250px;
   max-height: 250px;
-  background: #000;
+  background: transparent; /* Use composition color inline from React */
   border-radius: 8px;
   overflow: hidden;
   position: relative;
@@ -7628,6 +7626,7 @@ body {
 .preview-main-content canvas {
   width: 100% !important;
   height: 100% !important;
+  background-color: transparent !important; /* prevent clash with global greys */
 }
 
 /* Dynamic aspect ratio containers - works with any dimensions */
@@ -7635,7 +7634,7 @@ body {
   width: 100%;
   height: 250px;
   max-height: 250px;
-  background: #000;
+  background: transparent; /* Use composition color inline from React */
   border-radius: 8px;
   overflow: hidden;
   position: relative;
@@ -7644,6 +7643,7 @@ body {
 .preview-main-content canvas {
   width: 100% !important;
   height: 100% !important;
+  background-color: transparent !important; /* prevent clash with global greys */
 }
 
 /* Timeline preview canvas with dynamic aspect ratio */
@@ -7732,7 +7732,7 @@ body {
 
 .effects-tab {
   padding: 0.5rem 1rem;
-  background-color: transparent;
+  background-color: #1a1a1a;
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--on-surface);
@@ -8257,7 +8257,7 @@ body {
 }
 
 .layer-options-panel .param-select option {
-  background-color: #1a1a1a;
+  background-color: transparent;
   color: #ffffff;
   padding: 4px;
 }

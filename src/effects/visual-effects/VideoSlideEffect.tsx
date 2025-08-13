@@ -2,6 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
+import { sourceTextureRegistry } from '../../utils/SourceTextureRegistry';
 
 interface VideoSlideEffectProps {
   slideSpeed?: number;
@@ -20,6 +21,11 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
 }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const meshRef = useRef<THREE.Mesh>(null);
+
+  // Prefer provided videoTexture; otherwise fall back to webcam source if available
+  const inputVideoTexture = useMemo(() => {
+    return videoTexture ?? sourceTextureRegistry.getTexture('WebcamSource');
+  }, [videoTexture]);
 
   // Persistent buffer to hold last good frame and avoid background bleed
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -111,9 +117,9 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
 
   // Calculate aspect ratio from video texture if available
   const aspectRatio = useMemo(() => {
-    if (videoTexture && videoTexture.image) {
+    if (inputVideoTexture && inputVideoTexture.image) {
       try {
-        const { width, height } = videoTexture.image;
+        const { width, height } = (inputVideoTexture as any).image;
         if (width && height && width > 0 && height > 0) {
           return width / height;
         }
@@ -122,7 +128,7 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
       }
     }
     return 16/9; // Default aspect ratio
-  }, [videoTexture]);
+  }, [inputVideoTexture]);
 
   // Animation loop
   useFrame((state) => {
@@ -167,8 +173,8 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
       }
       
       // Update buffer from the video element when ready
-      if (videoTexture) {
-        const videoEl: any = (videoTexture as any).image;
+      if (inputVideoTexture) {
+        const videoEl: any = (inputVideoTexture as any).image;
         const canvas = offscreenCanvasRef.current;
         if (videoEl && canvas) {
           const ready = typeof videoEl.readyState === 'number' ? videoEl.readyState >= 2 : true;

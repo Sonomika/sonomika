@@ -499,6 +499,14 @@ app.whenReady().then(() => {
     closeMirrorWindow();
   });
 
+  // Allow renderer to set mirror window background to match composition
+  ipcMain.on('set-mirror-bg', (event, color: string) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const safe = typeof color === 'string' ? color.replace(/'/g, "\\'") : '#000000';
+      mirrorWindow.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+    }
+  });
+
   ipcMain.on('canvas-data', (event, dataUrl) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
       // Use a more efficient update mechanism to prevent glitching
