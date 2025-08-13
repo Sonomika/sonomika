@@ -171,6 +171,38 @@ const VideoTexture: React.FC<{
     };
   }, [video, fallbackTexture, cacheKey]);
 
+  // Update fallback only on real video frames when supported to reduce CPU/GPU work
+  useEffect(() => {
+    if (!video || !fallbackTexture) return;
+    const anyVideo: any = video as any;
+    if (typeof anyVideo.requestVideoFrameCallback !== 'function') return;
+
+    let stop = false;
+    const canvas = offscreenCanvasRef.current;
+    const ctx = canvas ? canvas.getContext('2d') : null;
+
+    const tick = () => {
+      if (stop || !ctx || !canvas) return;
+      try {
+        if (video.videoWidth && video.videoHeight) {
+          if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          fallbackTexture.needsUpdate = true;
+          if (cacheKey) lastFrameCanvasCache.set(cacheKey, canvas);
+        }
+      } catch {}
+      anyVideo.requestVideoFrameCallback(tick);
+    };
+    const handle = anyVideo.requestVideoFrameCallback(tick);
+    return () => {
+      stop = true;
+      try { anyVideo.cancelVideoFrameCallback?.(handle); } catch {}
+    };
+  }, [video, fallbackTexture, cacheKey]);
+
   useFrame(() => {
     const ready = !!(texture && video.readyState >= 2);
     const canvas = offscreenCanvasRef.current;
@@ -197,19 +229,16 @@ const VideoTexture: React.FC<{
 
     if (texture && ready) {
       texture.needsUpdate = true;
-      // Update fallback with the latest frame
-      if (canvas && fallbackTexture) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          try {
+      // If rVFC isn't available, do occasional updates inline
+      if (!(video as any).requestVideoFrameCallback && canvas && fallbackTexture) {
+        try {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             fallbackTexture.needsUpdate = true;
-            fallbackReadyRef.current = true;
-            if (cacheKey) {
-              lastFrameCanvasCache.set(cacheKey, canvas);
-            }
-          } catch {}
-        }
+            if (cacheKey) lastFrameCanvasCache.set(cacheKey, canvas);
+          }
+        } catch {}
       }
     }
   });
@@ -331,11 +360,10 @@ const EffectLayer: React.FC<{
 const ColumnScene: React.FC<{
   column: any;
   isPlaying: boolean;
-  frameCount: number;
   globalEffects?: any[];
   compositionWidth?: number;
   compositionHeight?: number;
-}> = ({ column, isPlaying, frameCount, globalEffects = [], compositionWidth, compositionHeight }) => {
+}> = ({ column, isPlaying, globalEffects = [], compositionWidth, compositionHeight }) => {
   const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -1018,26 +1046,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   bpm,
   globalEffects = []
 }) => {
-  const [frameCount, setFrameCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Animation frame counter
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    let animationId: number;
-    const animate = () => {
-      setFrameCount(prev => prev + 1);
-      animationId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-      }
-    };
-  }, [isPlaying]);
+  // No React state-driven frame loop; R3F useFrame handles rendering
 
   console.log('ColumnPreview rendering with:', { column, isPlaying });
 
@@ -1084,7 +1095,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   return (
     <div className="column-preview">
       <div className="preview-main-content">
-        <div style={{ 
+           <div style={{ 
           width: '100%', 
           height: '100%', 
           background: 'transparent',
@@ -1092,7 +1103,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'opacity 0.1s ease-in-out'
+             willChange: 'transform',
+             contain: 'layout paint size style'
         }}>
           {/* Full width container */}
           <div style={{
@@ -1139,8 +1151,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               }}
               gl={{ 
                 alpha: true,
-                preserveDrawingBuffer: true,
-                antialias: true,
+                preserveDrawingBuffer: false,
+                antialias: false,
                 powerPreference: 'high-performance',
                 premultipliedAlpha: false
               }}
@@ -1211,10 +1223,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                     gl.setSize(containerWidth, containerHeight, false);
                     
                     // Force canvas element to match calculated dimensions
-                    gl.domElement.style.width = `${containerWidth}px`;
-                    gl.domElement.style.height = `${containerHeight}px`;
-                    gl.domElement.width = containerWidth;
-                    gl.domElement.height = containerHeight;
+                     gl.domElement.style.width = `${containerWidth}px`;
+                     gl.domElement.style.height = `${containerHeight}px`;
+                     // Avoid forcing canvas backing-store resize every tick; let R3F manage
                     
                     // Update container height to match aspect ratio
                     container.style.height = `${containerHeight}px`;
@@ -1223,7 +1234,10 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                   }
                 }
                 
-                // Add resize observer to maintain aspect ratio
+                // Add resize observer to maintain aspect ratio (single instance)
+                if ((gl as any).__vjResizeObserver) {
+                  try { (gl as any).__vjResizeObserver.disconnect(); } catch {}
+                }
                 const resizeObserver = new ResizeObserver(() => {
                   if (container) {
                     try {
@@ -1239,11 +1253,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                         camera.updateProjectionMatrix();
                       }
                       
-                      gl.setSize(containerWidth, containerHeight, false);
-                      gl.domElement.style.width = `${containerWidth}px`;
-                      gl.domElement.style.height = `${containerHeight}px`;
-                      gl.domElement.width = containerWidth;
-                      gl.domElement.height = containerHeight;
+                       gl.setSize(containerWidth, containerHeight, false);
+                       gl.domElement.style.width = `${containerWidth}px`;
+                       gl.domElement.style.height = `${containerHeight}px`;
                       
                       container.style.height = `${containerHeight}px`;
                     } catch (error) {
@@ -1253,6 +1265,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 });
                 
                 if (container) {
+                  (gl as any).__vjResizeObserver = resizeObserver;
                   resizeObserver.observe(container);
                 }
               }}
@@ -1264,7 +1277,6 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               <ColumnScene 
                 column={column} 
                 isPlaying={isPlaying} 
-                frameCount={frameCount} 
                 globalEffects={globalEffects}
                 compositionWidth={width}
                 compositionHeight={height}

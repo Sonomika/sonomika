@@ -155,9 +155,16 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
           directionValue = 0;
       }
       
-      materialRef.current.uniforms.slideDirection.value = directionValue;
-      materialRef.current.uniforms.slideSpeed.value = slideSpeed;
-      materialRef.current.uniforms.slideAmount.value = slideAmount;
+      // Only update uniforms when values actually change
+      if (materialRef.current.uniforms.slideDirection.value !== directionValue) {
+        materialRef.current.uniforms.slideDirection.value = directionValue;
+      }
+      if (materialRef.current.uniforms.slideSpeed.value !== slideSpeed) {
+        materialRef.current.uniforms.slideSpeed.value = slideSpeed;
+      }
+      if (materialRef.current.uniforms.slideAmount.value !== slideAmount) {
+        materialRef.current.uniforms.slideAmount.value = slideAmount;
+      }
       
       // Update buffer from the video element when ready
       if (videoTexture) {
@@ -171,16 +178,15 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
               canvas.height = videoEl.videoHeight;
             }
             const ctx = canvas.getContext('2d');
-            if (ctx) {
-              try {
-                ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-                bufferTexture.needsUpdate = true;
-                // Make material opaque after first valid frame to avoid background bleed
-                if (materialRef.current.transparent) {
-                  materialRef.current.transparent = false;
-                }
-              } catch {}
+        if (ctx) {
+          try {
+            ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+            bufferTexture.needsUpdate = true;
+            if (materialRef.current.transparent) {
+              materialRef.current.transparent = false;
             }
+          } catch {}
+        }
           }
         }
         // Ensure shader samples from our buffer
