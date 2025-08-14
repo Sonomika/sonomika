@@ -16,6 +16,7 @@ import { createSceneContextMenu } from '../utils/SceneManagementHandlers';
 import { EffectsBrowser } from './EffectsBrowser';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
+import { ButtonGroup } from './ButtonGroup';
 
 
 interface LayerManagerProps {
@@ -637,7 +638,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="header-left">
               <div className="scene-tabs">
                 {scenes.map((scene: any) => (
-                  <div
+                  <button
                     key={scene.id}
                     className={`scene-tab ${scene.id === currentSceneId ? 'active' : ''}`}
                     onClick={() => setCurrentScene(scene.id)}
@@ -654,7 +655,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     title="Right-click to rename or delete scene"
                   >
                     {scene.name}
-                  </div>
+                  </button>
                 ))}
                 <button onClick={addScene} className="add-scene-tab-btn" title="Add new scene">
                   +
