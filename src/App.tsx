@@ -491,12 +491,11 @@ function App() {
         backgroundColor: '#000000',
         color: '#ffffff',
         height: '100vh',
-        padding: '20px',
         display: 'flex',
         flexDirection: 'column'
       }}>
 
-        <div style={{ flex: 1, marginTop: '20px', height: 'calc(100vh - 120px)' }}>
+        <div style={{ flex: 1, height: 'calc(100vh - 32px)' }}>
           {styleGuideOpen ? (
             <StyleGuide onClose={handleStyleGuideClose} />
           ) : (

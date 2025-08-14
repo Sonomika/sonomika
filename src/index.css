@@ -2681,12 +2681,13 @@ body {
   color: var(--on-background);
   font-family: 'Inter', sans-serif;
   overflow: hidden;
+  padding-top: 16px; /* Balanced spacing to clear header and center content */
 }
 
 .layer-manager-content {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -3969,17 +3970,16 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 1rem;
-  background-color: var(--secondary-variant);
-  border-bottom: 1px solid var(--border-color);
+  background-color: #1a1a1a;
   min-height: 35px;
   flex-shrink: 0;
 }
 
 .preview-header h3 {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--on-surface);
+  color: #818181;
 }
 
 .preview-controls {
@@ -4012,7 +4012,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #1a1a1a;
+  background-color: #141414;
   position: relative;
   overflow: hidden;
   min-height: 0;
@@ -4077,7 +4077,7 @@ body {
   width: 100%;
   display: flex;
   flex-direction: column;
-  background-color: var(--surface);
+  background-color: #141414;
   color: var(--text-color);
   border-left: 1px solid var(--border-color);
   overflow: hidden;
@@ -4099,17 +4099,18 @@ body.resizing input[type="range"] {
 }
 
 .layer-options-panel .layer-options-header {
-  padding: 0.75rem 1rem;
-  background-color: var(--secondary-variant);
+  padding: 0.5rem 1rem;
+  background-color: #1a1a1a;
   border-bottom: 1px solid var(--border-color);
   color: var(--on-surface);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 14px;
+  min-height: 35px;
 }
 
 .layer-options-panel .layer-options-header h3 {
   margin: 0;
-  color: #fff;
+  color: #818181;
 }
 
 .layer-options-panel .option-group {
