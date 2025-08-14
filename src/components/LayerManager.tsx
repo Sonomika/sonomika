@@ -637,12 +637,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           <div className="layer-manager-header">
             <div className="header-left">
               <div className="scene-tabs">
-                {scenes.map((scene: any) => (
-                  <button
-                    key={scene.id}
-                    className={`scene-tab ${scene.id === currentSceneId ? 'active' : ''}`}
-                    onClick={() => setCurrentScene(scene.id)}
-                    onContextMenu={(e) => {
+                <ButtonGroup
+                  options={scenes.map((scene: any) => ({
+                    value: scene.id,
+                    label: scene.name,
+                    onContextMenu: (e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       
@@ -651,12 +650,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       existingMenus.forEach(menu => menu.remove());
                       
                       createSceneContextMenu(scene, scenes, updateScene, removeScene);
-                    }}
-                    title="Right-click to rename or delete scene"
-                  >
-                    {scene.name}
-                  </button>
-                ))}
+                    },
+                    title: "Right-click to rename or delete scene"
+                  }))}
+                  value={currentSceneId}
+                  onChange={(sceneId) => setCurrentScene(sceneId as string)}
+                  size="small"
+                  columns={scenes.length}
+                />
                 <button onClick={addScene} className="add-scene-tab-btn" title="Add new scene">
                   +
                 </button>
@@ -911,14 +912,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 {/* Column Cells for this Layer */}
                 {columns.map((column: any) => {
                   // More robust layer finding - check both name and layerNum
-                  const layer = column.layers.find((l: any) => 
-                    l.name.includes(`Layer ${layerNum}`) || 
+                  const layer = column.layers.find((l: any) =>
                     l.layerNum === layerNum ||
                     l.name === `Layer ${layerNum}`
                   );
                   
-                  // Only show layer if it has an asset
-                  const hasAsset = layer && layer.asset;
+                  // Derive a stable display name; treat unnamed assets as empty
+                  const displayName = layer?.asset?.name || layer?.asset?.metadata?.name || layer?.asset?.effect?.name || '';
+                  const hasAsset = !!(layer && layer.asset && displayName);
                   const cellId = `${column.id}-${layerNum}`;
                   const isDragOver = dragOverCell === cellId;
                   const isDragOverLayer = dragOverLayer === cellId;
@@ -982,7 +983,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       draggable={hasAsset}
                     >
                       {hasAsset ? (
-                        <div className="layer-content">
+                        <div 
+                          className="layer-content"
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.classList.add('drag-over');
+                          }}
+                          onDragLeave={(e) => {
+                            e.currentTarget.classList.remove('drag-over');
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.classList.remove('drag-over');
+                            try {
+                              const raw = e.dataTransfer.getData('application/json');
+                              const data = raw ? JSON.parse(raw) : null;
+                              if (data && data.type === 'layer-reorder') {
+                                handleLayerReorderDropWrapper(e, column.id, layerNum);
+                              } else {
+                                handleDropWrapper(e, column.id, layerNum);
+                              }
+                            } catch {
+                              handleDropWrapper(e, column.id, layerNum);
+                            }
+                          }}
+                        >
                           <div className="layer-preview">
                             {layer.asset.type === 'image' && (
                               <img
@@ -1023,8 +1048,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                               </div>
                             )}
                           </div>
-                          <div className="layer-name">
-                            {layer.asset.name || layer.asset.metadata?.name || layer.asset.effect?.name || 'Unknown Effect'}
+                                                     <div 
+                             className="layer-name"
+                             draggable={true}
+                             onDragStart={(e) => {
+                               e.stopPropagation();
+                               handleLayerReorderDragStart(e, layer, column.id, setDraggedLayer);
+                             }}
+                             style={{ cursor: 'grab' }}
+                           >
+                            {displayName || 'Empty'}
                           </div>
                           {layer.blendMode && layer.blendMode !== 'add' && (
                             <div className="layer-blend-mode">
@@ -1033,9 +1066,33 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                           )}
                         </div>
                       ) : (
-                        <div className="layer-content">
+                        <div 
+                          className="layer-content"
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.classList.add('drag-over');
+                          }}
+                          onDragLeave={(e) => {
+                            e.currentTarget.classList.remove('drag-over');
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.classList.remove('drag-over');
+                            try {
+                              const raw = e.dataTransfer.getData('application/json');
+                              const data = raw ? JSON.parse(raw) : null;
+                              if (data && data.type === 'layer-reorder') {
+                                handleLayerReorderDropWrapper(e, column.id, layerNum);
+                              } else {
+                                handleDropWrapper(e, column.id, layerNum);
+                              }
+                            } catch {
+                              handleDropWrapper(e, column.id, layerNum);
+                            }
+                          }}
+                        >
                           <div className="layer-preview-placeholder"></div>
-                          <div className="layer-name">Empty</div>
+                           <div className="layer-name">Empty</div>
                         </div>
                       )}
                     </div>

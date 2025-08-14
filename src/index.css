@@ -2891,7 +2891,7 @@ body {
   min-width: 60px;
   max-width: 120px;
   padding: 4px 8px;
-  font-size: 11px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3826,6 +3826,12 @@ body {
   transform: scale(1.02);
 }
 
+.layer-content.drag-over {
+  background-color: rgba(0, 188, 212, 0.2);
+  border: 2px dashed #00bcd4;
+  transform: scale(1.05);
+}
+
 
 
 .layer-name {
@@ -3837,6 +3843,13 @@ body {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.layer-name:hover {
+  color: #00bcd4;
+  transform: scale(1.05);
 }
 
 .asset-delete-btn {
@@ -5608,7 +5621,6 @@ body.resizing input[type="range"] {
 }
 
 .grid-cell.drag-over-layer::after {
-  content: "↕️ Reorder";
   position: absolute;
   top: 50%;
   left: 50%;
@@ -9176,7 +9188,6 @@ canvas,
 }
 
 .grid-cell.drag-over::after {
-  content: "Drop Asset";
   position: absolute;
   top: 50%;
   left: 50%;

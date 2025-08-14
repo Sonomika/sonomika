@@ -408,8 +408,9 @@ export const handleLayerReorderDrop = (
       }
     }
 
-    // Create new layers array for target column
-    const newTargetLayers = [...targetColumn.layers];
+    // Create working arrays
+    const newSourceLayers = [...sourceColumn.layers];
+    const newTargetLayers = sourceColumnId === targetColumnId ? newSourceLayers : [...targetColumn.layers];
     
     // Find the target layer to determine insertion position
     const targetLayerIndex = newTargetLayers.findIndex((l: any) => {
@@ -417,29 +418,74 @@ export const handleLayerReorderDrop = (
       return layerNum === targetLayerNum;
     });
 
-    // Update the dragged layer's layer number and column
-    const updatedLayer = {
-      ...sourceLayer,
-      layerNum: targetLayerNum,
-      name: `Layer ${targetLayerNum}`
+    // Helper to clone a layer preserving asset/effects
+    const cloneWithAsset = (layer: any, overrides: any = {}) => {
+      const copy: any = { ...layer, ...overrides };
+      if (layer.asset) copy.asset = { ...layer.asset };
+      if (layer.effects) copy.effects = [...layer.effects];
+      return copy;
     };
 
-    // Insert at the target position in target column
-    if (targetLayerIndex === -1) {
-      // Target layer doesn't exist, add at the end
-      newTargetLayers.push(updatedLayer);
-    } else {
-      // Insert before the target layer
-      newTargetLayers.splice(targetLayerIndex, 0, updatedLayer);
+    // Build the updated dragged layer
+    const updatedLayer = cloneWithAsset(sourceLayer, {
+      layerNum: targetLayerNum,
+      name: `Layer ${targetLayerNum}`
+    });
+
+    if (sourceColumnId === targetColumnId) {
+      // Same column move
+      const existingTarget = targetLayerIndex !== -1 ? newTargetLayers[targetLayerIndex] : null;
+      if (existingTarget) {
+        // Swap positions
+        const sourceLayerNumResolved = sourceLayer.layerNum || parseInt(sourceLayer.name.replace('Layer ', ''));
+        const updatedExisting = cloneWithAsset(existingTarget, {
+          layerNum: sourceLayerNumResolved,
+          name: `Layer ${sourceLayerNumResolved}`
+        });
+
+        const layersAfterSwap = newSourceLayers.map((l: any) => {
+          if (l.id === sourceLayer.id) return updatedLayer;
+          if (l.id === existingTarget.id) return updatedExisting;
+          return l;
+        });
+
+        const updatedColumns = currentScene.columns.map((col: any) => {
+          if (col.id === sourceColumnId) return { ...col, layers: layersAfterSwap };
+          return col;
+        });
+        updateScene(currentSceneId, { columns: updatedColumns });
+        console.log('✅ Layers swapped within same column');
+        return;
+      } else {
+        // Move into empty target slot
+        const layersAfterMove = newSourceLayers.map((l: any) => (l.id === sourceLayer.id ? updatedLayer : l));
+        const updatedColumns = currentScene.columns.map((col: any) => {
+          if (col.id === sourceColumnId) return { ...col, layers: layersAfterMove };
+          return col;
+        });
+        updateScene(currentSceneId, { columns: updatedColumns });
+        console.log('✅ Layer moved within same column');
+        return;
+      }
     }
 
-    // Remove from source column (if different from target)
-    let newSourceLayers = [...sourceColumn.layers];
-    if (sourceColumnId !== targetColumnId) {
-      newSourceLayers.splice(sourceLayerIndex, 1);
+    // Cross-column move
+    // Remove from source
+    newSourceLayers.splice(sourceLayerIndex, 1);
+
+    if (targetLayerIndex === -1) {
+      // Empty slot in target
+      newTargetLayers.push(updatedLayer);
     } else {
-      // Same column reordering - remove from current position
-      newSourceLayers.splice(sourceLayerIndex, 1);
+      // Occupied slot in target: swap
+      const existingTarget = newTargetLayers[targetLayerIndex];
+      const sourceLayerNumResolved = sourceLayer.layerNum || parseInt(sourceLayer.name.replace('Layer ', ''));
+      const updatedExisting = cloneWithAsset(existingTarget, {
+        layerNum: sourceLayerNumResolved,
+        name: `Layer ${sourceLayerNumResolved}`
+      });
+      newTargetLayers[targetLayerIndex] = updatedLayer;
+      newSourceLayers.splice(sourceLayerIndex, 0, updatedExisting);
     }
 
     // Update the scene with the new layers
@@ -453,7 +499,7 @@ export const handleLayerReorderDrop = (
     });
 
     updateScene(currentSceneId, { columns: updatedColumns });
-    console.log('✅ Layer moved successfully');
+    console.log('✅ Layer moved');
     
   } catch (error) {
     console.error('❌ Error reordering layer:', error);

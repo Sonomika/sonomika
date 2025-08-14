@@ -4,6 +4,8 @@ interface ButtonGroupProps {
   options: Array<{
     value: string | number;
     label: string;
+    onContextMenu?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+    title?: string;
   }>;
   value: string | number;
   onChange: (value: string | number) => void;
@@ -21,9 +23,9 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
   size = 'medium'
 }) => {
   const sizeClasses = {
-    small: 'py-4 px-8 text-xs',
-    medium: 'py-6 px-12 text-sm',
-    large: 'py-8 px-16 text-base'
+    small: 'h-[30px] py-4 px-8 text-xs',
+    medium: 'h-[30px] py-6 px-12 text-xs',
+    large: 'h-[30px] py-8 px-16 text-xs'
   };
 
   return (
@@ -40,6 +42,8 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
             key={option.value}
             className={`button-option ${option.value === value ? 'active' : ''} ${sizeClasses[size]}`}
             onClick={() => onChange(option.value)}
+            onContextMenu={option.onContextMenu}
+            title={option.title}
           >
             {option.label}
           </button>
