@@ -24,6 +24,9 @@ interface LayerManagerProps {
   debugMode?: boolean;
 }
 
+// Memoized at module scope to preserve component identity across renders
+const MemoMediaLibrary = React.memo(MediaLibrary);
+
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   console.log('LayerManager component rendering');
   
@@ -67,6 +70,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     layerId: string | null;
     columnId: string | null;
   }>({ visible: false, x: 0, y: 0, layerId: null, columnId: null });
+
+  const handleMediaLibClose = useCallback(() => {}, []);
 
   // Close context menu
   const handleContextMenuClose = useCallback(() => {
@@ -583,10 +588,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     );
   }
 
-  // Ensure we have at least 10 columns
+  // Ensure we have at least 20 columns
   const columns = [...currentScene.columns];
   let columnsAdded = 0;
-  while (columns.length < 10) {
+  while (columns.length < 20) {
     const newCol = createColumn();
     newCol.name = `Column ${columns.length + 1}`;
     columns.push(newCol);
@@ -641,7 +646,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   options={scenes.map((scene: any) => ({
                     value: scene.id,
                     label: scene.name,
-                    onContextMenu: (e) => {
+                    onContextMenu: (e: React.MouseEvent) => {
                       e.preventDefault();
                       e.stopPropagation();
                       
@@ -849,11 +854,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       } else {
                         // Render empty slot
                         return (
-                          <div key={`empty-slot-${index}`} className="global-effect-slot empty">
-                            <div className="effect-slot-content">
-                              <span className="effect-name">Empty</span>
-                            </div>
-                          </div>
+                                                   <div key={`empty-slot-${index}`} className="global-effect-slot empty">
+                           <div className="effect-slot-content">
+                             <span className="effect-name"></span>
+                           </div>
+                         </div>
                         );
                       }
                                          })}
@@ -907,8 +912,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             </div>
 
             {/* Layer Rows */}
-            {[3, 2, 1].map((layerNum) => (
-              <div key={layerNum} className={`layer-row ${layerNum === 1 ? 'active' : ''}`}>
+                         {[3, 2, 1].map((layerNum) => (
+               <div key={layerNum} className="layer-row">
                 {/* Column Cells for this Layer */}
                 {columns.map((column: any) => {
                   // More robust layer finding - check both name and layerNum
@@ -1091,8 +1096,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                             }
                           }}
                         >
-                          <div className="layer-preview-placeholder"></div>
-                           <div className="layer-name">Empty</div>
+                                                   <div className="layer-preview-placeholder"></div>
+                            <div className="layer-name"></div>
                         </div>
                       )}
                     </div>
@@ -1305,7 +1310,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               {/* Tab Content */}
               <div className="tab-content">
                 {!showMediaLibrary && (
-                  <MediaLibrary onClose={() => {}} isEmbedded={true} />
+                  <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
                 )}
                 {showMediaLibrary === 'effects' && (
                   <div className="effects-tab">
