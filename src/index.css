@@ -4096,12 +4096,37 @@ body.resizing input[type="range"] {
   width: 100%;
   box-sizing: border-box;
   padding: 0;
+  overflow-y: auto;
+}
+
+/* Custom Scrollbar for Layer Options Content - Minimal Grey */
+.layer-options-panel .layer-options-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.layer-options-panel .layer-options-content::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.layer-options-panel .layer-options-content::-webkit-scrollbar-thumb {
+  background: #818181;
+  border-radius: 4px;
+}
+
+.layer-options-panel .layer-options-content::-webkit-scrollbar-thumb:hover {
+  background: #6b95a1;
+}
+
+/* Firefox scrollbar for Layer Options Content */
+.layer-options-panel .layer-options-content {
+  scrollbar-width: thin;
+  scrollbar-color: #818181 #1a1a1a;
 }
 
 .layer-options-panel .layer-options-header {
   padding: 0.5rem 1rem;
   background-color: #1a1a1a;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: none;
   color: var(--on-surface);
   font-weight: 600;
   font-size: 14px;
@@ -4111,20 +4136,22 @@ body.resizing input[type="range"] {
 .layer-options-panel .layer-options-header h3 {
   margin: 0;
   color: #818181;
+  font-size: 14px;
 }
 
 .layer-options-panel .option-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
   padding: 1rem;
-  background-color: #333;
+  background-color: #141414;
   border-radius: 4px;
-  border: 1px solid #444;
+  border: none;
+  border-bottom: 1px solid #333;
 }
 
 .layer-options-panel .option-group h4 {
   margin: 0 0 0.75rem 0;
   color: #fff;
-  font-size: 0.85rem;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -4136,7 +4163,7 @@ body.resizing input[type="range"] {
   display: block;
   margin-bottom: 0.25rem;
   color: #ccc;
-  font-size: 0.8rem;
+  font-size: 12px;
 }
 
 .layer-options-panel .option-control select,
@@ -4147,7 +4174,7 @@ body.resizing input[type="range"] {
   border: 1px solid #555;
   border-radius: 3px;
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 12px;
 }
 
 .layer-options-panel .option-control select:focus,
@@ -4213,7 +4240,7 @@ body.resizing input[type="range"] {
   padding: 0.5rem;
   background-color: #444;
   border: 1px solid #555;
-  border-radius: 3px;
+  border-radius: 0;
   color: #ccc;
   cursor: pointer;
   font-size: 0.8rem;
@@ -4245,7 +4272,7 @@ body.resizing input[type="range"] {
   height: 30px;
   background-color: #444;
   border: 1px solid #555;
-  border-radius: 3px;
+  border-radius: 0;
   color: #ccc;
   cursor: pointer;
   font-size: 1rem;
@@ -4967,10 +4994,6 @@ body.resizing input[type="range"] {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #2a2a2a;
-  border: 1px solid #404040;
-  border-radius: 4px;
-  padding: 4px 8px;
 }
 
 .param-control input[type="range"] {
@@ -5233,6 +5256,7 @@ body.resizing input[type="range"] {
   overflow: hidden;
   aspect-ratio: 16/9;
   max-height: calc(100vh - 200px);
+  border-radius: 0;
 }
 
 .p5-canvas-container {
@@ -5361,7 +5385,7 @@ body.resizing input[type="range"] {
   border: 1px solid #444;
   background: #2a2a2a;
   color: #ccc;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -6977,6 +7001,12 @@ body {
   border-color: var(--primary);
 }
 
+/* Debug Button in Title Bar */
+.menu-item.active {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
 /* Timeline Preview Styles */
 .preview-timeline {
   display: flex;
@@ -7649,7 +7679,7 @@ body {
   height: 250px;
   max-height: 250px;
   background: transparent; /* Use composition color inline from React */
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   position: relative;
 }
@@ -7666,7 +7696,7 @@ body {
   height: 250px;
   max-height: 250px;
   background: transparent; /* Use composition color inline from React */
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   position: relative;
 }
@@ -8074,19 +8104,22 @@ body {
 
 .layer-options-panel .effect-param {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  background: rgba(0, 188, 212, 0.05);
-  border-radius: 4px;
-  border: 1px solid rgba(0, 188, 212, 0.2);
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
 }
 
 .layer-options-panel .param-label {
   font-size: 12px;
   font-weight: 500;
   color: #ffffff;
-  margin-bottom: 4px;
+  margin: 0;
+  width: 120px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 32px;
 }
 
 .layer-options-panel .param-control {
@@ -8107,17 +8140,58 @@ body {
 .layer-options-panel .number-control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex: 1;
   position: relative;
   z-index: 5;
   pointer-events: auto;
+  height: 32px;
+}
+
+.layer-options-panel .param-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 32px;
+}
+
+.layer-options-panel .param-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  border-radius: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.layer-options-panel .param-btn:hover {
+  background: transparent;
+  color: #ccc;
+}
+
+.layer-options-panel .param-btn:active {
+  background: transparent;
+  color: #999;
 }
 
 .layer-options-panel .effect-param {
   position: relative;
   z-index: 5;
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: nowrap;
+  min-height: 32px;
 }
 
 .layer-options-panel .param-control {
@@ -8125,24 +8199,59 @@ body {
   align-items: center;
   gap: 8px;
   pointer-events: auto;
+  flex: 1;
+  height: 32px;
+}
+
+.layer-options-panel .slider-container {
+  position: relative;
+  flex: 1;
+  min-width: 100px;
+  height: 12.8px;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  border: none;
+  overflow: hidden;
+}
+
+.layer-options-panel .slider-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: #333333;
+  border-radius: 0;
+  transition: all 0.2s ease;
+  z-index: 1;
+  min-width: 1px;
+}
+
+.layer-options-panel .slider-container:hover .slider-fill,
+.layer-options-panel .slider-container:focus-within .slider-fill {
+  background: #6b95a1;
 }
 
 .layer-options-panel .param-slider {
-  flex: 1;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 12.8px;
+  background: transparent;
+  border-radius: 0;
   outline: none;
   cursor: pointer;
   pointer-events: auto !important;
-  position: relative;
-  z-index: 1000;
+  z-index: 2;
   -webkit-appearance: none;
   appearance: none;
   border: none;
   padding: 0;
   margin: 0;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -8151,6 +8260,7 @@ body {
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
   isolation: isolate;
+  opacity: 0.01;
 }
 
 .layer-options-panel .param-slider:hover {
@@ -8164,13 +8274,12 @@ body {
 .layer-options-panel .param-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
-  background: #ff0000 !important;
-  border-radius: 50%;
+  width: 0;
+  height: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   cursor: pointer;
-  border: 3px solid #ffffff !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
   transition: all 0.2s ease;
   position: relative !important;
   z-index: 1001 !important;
@@ -8184,7 +8293,7 @@ body {
 
 .layer-options-panel .param-slider::-webkit-slider-thumb:active {
   background: #00e6f7;
-  transform: scale(1.2);
+  transform: scale(1.1);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
   cursor: grabbing;
 }
@@ -8195,6 +8304,18 @@ body {
   cursor: pointer !important;
   position: relative;
   z-index: 1000;
+}
+
+/* Remove rounded corners from all canvas and renderer elements */
+.canvas-renderer,
+.renderer-main-content,
+.renderer-main-content > div,
+.renderer-main-content canvas,
+canvas,
+[data-testid="canvas"],
+[class*="canvas"],
+[class*="renderer"] {
+  border-radius: 0 !important;
 }
 
 .layer-options-panel input[type="range"]:hover {
@@ -8221,13 +8342,12 @@ body {
 }
 
 .layer-options-panel .param-slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: #ff0000 !important;
-  border-radius: 50%;
+  width: 0;
+  height: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   cursor: pointer;
-  border: 3px solid #ffffff !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
   transition: all 0.2s ease;
   position: relative !important;
   z-index: 1001 !important;
@@ -8250,8 +8370,14 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: #00bcd4;
-  min-width: 40px;
-  text-align: right;
+  width: 60px;
+  text-align: left;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 32px;
+  font-family: monospace;
 }
 
 .layer-options-panel .effect-info {
@@ -8266,9 +8392,9 @@ body {
 }
 
 .layer-options-panel .param-select {
-  background-color: rgba(0, 188, 212, 0.1);
+  background-color: #444;
   color: #ffffff;
-  border: 1px solid rgba(0, 188, 212, 0.3);
+  border: none;
   border-radius: 4px;
   padding: 6px 8px;
   font-size: 12px;
@@ -8278,13 +8404,11 @@ body {
 }
 
 .layer-options-panel .param-select:hover {
-  border-color: rgba(0, 188, 212, 0.5);
-  background-color: rgba(0, 188, 212, 0.15);
+  background-color: #555;
 }
 
 .layer-options-panel .param-select:focus {
-  border-color: #00bcd4;
-  background-color: rgba(0, 188, 212, 0.2);
+  background-color: #555;
 }
 
 .layer-options-panel .param-select option {

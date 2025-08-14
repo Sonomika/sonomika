@@ -472,6 +472,21 @@ export const StyleGuide: React.FC<StyleGuideProps> = ({ onClose }) => {
                 <div className="effect-tag">VISUAL</div>
               </div>
             </div>
+
+            <div className="example-group">
+              <h3>Preview Window</h3>
+              <div className="preview-window" style={{ maxWidth: '400px', minWidth: '300px' }}>
+                <div className="preview-header">
+                  <h3>Preview</h3>
+                </div>
+                <div className="preview-content" style={{ aspectRatio: '16/9' }}>
+                  <div className="preview-placeholder">
+                    <p>Preview content area</p>
+                    <small>16:9 aspect ratio</small>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

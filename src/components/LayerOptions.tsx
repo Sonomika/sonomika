@@ -310,21 +310,56 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                         )}
                         {param.type === 'number' && (
                           <div className="number-control">
-                            <ReactSlider
-                              className="react-slider"
-                              thumbClassName="react-slider-thumb"
-                              trackClassName="react-slider-track"
-                              min={param.min || 0}
-                              max={param.max || 1}
-                              step={param.step || 0.1}
-                              value={getDisplayValue(param.name, localParamValues[param.name] ?? currentValue)}
-                              onChange={(value) => {
-                                setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
-                                // Apply changes instantly while dragging
-                                handleEffectParamChange(param.name, value);
-                              }}
-                            />
                             <span className="param-value">{getDisplayValue(param.name, localParamValues[param.name] ?? currentValue).toFixed(2)}</span>
+                            <div className="param-buttons">
+                              <button
+                                type="button"
+                                className="param-btn"
+                                onClick={() => {
+                                  const currentVal = getDisplayValue(param.name, localParamValues[param.name] ?? currentValue);
+                                  const step = param.step || 0.1;
+                                  const newValue = Math.max(param.min || 0, currentVal - step);
+                                  setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
+                                  handleEffectParamChange(param.name, newValue);
+                                }}
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                className="param-btn"
+                                onClick={() => {
+                                  const currentVal = getDisplayValue(param.name, localParamValues[param.name] ?? currentValue);
+                                  const step = param.step || 0.1;
+                                  const newValue = Math.min(param.max || 1, currentVal + step);
+                                  setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
+                                  handleEffectParamChange(param.name, newValue);
+                                }}
+                              >
+                                +
+                              </button>
+                            </div>
+                            <div className="slider-container">
+                              <div 
+                                className="slider-fill" 
+                                style={{
+                                  width: `${((getDisplayValue(param.name, localParamValues[param.name] ?? currentValue) - (param.min || 0)) / ((param.max || 1) - (param.min || 0))) * 100}%`
+                                }}
+                              />
+                              <input
+                                type="range"
+                                min={param.min || 0}
+                                max={param.max || 1}
+                                step={param.step || 0.1}
+                                value={getDisplayValue(param.name, localParamValues[param.name] ?? currentValue)}
+                                onChange={(e) => {
+                                  const value = parseFloat(e.target.value);
+                                  setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
+                                  handleEffectParamChange(param.name, value);
+                                }}
+                                className="param-slider"
+                              />
+                            </div>
                           </div>
                         )}
                       </div>
@@ -411,15 +446,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           </div>
         )}
 
-        {/* Effect-specific options */}
-        {hasEffect && (
-          <div className="option-group">
-            <h4>Effect Options</h4>
-            <div className="option-control">
-              <p className="effect-info">Effects are automatically synchronized with BPM</p>
-            </div>
-          </div>
-        )}
+
 
         {loopMode !== LOOP_MODES.NONE && (
           <div className="option-group">
@@ -509,33 +536,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           </div>
         </div>
 
-        <div className="option-group">
-          <h4>Current Settings</h4>
-          <div className="current-settings">
-            <div className="setting-item">
-              <span className="setting-label">Mode:</span>
-              <span className="setting-value">{loopMode}</span>
-            </div>
-            {loopMode !== 'none' && (
-              <div className="setting-item">
-                <span className="setting-label">Count:</span>
-                <span className="setting-value">{loopCount}</span>
-              </div>
-            )}
-            <div className="setting-item">
-              <span className="setting-label">Asset:</span>
-              <span className="setting-value">{(selectedLayer as any).asset?.name || 'None'}</span>
-            </div>
-            <div className="setting-item">
-              <span className="setting-label">Blend Mode:</span>
-              <span className="setting-value">{blendMode}</span>
-            </div>
-            <div className="setting-item">
-              <span className="setting-label">Opacity:</span>
-              <span className="setting-value">{Math.round(opacity * 100)}%</span>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
   );

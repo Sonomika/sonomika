@@ -11,6 +11,8 @@ interface CustomTitleBarProps {
   onLoadPreset?: () => void;
   onCompositionSettings?: () => void;
   onStyleGuide?: () => void;
+  debugMode?: boolean;
+  onToggleDebug?: () => void;
 }
 
 export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
@@ -23,7 +25,9 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onSavePreset,
   onLoadPreset,
   onCompositionSettings,
-  onStyleGuide
+  onStyleGuide,
+  debugMode = false,
+  onToggleDebug
 }) => {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
@@ -106,6 +110,15 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
             <button className="menu-item" onClick={onStyleGuide}>
               Style Guide
             </button>
+          )}
+          {process.env.NODE_ENV === 'development' && onToggleDebug && (
+                         <button 
+               className={`menu-item ${debugMode ? 'active' : ''}`} 
+               onClick={onToggleDebug}
+               title={debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
+             >
+               Debug
+             </button>
           )}
         </div>
       </div>

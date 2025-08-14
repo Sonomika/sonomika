@@ -20,9 +20,10 @@ import { LFOMapper } from './LFOMapper';
 
 interface LayerManagerProps {
   onClose: () => void;
+  debugMode?: boolean;
 }
 
-export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
+export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   console.log('LayerManager component rendering');
   
   const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings, bpm, setBpm, playingColumnId, playColumn, stopColumn, clearStorage } = useStore() as any;
@@ -443,15 +444,17 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                 globalEffects={currentScene?.globalEffects || []}
               />
             </div>
-          <div className="preview-layers-info">
-            <h5>Layers in Column:</h5>
-            {layersWithContent.map((layer: any) => (
-              <div key={layer.id} className="preview-layer-item">
-                <div className="preview-layer-name">{layer.name}</div>
-                <div className="preview-layer-asset-type">{layer.asset.type}</div>
-              </div>
-            ))}
-          </div>
+                     {debugMode && (
+             <div className="preview-layers-info">
+               <h5>Layers in Column:</h5>
+               {layersWithContent.map((layer: any) => (
+                 <div key={layer.id} className="preview-layer-item">
+                   <div className="preview-layer-name">{layer.name}</div>
+                   <div className="preview-layer-asset-type">{layer.asset.type}</div>
+                 </div>
+               ))}
+             </div>
+           )}
         </div>
       );
       
@@ -718,13 +721,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
                   🎵
                 </button>
               </div>
-              <button 
-                onClick={() => setShowTimeline(!showTimeline)}
-                className={`timeline-toggle-btn ${showTimeline ? 'active' : ''}`}
-                title={showTimeline ? 'Switch to Grid View' : 'Switch to Timeline View'}
-              >
-                {showTimeline ? '📊' : '📋'}
-              </button>
+                             <button 
+                 onClick={() => setShowTimeline(!showTimeline)}
+                 className={`timeline-toggle-btn ${showTimeline ? 'active' : ''}`}
+                 title={showTimeline ? 'Switch to Grid View' : 'Switch to Timeline View'}
+               >
+                 {showTimeline ? '📊' : '📋'}
+               </button>
+
             </div>
             
 
@@ -1069,18 +1073,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose }) => {
             >
               <div className="preview-header">
                 <h3>Preview</h3>
-                <div className="preview-controls">
-                  <button 
-                    className="control-btn" 
-                    onClick={handleStopWrapper}
-                    title="Stop Preview"
-                    disabled={!isPlaying}
-                  >
-                    ⏹
-                  </button>
-                  <button className="control-btn" title="Fullscreen">⛶</button>
-                  <button className="control-btn" title="Settings">⚙️</button>
-                </div>
               </div>
               <div 
                 className="preview-content"

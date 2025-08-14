@@ -87,6 +87,7 @@ function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
   const [compositionSettingsOpen, setCompositionSettingsOpen] = useState(false);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const usingDummyCanvas = useRef<boolean>(false);
   const { savePreset, loadPreset } = useStore();
@@ -438,6 +439,10 @@ function App() {
     window.history.pushState({}, '', '/');
   };
 
+  const handleToggleDebug = () => {
+    setDebugMode(!debugMode);
+  };
+
   const handleModalClose = () => {
     setModalConfig(prev => ({ ...prev, isOpen: false }));
   };
@@ -485,6 +490,8 @@ function App() {
         onLoadPreset={handleLoadPreset}
         onCompositionSettings={handleCompositionSettings}
         onStyleGuide={() => setStyleGuideOpen(true)}
+        debugMode={debugMode}
+        onToggleDebug={handleToggleDebug}
       />
       
       <div style={{
@@ -499,7 +506,7 @@ function App() {
           {styleGuideOpen ? (
             <StyleGuide onClose={handleStyleGuideClose} />
           ) : (
-            <LayerManager onClose={() => {}} />
+            <LayerManager onClose={() => {}} debugMode={debugMode} />
           )}
         </div>
       </div>
