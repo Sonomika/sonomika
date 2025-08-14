@@ -2994,12 +2994,12 @@ body {
 /* Embedded Media Library */
 .layer-manager-media-library {
   width: 33.33%;
-  background-color: var(--surface);
-  border-top: 2px solid var(--border-color);
+  background-color: #1a1a1a;
+  border-top: none;
   overflow: hidden;
   flex-shrink: 0;
   flex-grow: 1;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  box-shadow: none;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -3008,22 +3008,14 @@ body {
   order: 1;
 }
 
-.layer-manager-media-library::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(to right, transparent, #00bcd4, transparent);
-}
+
 
 .layer-manager-media-library .media-library-content.embedded {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 0.5rem;
-  background-color: #2a2a2a;
+  padding: 0;
+  background-color: transparent;
   overflow: hidden;
   min-height: 0;
 }
@@ -3032,21 +3024,22 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.25rem;
-  background-color: #333;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
+  padding: 1rem;
+  background-color: #141414;
+  border-radius: 0;
+  margin-bottom: 0;
   flex-shrink: 0;
-  border: 1px solid #444;
+  border: none;
+  border-bottom: 1px solid #333;
 }
 
 .layer-manager-media-library .search-bar input {
   background-color: #444;
   border: 1px solid #555;
   color: #fff;
-  padding: 0.25rem 0.5rem;
-  border-radius: 2px;
-  font-size: 0.8rem;
+  padding: 0.5rem;
+  border-radius: 0;
+  font-size: 12px;
   width: 150px;
 }
 
@@ -3059,9 +3052,9 @@ body {
   background-color: #444;
   border: 1px solid #555;
   color: #fff;
-  padding: 0.25rem 0.5rem;
-  border-radius: 2px;
-  font-size: 0.8rem;
+  padding: 0.5rem;
+  border-radius: 0;
+  font-size: 12px;
 }
 
 .layer-manager-media-library .filter-controls select:focus {
@@ -3070,12 +3063,12 @@ body {
 }
 
 .layer-manager-media-library .view-toggle button {
-  background-color: #555;
-  border: 1px solid #666;
+  background-color: #444;
+  border: 1px solid #555;
   color: #fff;
-  padding: 0.25rem 0.5rem;
-  border-radius: 2px;
-  font-size: 0.7rem;
+  padding: 0.5rem;
+  border-radius: 0;
+  font-size: 12px;
   cursor: pointer;
   margin-left: 0.25rem;
 }
@@ -3086,24 +3079,25 @@ body {
 }
 
 .layer-manager-media-library .import-button {
-  background-color: #00bcd4;
-  border: none;
-  color: #000;
-  padding: 0.25rem 0.5rem;
-  border-radius: 2px;
-  font-size: 0.7rem;
+  background-color: #444;
+  border: 1px solid #555;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 0;
+  font-size: 12px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 500;
 }
 
 .layer-manager-media-library .drop-zone {
-  background-color: #333;
-  border: 2px dashed #555;
-  border-radius: 4px;
-  padding: 0.25rem;
+  background-color: #141414;
+  border: 1px solid #333;
+  border-radius: 0;
+  padding: 1rem;
   text-align: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0;
   flex-shrink: 0;
+  border-bottom: 1px solid #333;
 }
 
 .layer-manager-media-library .drop-zone:hover {
@@ -3132,16 +3126,16 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.25rem;
-  background-color: #2a2a2a;
+  gap: 0;
+  padding: 0;
+  background-color: #141414;
 }
 
 .layer-manager-media-library .asset-item {
   background-color: transparent;
   border: none;
   border-radius: 0;
-  padding: 0.75rem;
+  padding: 1rem;
   cursor: pointer;
   transition: background-color 0.2s;
   display: flex;
@@ -3149,6 +3143,7 @@ body {
   align-items: flex-start;
   gap: 1rem;
   min-height: 60px;
+  border-bottom: 1px solid #333;
 }
 
 .layer-manager-media-library .asset-item:hover {
@@ -4836,9 +4831,9 @@ body.resizing input[type="range"] {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
-  border-bottom: 1px solid #404040;
+  padding: 1rem;
+  background: #141414;
+  border-bottom: 1px solid #333;
 }
 
 .lfo-title {
@@ -4860,12 +4855,12 @@ body.resizing input[type="range"] {
 }
 
 .lfo-button {
-  background: #404040;
+  background: #444;
   border: 1px solid #555;
-  color: #e0e0e0;
-  padding: 4px 8px;
-  border-radius: 3px;
-  font-size: 11px;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 0;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -4909,17 +4904,18 @@ body.resizing input[type="range"] {
 .lfo-main {
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  gap: 12px;
+  padding: 0;
+  gap: 0;
   min-height: min-content;
 }
 
 /* Waveform Display */
 .waveform-section {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 6px;
-  padding: 8px;
+  background: #141414;
+  border: none;
+  border-radius: 0;
+  padding: 1rem;
+  border-bottom: 1px solid #333;
 }
 
 .waveform-canvas {
@@ -4940,11 +4936,11 @@ body.resizing input[type="range"] {
 }
 
 .waveform-btn {
-  background: #333;
-  border: 1px solid #444;
-  color: #ccc;
-  padding: 4px 6px;
-  border-radius: 3px;
+  background: #444;
+  border: 1px solid #555;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 0;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -4967,7 +4963,10 @@ body.resizing input[type="range"] {
 .lfo-parameters {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
+  background: #141414;
+  padding: 1rem;
+  border-bottom: 1px solid #333;
 }
 
 .param-row {
@@ -4983,11 +4982,11 @@ body.resizing input[type="range"] {
 }
 
 .param-group label {
-  font-size: 11px;
-  color: #aaa;
+  font-size: 12px;
+  color: #ccc;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .param-control {
@@ -4998,59 +4997,101 @@ body.resizing input[type="range"] {
 
 .param-control input[type="range"] {
   flex: 1;
-  height: 20px;
-  background: #1a1a1a;
+  height: 12.8px;
+  background: transparent;
   outline: none;
   -webkit-appearance: none;
+  border-radius: 0;
+  opacity: 0.01;
+  z-index: 2;
+  position: relative;
 }
 
 .param-control input[type="range"]::-webkit-slider-track {
-  background: #404040;
-  height: 2px;
-  border-radius: 1px;
+  background: transparent;
+  height: 12.8px;
+  border-radius: 0;
 }
 
 .param-control input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
-  background: #ff6b35;
-  border-radius: 6px;
+  width: 0;
+  height: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   cursor: pointer;
-  margin-top: -5px;
+  transition: all 0.2s ease;
+  position: relative !important;
+  z-index: 1001 !important;
 }
 
 .param-control input[type="range"]::-moz-range-track {
-  background: #404040;
-  height: 2px;
+  background: transparent;
+  height: 12.8px;
   border: none;
-  border-radius: 1px;
+  border-radius: 0;
 }
 
 .param-control input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  background: #ff6b35;
-  border-radius: 6px;
+  width: 0;
+  height: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative !important;
+  z-index: 1001 !important;
+}
+
+/* LFO Custom Slider Container */
+.param-control .slider-container {
+  position: relative;
+  flex: 1;
+  min-width: 100px;
+  height: 12.8px;
+  display: flex;
+  align-items: center;
+  background: #2a2a2a;
+  border-radius: 0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
   border: none;
+  overflow: hidden;
+}
+
+.param-control .slider-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: #333333;
+  border-radius: 0;
+  transition: all 0.2s ease;
+  z-index: 1;
+  min-width: 1px;
+}
+
+.param-control .slider-container:hover .slider-fill,
+.param-control .slider-container:focus-within .slider-fill {
+  background: #6b95a1;
 }
 
 .param-value {
-  font-size: 11px;
-  color: #ff6b35;
+  font-size: 12px;
+  color: #00bcd4;
   font-weight: 500;
   min-width: 50px;
   text-align: right;
 }
 
 .sync-btn {
-  background: #404040;
+  background: #444;
   border: 1px solid #555;
-  color: #e0e0e0;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 10px;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 0;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
   margin-left: 4px;
@@ -5993,10 +6034,10 @@ body.resizing input[type="range"] {
 
 /* LFO Content */
 .lfo-content {
-  padding: 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
 }
 
 .lfo-content h3 {
@@ -6013,14 +6054,14 @@ body.resizing input[type="range"] {
 .lfo-presets {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 12px;
+  gap: 0;
 }
 
 .lfo-preset {
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 6px;
-  padding: 12px;
+  background: #141414;
+  border: none;
+  border-radius: 0;
+  padding: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
@@ -6028,6 +6069,7 @@ body.resizing input[type="range"] {
   justify-content: center;
   text-align: center;
   min-height: 40px;
+  border-bottom: 1px solid #333;
 }
 
 .lfo-preset:hover {
