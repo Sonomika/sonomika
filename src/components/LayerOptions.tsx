@@ -32,12 +32,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   );
   const [blendMode, setBlendMode] = useState(selectedLayer?.blendMode || 'add');
   const [opacity, setOpacity] = useState(selectedLayer?.opacity || 1.0);
+  const [playbackBehavior, setPlaybackBehavior] = useState<'restart' | 'continue'>(
+    (selectedLayer as any)?.playbackBehavior || 'restart'
+  );
   const opacityRafRef = useRef<number | null>(null);
   const opacityPendingRef = useRef<number>(selectedLayer?.opacity || 1.0);
   const [localParamValues, setLocalParamValues] = useState<Record<string, number>>({});
 
-  // Check if the layer has an effect
-  const hasEffect = selectedLayer?.type === 'effect' || (selectedLayer as any)?.asset?.type === 'effect' || (selectedLayer as any)?.asset?.isEffect;
+  // Check if the layer has an effect and whether it's a video layer
+  const isVideoLayer = (selectedLayer as any)?.type === 'video' || (selectedLayer as any)?.asset?.type === 'video';
+  const hasEffect = (selectedLayer as any)?.type === 'effect' || (selectedLayer as any)?.asset?.type === 'effect' || (selectedLayer as any)?.asset?.isEffect;
   const effectId: string | undefined = (selectedLayer as any)?.asset?.id || (selectedLayer as any)?.asset?.name;
   
   // Try multiple ways to find the effect component
@@ -77,6 +81,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       setLoopCount((selectedLayer as any).loopCount || 1);
       setBlendMode(selectedLayer.blendMode || 'add');
       setOpacity(selectedLayer.opacity || 1.0);
+      setPlaybackBehavior(((selectedLayer as any)?.playbackBehavior as any) || 'restart');
       
       // Initialize effect parameters if they don't exist
       if (hasEffect && effectMetadata && selectedLayer.params) {
@@ -160,6 +165,13 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     });
   };
 
+  const handlePlaybackBehaviorChange = (value: 'restart' | 'continue') => {
+    setPlaybackBehavior(value);
+    if (selectedLayer) {
+      onUpdateLayer(selectedLayer.id, { playbackBehavior: value } as any);
+    }
+  };
+
   const handleOpacityChange = (value: number) => {
     setOpacity(value);
     opacityPendingRef.current = value;
@@ -230,6 +242,28 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       </div>
       
       <div className="layer-options-content" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+        {/* Playback behavior - always visible for video layers */}
+        {isVideoLayer && (
+          <div className="option-group">
+            <h4>On Column Change</h4>
+            <div className="option-control">
+              <div className="loop-mode-buttons">
+                <button
+                  className={`loop-btn ${playbackBehavior === 'restart' ? 'active' : ''}`}
+                  onClick={() => handlePlaybackBehaviorChange('restart')}
+                >
+                  Restart
+                </button>
+                <button
+                  className={`loop-btn ${playbackBehavior === 'continue' ? 'active' : ''}`}
+                  onClick={() => handlePlaybackBehaviorChange('continue')}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Effect Parameters Section */}
         {hasEffect && (
           <div className="option-group">
@@ -388,7 +422,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         )}
 
         {/* Video-specific options */}
-        {selectedLayer?.type === 'video' && (
+        {isVideoLayer && (
           <div className="option-group">
             <h4>Video Options</h4>
             <div className="option-control">
@@ -419,6 +453,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 </button>
               </div>
             </div>
+
+            {/* Removed duplicate On Column Change controls to avoid redundancy */}
           </div>
         )}
 

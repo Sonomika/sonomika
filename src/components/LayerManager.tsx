@@ -908,7 +908,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
             {/* Layer Rows */}
             {[3, 2, 1].map((layerNum) => (
-              <div key={layerNum} className={`layer-row ${layerNum === 1 ? 'active' : ''}`}>
+              <div key={layerNum} className={`layer-row`}>
                 {/* Column Cells for this Layer */}
                 {columns.map((column: any) => {
                   // More robust layer finding - check both name and layerNum
@@ -1032,20 +1032,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                 src={getAssetPath(layer.asset, true)} // Use file path for video playback
                                 className="layer-preview-video"
                                 muted
+                                preload="auto" playsInline
                                 onLoadStart={() => console.log('Layer video loading:', layer.asset.name)}
                                 onLoadedData={() => console.log('Layer video loaded:', layer.asset.name)}
                                 onError={(e) => console.error('Layer video error:', layer.asset.name, e)}
                               />
                             )}
                             {(layer.asset.isEffect || layer.asset.type === 'p5js' || layer.asset.type === 'threejs') && (
-                              <div className="layer-preview-effect">
-                                <div className="effect-icon">
-                                  {layer.asset.type === 'p5js' ? '🎨' : '🎭'}
-                                </div>
-                                <div className="effect-type-badge">
-                                  {layer.asset.type.toUpperCase()}
-                                </div>
-                              </div>
+                              <div className="layer-preview-dot" />
                             )}
                           </div>
                                                      <div 
@@ -1057,7 +1051,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              }}
                              style={{ cursor: 'grab' }}
                            >
-                            {displayName || 'Empty'}
+                            {displayName}
                           </div>
                           {layer.blendMode && layer.blendMode !== 'add' && (
                             <div className="layer-blend-mode">
@@ -1091,8 +1085,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                             }
                           }}
                         >
-                          <div className="layer-preview-placeholder"></div>
-                           <div className="layer-name">Empty</div>
+                           <div className="layer-preview-placeholder" aria-hidden="true"></div>
+                           <div className="layer-name"></div>
                         </div>
                       )}
                     </div>
