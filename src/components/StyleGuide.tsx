@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { ParamRow } from './ParamRow';
+import { ButtonGroup } from './ButtonGroup';
 
 /**
  * Style Guide - Developer Reference for UI Consistency
@@ -38,6 +40,136 @@ export const StyleGuide: React.FC<StyleGuideProps> = ({ onClose }) => {
       </div>
 
       <div className="style-guide-content">
+        {/* ParamRow Slider Component Preview */}
+        <section className="style-section">
+          <h2>ParamRow Slider Component</h2>
+          <p>Preview of the unified slider component used across all panels</p>
+          <p><strong>Font Size Restriction:</strong> Only 12px and 14px fonts are allowed in this design system</p>
+          
+          <div className="param-preview">
+            <div className="preview-group">
+              <h3>Integer Slider (step: 1)</h3>
+              <ParamRow
+                label="Sample Parameter"
+                value={formData.slider1}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(value) => setFormData({...formData, slider1: value})}
+                onIncrement={() => setFormData({...formData, slider1: Math.min(100, formData.slider1 + 1)})}
+                onDecrement={() => setFormData({...formData, slider1: Math.max(0, formData.slider1 - 1)})}
+              />
+            </div>
+
+            <div className="preview-group">
+              <h3>Decimal Slider (step: 0.1)</h3>
+              <ParamRow
+                label="Precision Control"
+                value={formData.slider2 / 100}
+                min={0}
+                max={1}
+                step={0.1}
+                onChange={(value) => setFormData({...formData, slider2: Math.round(value * 100)})}
+                onIncrement={() => setFormData({...formData, slider2: Math.min(100, formData.slider2 + 10)})}
+                onDecrement={() => setFormData({...formData, slider2: Math.max(0, formData.slider2 - 10)})}
+              />
+            </div>
+
+            <div className="preview-group">
+              <h3>Coarse Slider (step: 5)</h3>
+              <ParamRow
+                label="Range Value"
+                value={formData.range}
+                min={0}
+                max={100}
+                step={5}
+                onChange={(value) => setFormData({...formData, range: value})}
+                onIncrement={() => setFormData({...formData, range: Math.min(100, formData.range + 5)})}
+                onDecrement={() => setFormData({...formData, range: Math.max(0, formData.range - 5)})}
+              />
+            </div>
+
+            <div className="preview-group">
+              <h3>Without Buttons</h3>
+              <ParamRow
+                label="Slider Only"
+                value={50}
+                min={0}
+                max={100}
+                step={1}
+                onChange={() => {}}
+                showButtons={false}
+              />
+            </div>
+
+            <div className="preview-group">
+              <h3>Without Label</h3>
+              <ParamRow
+                label="Hidden Label"
+                value={75}
+                min={0}
+                max={100}
+                step={1}
+                onChange={() => {}}
+                showLabel={false}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ButtonGroup Component */}
+        <section className="style-section">
+          <h2>ButtonGroup Component</h2>
+          <p>Preview of the unified button group component used for blend modes and other selections</p>
+          
+          <div className="param-preview">
+            <div className="preview-group">
+              <h3>Small Size (4 columns)</h3>
+              <ButtonGroup
+                options={[
+                  { value: 'add', label: 'Add' },
+                  { value: 'multiply', label: 'Multiply' },
+                  { value: 'screen', label: 'Screen' },
+                  { value: 'overlay', label: 'Overlay' }
+                ]}
+                value="add"
+                onChange={() => {}}
+                columns={4}
+                size="small"
+              />
+            </div>
+
+            <div className="preview-group">
+              <h3>Medium Size (3 columns)</h3>
+              <ButtonGroup
+                options={[
+                  { value: 'normal', label: 'Normal' },
+                  { value: 'darken', label: 'Darken' },
+                  { value: 'lighten', label: 'Lighten' }
+                ]}
+                value="normal"
+                onChange={() => {}}
+                columns={3}
+                size="medium"
+              />
+            </div>
+
+            <div className="preview-group">
+              <h3>Large Size (2 columns)</h3>
+              <ButtonGroup
+                options={[
+                  { value: 'yes', label: 'Yes' },
+                  { value: 'no', label: 'No' }
+                ]}
+                value="yes"
+                onChange={() => {}}
+                columns={2}
+                size="large"
+              />
+            </div>
+          </div>
+        </section>
+
         {/* Color System */}
         <section className="style-section">
           <h2>Color System</h2>

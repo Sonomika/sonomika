@@ -4,6 +4,7 @@ import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
 import ReactSlider from 'react-slider';
 import { useLFOStore } from '../store/lfoStore';
+import { ParamRow } from './ParamRow';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
@@ -309,58 +310,33 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                           </div>
                         )}
                         {param.type === 'number' && (
-                          <div className="number-control">
-                            <span className="param-value">{getDisplayValue(param.name, localParamValues[param.name] ?? currentValue).toFixed(2)}</span>
-                            <div className="param-buttons">
-                              <button
-                                type="button"
-                                className="param-btn"
-                                onClick={() => {
-                                  const currentVal = getDisplayValue(param.name, localParamValues[param.name] ?? currentValue);
-                                  const step = param.step || 0.1;
-                                  const newValue = Math.max(param.min || 0, currentVal - step);
-                                  setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
-                                  handleEffectParamChange(param.name, newValue);
-                                }}
-                              >
-                                -
-                              </button>
-                              <button
-                                type="button"
-                                className="param-btn"
-                                onClick={() => {
-                                  const currentVal = getDisplayValue(param.name, localParamValues[param.name] ?? currentValue);
-                                  const step = param.step || 0.1;
-                                  const newValue = Math.min(param.max || 1, currentVal + step);
-                                  setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
-                                  handleEffectParamChange(param.name, newValue);
-                                }}
-                              >
-                                +
-                              </button>
-                            </div>
-                            <div className="slider-container">
-                              <div 
-                                className="slider-fill" 
-                                style={{
-                                  width: `${((getDisplayValue(param.name, localParamValues[param.name] ?? currentValue) - (param.min || 0)) / ((param.max || 1) - (param.min || 0))) * 100}%`
-                                }}
-                              />
-                              <input
-                                type="range"
-                                min={param.min || 0}
-                                max={param.max || 1}
-                                step={param.step || 0.1}
-                                value={getDisplayValue(param.name, localParamValues[param.name] ?? currentValue)}
-                                onChange={(e) => {
-                                  const value = parseFloat(e.target.value);
-                                  setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
-                                  handleEffectParamChange(param.name, value);
-                                }}
-                                className="param-slider"
-                              />
-                            </div>
-                          </div>
+                          <ParamRow
+                            key={param.name}
+                            label={param.description || param.name}
+                            value={getDisplayValue(param.name, localParamValues[param.name] ?? currentValue)}
+                            min={param.min || 0}
+                            max={param.max || 1}
+                            step={param.step || 0.1}
+                            onChange={(value) => {
+                              setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
+                              handleEffectParamChange(param.name, value);
+                            }}
+                            onIncrement={() => {
+                              const currentVal = getDisplayValue(param.name, localParamValues[param.name] ?? currentValue);
+                              const step = param.step || 0.1;
+                              const newValue = Math.min(param.max || 1, currentVal + step);
+                              setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
+                              handleEffectParamChange(param.name, newValue);
+                            }}
+                            onDecrement={() => {
+                              const currentVal = getDisplayValue(param.name, localParamValues[param.name] ?? currentValue);
+                              const step = param.step || 0.1;
+                              const newValue = Math.max(param.min || 0, currentVal - step);
+                              setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
+                              handleEffectParamChange(param.name, newValue);
+                            }}
+                            showLabel={false}
+                          />
                         )}
                       </div>
                     </div>
@@ -516,23 +492,18 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         </div>
 
         <div className="option-group">
-          <h4>Opacity</h4>
+          <h4>General</h4>
           <div className="option-control">
-            <div className="opacity-control">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={opacity}
-                onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
-                onMouseUp={() => commitOpacity(opacity)}
-                onTouchEnd={() => commitOpacity(opacity)}
-                onKeyUp={() => commitOpacity(opacity)}
-                className="opacity-slider"
-              />
-              <span className="opacity-value">{Math.round(opacity * 100)}%</span>
-            </div>
+            <ParamRow
+              label="Opacity"
+              value={opacity}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(value) => handleOpacityChange(value)}
+              onIncrement={() => handleOpacityChange(Math.min(1, opacity + 0.01))}
+              onDecrement={() => handleOpacityChange(Math.max(0, opacity - 0.01))}
+            />
           </div>
         </div>
 

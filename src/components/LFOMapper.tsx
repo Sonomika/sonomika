@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { Layer } from '../store/types';
 import { useLFOStore, type LFOMapping } from '../store/lfoStore';
+import { ParamRow } from './ParamRow';
 
 interface LFOMapperProps {
   selectedLayer: Layer | null;
@@ -378,102 +379,87 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
           {/* Parameter Controls */}
           <div className="lfo-parameters">
             <div className="param-row">
-              <div className="param-group">
-                <label>Rate</label>
-                <div className="param-control">
-                  <input
-                    type="range"
-                    min="0.01"
-                    max="20"
-                    step="0.01"
-                    value={lfo.rate}
-                    onChange={(e) => setLFO({ rate: parseFloat(e.target.value) })}
-                  />
-                  <span className="param-value">
-                    {lfo.tempoSync ? `${lfo.rate.toFixed(2)} Hz` : `${(lfo.rate * 60).toFixed(0)} BPM`}
-                  </span>
-                </div>
-                <button 
-                  className={`sync-btn ${lfo.tempoSync ? 'active' : ''}`}
-                  onClick={() => setLFO({ tempoSync: !lfo.tempoSync })}
-                >
-                  {lfo.tempoSync ? 'Hz' : '♩'}
-                </button>
-              </div>
-
-              <div className="param-group">
-                <label>Depth</label>
-                <div className="param-control">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={lfo.depth}
-                    onChange={(e) => setLFO({ depth: parseInt(e.target.value) })}
-                  />
-                  <span className="param-value">{lfo.depth}%</span>
-                </div>
-              </div>
+              <ParamRow
+                label="Rate"
+                value={lfo.rate}
+                min={0.01}
+                max={20}
+                step={0.01}
+                onChange={(value) => setLFO({ rate: value })}
+                onIncrement={() => setLFO({ rate: Math.min(20, lfo.rate + 0.01) })}
+                onDecrement={() => setLFO({ rate: Math.max(0.01, lfo.rate - 0.01) })}
+              />
+              <button 
+                className={`sync-btn ${lfo.tempoSync ? 'active' : ''}`}
+                onClick={() => setLFO({ tempoSync: !lfo.tempoSync })}
+              >
+                {lfo.tempoSync ? 'Hz' : '♩'}
+              </button>
             </div>
 
             <div className="param-row">
-              <div className="param-group">
-                <label>Offset</label>
-                <div className="param-control">
-                  <input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value={lfo.offset}
-                    onChange={(e) => setLFO({ offset: parseInt(e.target.value) })}
-                  />
-                  <span className="param-value">{lfo.offset}%</span>
-                </div>
-              </div>
-
-              <div className="param-group">
-                <label>Phase</label>
-                <div className="param-control">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={lfo.phase}
-                    onChange={(e) => setLFO({ phase: parseInt(e.target.value) })}
-                  />
-                  <span className="param-value">{lfo.phase}%</span>
-                </div>
-              </div>
+              <ParamRow
+                label="Depth"
+                value={lfo.depth}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(value) => setLFO({ depth: value })}
+                onIncrement={() => setLFO({ depth: Math.min(100, lfo.depth + 1) })}
+                onDecrement={() => setLFO({ depth: Math.max(0, lfo.depth - 1) })}
+              />
             </div>
 
             <div className="param-row">
-              <div className="param-group">
-                <label>Jitter</label>
-                <div className="param-control">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={lfo.jitter}
-                    onChange={(e) => setLFO({ jitter: parseInt(e.target.value) })}
-                  />
-                  <span className="param-value">{lfo.jitter}%</span>
-                </div>
-              </div>
+              <ParamRow
+                label="Offset"
+                value={lfo.offset}
+                min={-100}
+                max={100}
+                step={1}
+                onChange={(value) => setLFO({ offset: value })}
+                onIncrement={() => setLFO({ offset: Math.min(100, lfo.offset + 1) })}
+                onDecrement={() => setLFO({ offset: Math.max(-100, lfo.offset - 1) })}
+              />
+            </div>
 
-              <div className="param-group">
-                <label>Smooth</label>
-                <div className="param-control">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={lfo.smooth}
-                    onChange={(e) => setLFO({ smooth: parseInt(e.target.value) })}
-                  />
-                  <span className="param-value">{lfo.smooth}%</span>
-                </div>
-              </div>
+            <div className="param-row">
+              <ParamRow
+                label="Phase"
+                value={lfo.phase}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(value) => setLFO({ phase: value })}
+                onIncrement={() => setLFO({ phase: Math.min(100, lfo.phase + 1) })}
+                onDecrement={() => setLFO({ phase: Math.max(0, lfo.phase - 1) })}
+              />
+            </div>
+
+            <div className="param-row">
+              <ParamRow
+                label="Jitter"
+                value={lfo.jitter}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(value) => setLFO({ jitter: value })}
+                onIncrement={() => setLFO({ jitter: Math.min(100, lfo.jitter + 1) })}
+                onDecrement={() => setLFO({ jitter: Math.max(0, lfo.jitter - 1) })}
+              />
+            </div>
+
+            <div className="param-row">
+              <ParamRow
+                label="Smooth"
+                value={lfo.smooth}
+                min={0}
+                max={100}
+                step={1}
+                onChange={(value) => setLFO({ smooth: value })}
+                onIncrement={() => setLFO({ smooth: Math.min(100, lfo.smooth + 1) })}
+                onDecrement={() => setLFO({ smooth: Math.max(0, lfo.smooth - 1) })}
+              />
             </div>
           </div>
 
