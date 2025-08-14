@@ -538,14 +538,6 @@ body {
   margin-bottom: 4px;
 }
 
-/* Blue dot thumbnail for effects and generative sources */
-.layer-preview-dot {
-  width: 10px;
-  height: 10px;
-  background-color: #6b95a1;
-  border-radius: 50%;
-}
-
 .layer-preview-image,
 .layer-preview-video {
   width: 100%;
@@ -555,7 +547,17 @@ body {
 }
 
 /* Layer Preview Effect Styles */
-.layer-preview-effect { display: none; }
+.layer-preview-effect {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--surface);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
 
 .layer-preview-effect .effect-icon {
   font-size: var(--font-size-regular);
@@ -3492,9 +3494,14 @@ body {
   margin-bottom: 1px;
 }
 
-.layer-row.active { /* disabled to keep all layers consistent */ }
+.layer-row.active {
+  background-color: var(--primary-color);
+  color: var(--on-primary);
+}
 
-.layer-row:hover { /* hover handled per cell to limit to one at a time */ }
+.layer-row:hover {
+  background-color: var(--hover-color);
+}
 
 /* Row Headers */
 .row-header {
@@ -3761,13 +3768,10 @@ body {
 /* Grid Cells */
 .grid-cell {
   flex: 1;
-  /* use only right and bottom borders to avoid double lines */
-  border: none;
-  border-right: 1px solid #3d3d3d;
-  border-bottom: 1px solid #3d3d3d;
+  border-right: 1px solid #444;
   padding: 0;
   cursor: pointer;
-  transition: none; /* prevent flash during re-render */
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3777,26 +3781,30 @@ body {
   position: relative;
 }
 
-.grid-cell:last-child { /* keep consistent border on last cell too */ }
+.grid-cell:last-child {
+  border-right: none;
+}
 
-/* add outer grid edges without doubling lines */
-.grid-cell:first-child { border-left: 1px solid #3d3d3d; }
-.layer-row:first-of-type .grid-cell { border-top: 1px solid #3d3d3d; }
-
-.grid-cell:hover { background-color: #353535; }
+.grid-cell:hover {
+  background-color: #444;
+  transform: scale(1.01);
+}
 
 .grid-cell.selected {
   background-color: #00bcd4;
   color: #000;
+  box-shadow: inset 0 0 0 1px #fff;
 }
 
 .grid-cell.has-content {
-  background-color: #2f2f2f; /* unify look with simple grid */
+  background-color: #3a3a3a;
+  border: 1px solid #555;
 }
 
 .grid-cell.empty {
   background-color: transparent;
   color: #666;
+  border: 1px dashed #444;
 }
 
 .layer-content {
@@ -3809,13 +3817,20 @@ body {
   justify-content: center;
   padding: 0;
   margin: 0;
-  transition: none; /* avoid visual flash when swapping content */
+  transition: all 0.2s ease;
   min-height: 80px;
 }
 
-.layer-content:hover { background-color: rgba(255, 255, 255, 0.04); }
+.layer-content:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  transform: scale(1.02);
+}
 
-.layer-content.drag-over { background-color: rgba(0, 188, 212, 0.18); }
+.layer-content.drag-over {
+  background-color: rgba(0, 188, 212, 0.2);
+  border: 2px dashed #00bcd4;
+  transform: scale(1.05);
+}
 
 
 
@@ -3832,7 +3847,10 @@ body {
   user-select: none;
 }
 
-.layer-name:hover { color: #00bcd4; }
+.layer-name:hover {
+  color: #00bcd4;
+  transform: scale(1.05);
+}
 
 .asset-delete-btn {
   background: none;
@@ -3924,8 +3942,17 @@ body {
   padding: 0.5rem;
 }
 
-/* Remove extra overlay lines that created double borders */
-.grid-cell::before { content: none; }
+/* Grid Lines */
+.grid-cell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid #444;
+  pointer-events: none;
+}
 
 /* Loading and Error Screens */
 .loading-screen {
@@ -4374,9 +4401,9 @@ body.resizing input[type="range"] {
 
 /* Loop Mode Buttons */
 .layer-options-panel .loop-mode-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
-  flex-wrap: wrap;
   margin-top: 0.5rem;
 }
 
@@ -4398,8 +4425,8 @@ body.resizing input[type="range"] {
 }
 
 .layer-options-panel .loop-btn.active {
-  background-color: #6b95a1;
-  border-color: #6b95a1;
+  background-color: #007acc;
+  border-color: #0099ff;
   color: #fff;
 }
 
@@ -4716,13 +4743,13 @@ body.resizing input[type="range"] {
 .layer-preview-placeholder {
   width: 100%;
   height: 100%;
-  background-color: transparent;
-  border: none;
+  background-color: var(--surface);
+  border: 2px dashed var(--border-color);
   border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: var(--on-surface);
   font-size: 0.8rem;
 }
 
@@ -5580,12 +5607,17 @@ body.resizing input[type="range"] {
   cursor: grabbing;
 }
 
-.grid-cell.has-content:hover { }
+.grid-cell.has-content:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 10px rgba(0, 188, 212, 0.3);
+}
 
 /* Layer reordering drag styles */
 .grid-cell.drag-over-layer {
-  background-color: rgba(255, 165, 0, 0.18);
-  border-color: #ffa500; /* keep single solid border */
+  background-color: rgba(255, 165, 0, 0.3);
+  border: 2px dashed #ffa500;
+  transform: scale(1.05);
+  position: relative;
 }
 
 .grid-cell.drag-over-layer::after {
@@ -5687,7 +5719,7 @@ body.resizing input[type="range"] {
 }
 
 .blend-btn.active {
-  background: #6b95a1;
+  background: #00bcd4;
   color: #000;
 }
 
@@ -9149,8 +9181,10 @@ canvas,
 
 /* Grid cell drag and drop styles */
 .grid-cell.drag-over {
-  background-color: rgba(0, 188, 212, 0.18);
-  border-color: #00bcd4; /* keep single solid border */
+  background-color: rgba(0, 188, 212, 0.3);
+  border: 2px dashed #00bcd4;
+  transform: scale(1.05);
+  position: relative;
 }
 
 .grid-cell.drag-over::after {

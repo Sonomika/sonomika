@@ -544,20 +544,14 @@ const ColumnScene: React.FC<{
 
   // Handle play/pause
   useEffect(() => {
-    assets.videos.forEach((video, id) => {
-      // Find layer for this video to read playbackBehavior
-      const layerForVideo = column.layers.find(l => (l as any)?.asset?.id === id);
-      const behavior = (layerForVideo as any)?.playbackBehavior || 'restart';
+    assets.videos.forEach(video => {
       if (isPlaying) {
-        if (behavior === 'restart') {
-          try { video.currentTime = 0; } catch {}
-        }
         video.play().catch(console.warn);
       } else {
         video.pause();
       }
     });
-  }, [isPlaying, assets.videos, column.layers]);
+  }, [isPlaying, assets.videos]);
 
   // Set up camera
   useEffect(() => {

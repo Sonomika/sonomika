@@ -34,7 +34,6 @@ export interface Layer {
   mute: boolean;
   locked: boolean;
   params: Record<string, LayerParamValue>;
-  playbackBehavior?: 'restart' | 'continue'; // video behavior on column change
 }
 
 export interface Column {

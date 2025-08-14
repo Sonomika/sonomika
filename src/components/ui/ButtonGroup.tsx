@@ -23,9 +23,9 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
   size = 'medium'
 }) => {
   const sizeClasses = {
-    small: 'blend-btn text-xs',
-    medium: 'blend-btn text-xs',
-    large: 'blend-btn text-xs'
+    small: 'h-[30px] py-4 px-8 text-xs',
+    medium: 'h-[30px] py-6 px-12 text-xs',
+    large: 'h-[30px] py-8 px-16 text-xs'
   };
 
   return (
@@ -40,7 +40,7 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
         {options.map((option) => (
           <button
             key={option.value}
-            className={`${sizeClasses[size]} ${option.value === value ? 'active' : ''}`}
+            className={`button-option ${option.value === value ? 'active' : ''} ${sizeClasses[size]}`}
             onClick={() => onChange(option.value)}
             onContextMenu={option.onContextMenu}
             title={option.title}
