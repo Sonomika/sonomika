@@ -1675,8 +1675,6 @@ body {
 .drop-zone.drag-over {
   border-color: #00bcd4;
   background-color: rgba(0, 188, 212, 0.1);
-  transform: scale(1.02);
-  box-shadow: 0 0 20px rgba(0, 188, 212, 0.3);
 }
 
 .drop-zone-content {
@@ -3171,6 +3169,7 @@ body {
   min-height: 0;
   min-width: 200px;
   order: 1;
+  contain: layout paint;
 }
 
 
@@ -3196,6 +3195,9 @@ body {
   flex-shrink: 0;
   border: none;
   border-bottom: 1px solid #333;
+  contain: paint;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .layer-manager-media-library .search-bar input {
@@ -3333,6 +3335,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  contain: content;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .layer-manager-media-library .asset-preview img {
@@ -3340,6 +3345,8 @@ body {
   max-height: 100%;
   object-fit: cover;
   border-radius: 2px;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .layer-manager-media-library .asset-placeholder {
@@ -3710,13 +3717,11 @@ body {
 
 .column-header:hover {
   background-color: rgba(255, 255, 255, 0.1);
-  transform: scale(1.02);
 }
 
 .column-header.playing {
   background-color: rgba(0, 188, 212, 0.2);
   border: 1px solid #00bcd4;
-  box-shadow: 0 0 10px rgba(0, 188, 212, 0.3);
 }
 
 .column-header h4 {
@@ -3729,7 +3734,6 @@ body {
 
 .column-header.playing h4 {
   color: #00bcd4;
-  text-shadow: 0 0 5px rgba(0, 188, 212, 0.5);
 }
 
 .play-btn {
@@ -3750,7 +3754,6 @@ body {
 
 .play-btn:hover {
   background-color: rgba(255, 255, 255, 0.1);
-  transform: scale(1.1);
 }
 
 .play-btn.play {
@@ -3787,7 +3790,6 @@ body {
 
 .grid-cell:hover {
   background-color: #444;
-  transform: scale(1.01);
 }
 
 .grid-cell.selected {
@@ -3804,7 +3806,6 @@ body {
 .grid-cell.empty {
   background-color: transparent;
   color: #666;
-  border: 1px dashed #444;
 }
 
 .layer-content {
@@ -3823,13 +3824,10 @@ body {
 
 .layer-content:hover {
   background-color: rgba(255, 255, 255, 0.05);
-  transform: scale(1.02);
 }
 
 .layer-content.drag-over {
   background-color: rgba(0, 188, 212, 0.2);
-  border: 2px dashed #00bcd4;
-  transform: scale(1.05);
 }
 
 
@@ -3849,7 +3847,6 @@ body {
 
 .layer-name:hover {
   color: #00bcd4;
-  transform: scale(1.05);
 }
 
 .asset-delete-btn {
@@ -3867,7 +3864,6 @@ body {
 .asset-delete-btn:hover {
   opacity: 1;
   background-color: rgba(255, 107, 107, 0.2);
-  transform: scale(1.1);
 }
 
 .layer-asset {
@@ -4744,7 +4740,6 @@ body.resizing input[type="range"] {
   width: 100%;
   height: 100%;
   background-color: var(--surface);
-  border: 2px dashed var(--border-color);
   border-radius: 0;
   display: flex;
   align-items: center;
@@ -5608,15 +5603,12 @@ body.resizing input[type="range"] {
 }
 
 .grid-cell.has-content:hover {
-  transform: scale(1.02);
-  box-shadow: 0 0 10px rgba(0, 188, 212, 0.3);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* Layer reordering drag styles */
 .grid-cell.drag-over-layer {
   background-color: rgba(255, 165, 0, 0.3);
-  border: 2px dashed #ffa500;
-  transform: scale(1.05);
   position: relative;
 }
 
@@ -6433,7 +6425,6 @@ body.resizing input[type="range"] {
 }
 
 .global-effects-content.drag-over {
-  border-color: var(--primary);
   background-color: rgba(0, 188, 212, 0.1);
 }
 
@@ -6472,7 +6463,6 @@ body.resizing input[type="range"] {
 .global-effect-slot.active {
   border-color: var(--primary);
   background-color: rgba(0, 188, 212, 0.1);
-  box-shadow: 0 0 5px rgba(0, 188, 212, 0.3);
 }
 
 .global-effect-slot.empty {
@@ -7139,8 +7129,6 @@ body {
 
 .timeline-track .track-content.drag-over {
   background: #2a2a2a;
-  border: 2px dashed #4CAF50;
-  box-shadow: inset 0 0 10px rgba(76, 175, 80, 0.3);
 }
 
 .timeline-track .track-content.drag-over::after {
@@ -7176,7 +7164,6 @@ body {
 
 .timeline-clip.selected {
   border: 1px solid #fff;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
 }
 
 .clip-name {
@@ -7196,7 +7183,6 @@ body {
   background: linear-gradient(to bottom, #ff0000 0%, #ff4444 50%, #ff0000 100%);
   z-index: 1000;
   pointer-events: none;
-  box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
 }
 
 .timeline-playhead::after {
@@ -9012,7 +8998,6 @@ canvas,
 
 .react-slider-thumb:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(106, 13, 173, 0.3);
 }
 
 .effect-param-item .param-value {
@@ -9176,14 +9161,11 @@ canvas,
 
 .layer-options-panel .react-slider-thumb:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(106, 13, 173, 0.3);
 }
 
 /* Grid cell drag and drop styles */
 .grid-cell.drag-over {
   background-color: rgba(0, 188, 212, 0.3);
-  border: 2px dashed #00bcd4;
-  transform: scale(1.05);
   position: relative;
 }
 
@@ -9204,7 +9186,6 @@ canvas,
 /* System file drag and drop styles */
 .grid-cell.drag-over[data-system-files="true"] {
   background-color: rgba(76, 175, 80, 0.3);
-  border: 2px dashed #4caf50;
 }
 
 .grid-cell.drag-over[data-system-files="true"]::after {

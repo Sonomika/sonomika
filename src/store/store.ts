@@ -24,7 +24,7 @@ const createEmptyColumn = (): Column => ({
 const createEmptyScene = (): Scene => ({
   id: uuidv4(),
   name: 'New Scene',
-  columns: Array.from({ length: 10 }, () => createEmptyColumn()),
+  columns: Array.from({ length: 20 }, () => createEmptyColumn()),
   globalEffects: [],
 });
 
@@ -33,7 +33,7 @@ const createDefaultScenes = (): Scene[] => {
   return [{
     id: uuidv4(),
     name: '1',
-    columns: Array.from({ length: 10 }, () => createEmptyColumn()),
+    columns: Array.from({ length: 20 }, () => createEmptyColumn()),
     globalEffects: [],
   }];
 };

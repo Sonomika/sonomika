@@ -805,46 +805,48 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
             )}
             
             {filteredAssets.map((asset: any) => {
-              return (
+              const AssetItem = React.useMemo(() => React.memo(({ item }: { item: any }) => (
                 <div
-                  key={asset.id}
-                  className={`asset-item ${selectedAsset?.id === asset.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedAsset(asset)}
+                  key={item.id}
+                  className={`asset-item ${selectedAsset?.id === item.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedAsset(item)}
                   draggable
-                  onDragStart={(e) => handleDragStart(e, asset)}
-                  onContextMenu={(e) => handleAssetContextMenu(e, asset)}
+                  onDragStart={(e) => handleDragStart(e, item)}
+                  onContextMenu={(e) => handleAssetContextMenu(e, item)}
                 >
                   <div className="asset-preview">
-                    {asset.type === 'image' ? (
-                      <img src={asset.path} alt={asset.name} draggable={false} />
-                    ) : asset.type === 'video' ? (
-                      <VideoThumb asset={asset} />
-                    ) : asset.type === 'audio' ? (
+                    {item.type === 'image' ? (
+                      <img src={item.path} alt={item.name} draggable={false} />
+                    ) : item.type === 'video' ? (
+                      <VideoThumb asset={item} />
+                    ) : item.type === 'audio' ? (
                       <div className="asset-placeholder audio">
                         <div className="audio-icon">🎵</div>
-                        <div className="audio-name">{asset.name}</div>
+                        <div className="audio-name">{item.name}</div>
                       </div>
                     ) : (
                       <div className="asset-placeholder">
-                        {asset.type.toUpperCase()}
+                        {item.type.toUpperCase()}
                       </div>
                     )}
                     <div className="asset-type-badge">
-                      {asset.type.toUpperCase()}
+                      {item.type.toUpperCase()}
                     </div>
                   </div>
                   <div className="asset-info">
-                    <div className="asset-name">{asset.name}</div>
+                    <div className="asset-name">{item.name}</div>
                     <div className="asset-meta">
-                      <span>{formatFileSize(asset.size)}</span>
-                      <span>{asset.date}</span>
+                      <span>{formatFileSize(item.size)}</span>
+                      <span>{item.date}</span>
                     </div>
                   </div>
                   <div className="asset-actions">
-                    <button className="delete-button" onClick={(e) => { e.stopPropagation(); handleRemoveAsset(asset.id); }}>🗑️</button>
+                    <button className="delete-button" onClick={(e) => { e.stopPropagation(); handleRemoveAsset(item.id); }}>🗑️</button>
                   </div>
                 </div>
-              );
+              )), []) as any;
+
+              return (<AssetItem key={asset.id} item={asset} />);
             })}
           </>
         )}
