@@ -4,7 +4,7 @@ import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
 import ReactSlider from 'react-slider';
 import { useLFOStore } from '../store/lfoStore';
-import { ParamRow } from './ParamRow';
+import { ParamRow } from './ui';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/store';
 import { Timeline } from './Timeline';
-import { ButtonGroup } from './ButtonGroup';
+import { ButtonGroup } from './ui';
 
 interface CompositionScreenProps {
   className?: string;

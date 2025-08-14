@@ -16,7 +16,7 @@ import { createSceneContextMenu } from '../utils/SceneManagementHandlers';
 import { EffectsBrowser } from './EffectsBrowser';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
-import { ButtonGroup } from './ButtonGroup';
+import { ButtonGroup } from './ui';
 
 
 interface LayerManagerProps {

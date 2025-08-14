@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ParamRow } from './ParamRow';
-import { ButtonGroup } from './ButtonGroup';
+import { ParamRow } from './ui';
+import { ButtonGroup } from './ui';
 
 /**
  * Style Guide - Developer Reference for UI Consistency

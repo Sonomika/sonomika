@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { Layer } from '../store/types';
 import { useLFOStore, type LFOMapping } from '../store/lfoStore';
-import { ParamRow } from './ParamRow';
+import { ParamRow } from './ui';
 
 interface LFOMapperProps {
   selectedLayer: Layer | null;
