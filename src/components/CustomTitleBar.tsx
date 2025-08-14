@@ -10,6 +10,7 @@ interface CustomTitleBarProps {
   onSavePreset?: () => void;
   onLoadPreset?: () => void;
   onCompositionSettings?: () => void;
+  onStyleGuide?: () => void;
 }
 
 export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
@@ -21,7 +22,8 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onNewPreset,
   onSavePreset,
   onLoadPreset,
-  onCompositionSettings
+  onCompositionSettings,
+  onStyleGuide
 }) => {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
@@ -100,6 +102,11 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           <button className="menu-item" onClick={onCompositionSettings}>
             Composition Settings
           </button>
+          {process.env.NODE_ENV === 'development' && onStyleGuide && (
+            <button className="menu-item" onClick={onStyleGuide}>
+              Style Guide
+            </button>
+          )}
         </div>
       </div>
       
