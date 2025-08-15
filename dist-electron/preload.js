@@ -48,6 +48,7 @@ try {
         },
         openMirrorWindow: () => electron_1.ipcRenderer.send('open-mirror-window'),
         closeMirrorWindow: () => electron_1.ipcRenderer.send('close-mirror-window'),
+        setMirrorBackground: (color) => electron_1.ipcRenderer.send('set-mirror-bg', color),
         sendCanvasData: (dataUrl) => {
             console.log('Preload: sendCanvasData called');
             // Forward to mirror renderer via dedicated channel

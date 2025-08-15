@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
@@ -228,6 +228,13 @@ export const RotatingSquareGlitchEffect: React.FC<RotatingSquareGlitchEffectProp
       side: THREE.DoubleSide
     });
   }, [videoTexture, intensity, glitchAmount, colorShift, opacity, gridSize, rotationSpeed, depthVariation]);
+
+  // Ensure texture uniform updates when upstream texture identity changes
+  useEffect(() => {
+    if (materialRef.current && videoTexture && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
+      materialRef.current.uniforms.tDiffuse.value = videoTexture;
+    }
+  }, [videoTexture]);
 
   // Update material uniforms on each frame
   useFrame((state, delta) => {

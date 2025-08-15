@@ -224,14 +224,21 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
   console.log(`🎯 Mapped effectId: ${effectId} -> ${updatedEffectId}`);
   
   // Try to get from registry (synchronous only)
-  const registeredEffect = getEffect(updatedEffectId);
-  // Special case: Allow sources to be resolved by base id as well
+  let registeredEffect = getEffect(updatedEffectId);
+  if (!registeredEffect && updatedEffectId.includes('/')) {
+    const base = updatedEffectId.split('/').pop() as string;
+    registeredEffect = getEffect(base) || getEffect(base.replace(/Effect$/, '')) || null;
+  }
   if (!registeredEffect) {
-    const alt = getEffect(`sources/${updatedEffectId}`);
-    if (alt) return alt;
+    const base = effectId.split('/').pop() as string;
+    registeredEffect = getEffect(base) || getEffect(base.replace(/Effect$/, '')) || null;
+  }
+  if (!registeredEffect) {
+    // Try prefixed variants once more
+    registeredEffect = getEffect(`sources/${effectId}`) || getEffect(`visual-effects/${effectId}`) || null;
   }
   if (registeredEffect) {
-    console.log(`✅ Found effect in registry: ${updatedEffectId}`);
+    console.log(`✅ Found effect in registry (sync):`, registeredEffect?.name || updatedEffectId);
     return registeredEffect;
   }
   

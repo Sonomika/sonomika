@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
@@ -131,51 +131,55 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
       uniform float animationSpeed;
       uniform int sliceDirection;
       uniform float bpm;
+      uniform int inputIsSRGB;
       uniform float removeGaps;
-      
+
       varying vec2 vUv;
+
+      // three.js color space helpers
+      #ifdef USE_ENVMAP
+      #endif
       
       vec2 sliceOffset(vec2 uv, float time, float count, float offset, float width, float speed, int direction) {
         vec2 offsetUV = uv;
-        
-        if (direction == 0) { // horizontal slices
+        if (direction == 0) {
           float sliceIndex = floor(uv.y * count);
-          float sliceOffset = sin(time * speed + sliceIndex * 0.5) * offset;
-          offsetUV.x = fract(uv.x + sliceOffset);
-        } else { // vertical slices
+          float sliceShift = sin(time * speed + sliceIndex * 0.5) * offset;
+          offsetUV.x = fract(uv.x + sliceShift);
+        } else {
           float sliceIndex = floor(uv.x * count);
-          float sliceOffset = cos(time * speed + sliceIndex * 0.3) * offset;
-          offsetUV.y = fract(uv.y + sliceOffset);
+          float sliceShift = cos(time * speed + sliceIndex * 0.3) * offset;
+          offsetUV.y = fract(uv.y + sliceShift);
         }
-        
         return offsetUV;
       }
-      
+
       void main() {
         vec2 slicedUV = sliceOffset(vUv, time, sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection);
-        
-        // Create slice mask - show only the slice areas, hide the gaps
+
         float sliceMask = 0.0;
-        if (sliceDirection == 0) { // horizontal
+        if (sliceDirection == 0) {
           float sliceY = fract(vUv.y * sliceCount);
           sliceMask = step(sliceWidth, sliceY) * step(sliceY, 1.0 - sliceWidth);
-        } else { // vertical
+        } else {
           float sliceX = fract(vUv.x * sliceCount);
           sliceMask = step(sliceWidth, sliceX) * step(sliceX, 1.0 - sliceWidth);
         }
-        
+
         vec4 texColor = texture2D(tDiffuse, slicedUV);
-        
-        // Apply slice mask - make gaps black (opaque) to hide underlying video
-        if (removeGaps > 0.5) {
-          gl_FragColor = texColor;
-        } else {
-          if (sliceMask > 0.0) {
-            gl_FragColor = texColor;
-          } else {
-            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); // Black gaps
-          }
+        if (inputIsSRGB == 1) {
+          texColor.rgb = pow(texColor.rgb, vec3(2.2));
         }
+
+        vec4 outColor;
+        if (removeGaps > 0.5) {
+          outColor = texColor;
+        } else {
+          outColor = (sliceMask > 0.0) ? texColor : vec4(0.0, 0.0, 0.0, 1.0);
+        }
+
+        // Write linear color into render target; final display pass handles encoding
+        gl_FragColor = outColor;
       }
     `;
 
@@ -191,11 +195,37 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
         animationSpeed: { value: animationSpeed },
         sliceDirection: { value: 0 },
         removeGaps: { value: removeGaps ? 1.0 : 0.0 },
-        bpm: { value: bpm }
+        bpm: { value: bpm },
+        inputIsSRGB: { value: 1 }
       },
-      transparent: true
+      transparent: true,
+      toneMapped: false
     });
   }, [bufferTexture, videoTexture, isGlobal, renderTarget]);
+
+  // Update input texture when upstream changes to avoid stale binding and prevent feedback loops
+  useEffect(() => {
+    if (!materialRef.current) return;
+    const nextTex: THREE.Texture | null = (videoTexture as unknown as THREE.Texture) || (renderTarget ? renderTarget.texture : bufferTexture);
+    if (nextTex && materialRef.current.uniforms.tDiffuse.value !== nextTex) {
+      materialRef.current.uniforms.tDiffuse.value = nextTex;
+      lastTextureRef.current = nextTex;
+    }
+    if (materialRef.current) {
+      const isSRGB = !!((nextTex as any)?.isVideoTexture || (nextTex as any)?.isCanvasTexture);
+      materialRef.current.uniforms.inputIsSRGB.value = isSRGB ? 1 : 0;
+    }
+  }, [videoTexture, renderTarget, bufferTexture]);
+
+  // Keep slice direction uniform synced with prop
+  useEffect(() => {
+    if (materialRef.current) {
+      const dir = sliceDirection === 'horizontal' ? 0 : 1;
+      if (materialRef.current.uniforms.sliceDirection.value !== dir) {
+        materialRef.current.uniforms.sliceDirection.value = dir;
+      }
+    }
+  }, [sliceDirection]);
 
   // Calculate aspect ratio from video texture if available
   const aspectRatio = useMemo(() => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
 import { sourceTextureRegistry } from '../../utils/SourceTextureRegistry';
@@ -104,8 +104,9 @@ const WebcamSource: React.FC<WebcamSourceProps> = ({
 		}
 	});
 
-  // Geometry sized to cover composition (2 world units height)
-	const compositionAspect = 16 / 9; // fallback; scene camera will adjust; this value is only for initial sizing
+	// Geometry sized to cover composition (2 world units height)
+	const { size } = useThree();
+	const compositionAspect = size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9; // fallback
 	const scaleX = Math.max(compositionAspect / videoAspect, 1);
 	const scaleY = Math.max(videoAspect / compositionAspect, 1);
 	const planeW = compositionAspect * 2 * scaleX;

@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
@@ -110,9 +110,10 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
       uniform float slideAmount;
       uniform int slideDirection;
       uniform float bpm;
-      
+      uniform int inputIsSRGB;
+
       varying vec2 vUv;
-      
+
       vec2 slideUV(vec2 uv, float time, float speed, float amount, int direction) {
         vec2 offset = vec2(0.0);
         
@@ -145,6 +146,9 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
         slidUV = fract(slidUV);
         
         vec4 texColor = texture2D(tDiffuse, slidUV);
+        if (inputIsSRGB == 1) {
+          texColor.rgb = pow(texColor.rgb, vec3(2.2));
+        }
         gl_FragColor = texColor;
       }
     `;
@@ -167,11 +171,29 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
         slideSpeed: { value: slideSpeed },
         slideAmount: { value: slideAmount },
         slideDirection: { value: 0 },
-        bpm: { value: bpm }
+        bpm: { value: bpm },
+        inputIsSRGB: { value: 1 }
       },
-      transparent: true
+      transparent: true,
+      toneMapped: false
     });
   }, [bufferTexture, videoTexture, renderTarget]);
+
+  // Keep input texture up to date when upstream changes
+  useEffect(() => {
+    if (!materialRef.current) return;
+    const nextTex: THREE.Texture | null = (videoTexture as unknown as THREE.Texture) || (renderTarget ? renderTarget.texture : bufferTexture);
+    if (nextTex && materialRef.current.uniforms.tDiffuse.value !== nextTex) {
+      materialRef.current.uniforms.tDiffuse.value = nextTex;
+      lastTextureRef.current = nextTex;
+    }
+    if (materialRef.current) {
+      const isSRGB = !!((nextTex as any)?.isVideoTexture || (nextTex as any)?.isCanvasTexture);
+      if ((materialRef.current.uniforms as any).inputIsSRGB) {
+        (materialRef.current.uniforms as any).inputIsSRGB.value = isSRGB ? 1 : 0;
+      }
+    }
+  }, [videoTexture, renderTarget, bufferTexture]);
 
   // Update aspect ratio from the best available texture image when it becomes valid
   useFrame(() => {

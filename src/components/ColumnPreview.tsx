@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { useStore } from '../store/store';
 import EffectLoader from './EffectLoader';
 import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
+import EffectChain, { ChainItem } from './EffectChain';
 
 interface ColumnPreviewProps {
   column: any;
@@ -766,320 +767,111 @@ const ColumnScene: React.FC<{
       
 
       
-      {/* Render all layers */}
+      {/* Render all layers using chain-based stacking */}
       {(() => {
-        // Find all video layers and effect layers
-        const videoLayers = sortedLayers.filter(layer => 
-          layer.asset && layer.asset.type === 'video'
-        );
-        const effectLayers = sortedLayers.filter(layer => {
-          if (!layer.asset) return false;
-          
-          // Check multiple ways an asset can be identified as an effect
-          const isEffect = 
-            layer.asset.type === 'p5js' || 
-            layer.asset.type === 'effect' || 
-            layer.asset.type === 'threejs' ||
-            layer.asset.isEffect === true ||
-            // Check if it's a source effect from EffectsBrowser
-            (layer.asset.type === 'effect' && layer.asset.effect) ||
-            // Check if it has effects array
-            (layer.effects && layer.effects.length > 0);
-          
-          console.log('🔍 Layer filtering check:', {
-            name: layer.name,
-            assetType: layer.asset.type,
-            isEffect: layer.asset.isEffect,
-            hasEffect: !!layer.asset.effect,
-            hasEffects: !!layer.effects,
-            effectsCount: layer.effects?.length || 0,
-            isEffectResult: isEffect,
-            asset: layer.asset
-          });
-          
-          if (isEffect) {
-            console.log('🎨 Effect layer detected:', {
-              name: layer.name,
-              assetType: layer.asset.type,
-              isEffect: layer.asset.isEffect,
-              hasEffects: !!layer.effects,
-              effectsCount: layer.effects?.length || 0,
-              asset: layer.asset
-            });
-          }
-          
-          return isEffect;
-        });
+        const layersBottomUp = [...sortedLayers].reverse();
 
-        console.log('Layers - Video:', videoLayers.map(l => l.name), 'Effects:', effectLayers.map(l => l.name));
-        
-        // Debug: Show full layer structure for source effects
-        console.log('🔍 Full layer structure for debugging:', sortedLayers.map(layer => ({
-          name: layer.name,
-          asset: layer.asset,
-          effects: layer.effects,
-          assetType: layer.asset?.type,
-          isEffect: layer.asset?.isEffect,
-          hasEffects: !!layer.effects,
-          effectsCount: layer.effects?.length || 0
-        })));
-        
-        // Debug: Show detailed layer content
-        console.log('🔍 Detailed layer content:', sortedLayers.map(layer => {
-          if (layer.asset) {
-            return {
-              name: layer.name,
-              assetKeys: Object.keys(layer.asset),
-              assetType: layer.asset.type,
-              isEffect: layer.asset.isEffect,
-              hasEffect: !!layer.asset.effect,
-              effectKeys: layer.asset.effect ? Object.keys(layer.asset.effect) : null,
-              metadata: layer.asset.metadata,
-              effectMetadata: layer.asset.effect?.metadata,
-              effects: layer.effects
-            };
-          }
-          return { name: layer.name, asset: null };
-        }));
-
-        const renderedElements: React.ReactElement[] = [];
-
-        // First, render video layers
-        // Create video textures map outside the loop to avoid hooks in loops
-        const videoTextures = useMemo(() => {
-          const textures = new Map();
-          videoLayers.forEach((videoLayer) => {
-            const video = assets.videos.get(videoLayer.asset.id);
-            if (video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
-              const texture = new THREE.VideoTexture(video);
-              texture.minFilter = THREE.LinearFilter;
-              texture.magFilter = THREE.LinearFilter;
-              texture.format = THREE.RGBAFormat;
-              texture.generateMipmaps = false;
-              texture.needsUpdate = true; // Force texture update
-              textures.set(videoLayer.asset.id, texture);
-            }
-          });
-          return textures;
-        }, [videoLayers, assets.videos]);
-
-        // Update video textures when playing
-        useEffect(() => {
-          if (isPlaying) {
-            videoTextures.forEach((texture) => {
-              texture.needsUpdate = true;
-            });
-          }
-        }, [videoTextures, isPlaying]);
-
-        videoLayers.forEach((videoLayer) => {
-          const video = assets.videos.get(videoLayer.asset.id);
-          if (!video) return;
-
-          const key = `video-${videoLayer.id}`;
-
-          // Check if there are any effect layers that should be applied to this video
-          const effectLayersForVideo = effectLayers.filter(effectLayer => {
-            const effectAsset = effectLayer.asset;
-            return effectAsset && (effectAsset.type === 'effect' || effectAsset.type === 'threejs');
-          });
-
-          if (effectLayersForVideo.length > 0) {
-            // Apply the first effect to the video
-            const firstEffect = effectLayersForVideo[0];
-            const effectAsset = firstEffect.asset;
-            console.log('🎨 Video effect asset:', effectAsset);
-            
-            // Handle nested effect structure
-            let effectId = null;
-            if (effectAsset.effect) {
-              // Nested effect structure: {type: 'effect', effect: {...}}
-              effectId = effectAsset.effect.id || effectAsset.effect.name || effectAsset.effect.type;
-            } else {
-              // Direct effect structure
-              effectId = effectAsset.id || effectAsset.name;
-            }
-            
-            // If we still don't have an ID, try to extract from filePath or generate from name
-            if (!effectId) {
-              if (effectAsset.filePath) {
-                effectId = effectAsset.filePath.replace('.tsx', '').replace(/^.*[\\\/]/, '');
-              } else if (effectAsset.name) {
-                effectId = effectAsset.name;
-              } else {
-                console.warn('No valid effect ID found for effect asset:', effectAsset);
-                return; // Skip rendering this effect instead of using 'unknown'
-              }
-            }
-            
-            // Use filename directly - no conversion needed
-            console.log('🎨 Using effect ID for video:', effectId);
-            
-            // Calculate proper aspect ratio for video (handled in VideoTexture)
-            
-            // Scale video to fit composition while maintaining aspect ratio
-            // (computed in VideoTexture instead)
-            
-            // Get video texture from the map
-            const videoTexture = videoTextures.get(videoLayer.asset.id);
-            
-            // Check if this effect replaces the video
-            const EffectComponent = getEffectComponentSync(effectId);
-            const effectMetadata = EffectComponent ? (EffectComponent as any).metadata : null;
-            const replacesVideo = effectMetadata?.replacesVideo === true;
-            
-            console.log('🎬 Effect metadata check:', { effectId, replacesVideo, metadata: effectMetadata });
-            
-            // Create a stable key for the effect component
-            const effectKey = `effect-${effectId}-${key}`;
-            
-            // Create a mock layer for the effect with video texture
-            const mockEffectLayer = {
-              asset: {
-                id: effectId,
-                name: effectAsset.effect?.name || effectAsset.name || effectId,
-                type: 'effect'
-              },
-              params: {
-                ...firstEffect.params,
-                ...effectAsset.effect?.params, // Include nested effect params
-                videoTexture: videoTexture // Pass video texture to effect
-              },
-              opacity: firstEffect.opacity || 1,
-              blendMode: firstEffect.blendMode || 'add'
-            };
-
-            if (replacesVideo) {
-              // Render a fading fallback/live video underneath the replacing effect to avoid flashes
-              renderedElements.push(
-                <React.Fragment key={`${key}-replaced`}>
-                  <VideoTexture
-                    video={video}
-                    opacity={videoLayer.opacity || 1}
-                    effects={undefined}
-                    compositionWidth={compositionWidth}
-                    compositionHeight={compositionHeight}
-                    cacheKey={videoLayer.asset?.id || String(key)}
-                  />
-                  <EffectLayer 
-                    key={effectKey}
-                    layer={mockEffectLayer}
-                  />
-                </React.Fragment>
-              );
-            } else {
-              // Render both the base video (with fading fallback) and the effect on top
-              renderedElements.push(
-                <React.Fragment key={`${key}-container`}>
-                  <VideoTexture
-                    video={video}
-                    opacity={videoLayer.opacity || 1}
-                    effects={undefined}
-                    compositionWidth={compositionWidth}
-                    compositionHeight={compositionHeight}
-                    cacheKey={videoLayer.asset?.id || String(key)}
-                  />
-                  <EffectLayer 
-                    key={effectKey}
-                    layer={mockEffectLayer}
-                  />
-                </React.Fragment>
-              );
-            }
+        const resolveEffectId = (asset: any): string | null => {
+          if (!asset) return null;
+          let effectId: string | null = null;
+          if (asset.effect) {
+            effectId = asset.effect.id || asset.effect.name || asset.effect.type || null;
           } else {
-            // Render normal video
-            renderedElements.push(
+            effectId = asset.id || asset.name || asset.filePath || null;
+          }
+          if (effectId && effectId.endsWith('.tsx')) {
+            effectId = effectId.replace('.tsx', '').replace(/^.*[\\\/]/, '');
+          }
+          return effectId;
+        };
+
+        const classifyLayer = (layer: any): 'video' | 'source' | 'effect' | 'unknown' => {
+          if (!layer?.asset) return 'unknown';
+          if (layer.asset.type === 'video') return 'video';
+          const effectId = resolveEffectId(layer.asset);
+          if (!effectId) return 'unknown';
+          const Comp = getEffectComponentSync(effectId);
+          const md = (Comp as any)?.metadata;
+          if (md?.isSource === true || md?.folder === 'sources') return 'source';
+          return 'effect';
+        };
+
+        const chains: ChainItem[][] = [];
+        let current: ChainItem[] = [];
+
+        const finalize = () => {
+          if (current.length > 0) {
+            chains.push(current);
+            current = [];
+          }
+        };
+
+        for (const layer of layersBottomUp) {
+          const kind = classifyLayer(layer);
+          if (kind === 'video') {
+            const video = assets.videos.get(layer.asset.id);
+            if (!video) {
+              finalize();
+              continue;
+            }
+            if (current.length > 0) finalize(); // enforce: video must be bottom-most in its stack
+            current.push({ type: 'video', video, opacity: layer.opacity, blendMode: layer.blendMode });
+          } else if (kind === 'source') {
+            const effectId = resolveEffectId(layer.asset);
+            if (!effectId) continue;
+            current.push({ type: 'source', effectId, params: layer.params });
+          } else if (kind === 'effect') {
+            const effectId = resolveEffectId(layer.asset);
+            if (!effectId) continue;
+            current.push({ type: 'effect', effectId, params: layer.params });
+          } else {
+            // Unknown layer: break chain
+            finalize();
+          }
+        }
+        finalize();
+
+        const elements: React.ReactElement[] = [];
+
+        chains.forEach((chain, idx) => {
+          if (chain.length === 1 && chain[0].type === 'video') {
+            const v = chain[0];
+            elements.push(
               <VideoTexture
-                key={key}
-                video={video}
-                opacity={videoLayer.opacity || 1}
-                effects={videoLayer.effects}
+                key={`video-only-${idx}`}
+                video={v.video}
+                opacity={typeof v.opacity === 'number' ? v.opacity : 1}
+                effects={undefined}
                 compositionWidth={compositionWidth}
                 compositionHeight={compositionHeight}
-                cacheKey={videoLayer.asset?.id || String(key)}
+                cacheKey={`video-only-${idx}`}
+              />
+            );
+          } else {
+            elements.push(
+              <EffectChain
+                key={`chain-${idx}`}
+                items={chain}
+                compositionWidth={compositionWidth}
+                compositionHeight={compositionHeight}
               />
             );
           }
         });
 
-        // Then, render standalone effects using unified system
-        effectLayers.forEach((effectLayer) => {
-          const effectAsset = effectLayer.asset;
-          if (!effectAsset) return;
-
-          console.log('🎨 Processing effect layer:', effectLayer.name, 'asset:', effectAsset, 'asset keys:', Object.keys(effectAsset));
-          
-            // Use unified effect renderer for all effects
-          // Handle different effect data structures
-          let effectId = null;
-          if (effectAsset.effect) {
-            // Nested effect structure: {type: 'effect', effect: {...}}
-            effectId = effectAsset.effect.id || effectAsset.effect.name || effectAsset.effect.type;
-          } else {
-            // Direct effect structure
-            effectId = effectAsset.id || effectAsset.name;
-          }
-          
-          // If we still don't have an ID, try to extract from filePath or generate from name
-          if (!effectId) {
-            if (effectAsset.filePath) {
-              effectId = effectAsset.filePath.replace('.tsx', '').replace(/^.*[\\\/]/, '');
-            } else if (effectAsset.name) {
-              effectId = effectAsset.name;
-            } else {
-              console.warn('No valid effect ID found for effect asset:', effectAsset);
-              return; // Skip rendering this effect instead of using 'unknown'
-            }
-          }
-          
-          // Use filename directly - no conversion needed
-          console.log('🎨 Standalone effect ID resolved:', effectId);
-          console.log('🎨 Effect asset structure:', effectAsset);
-          
-          const effectName = effectAsset.name || effectAsset.id || 'Unknown Effect';
-          
-          console.log('🎨 Using effect ID:', effectId, 'name:', effectName, 'asset:', effectAsset);
-          
-           const renderedEffect = renderEffect(
-            effectId, 
-            effectName, 
-            effectLayer.params, 
-            false // isGlobal = false for layer effects
-          );
-          
-          if (renderedEffect) {
-            renderedElements.push(renderedEffect);
-            console.log('🎨 Added effect to rendered elements:', effectAsset.id);
-          }
-        });
-
-        // Apply global effects using unified system
+        // Global effects: keep single active for now (unchanged behavior)
         const activeGlobalEffect = globalEffects.find((effect: any) => effect.enabled);
-        
-        console.log('🌐 Global effects array:', globalEffects);
-        console.log('🌐 Active global effect:', activeGlobalEffect);
-        
         if (activeGlobalEffect) {
-          console.log('🌐 Applying global effect:', activeGlobalEffect.effectId);
-          console.log('🌐 Global effect params:', activeGlobalEffect.params);
-          
-          // Use unified effect renderer for global effects
           const renderedGlobalEffect = renderEffect(
             activeGlobalEffect.effectId,
-            activeGlobalEffect.effectId, // Use effectId as name for globals
+            activeGlobalEffect.effectId,
             activeGlobalEffect.params,
-            true // isGlobal = true for global effects
+            true
           );
-          
-          if (renderedGlobalEffect) {
-            renderedElements.push(renderedGlobalEffect);
-            console.log('🌐 Added global effect to rendered elements:', activeGlobalEffect.effectId);
-          }
+          if (renderedGlobalEffect) elements.push(renderedGlobalEffect);
         }
 
-        return renderedElements.map((element, index) => 
-          React.cloneElement(element, { key: `rendered-element-${index}` })
-        );
+        return elements.map((el, i) => React.cloneElement(el, { key: `rendered-element-${i}` }));
       })()}
     </>
   );

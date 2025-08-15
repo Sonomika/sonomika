@@ -284,6 +284,9 @@ const FlashingLine: React.FC<{
   icon: '',
   author: 'VJ System',
   version: '1.0.0',
+  folder: 'sources',
+  isSource: true,
+  replacesVideo: false,
   parameters: [
     {
       name: 'color',
