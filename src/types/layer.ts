@@ -38,6 +38,7 @@ export interface VideoLayer extends BaseLayer {
   rotation?: number;
   muted?: boolean;
   loop?: boolean;
+  playMode?: 'restart' | 'continue'; // New property: restart video or continue from current position
   metadata?: {
     width: number;
     height: number;

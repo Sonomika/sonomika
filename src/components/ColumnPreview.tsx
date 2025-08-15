@@ -466,6 +466,8 @@ const ColumnScene: React.FC<{
             
             if (video) {
               console.log('✅ Using cached video for asset:', asset.name);
+              // Ensure cached video has the layer ID attribute
+              video.setAttribute('data-layer-id', layer.id);
               newVideos.set(asset.id, video);
             } else {
               console.log('Loading new video with path:', getAssetPath(asset, true), 'for asset:', asset.name);
@@ -498,6 +500,7 @@ const ColumnScene: React.FC<{
               video.playsInline = true;
               video.style.backgroundColor = 'transparent';
               video.crossOrigin = 'anonymous';
+              video.setAttribute('data-layer-id', layer.id); // Add layer ID for playMode control
               
               // Performance optimization for column switching
               video.preload = 'auto'; // Preload video data to reduce flash on column switch
@@ -544,14 +547,61 @@ const ColumnScene: React.FC<{
 
   // Handle play/pause
   useEffect(() => {
-    assets.videos.forEach(video => {
-      if (isPlaying) {
-        video.play().catch(console.warn);
-      } else {
-        video.pause();
+    if (isPlaying) {
+      const isTimelinePreview = column?.id === 'timeline-preview';
+      // On play, honor per-layer playMode for normal columns; in timeline preview, just play
+      column.layers.forEach((layer: any) => {
+        if (!layer?.asset || layer.asset.type !== 'video') return;
+        const video = assets.videos.get(layer.asset.id);
+        if (!video) return;
+        if (!isTimelinePreview) {
+          const mode = (layer as any).playMode ?? 'restart';
+          if (mode === 'restart') {
+            try { video.currentTime = 0; } catch {}
+          }
+        }
+        try { void video.play(); } catch {}
+      });
+    } else {
+      // Pause all videos when stopping
+      assets.videos.forEach(video => {
+        try { video.pause(); } catch {}
+      });
+    }
+  }, [isPlaying, assets.videos, column.layers]);
+
+  // New: handle video playMode events using assets cache within ColumnScene
+  useEffect(() => {
+    const handleVideoRestart = (e: CustomEvent) => {
+      const { layerId, columnId } = e.detail || {};
+      if (columnId !== column.id) return;
+      const targetLayer = column.layers.find((l: any) => l.id === layerId);
+      if (!targetLayer || !targetLayer.asset) return;
+      const video = assets.videos.get(targetLayer.asset.id);
+      if (video) {
+        try { video.currentTime = 0; } catch {}
+        try { void video.play(); } catch {}
       }
-    });
-  }, [isPlaying, assets.videos]);
+    };
+
+    const handleVideoContinue = (e: CustomEvent) => {
+      const { layerId, columnId } = e.detail || {};
+      if (columnId !== column.id) return;
+      const targetLayer = column.layers.find((l: any) => l.id === layerId);
+      if (!targetLayer || !targetLayer.asset) return;
+      const video = assets.videos.get(targetLayer.asset.id);
+      if (video && video.paused) {
+        try { void video.play(); } catch {}
+      }
+    };
+
+    document.addEventListener('videoRestart', handleVideoRestart as EventListener);
+    document.addEventListener('videoContinue', handleVideoContinue as EventListener);
+    return () => {
+      document.removeEventListener('videoRestart', handleVideoRestart as EventListener);
+      document.removeEventListener('videoContinue', handleVideoContinue as EventListener);
+    };
+  }, [column.id, column.layers, assets.videos]);
 
   // Set up camera
   useEffect(() => {
@@ -1057,8 +1107,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   })();
 
   // No React state-driven frame loop; R3F useFrame handles rendering
-
-  console.log('ColumnPreview rendering with:', { column, isPlaying });
+  // (Handlers moved into ColumnScene using assets cache)
 
   // Error boundary
   if (error) {

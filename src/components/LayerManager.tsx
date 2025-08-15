@@ -30,7 +30,7 @@ const MemoMediaLibrary = React.memo(MediaLibrary);
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings, bpm, setBpm, playingColumnId, playColumn, stopColumn, clearStorage } = useStore() as any;
+  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, clearStorage } = useStore() as any;
   const [bpmInputValue, setBpmInputValue] = useState(bpm.toString());
   
   // Sync local BPM input with store BPM
@@ -728,7 +728,34 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   🎵
                 </button>
               </div>
-                             <button 
+              
+              {/* Global Playback Controls */}
+              <div className="global-playback-controls">
+                <span className="global-controls-label">Global:</span>
+                <button
+                  onClick={globalPlay}
+                  className={`global-play-btn ${isGlobalPlaying ? 'active' : ''}`}
+                  title="Global Play - Resume all videos"
+                >
+                  ▶️
+                </button>
+                <button
+                  onClick={globalPause}
+                  className={`global-pause-btn ${!isGlobalPlaying ? 'active' : ''}`}
+                  title="Global Pause - Pause all videos"
+                >
+                  ⏸️
+                </button>
+                <button
+                  onClick={globalStop}
+                  className="global-stop-btn"
+                  title="Global Stop - Stop all videos"
+                >
+                  ⏹️
+                </button>
+              </div>
+              
+              <button 
                  onClick={() => setShowTimeline(!showTimeline)}
                  className={`timeline-toggle-btn ${showTimeline ? 'active' : ''}`}
                  title={showTimeline ? 'Switch to Grid View' : 'Switch to Timeline View'}
@@ -876,35 +903,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       className={`column-header ${isColumnPlaying ? 'playing' : ''}`}
                       onClick={() => {
                         console.log('🎵 Column header clicked for column:', column.id);
-                        console.log('🎵 Is column playing:', isColumnPlaying);
-                        if (isColumnPlaying) {
-                          console.log('🎵 Stopping column playback from header');
-                          handleStopWrapper();
-                        } else {
-                          console.log('🎵 Starting column playback from header');
-                          handleColumnPlayWrapper(column.id);
-                        }
+                        console.log('🎵 Starting/restarting column playback from header');
+                        handleColumnPlayWrapper(column.id);
                       }}
+                      title="Click anywhere to play/restart column"
                     >
                        <h4>{columns.findIndex(c => c.id === column.id) + 1}</h4>
-                      <button 
-                        className={`play-btn ${isColumnPlaying ? 'stop' : 'play'}`}
-                        onClick={(e) => {
-                          console.log('🎵 Column play button clicked for column:', column.id);
-                          console.log('🎵 Event:', e);
-                          console.log('🎵 Is column playing:', isColumnPlaying);
-                          e.stopPropagation();
-                          if (isColumnPlaying) {
-                            console.log('🎵 Stopping column playback');
-                            handleStopWrapper();
-                          } else {
-                            console.log('🎵 Starting column playback');
-                            handleColumnPlayWrapper(column.id);
-                          }
-                        }}
-                      >
-                        {isColumnPlaying ? '⏹' : '▶'}
-                      </button>
+                      <div className="play-indicator">
+                        ▶
+                      </div>
                     </div>
                   </div>
                 );

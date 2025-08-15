@@ -33,6 +33,7 @@ export interface Layer {
   solo: boolean;
   mute: boolean;
   locked: boolean;
+  playMode?: 'restart' | 'continue'; // For video layers: restart or continue playback
   params: Record<string, LayerParamValue>;
 }
 
@@ -83,6 +84,7 @@ export interface AppState {
   scenes: Scene[];
   currentSceneId: string;
   playingColumnId: string | null; // Track which column is currently playing
+  isGlobalPlaying: boolean; // Track global play/pause state
   bpm: number;
   sidebarVisible: boolean;
   midiMappings: MIDIMapping[];

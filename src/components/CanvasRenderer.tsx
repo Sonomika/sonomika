@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useEffectComponent } from '../utils/EffectLoader';
+import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
 import { useStore } from '../store/store';
 
 interface CanvasRendererProps {
@@ -52,6 +52,10 @@ const VideoTexture: React.FC<{
     );
   }
 
+  // Effects are now handled separately as layers, not directly in VideoTexture
+  // This component just renders the base video
+
+  // Default video rendering without effects
   return (
     <mesh ref={meshRef}>
       <planeGeometry args={[2, 2]} />
@@ -114,16 +118,36 @@ const EffectLayer: React.FC<{
   frameCount: number;
 }> = ({ asset, layer, frameCount }) => {
   const effectId = asset.asset.id;
+  console.log('🎨 EffectLayer: Rendering effect:', effectId, 'with params:', layer.params);
+  
   const EffectComponent = useEffectComponent(effectId);
 
   if (!EffectComponent) {
-    // No effect found - return null instead of hardcoded fallback
+    console.warn('❌ EffectLayer: Effect component not found for:', effectId);
     return null;
+  }
+
+  // Check if this effect needs a video texture and if we have one available
+  let videoTexture = null;
+  if (layer.params && layer.params.videoTexture) {
+    videoTexture = layer.params.videoTexture;
+    console.log('✅ EffectLayer: Video texture available for effect:', effectId);
+  } else {
+    console.log('⚠️ EffectLayer: No video texture for effect:', effectId);
   }
 
   return (
     <EffectComponent 
-      {...layer.params}
+      {...(() => {
+        const src = layer.params || {};
+        const out: Record<string, any> = {};
+        Object.keys(src).forEach((k) => {
+          const v: any = (src as any)[k];
+          out[k] = v && typeof v === 'object' && 'value' in v ? v.value : v;
+        });
+        return out;
+      })()}
+      videoTexture={videoTexture}
       opacity={layer.opacity}
       blendMode={layer.blendMode}
     />
@@ -146,14 +170,59 @@ const CanvasScene: React.FC<{
     images: Map<string, HTMLImageElement>;
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
+  
+  // Keep video textures updated
+  useFrame(() => {
+    // Update all video textures to ensure they're current
+    loadedAssets.videos.forEach((video) => {
+      if (video && video.readyState >= 2) {
+        // Video is ready, ensure texture updates
+        const videoTextures = assets
+          .filter(a => a.type === 'effect')
+          .map(effectAsset => {
+            const effectLayer = effectAsset.layer;
+            if (effectLayer && effectLayer.params && effectLayer.params.videoTexture) {
+              return effectLayer.params.videoTexture;
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        videoTextures.forEach(texture => {
+          if (texture && texture.needsUpdate !== undefined) {
+            texture.needsUpdate = true;
+          }
+        });
+      }
+    });
+  });
 
   // Load assets
+  // Derive a stable signature for media assets only (images/videos), so changing
+  // effect parameters does not cause video elements to reload (and restart)
+  const mediaAssetsKey = useMemo(() => {
+    try {
+      const parts = assets
+        .filter(a => a.type === 'image' || a.type === 'video')
+        .map(a => {
+          const asset = (a as any).asset || {};
+          const id = asset.id ?? '';
+          const path = asset.path ?? '';
+          const filePath = asset.filePath ?? '';
+          return `${a.type}:${id}:${path}:${filePath}`;
+        });
+      return parts.join('|');
+    } catch {
+      return '';
+    }
+  }, [assets]);
+
   useEffect(() => {
     const loadAssets = async () => {
       const newImages = new Map<string, HTMLImageElement>();
       const newVideos = new Map<string, HTMLVideoElement>();
 
-      for (const assetData of assets) {
+      for (const assetData of assets.filter(a => a.type === 'image' || a.type === 'video')) {
         const { asset, layer } = assetData;
         
         if (assetData.type === 'image') {
@@ -198,7 +267,7 @@ const CanvasScene: React.FC<{
     };
 
     loadAssets();
-  }, [assets]);
+  }, [mediaAssetsKey]);
 
   // Handle play/pause
   useEffect(() => {
@@ -248,16 +317,45 @@ const CanvasScene: React.FC<{
                 video={video}
                 opacity={layer.opacity || 1}
                 blendMode={layer.blendMode || 'add'}
-                effects={layer.effects}
+                effects={[]} // No effects applied directly to VideoTexture
               />
             );
           }
         } else if (type === 'effect') {
+          // For effect layers, check if they need video textures
+          let videoTexture = null;
+          
+          // Look for video layers that this effect might be targeting
+          const videoAssets = assets.filter(a => a.type === 'video');
+          if (videoAssets.length > 0) {
+            // For now, use the first available video texture
+            const firstVideo = loadedAssets.videos.get(videoAssets[0].asset.id);
+            if (firstVideo) {
+              // Create a video texture that will be updated in the animation loop
+              videoTexture = new THREE.VideoTexture(firstVideo);
+              videoTexture.minFilter = THREE.LinearFilter;
+              videoTexture.magFilter = THREE.LinearFilter;
+              videoTexture.format = THREE.RGBAFormat;
+              videoTexture.generateMipmaps = false;
+              
+              // Ensure the video texture updates every frame
+              videoTexture.needsUpdate = true;
+            }
+          }
+          
+          console.log('🎨 EffectLayer: Creating effect with video texture:', !!videoTexture);
+          
           return (
             <EffectLayer
               key={key}
               asset={assetData}
-              layer={layer}
+              layer={{
+                ...layer,
+                params: {
+                  ...layer.params,
+                  videoTexture: videoTexture
+                }
+              }}
               frameCount={frameCount}
             />
           );

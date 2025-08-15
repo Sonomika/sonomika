@@ -233,7 +233,6 @@ export const RotatingSquareGlitchEffect: React.FC<RotatingSquareGlitchEffectProp
   useFrame((state, delta) => {
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value += delta;
-      materialRef.current.uniforms.tDiffuse.value = videoTexture;
       materialRef.current.uniforms.uIntensity.value = intensity;
       materialRef.current.uniforms.uGlitchAmount.value = glitchAmount;
       materialRef.current.uniforms.uColorShift.value = colorShift;
@@ -241,6 +240,9 @@ export const RotatingSquareGlitchEffect: React.FC<RotatingSquareGlitchEffectProp
       materialRef.current.uniforms.uGridSize.value = gridSize;
       materialRef.current.uniforms.uRotationSpeed.value = rotationSpeed;
       materialRef.current.uniforms.uDepthVariation.value = depthVariation;
+      
+      // Texture binding is handled in useMemo and only changes when the source changes
+      // No need to constantly update tDiffuse during playback - this was causing the conflict
     }
   });
 
@@ -253,17 +255,13 @@ export const RotatingSquareGlitchEffect: React.FC<RotatingSquareGlitchEffectProp
   return (
     <mesh ref={meshRef}>
       <planeGeometry args={[2, 2]} />
-      <shaderMaterial
-        ref={materialRef}
-        attach="material"
-        args={[shaderMaterial]}
-      />
+      <primitive object={shaderMaterial} ref={materialRef} />
     </mesh>
   );
 };
 
 // Register the effect with metadata
-RotatingSquareGlitchEffect.metadata = {
+(RotatingSquareGlitchEffect as any).metadata = {
   name: 'Rotating Square Glitch',
   description: 'Splits video texture into 3D rotating squares with advanced glitch effects',
   category: 'Glitch',

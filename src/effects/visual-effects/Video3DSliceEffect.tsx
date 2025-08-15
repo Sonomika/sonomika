@@ -232,7 +232,8 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
           const material = mesh.material as THREE.ShaderMaterial;
           if (material.uniforms) {
             material.uniforms.uTime.value = timeRef.current;
-            material.uniforms.tDiffuse.value = videoTexture;
+            // Texture binding is handled in useMemo and only changes when the source changes
+            // No need to constantly update tDiffuse during playback - this was causing the conflict
             material.uniforms.uSeparationDistance.value = separationDistance;
             material.uniforms.uRotationIntensity.value = rotationIntensity;
             material.uniforms.uDepthSpread.value = depthSpread;

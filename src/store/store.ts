@@ -12,6 +12,7 @@ const createEmptyLayer = (type: Layer['type'] = 'p5'): Layer => ({
   solo: false,
   mute: false,
   locked: false,
+  playMode: 'restart', // Default to restart mode
   params: {},
 });
 
@@ -42,6 +43,7 @@ const initialState: AppState = {
   scenes: createDefaultScenes(),
   currentSceneId: '',
   playingColumnId: null, // No column playing initially
+  isGlobalPlaying: false, // Global play/pause state
   bpm: 120,
   sidebarVisible: true,
   midiMappings: [],
@@ -85,6 +87,9 @@ export const useStore = create<AppState & {
   setPlayingColumn: (columnId: string | null) => void;
   playColumn: (columnId: string) => void;
   stopColumn: () => void;
+  globalPlay: () => void;
+  globalPause: () => void;
+  globalStop: () => void;
   clearStorage: () => void;
   resetToDefault: () => void;
       addAsset: (asset: Asset) => void;
@@ -185,7 +190,38 @@ export const useStore = create<AppState & {
        
                playColumn: (columnId: string) => {
           try {
-            // Immediate state update
+            // Get the current scene and column to access video layers
+            const state = get();
+            const currentScene = state.scenes.find(scene => scene.id === state.currentSceneId);
+            const column = currentScene?.columns.find(col => col.id === columnId);
+            
+            if (column) {
+              // Handle video layers based on their playMode
+              column.layers.forEach(layer => {
+                if (layer.type === 'video' || (layer as any)?.asset?.type === 'video') {
+                  const playMode = layer.playMode || 'restart';
+                  
+                  if (playMode === 'restart') {
+                    // Always restart if restart mode is selected
+                    document.dispatchEvent(new CustomEvent('videoRestart', {
+                      detail: { layerId: layer.id, columnId }
+                    }));
+                  } else if (playMode === 'continue') {
+                    // Continue playback (resume from current position)
+                    document.dispatchEvent(new CustomEvent('videoContinue', {
+                      detail: { layerId: layer.id, columnId }
+                    }));
+                  }
+                }
+              });
+            }
+            
+            // Dispatch column play event for general handling
+            document.dispatchEvent(new CustomEvent('columnPlay', {
+              detail: { type: 'columnPlay', columnId }
+            }));
+            
+            // Always set as playing column (don't toggle off)
             set({ playingColumnId: columnId });
           } catch (error) {
             console.warn('Failed to play column:', error);
@@ -197,6 +233,55 @@ export const useStore = create<AppState & {
            set({ playingColumnId: null });
          } catch (error) {
            console.warn('Failed to stop column:', error);
+         }
+       },
+
+       // Global playback control
+       globalPlay: () => {
+         try {
+           set({ isGlobalPlaying: true });
+           // Dispatch global play event
+           document.dispatchEvent(new CustomEvent('globalPlay', {
+             detail: { type: 'globalPlay' }
+           }));
+           // Resume paused videos
+           document.dispatchEvent(new CustomEvent('videoResume', {
+             detail: { type: 'videoResume', allColumns: true }
+           }));
+         } catch (error) {
+           console.warn('Failed to start global playback:', error);
+         }
+       },
+
+       globalPause: () => {
+         try {
+           set({ isGlobalPlaying: false });
+           // Dispatch global pause event
+           document.dispatchEvent(new CustomEvent('globalPause', {
+             detail: { type: 'globalPause' }
+           }));
+           // Dispatch pause event for all video layers
+           document.dispatchEvent(new CustomEvent('videoPause', {
+             detail: { type: 'videoPause', allColumns: true }
+           }));
+         } catch (error) {
+           console.warn('Failed to pause global playback:', error);
+         }
+       },
+
+       globalStop: () => {
+         try {
+           set({ isGlobalPlaying: false, playingColumnId: null });
+           // Dispatch global stop event
+           document.dispatchEvent(new CustomEvent('globalStop', {
+             detail: { type: 'globalStop' }
+           }));
+           // Dispatch stop event for all video layers
+           document.dispatchEvent(new CustomEvent('videoStop', {
+             detail: { type: 'videoStop', allColumns: true }
+           }));
+         } catch (error) {
+           console.warn('Failed to stop global playback:', error);
          }
        },
 

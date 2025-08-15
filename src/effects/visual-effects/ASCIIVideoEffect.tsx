@@ -1,5 +1,5 @@
 // src/effects/ASCIIVideoEffect.tsx
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
@@ -76,7 +76,15 @@ export const ASCIIVideoEffect: React.FC<ASCIIVideoEffectProps> = ({
 
   const asciiTexture = useMemo(() => {
     return createCharactersTexture(characters, fontSize);
-  }, [characters, fontSize]);
+  }, []); // Create texture once and update via uniforms instead
+
+  // Update material when asciiTexture changes (without recreating the material)
+  useEffect(() => {
+    if (materialRef.current) {
+      // Update character count when characters change
+      materialRef.current.uniforms.uCharactersCount.value = characters.length;
+    }
+  }, [characters.length]); // Only update when characters string changes
 
   // For global effects, we need to capture the current render target
   const renderTarget = useMemo(() => {
@@ -143,8 +151,8 @@ void main() {
   const shaderMaterial = useMemo(() => {
     if (!asciiTexture) return null;
 
-    // For global effects, we'll use a fallback texture initially
-    const inputTexture = videoTexture || new THREE.Color(0, 0, 0);
+    // Use a simple fallback for initial creation - NOT asciiTexture
+    const inputTexture = new THREE.Color(0, 0, 0);
 
     return new THREE.ShaderMaterial({
       uniforms: {
@@ -170,7 +178,7 @@ void main() {
       depthTest: false,
       depthWrite: false
     });
-  }, [videoTexture, asciiTexture, cellSize, characters.length, color, invert]);
+  }, [isGlobal]); // Only recreate when global mode changes, not when ascii texture changes
 
   // For global effects, capture the current scene and apply ASCII effect
   useFrame(() => {
@@ -189,20 +197,33 @@ void main() {
 
     // Update uniforms on each frame
     if (materialRef.current && shaderMaterial) {
-      materialRef.current.uniforms.uCellSize.value = cellSize;
-      materialRef.current.uniforms.uCharactersCount.value = characters.length;
-      materialRef.current.uniforms.uColor.value.set(color);
-      materialRef.current.uniforms.uInvert.value = invert;
+      // Only update uniforms when values actually change (prevents video restart)
+      if (materialRef.current.uniforms.uCellSize.value !== cellSize) {
+        materialRef.current.uniforms.uCellSize.value = cellSize;
+      }
+      if (materialRef.current.uniforms.uCharactersCount.value !== characters.length) {
+        materialRef.current.uniforms.uCharactersCount.value = characters.length;
+      }
+      if (materialRef.current.uniforms.uColor.value.getHexString() !== color.replace('#', '')) {
+        materialRef.current.uniforms.uColor.value.set(color);
+      }
+      if (materialRef.current.uniforms.uInvert.value !== invert) {
+        materialRef.current.uniforms.uInvert.value = invert;
+      }
       
-      // Update video texture if available (for layer effects)
-      if (videoTexture && !isGlobal && materialRef.current.uniforms.inputBuffer.value !== videoTexture) {
+      // Update character texture only when characters or font size change
+      if (materialRef.current.uniforms.uCharacters.value !== asciiTexture) {
+        materialRef.current.uniforms.uCharacters.value = asciiTexture;
+      }
+      
+      // Update video texture if available
+      if (videoTexture && materialRef.current.uniforms.inputBuffer.value !== videoTexture) {
         materialRef.current.uniforms.inputBuffer.value = videoTexture;
       }
       
-      // Update ASCII texture if changed
-      if (asciiTexture && materialRef.current.uniforms.uCharacters.value !== asciiTexture) {
-        materialRef.current.uniforms.uCharacters.value = asciiTexture;
-      }
+      // Texture binding is handled in useMemo and only changes when the source changes
+      // No need to constantly update inputBuffer during playback - this was causing the conflict
+      
     }
   });
 

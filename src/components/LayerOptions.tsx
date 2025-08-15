@@ -4,7 +4,7 @@ import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
 import ReactSlider from 'react-slider';
 import { useLFOStore } from '../store/lfoStore';
-import { ParamRow } from './ui';
+import { ParamRow, ButtonGroup } from './ui';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
@@ -32,6 +32,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   );
   const [blendMode, setBlendMode] = useState(selectedLayer?.blendMode || 'add');
   const [opacity, setOpacity] = useState(selectedLayer?.opacity || 1.0);
+  const [playMode, setPlayMode] = useState<'restart' | 'continue'>(
+    (selectedLayer as any)?.playMode || 'restart'
+  );
   const opacityRafRef = useRef<number | null>(null);
   const opacityPendingRef = useRef<number>(selectedLayer?.opacity || 1.0);
   const [localParamValues, setLocalParamValues] = useState<Record<string, number>>({});
@@ -77,6 +80,17 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       setLoopCount((selectedLayer as any).loopCount || 1);
       setBlendMode(selectedLayer.blendMode || 'add');
       setOpacity(selectedLayer.opacity || 1.0);
+      
+      // Initialize playMode if it doesn't exist
+      const currentPlayMode = (selectedLayer as any)?.playMode;
+      if (currentPlayMode === undefined) {
+        // Set default playMode to 'restart' and update the layer
+        const defaultPlayMode = 'restart';
+        setPlayMode(defaultPlayMode);
+        onUpdateLayer(selectedLayer.id, { playMode: defaultPlayMode });
+      } else {
+        setPlayMode(currentPlayMode);
+      }
       
       // Initialize effect parameters if they don't exist
       if (hasEffect && effectMetadata && selectedLayer.params) {
@@ -148,6 +162,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       onUpdateLayer(selectedLayer.id, {
         ...(selectedLayer as any),
         blendMode: mode
+      });
+    }
+  };
+
+  const handlePlayModeChange = (mode: 'restart' | 'continue') => {
+    setPlayMode(mode);
+    if (selectedLayer) {
+      onUpdateLayer(selectedLayer.id, {
+        ...(selectedLayer as any),
+        playMode: mode
       });
     }
   };
@@ -388,39 +412,62 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         )}
 
         {/* Video-specific options */}
-        {selectedLayer?.type === 'video' && (
-          <div className="option-group">
-            <h4>Video Options</h4>
-            <div className="option-control">
-              <div className="loop-mode-buttons">
-                <button
-                  className={`loop-btn ${loopMode === LOOP_MODES.NONE ? 'active' : ''}`}
-                  onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
-                >
-                  None
-                </button>
-                <button
-                  className={`loop-btn ${loopMode === LOOP_MODES.LOOP ? 'active' : ''}`}
-                  onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
-                >
-                  Loop
-                </button>
-                <button
-                  className={`loop-btn ${loopMode === LOOP_MODES.REVERSE ? 'active' : ''}`}
-                  onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
-                >
-                  Reverse
-                </button>
-                <button
-                  className={`loop-btn ${loopMode === LOOP_MODES.PING_PONG ? 'active' : ''}`}
-                  onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
-                >
-                  Ping-Pong
-                </button>
+        {(() => {
+          // Check if this is a video layer (either by layer type or asset type)
+          // Also check if the asset name suggests it's a video file
+          const assetName = (selectedLayer as any)?.asset?.name || '';
+          const isVideoLayer = selectedLayer?.type === 'video' || 
+                              (selectedLayer as any)?.asset?.type === 'video' ||
+                              assetName.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i);
+          
+          return isVideoLayer ? (
+            <div className="option-group">
+              <h4>Video Options</h4>
+              <div className="option-control">
+                <div className="loop-mode-buttons">
+                  <button
+                    className={`loop-btn ${loopMode === LOOP_MODES.NONE ? 'active' : ''}`}
+                    onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
+                  >
+                    None
+                  </button>
+                  <button
+                    className={`loop-btn ${loopMode === LOOP_MODES.LOOP ? 'active' : ''}`}
+                    onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
+                  >
+                    Loop
+                  </button>
+                  <button
+                    className={`loop-btn ${loopMode === LOOP_MODES.REVERSE ? 'active' : ''}`}
+                    onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
+                  >
+                    Reverse
+                  </button>
+                  <button
+                    className={`loop-btn ${loopMode === LOOP_MODES.PING_PONG ? 'active' : ''}`}
+                    onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
+                  >
+                    Ping-Pong
+                  </button>
+                </div>
+              </div>
+              
+              <div className="option-control">
+                <label>Play Mode:</label>
+                <ButtonGroup
+                  options={[
+                    { value: 'restart', label: 'Restart' },
+                    { value: 'continue', label: 'Continue' }
+                  ]}
+                  value={playMode}
+                  onChange={(value) => handlePlayModeChange(value as 'restart' | 'continue')}
+                  columns={2}
+                  size="small"
+                />
               </div>
             </div>
-          </div>
-        )}
+          ) : null;
+        })()}
 
 
 

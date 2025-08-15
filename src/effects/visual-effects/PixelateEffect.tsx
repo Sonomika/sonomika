@@ -137,10 +137,8 @@ export const PixelateEffect: React.FC<PixelateEffectProps> = ({
         state.gl.domElement.height
       );
       
-      // Update video texture if available (for layer effects)
-      if (videoTexture && !isGlobal && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
-        materialRef.current.uniforms.tDiffuse.value = videoTexture;
-      }
+      // Texture binding is handled in useMemo and only changes when the source changes
+      // No need to constantly update tDiffuse during playback - this was causing the conflict
       
       // Update parameter uniforms
       materialRef.current.uniforms.uPixelSize.value = pixelSize;
@@ -167,7 +165,7 @@ export const PixelateEffect: React.FC<PixelateEffectProps> = ({
 };
 
 // Metadata for the effect
-PixelateEffect.metadata = {
+(PixelateEffect as any).metadata = {
   name: 'Pixelate Effect',
   description: 'Applies a pixelation filter to video content - works as both layer and global effect',
   category: 'Distortion',

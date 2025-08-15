@@ -255,10 +255,8 @@ const AdvancedGlitchEffect: React.FC<AdvancedGlitchEffectProps> = ({
         );
       }
       
-      // Update video texture if available
-      if (videoTexture && materialRef.current.uniforms.iChannel0.value !== videoTexture) {
-        materialRef.current.uniforms.iChannel0.value = videoTexture;
-      }
+      // Texture binding is handled in useMemo and only changes when the source changes
+      // No need to constantly update iChannel0 during playback - this was causing the conflict
     }
   });
 

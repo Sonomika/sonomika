@@ -50,7 +50,6 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => {
-      console.log('🎬 VideoLayer: Video ended, loop mode:', layer.loopMode);
       
       switch (layer.loopMode) {
         case LOOP_MODES.NONE:
@@ -99,16 +98,60 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
   // BPM sync effect
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !layer.bpmSync || !bpm) return;
+    if (!video || !bpm) return;
 
-    const beatInterval = 60 / bpm; // seconds per beat
-    const currentBeat = Math.floor(currentTime / beatInterval);
-    const targetTime = currentBeat * beatInterval;
+    const interval = setInterval(() => {
+      if (video.paused) return;
+      
+      const currentTime = video.currentTime;
+      const duration = video.duration;
+      if (duration === 0) return;
+      
+      // Calculate BPM-based timing
+      const beatsPerSecond = bpm / 60;
+      const currentBeat = Math.floor(currentTime * beatsPerSecond);
+      const nextBeatTime = (currentBeat + 1) / beatsPerSecond;
+      
+      // Adjust video timing to sync with BPM
+      if (Math.abs(currentTime - nextBeatTime) < 0.1) {
+        video.currentTime = nextBeatTime;
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [bpm]);
+
+  // Handle column play events - restart vs continue logic
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleVideoRestart = (e: CustomEvent) => {
+      if (e.detail?.layerId === layer.id) {
+        // Restart video from beginning
+        video.currentTime = 0;
+        video.play().catch(console.error);
+      }
+    };
+
+    const handleVideoContinue = (e: CustomEvent) => {
+      if (e.detail?.layerId === layer.id) {
+        // Continue from current position
+        if (video.paused) {
+          video.play().catch(console.error);
+        }
+      }
+    };
+
+    // Listen for specific video control events
+    document.addEventListener('videoRestart', handleVideoRestart as EventListener);
+    document.addEventListener('videoContinue', handleVideoContinue as EventListener);
     
-    if (Math.abs(currentTime - targetTime) > 0.1) {
-      video.currentTime = targetTime;
-    }
-  }, [bpm, layer.bpmSync, currentTime]);
+    return () => {
+      document.removeEventListener('videoRestart', handleVideoRestart as EventListener);
+      document.removeEventListener('videoContinue', handleVideoContinue as EventListener);
+    };
+  }, [layer.id, layer.playMode]);
 
   const loadVideo = (src: string) => {
     setIsLoading(true);
@@ -293,201 +336,27 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
   };
 
   return (
-    <div className="video-layer">
-      <div className="video-layer-header">
-        <h3>Video Layer: {layer.name}</h3>
-        <div className="video-controls">
-          <input
-            type="file"
-            accept="video/*"
-            onChange={handleFileSelect}
-            style={{ display: 'none' }}
-            id={`video-input-${layer.id}`}
-          />
-          <label htmlFor={`video-input-${layer.id}`} className="file-input-label">
-            Choose Video
-          </label>
+    <div className="video-layer" style={{ width, height }}>
+      <video
+        ref={videoRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block'
+        }}
+        data-layer-id={layer.id}
+        muted
+        playsInline
+      />
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
         </div>
-      </div>
-
-      <div className="video-layer-content">
-        <div
-          className="video-drop-zone"
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          {isLoading ? (
-            <div className="loading-state">
-              <div className="spinner"></div>
-              <p>Loading video...</p>
-            </div>
-          ) : error ? (
-            <div className="error-state">
-              <p>{error}</p>
-            </div>
-          ) : videoRef.current?.src ? (
-            <canvas
-              ref={canvasRef}
-              width={width}
-              height={height}
-              className="video-canvas"
-            />
-          ) : (
-            <div className="empty-state">
-      
-              <p>Drop a video here or click to browse</p>
-            </div>
-          )}
-        </div>
-
-        {/* Hidden video element for playback */}
-        <video
-          ref={videoRef}
-          style={{ display: 'none' }}
-          muted={layer.muted}
-          loop={layer.loop}
-        />
-      </div>
-
-      {videoRef.current?.src && (
-        <div className="video-layer-controls">
-          {/* Playback Controls */}
-          <div className="playback-controls">
-            <button onClick={togglePlay} className="play-button">
-              {isPlaying ? '⏸️' : '▶️'}
-            </button>
-            
-            <div className="time-display">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </div>
-            
-            <input
-              type="range"
-              min="0"
-              max={duration || 0}
-              step="0.1"
-              value={currentTime}
-              onChange={handleSeek}
-              className="seek-bar"
-            />
-          </div>
-
-          {/* Video Settings */}
-          <div className="control-group">
-            <label>Fit Mode:</label>
-            <select
-              value={layer.fitMode || 'cover'}
-                             onChange={(e) => onUpdate({ fitMode: e.target.value as 'cover' | 'contain' | 'stretch' })}
-            >
-              <option value="cover">Cover</option>
-              <option value="contain">Contain</option>
-              <option value="stretch">Stretch</option>
-            </select>
-          </div>
-
-          <div className="control-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={layer.loop || false}
-                onChange={(e) => onUpdate({ loop: e.target.checked })}
-              />
-              Loop
-            </label>
-          </div>
-
-          <div className="control-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={layer.muted || false}
-                onChange={(e) => onUpdate({ muted: e.target.checked })}
-              />
-              Muted
-            </label>
-          </div>
-
-          <div className="control-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={layer.bpmSync || false}
-                onChange={(e) => onUpdate({ bpmSync: e.target.checked })}
-              />
-              BPM Sync
-            </label>
-          </div>
-
-          <div className="control-group">
-            <label>Scale: {layer.scale || 1}</label>
-            <input
-              type="range"
-              min="0.1"
-              max="3"
-              step="0.1"
-              value={layer.scale || 1}
-              onChange={(e) => onUpdate({ scale: parseFloat(e.target.value) })}
-            />
-          </div>
-
-          <div className="control-group">
-            <label>Rotation: {layer.rotation || 0}°</label>
-            <input
-              type="range"
-              min="0"
-              max="360"
-              step="1"
-              value={layer.rotation || 0}
-              onChange={(e) => onUpdate({ rotation: parseInt(e.target.value) })}
-            />
-          </div>
-
-          <div className="control-group">
-            <label>Opacity: {Math.round((layer.opacity || 1) * 100)}%</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={layer.opacity || 1}
-              onChange={(e) => onUpdate({ opacity: parseFloat(e.target.value) })}
-            />
-          </div>
-
-          <div className="control-group">
-            <label>Position X: {Math.round((layer.position?.x || 0.5) * 100)}%</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={layer.position?.x || 0.5}
-                             onChange={(e) => onUpdate({ 
-                 position: { 
-                   x: parseFloat(e.target.value),
-                   y: layer.position?.y || 0.5
-                 } 
-               })}
-            />
-          </div>
-
-          <div className="control-group">
-            <label>Position Y: {Math.round((layer.position?.y || 0.5) * 100)}%</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={layer.position?.y || 0.5}
-                             onChange={(e) => onUpdate({ 
-                 position: { 
-                   x: layer.position?.x || 0.5,
-                   y: parseFloat(e.target.value)
-                 } 
-               })}
-            />
-          </div>
+      )}
+      {error && (
+        <div className="error-overlay">
+          <p>Error: {error}</p>
         </div>
       )}
     </div>

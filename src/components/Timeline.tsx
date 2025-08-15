@@ -197,15 +197,16 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   
   // Calculate the earliest clip start time to sync playhead
   const getEarliestClipTime = () => {
-    let earliestTime = 0;
-    tracks.forEach(track => {
-      track.clips.forEach(clip => {
-        if (clip.startTime < earliestTime || earliestTime === 0) {
-          earliestTime = clip.startTime;
-        }
+    let earliestTime = Number.POSITIVE_INFINITY;
+    try {
+      tracks.forEach(track => {
+        track.clips.forEach(clip => {
+          const start = Math.max(0, clip.startTime || 0);
+          if (start < earliestTime) earliestTime = start;
+        });
       });
-    });
-    return earliestTime;
+    } catch {}
+    return Number.isFinite(earliestTime) ? earliestTime : 0;
   };
   const { timelineZoom, setTimelineZoom } = useStore();
   const zoom = timelineZoom;
@@ -1187,13 +1188,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       setPlaybackInterval(null);
     }
     
-    // Always start from current time when play button is clicked (don't override user's position)
-    const startAt = currentTime;
-    console.log('Starting playback from current time:', startAt);
+    // Always start from the earliest clip time (fallback to 0 if none)
+    const earliest = getEarliestClipTime();
+    const startAt = earliest > 0 ? earliest : 0;
     setCurrentTime(startAt);
-    
-    // Get earliest clip time for end-of-timeline reset
-    // (reuse earliestClipTime defined above)
     
     console.log('Creating new interval');
     const interval = setInterval(() => {

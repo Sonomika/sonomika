@@ -1,5 +1,5 @@
 // src/effects/VideoWarpEffect.tsx
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
@@ -24,14 +24,16 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const lastTextureRef = useRef<THREE.Texture | null>(null);
   const { bpm } = useStore();
   const { gl, scene, camera } = useThree(); // Destructure gl, scene, camera
+  const [aspect, setAspect] = React.useState<number>(16 / 9);
 
   console.log('🎨 VideoWarpEffect component rendered with props:', { intensity, frequency, speed, waveType, isGlobal });
 
   // For global effects, we need to capture the current render target
   const renderTarget = useMemo(() => {
-    if (isGlobal) {
+    if (isGlobal || !videoTexture) {
       const rt = new THREE.WebGLRenderTarget(1920, 1080, {
         format: THREE.RGBAFormat,
         type: THREE.UnsignedByteType,
@@ -41,12 +43,44 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
       return rt;
     }
     return null;
-  }, [isGlobal]);
+  }, [isGlobal, videoTexture]);
+
+  // Canvas buffer to persist the last good frame (prevents black and background bleed)
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const bufferTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    // Initialize with a fallback pattern instead of empty canvas
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Create a simple fallback pattern
+      ctx.fillStyle = '#333333';
+      ctx.fillRect(0, 0, 64, 64);
+      ctx.strokeStyle = '#666666';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(8, 8, 48, 48);
+      ctx.fillStyle = '#999999';
+      ctx.fillRect(16, 16, 32, 32);
+    }
+    offscreenCanvasRef.current = canvas;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    return tex;
+  }, []);
 
   // Create shader material that warps the video texture
   const shaderMaterial = useMemo(() => {
-    // For global effects, we'll use a fallback texture initially
-    const inputTexture = videoTexture || new THREE.Color(0, 0, 0); // Fallback for global
+    const initialTexture: THREE.Texture = (lastTextureRef.current as THREE.Texture)
+      || ((videoTexture && !isGlobal) ? (videoTexture as THREE.Texture) : (renderTarget ? renderTarget.texture : bufferTexture));
+
+    if (!lastTextureRef.current) {
+      lastTextureRef.current = initialTexture;
+    }
+
+    // Always render from live videoTexture if provided, otherwise from our persistent canvas buffer
+    const inputTexture: THREE.Texture = initialTexture;
 
     return new THREE.ShaderMaterial({
       uniforms: {
@@ -56,7 +90,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
         speed: { value: speed },
         bpm: { value: bpm },
         waveType: { value: waveType === 'sine' ? 0 : waveType === 'cosine' ? 1 : 2 },
-        tDiffuse: { value: inputTexture } // Initial value
+        tDiffuse: { value: inputTexture } // Initial safe value
       },
       vertexShader: `
         varying vec2 vUv;
@@ -69,7 +103,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
         
         void main() {
           // Get original UV coordinates
-          vec2 uv = uv;
+          vec2 localUv = uv;
           
           // Calculate wave distortion based on BPM
           float beatTime = time * (bpm / 60.0);
@@ -80,22 +114,22 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
           
           if (waveType == 0) {
             // Sine wave
-            waveX = sin(uv.x * frequency * 3.14159 + waveTime) * 
-                    sin(uv.y * frequency * 2.0 + waveTime * 0.7) * intensity;
-            waveY = cos(uv.x * frequency * 2.5 + waveTime * 1.3) * 
-                    sin(uv.y * frequency * 1.5 + waveTime * 0.9) * intensity;
+            waveX = sin(localUv.x * frequency * 3.14159 + waveTime) * 
+                    sin(localUv.y * frequency * 2.0 + waveTime * 0.7) * intensity;
+            waveY = cos(localUv.x * frequency * 2.5 + waveTime * 1.3) * 
+                    sin(localUv.y * frequency * 1.5 + waveTime * 0.9) * intensity;
           } else if (waveType == 1) {
             // Cosine wave
-            waveX = cos(uv.x * frequency * 2.0 + waveTime) * 
-                    cos(uv.y * frequency * 1.8 + waveTime * 0.5) * intensity;
-            waveY = sin(uv.x * frequency * 2.2 + waveTime * 1.1) * 
-                    cos(uv.y * frequency * 1.3 + waveTime * 0.8) * intensity;
+            waveX = cos(localUv.x * frequency * 2.0 + waveTime) * 
+                    cos(localUv.y * frequency * 1.8 + waveTime * 0.5) * intensity;
+            waveY = sin(localUv.x * frequency * 2.2 + waveTime * 1.1) * 
+                    cos(localUv.y * frequency * 1.3 + waveTime * 0.8) * intensity;
           } else {
             // Tangent-like wave (using sin/cos combination)
-            waveX = sin(uv.x * frequency * 4.0 + waveTime) * 
-                    cos(uv.y * frequency * 3.0 + waveTime * 0.6) * intensity;
-            waveY = cos(uv.x * frequency * 3.5 + waveTime * 1.2) * 
-                    sin(uv.y * frequency * 2.5 + waveTime * 0.4) * intensity;
+            waveX = sin(localUv.x * frequency * 4.0 + waveTime) * 
+                    cos(localUv.y * frequency * 3.0 + waveTime * 0.6) * intensity;
+            waveY = cos(localUv.x * frequency * 3.5 + waveTime * 1.2) * 
+                    sin(localUv.y * frequency * 2.5 + waveTime * 0.4) * intensity;
           }
           
           // Add BPM-based pulsing
@@ -104,7 +138,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
           waveY *= bpmPulse;
           
           // Apply distortion to UV coordinates
-          vec2 distortedUv = uv + vec2(waveX, waveY);
+          vec2 distortedUv = localUv + vec2(waveX, waveY);
           
           // Pass distorted UV to fragment shader
           vUv = distortedUv;
@@ -129,7 +163,17 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
       depthTest: false,
       depthWrite: false
     });
-  }, [intensity, frequency, speed, waveType, bpm, videoTexture, isGlobal]);
+  }, [bufferTexture, videoTexture, isGlobal, renderTarget]);
+
+  // Keep aspect stable and update when valid video dims are available
+  useFrame(() => {
+    const tex = (!isGlobal && (videoTexture as THREE.Texture)) || lastTextureRef.current || (renderTarget ? renderTarget.texture : null);
+    const img: any = (tex as any)?.image;
+    if (img && img.videoWidth && img.videoHeight && img.videoWidth > 0 && img.videoHeight > 0) {
+      const next = img.videoWidth / img.videoHeight;
+      if (Math.abs(next - aspect) > 0.001) setAspect(next);
+    }
+  });
 
   useFrame((state) => {
     // For global effects, capture the current scene and apply warp effect
@@ -142,25 +186,35 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
 
       // Update the input buffer to use the captured scene
       if (materialRef.current) {
-        materialRef.current.uniforms.tDiffuse.value = renderTarget.texture;
+        if (materialRef.current.uniforms.tDiffuse.value !== renderTarget.texture) {
+          materialRef.current.uniforms.tDiffuse.value = renderTarget.texture;
+        }
       }
     }
 
     if (materialRef.current) {
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
+      // BPM can change gradually; update each frame is fine
       materialRef.current.uniforms.bpm.value = bpm;
-      
-      // Update parameter uniforms in real-time
-      materialRef.current.uniforms.intensity.value = intensity;
-      materialRef.current.uniforms.frequency.value = frequency;
-      materialRef.current.uniforms.speed.value = speed;
-      materialRef.current.uniforms.waveType.value = waveType === 'sine' ? 0.0 : 
-                                                   waveType === 'cosine' ? 1.0 : 2.0;
-      
-      // Update video texture if available (for layer effects)
-      if (videoTexture && !isGlobal && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
-        materialRef.current.uniforms.tDiffuse.value = videoTexture;
+
+      // Only update uniforms when values actually change (matches SliceOffset pattern)
+      if (materialRef.current.uniforms.intensity.value !== intensity) {
+        materialRef.current.uniforms.intensity.value = intensity;
       }
+      if (materialRef.current.uniforms.frequency.value !== frequency) {
+        materialRef.current.uniforms.frequency.value = frequency;
+      }
+      if (materialRef.current.uniforms.speed.value !== speed) {
+        materialRef.current.uniforms.speed.value = speed;
+      }
+
+      const waveTypeIndex = waveType === 'sine' ? 0 : waveType === 'cosine' ? 1 : 2;
+      if (materialRef.current.uniforms.waveType.value !== waveTypeIndex) {
+        materialRef.current.uniforms.waveType.value = waveTypeIndex;
+      }
+
+      // Texture binding is handled in useMemo and only changes when the source changes
+      // No need to constantly update tDiffuse during playback - this was causing the conflict
     }
   });
 
@@ -191,7 +245,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
 
   return (
     <mesh ref={meshRef} position={[0, 0, 0.1]}>
-      <planeGeometry args={[aspectRatio * 2, 2]} />
+      <planeGeometry args={[aspect * 2, 2]} />
       <primitive object={shaderMaterial} ref={materialRef} />
     </mesh>
   );

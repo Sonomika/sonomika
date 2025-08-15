@@ -187,10 +187,8 @@ const VideoDatamoshGlitch: React.FC<VideoDatamoshGlitchProps> = ({
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
       materialRef.current.uniforms.bpm.value = bpm;
       
-      // Update video texture if available
-      if (videoTexture && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
-        materialRef.current.uniforms.tDiffuse.value = videoTexture;
-      }
+      // Texture binding is handled in useMemo and only changes when the source changes
+      // No need to constantly update tDiffuse during playback - this was causing the conflict
     }
   });
 
