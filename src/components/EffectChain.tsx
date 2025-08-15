@@ -84,14 +84,21 @@ export const EffectChain: React.FC<EffectChainProps> = ({
     }
   };
 
-  // Offscreen scenes for each non-video item
+  // Build a stable signature for scene structure that ignores param changes
+  const sceneSignature = useMemo(() => {
+    return items
+      .map((it) => (it.type === 'effect' ? `effect:${(it as any).effectId}` : it.type))
+      .join('|');
+  }, [items]);
+
+  // Offscreen scenes for each non-video item (only recreate when structure changes)
   const offscreenScenes = useMemo(() => {
     return items.map(() => {
       const s = new THREE.Scene();
       (s as any).background = null;
       return s;
     });
-  }, [items]);
+  }, [sceneSignature]);
 
   // Keep per-index input textures to pass into effect components
   const [inputTextures, setInputTextures] = useState<Array<THREE.Texture | null>>(
@@ -129,14 +136,17 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       });
       bgMeshesRef.current = [];
     };
-  }, [items, offscreenScenes, compositionWidth, compositionHeight]);
+  }, [sceneSignature, offscreenScenes, compositionWidth, compositionHeight]);
 
-  // Prepare video texture once
-  React.useEffect(() => {
+  // Prepare video texture once per base video element
+  const baseVideoEl = useMemo(() => {
     const firstVideo = items.find((it) => it.type === 'video') as Extract<ChainItem, { type: 'video' }> | undefined;
-    if (!firstVideo) return;
-    const video = firstVideo.video;
-    if (!video) return;
+    return firstVideo?.video || null;
+  }, [items]);
+
+  React.useEffect(() => {
+    if (!baseVideoEl) return;
+    const video = baseVideoEl;
 
     const tex = new THREE.VideoTexture(video);
     tex.minFilter = THREE.LinearFilter;
@@ -155,11 +165,14 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         (tex as any).encoding = (THREE as any).sRGBEncoding;
       }
     } catch {}
-    setVideoTexture(tex);
+    setVideoTexture((prev) => {
+      if (prev) try { prev.dispose(); } catch {}
+      return tex;
+    });
     return () => {
       tex.dispose();
     };
-  }, [items]);
+  }, [baseVideoEl]);
 
   // Render chain per frame
   const finalTextureRef = useRef<THREE.Texture | null>(null);
@@ -182,9 +195,14 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         const currentRT = gl.getRenderTarget();
         // update background quad to previous pass texture
         const bgMesh = bgMeshesRef.current[idx];
-        if (bgMesh && (bgMesh.material as THREE.MeshBasicMaterial).map !== (currentTexture as any)) {
-          (bgMesh.material as THREE.MeshBasicMaterial).map = currentTexture as any;
-          (bgMesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
+        if (bgMesh) {
+          const mat = bgMesh.material as THREE.MeshBasicMaterial;
+          const nextMap = currentTexture as any;
+          if (mat.map !== nextMap) {
+            mat.map = nextMap;
+            mat.needsUpdate = true;
+          }
+          bgMesh.visible = !!nextMap;
         }
         const prevClear = new THREE.Color();
         gl.getClearColor(prevClear);
@@ -211,9 +229,13 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         const replacesVideo = md?.replacesVideo === true;
         const bgMesh = bgMeshesRef.current[idx];
         if (bgMesh) {
-          (bgMesh.material as THREE.MeshBasicMaterial).map = (!replacesVideo ? (currentTexture as any) : null);
-          (bgMesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
-          bgMesh.visible = !replacesVideo;
+          const mat = bgMesh.material as THREE.MeshBasicMaterial;
+          const nextMap = !replacesVideo ? (currentTexture as any) : null;
+          if (mat.map !== nextMap) {
+            mat.map = nextMap as any;
+            mat.needsUpdate = true;
+          }
+          bgMesh.visible = !!nextMap;
         }
         gl.setClearColor(0x000000, 0);
         gl.setRenderTarget(rt);
@@ -226,8 +248,21 @@ export const EffectChain: React.FC<EffectChainProps> = ({
     });
 
     finalTextureRef.current = currentTexture;
-    // Push input textures to effect portals
-    setInputTextures(nextInputTextures);
+    // Push input textures to effect portals only when identity changes to avoid re-renders/glitches
+    let changed = false;
+    if (nextInputTextures.length !== inputTextures.length) {
+      changed = true;
+    } else {
+      for (let i = 0; i < nextInputTextures.length; i++) {
+        if (nextInputTextures[i] !== inputTextures[i]) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (changed) {
+      setInputTextures(nextInputTextures);
+    }
   });
 
   // Build portals for sources/effects

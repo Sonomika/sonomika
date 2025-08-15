@@ -92,7 +92,7 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
     return tex;
   }, []);
 
-  // Create shader material
+  // Create shader material - only recreate when absolutely necessary
   const shaderMaterial = useMemo(() => {
     const vertexShader = `
       varying vec2 vUv;
@@ -162,22 +162,24 @@ const VideoSlideEffect: React.FC<VideoSlideEffectProps> = ({
       lastTextureRef.current = initialTexture;
     }
 
-    return new THREE.ShaderMaterial({
+    const material = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,
       uniforms: {
         tDiffuse: { value: initialTexture },
         time: { value: 0.0 },
-        slideSpeed: { value: slideSpeed },
-        slideAmount: { value: slideAmount },
-        slideDirection: { value: 0 },
+        slideSpeed: { value: slideSpeed }, // Use current prop values, not defaults
+        slideAmount: { value: slideAmount }, // Use current prop values, not defaults
+        slideDirection: { value: slideDirection === 'horizontal' ? 0 : slideDirection === 'vertical' ? 1 : slideDirection === 'diagonal' ? 2 : slideDirection === 'circular' ? 3 : slideDirection === 'bpm-horizontal' ? 4 : 5 },
         bpm: { value: bpm },
         inputIsSRGB: { value: 1 }
       },
-      transparent: true,
+      transparent: false,
       toneMapped: false
     });
-  }, [bufferTexture, videoTexture, renderTarget]);
+
+    return material;
+  }, [bufferTexture, videoTexture, renderTarget]); // Remove parameter dependencies to prevent recreation
 
   // Keep input texture up to date when upstream changes
   useEffect(() => {

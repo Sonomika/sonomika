@@ -43,7 +43,6 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
   const meshRef = useRef<THREE.Mesh>(null);
   const frameCountRef = useRef(0);
   const lastTextureRef = useRef<THREE.Texture | null>(null);
-  const [aspect, setAspect] = React.useState<number>(16 / 9);
 
   console.log('🎨 VideoSliceOffsetEffect component rendered with props:', { 
     sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection, removeGaps, bpm, isGlobal 
@@ -74,7 +73,7 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
       return rt;
     }
     return null;
-  }, [isGlobal, videoTexture]);
+  }, [isGlobal]);
 
   // Canvas buffer to persist the last good frame (prevents black and background bleed)
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -178,6 +177,8 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
           outColor = (sliceMask > 0.0) ? texColor : vec4(0.0, 0.0, 0.0, 1.0);
         }
 
+        // Force full opacity for replacesVideo effects to avoid background showing through
+        outColor.a = 1.0;
         // Write linear color into render target; final display pass handles encoding
         gl_FragColor = outColor;
       }
@@ -198,24 +199,35 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
         bpm: { value: bpm },
         inputIsSRGB: { value: 1 }
       },
-      transparent: true,
+      // Opaque output to ensure background never bleeds through
+      transparent: false,
       toneMapped: false
     });
-  }, [bufferTexture, videoTexture, isGlobal, renderTarget]);
+  }, []);
 
   // Update input texture when upstream changes to avoid stale binding and prevent feedback loops
   useEffect(() => {
     if (!materialRef.current) return;
-    const nextTex: THREE.Texture | null = (videoTexture as unknown as THREE.Texture) || (renderTarget ? renderTarget.texture : bufferTexture);
+    console.log('🎥 Texture update triggered:', {
+      hasVideoTexture: !!videoTexture,
+      hasRenderTarget: !!renderTarget,
+      isGlobal,
+      currentTexture: materialRef.current.uniforms.tDiffuse.value?.uuid
+    });
+    const nextTex: THREE.Texture | null = isGlobal
+      ? (renderTarget ? renderTarget.texture : bufferTexture)
+      : ((videoTexture as unknown as THREE.Texture) || bufferTexture);
     if (nextTex && materialRef.current.uniforms.tDiffuse.value !== nextTex) {
+      console.log('🔄 Updating texture:', {
+        from: materialRef.current.uniforms.tDiffuse.value?.uuid,
+        to: nextTex.uuid
+      });
       materialRef.current.uniforms.tDiffuse.value = nextTex;
       lastTextureRef.current = nextTex;
     }
-    if (materialRef.current) {
-      const isSRGB = !!((nextTex as any)?.isVideoTexture || (nextTex as any)?.isCanvasTexture);
-      materialRef.current.uniforms.inputIsSRGB.value = isSRGB ? 1 : 0;
-    }
-  }, [videoTexture, renderTarget, bufferTexture]);
+    const isSRGB = !!((nextTex as any)?.isVideoTexture || (nextTex as any)?.isCanvasTexture);
+    materialRef.current.uniforms.inputIsSRGB.value = isSRGB ? 1 : 0;
+  }, [videoTexture, renderTarget, bufferTexture, isGlobal]);
 
   // Keep slice direction uniform synced with prop
   useEffect(() => {
@@ -231,7 +243,7 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
   const aspectRatio = useMemo(() => {
     if (videoTexture && videoTexture.image && !isGlobal) { // Added !isGlobal
       try {
-        const { width, height } = videoTexture.image;
+        const { width, height } = videoTexture.image as any;
         if (width && height && width > 0 && height > 0) {
           return width / height;
         }
@@ -242,45 +254,35 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
     return 16/9; // Default aspect ratio
   }, [videoTexture, isGlobal]); // Added isGlobal
 
-  // Keep aspect stable and update when valid video dims are available
-  useFrame(() => {
-    const tex = (!isGlobal && (videoTexture as THREE.Texture)) || lastTextureRef.current || (renderTarget ? renderTarget.texture : null);
-    const img: any = (tex as any)?.image;
-    if (img && img.videoWidth && img.videoHeight && img.videoWidth > 0 && img.videoHeight > 0) {
-      const next = img.videoWidth / img.videoHeight;
-      if (Math.abs(next - aspect) > 0.001) setAspect(next);
-    }
-  });
-
-  // Animation loop
+  // Keep time advancing; other uniforms are updated via effects on prop change
   useFrame((state) => {
-    frameCountRef.current++;
-    
     if (materialRef.current) {
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
-      materialRef.current.uniforms.bpm.value = bpm;
-      
-      // Only update uniforms when values actually change
-      if (materialRef.current.uniforms.sliceCount.value !== sliceCount) {
-        materialRef.current.uniforms.sliceCount.value = sliceCount;
-      }
-      if (materialRef.current.uniforms.offsetAmount.value !== offsetAmount) {
-        materialRef.current.uniforms.offsetAmount.value = offsetAmount;
-      }
-      if (materialRef.current.uniforms.sliceWidth.value !== sliceWidth) {
-        materialRef.current.uniforms.sliceWidth.value = sliceWidth;
-      }
-      if (materialRef.current.uniforms.animationSpeed.value !== animationSpeed) {
-        materialRef.current.uniforms.animationSpeed.value = animationSpeed;
-      }
-      if (materialRef.current.uniforms.removeGaps.value !== (removeGaps ? 1.0 : 0.0)) {
-        materialRef.current.uniforms.removeGaps.value = removeGaps ? 1.0 : 0.0;
-      }
-
-      // Texture binding is handled in useMemo and only changes when the source changes
-      // No need to constantly update tDiffuse during playback - this was causing the conflict
     }
   });
+
+  // Update parameter uniforms when props change
+  useEffect(() => {
+    const mat = materialRef.current;
+    if (!mat) return;
+    console.log('🎛️ Parameter update:', {
+      sliceCount,
+      offsetAmount,
+      sliceWidth,
+      animationSpeed,
+      sliceDirection,
+      removeGaps,
+      bpm,
+      materialId: mat.uuid
+    });
+    mat.uniforms.sliceCount.value = sliceCount;
+    mat.uniforms.offsetAmount.value = offsetAmount;
+    mat.uniforms.sliceWidth.value = sliceWidth;
+    mat.uniforms.animationSpeed.value = animationSpeed;
+    mat.uniforms.sliceDirection.value = sliceDirection === 'horizontal' ? 0 : 1;
+    mat.uniforms.removeGaps.value = removeGaps ? 1.0 : 0.0;
+    mat.uniforms.bpm.value = bpm;
+  }, [sliceCount, offsetAmount, sliceWidth, animationSpeed, sliceDirection, removeGaps, bpm]);
 
   // Don't render if missing dependencies
   if (!shaderMaterial) {
@@ -292,10 +294,12 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
     return null;
   }
 
+  
+
   return (
     <mesh ref={meshRef} position={[0, 0, 0.1]}>
-      <planeGeometry args={[aspect * 2, 2]} />
-      <primitive object={shaderMaterial} ref={materialRef} />
+      <planeGeometry args={[aspectRatio * 2, 2]} />
+      <primitive object={shaderMaterial} attach="material" ref={materialRef} />
     </mesh>
   );
 };

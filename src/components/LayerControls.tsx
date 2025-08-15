@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '../store/store';
 // EffectLoader import removed - using dynamic loading instead
 import { Layer, AppState, LayerParamValue } from '../store/types';
@@ -20,7 +20,55 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
   console.log('Getting metadata for layer controls:', layer.type);
   const metadata = null; // TODO: Implement dynamic metadata loading
 
+  // Batch parameter updates to prevent cascading re-renders
+  const updateTimeoutRef = useRef<number | null>(null);
+  const pendingUpdatesRef = useRef<Record<string, any>>({});
+
+  const flushUpdates = useCallback(() => {
+    if (Object.keys(pendingUpdatesRef.current).length > 0) {
+      console.log('🔄 Flushing parameter updates:', {
+        layerId: layer.id,
+        updates: pendingUpdatesRef.current,
+        currentParams: layer.params
+      });
+      updateLayer(layer.id, {
+        params: {
+          ...layer.params,
+          ...Object.entries(pendingUpdatesRef.current).reduce((acc, [name, value]) => ({
+            ...acc,
+            [name]: { ...layer.params[name], value } as LayerParamValue,
+          }), {}),
+        },
+      });
+      pendingUpdatesRef.current = {};
+    }
+    updateTimeoutRef.current = null;
+  }, [layer.id, layer.params, updateLayer]);
+
   const handleParamChange = (name: string, value: number | boolean | string) => {
+    pendingUpdatesRef.current[name] = value;
+    
+    if (updateTimeoutRef.current !== null) {
+      cancelAnimationFrame(updateTimeoutRef.current);
+    }
+    updateTimeoutRef.current = requestAnimationFrame(flushUpdates);
+  };
+
+  // Clean up RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current !== null) {
+        cancelAnimationFrame(updateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Flush any pending updates when layer changes
+  useEffect(() => {
+    flushUpdates();
+  }, [layer.id, flushUpdates]);
+
+  const handleParamChangeImmediate = (name: string, value: number | boolean | string) => {
     updateLayer(layer.id, {
       params: {
         ...layer.params,
@@ -133,6 +181,7 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
                   step={param.step || 0.01}
                   value={getParamValue(param.name) as number}
                   onChange={(e) => handleParamChange(param.name, parseFloat(e.target.value))}
+                  onPointerUp={() => flushUpdates()} // Ensure final value is committed
                 />
                 <span>{getParamValue(param.name)}</span>
               </>
@@ -141,13 +190,13 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
               <input
                 type="checkbox"
                 checked={getParamValue(param.name) as boolean}
-                onChange={(e) => handleParamChange(param.name, e.target.checked)}
+                onChange={(e) => handleParamChangeImmediate(param.name, e.target.checked)}
               />
             )}
             {param.type === 'select' && param.options && (
               <select
                 value={getParamValue(param.name) as string}
-                onChange={(e) => handleParamChange(param.name, e.target.value)}
+                onChange={(e) => handleParamChangeImmediate(param.name, e.target.value)}
               >
                 {param.options.map(option => (
                   <option key={option} value={option}>

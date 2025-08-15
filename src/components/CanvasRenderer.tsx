@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
+import { useEffectComponent } from '../utils/EffectLoader';
 import { useStore } from '../store/store';
 
 interface CanvasRendererProps {
@@ -21,8 +21,7 @@ const VideoTexture: React.FC<{
   video: HTMLVideoElement; 
   opacity: number; 
   blendMode: string;
-  effects?: any;
-}> = ({ video, opacity, blendMode, effects }) => {
+}> = ({ video, opacity, blendMode }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
 
@@ -35,12 +34,6 @@ const VideoTexture: React.FC<{
       setTexture(videoTexture);
     }
   }, [video]);
-
-  useFrame(() => {
-    if (texture) {
-      texture.needsUpdate = true;
-    }
-  });
 
   if (!texture) {
     // Render a transparent placeholder instead of null to prevent black flash
@@ -74,8 +67,7 @@ const ImageTexture: React.FC<{
   image: HTMLImageElement; 
   opacity: number; 
   blendMode: string;
-  effects?: any;
-}> = ({ image, opacity, blendMode, effects }) => {
+}> = ({ image, opacity, blendMode }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
 
@@ -112,11 +104,10 @@ const ImageTexture: React.FC<{
 };
 
 // Effect component for R3F
-const EffectLayer: React.FC<{ 
+const EffectLayer = React.memo<{ 
   asset: any;
   layer: any; 
-  frameCount: number;
-}> = ({ asset, layer, frameCount }) => {
+}>(({ asset, layer }) => {
   const effectId = asset.asset.id;
   console.log('🎨 EffectLayer: Rendering effect:', effectId, 'with params:', layer.params);
   
@@ -136,23 +127,26 @@ const EffectLayer: React.FC<{
     console.log('⚠️ EffectLayer: No video texture for effect:', effectId);
   }
 
+  // Memoize flattened params to prevent object recreation on every render
+  const flatParams = useMemo(() => {
+    const src = layer.params || {};
+    const out: Record<string, any> = {};
+    Object.keys(src).forEach((k) => {
+      const v: any = (src as any)[k];
+      out[k] = v && typeof v === 'object' && 'value' in v ? v.value : v;
+    });
+    return out;
+  }, [layer.params]);
+
   return (
     <EffectComponent 
-      {...(() => {
-        const src = layer.params || {};
-        const out: Record<string, any> = {};
-        Object.keys(src).forEach((k) => {
-          const v: any = (src as any)[k];
-          out[k] = v && typeof v === 'object' && 'value' in v ? v.value : v;
-        });
-        return out;
-      })()}
+      {...flatParams}
       videoTexture={videoTexture}
       opacity={layer.opacity}
       blendMode={layer.blendMode}
     />
   );
-};
+});
 
 // Main scene component for R3F
 const CanvasScene: React.FC<{
@@ -162,18 +156,24 @@ const CanvasScene: React.FC<{
     layer: any;
   }>;
   isPlaying: boolean;
-  frameCount: number;
   backgroundColor: string;
-}> = ({ assets, isPlaying, frameCount, backgroundColor }) => {
+}> = ({ assets, isPlaying, backgroundColor }) => {
   const { camera } = useThree();
   const [loadedAssets, setLoadedAssets] = useState<{
     images: Map<string, HTMLImageElement>;
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
   
+  // Cache video textures to avoid recreating them on every render (prevents flashes)
+  const videoTextureCacheRef = useRef<Map<HTMLVideoElement, THREE.VideoTexture>>(new Map());
+  
+  // Memoize stable params to prevent object recreation on every render
+  const stableParamsCacheRef = useRef<Map<string, any>>(new Map());
+  
   // Keep video textures updated
-  useFrame(() => {
+  useFrame((state) => {
     // Update all video textures to ensure they're current
+    if (!isPlaying) return;
     loadedAssets.videos.forEach((video) => {
       if (video && video.readyState >= 2) {
         // Video is ready, ensure texture updates
@@ -187,6 +187,15 @@ const CanvasScene: React.FC<{
             return null;
           })
           .filter(Boolean);
+        
+        // Log texture updates every 60 frames
+        if (state.clock.elapsedTime % 1 < 0.016) {
+          console.log('🎬 Updating video textures:', {
+            count: videoTextures.length,
+            time: state.clock.elapsedTime,
+            readyState: video.readyState
+          });
+        }
         
         videoTextures.forEach(texture => {
           if (texture && texture.needsUpdate !== undefined) {
@@ -269,6 +278,21 @@ const CanvasScene: React.FC<{
     loadAssets();
   }, [mediaAssetsKey]);
 
+  // Prune cached textures when videos change
+  useEffect(() => {
+    const cache = videoTextureCacheRef.current;
+    const activeVideos = new Set(Array.from(loadedAssets.videos.values()));
+    Array.from(cache.keys()).forEach((videoEl) => {
+      if (!activeVideos.has(videoEl)) {
+        const tex = cache.get(videoEl);
+        if (tex) {
+          tex.dispose?.();
+        }
+        cache.delete(videoEl);
+      }
+    });
+  }, [loadedAssets.videos]);
+
   // Handle play/pause
   useEffect(() => {
     loadedAssets.videos.forEach(video => {
@@ -291,9 +315,9 @@ const CanvasScene: React.FC<{
       <color attach="background" args={[backgroundColor || '#000000']} />
       
       {/* Render assets */}
-      {assets.map((assetData, index) => {
+      {assets.map((assetData) => {
         const { type, asset, layer } = assetData;
-        const key = `${asset.id}-${index}`;
+        const key = asset.id;
 
         if (type === 'image') {
           const img = loadedAssets.images.get(asset.id);
@@ -304,7 +328,6 @@ const CanvasScene: React.FC<{
                 image={img}
                 opacity={layer.opacity || 1}
                 blendMode={layer.blendMode || 'add'}
-                effects={layer.effects}
               />
             );
           }
@@ -317,33 +340,49 @@ const CanvasScene: React.FC<{
                 video={video}
                 opacity={layer.opacity || 1}
                 blendMode={layer.blendMode || 'add'}
-                effects={[]} // No effects applied directly to VideoTexture
               />
             );
           }
         } else if (type === 'effect') {
-          // For effect layers, check if they need video textures
-          let videoTexture = null;
+            // For effect layers, check if they need video textures
+  let videoTexture = null;
+  
+  // Look for video layers that this effect might be targeting
+  const videoAssets = assets.filter(a => a.type === 'video');
+  if (videoAssets.length > 0) {
+    // For now, use the first available video texture
+    const firstVideo = loadedAssets.videos.get(videoAssets[0].asset.id);
+    if (firstVideo) {
+      // Reuse a cached THREE.VideoTexture for this HTMLVideoElement
+      const cache = videoTextureCacheRef.current;
+      let vt = cache.get(firstVideo) || null;
+      if (!vt) {
+        console.log('📹 Creating new VideoTexture for:', videoAssets[0].asset.id);
+        vt = new THREE.VideoTexture(firstVideo);
+        vt.minFilter = THREE.LinearFilter;
+        vt.magFilter = THREE.LinearFilter;
+        vt.format = THREE.RGBAFormat;
+        vt.generateMipmaps = false;
+        cache.set(firstVideo, vt);
+      } else {
+        console.log('♻️ Reusing cached VideoTexture:', vt.uuid);
+      }
+      videoTexture = vt;
+    }
+  }
           
-          // Look for video layers that this effect might be targeting
-          const videoAssets = assets.filter(a => a.type === 'video');
-          if (videoAssets.length > 0) {
-            // For now, use the first available video texture
-            const firstVideo = loadedAssets.videos.get(videoAssets[0].asset.id);
-            if (firstVideo) {
-              // Create a video texture that will be updated in the animation loop
-              videoTexture = new THREE.VideoTexture(firstVideo);
-              videoTexture.minFilter = THREE.LinearFilter;
-              videoTexture.magFilter = THREE.LinearFilter;
-              videoTexture.format = THREE.RGBAFormat;
-              videoTexture.generateMipmaps = false;
-              
-              // Ensure the video texture updates every frame
-              videoTexture.needsUpdate = true;
-            }
+                    console.log('🎨 EffectLayer: Creating effect with video texture:', !!videoTexture);
+          
+          // Create stable params to prevent object recreation on every render
+          const effectKey = `${assetData.asset.id}-${videoTexture?.uuid || 'no-video'}`;
+          let stableParams = stableParamsCacheRef.current.get(effectKey);
+          if (!stableParams || stableParams.videoTexture !== videoTexture) {
+            stableParams = {
+              ...layer.params,
+              videoTexture: videoTexture
+            };
+            stableParamsCacheRef.current.set(effectKey, stableParams);
           }
-          
-          console.log('🎨 EffectLayer: Creating effect with video texture:', !!videoTexture);
           
           return (
             <EffectLayer
@@ -351,12 +390,8 @@ const CanvasScene: React.FC<{
               asset={assetData}
               layer={{
                 ...layer,
-                params: {
-                  ...layer.params,
-                  videoTexture: videoTexture
-                }
+                params: stableParams
               }}
-              frameCount={frameCount}
             />
           );
         }
@@ -453,27 +488,8 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
     console.log(`🎬 Asset ${index}:`, asset);
   });
   
-  const [frameCount, setFrameCount] = useState(0);
   const { compositionSettings } = useStore() as any;
   const backgroundColor = compositionSettings?.backgroundColor || '#000000';
-
-  // Animation frame counter
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    let animationId: number;
-    const animate = () => {
-      setFrameCount(prev => prev + 1);
-      animationId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-      }
-    };
-  }, [isPlaying]);
 
   // Ensure we have valid dimensions
   const canvasWidth = Math.max(width, 640);
@@ -492,11 +508,15 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
           <Canvas
             camera={{ position: [0, 0, 2], fov: 75 }}
             style={{ width: '100%', height: '100%' }}
+            gl={{ preserveDrawingBuffer: false, powerPreference: 'high-performance' }}
+            onCreated={({ gl }) => {
+              gl.autoClear = false; // Do not auto-clear between frames
+              gl.setClearColor('#000000', 1); // Solid background once
+            }}
           >
             <CanvasScene 
               assets={assets} 
               isPlaying={isPlaying} 
-              frameCount={frameCount}
               backgroundColor={backgroundColor}
             />
           </Canvas>

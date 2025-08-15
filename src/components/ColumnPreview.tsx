@@ -502,6 +502,7 @@ const ColumnScene: React.FC<{
               video.style.backgroundColor = 'transparent';
               video.crossOrigin = 'anonymous';
               video.setAttribute('data-layer-id', layer.id); // Add layer ID for playMode control
+              try { (video as any)["__layerKey"] = layer.id; } catch {}
               
               // Performance optimization for column switching
               video.preload = 'auto'; // Preload video data to reduce flash on column switch
@@ -546,16 +547,17 @@ const ColumnScene: React.FC<{
     loadAssets();
   }, [column]);
 
-  // Handle play/pause
+  // Handle play/pause without resetting on param changes
+  const prevIsPlayingRef = useRef<boolean>(false);
   useEffect(() => {
+    const isTimelinePreview = column?.id === 'timeline-preview';
     if (isPlaying) {
-      const isTimelinePreview = column?.id === 'timeline-preview';
-      // On play, honor per-layer playMode for normal columns; in timeline preview, just play
+      const justStarted = !prevIsPlayingRef.current;
       column.layers.forEach((layer: any) => {
         if (!layer?.asset || layer.asset.type !== 'video') return;
         const video = assets.videos.get(layer.asset.id);
         if (!video) return;
-        if (!isTimelinePreview) {
+        if (!isTimelinePreview && justStarted) {
           const mode = (layer as any).playMode ?? 'restart';
           if (mode === 'restart') {
             try { video.currentTime = 0; } catch {}
@@ -564,12 +566,12 @@ const ColumnScene: React.FC<{
         try { void video.play(); } catch {}
       });
     } else {
-      // Pause all videos when stopping
       assets.videos.forEach(video => {
         try { video.pause(); } catch {}
       });
     }
-  }, [isPlaying, assets.videos, column.layers]);
+    prevIsPlayingRef.current = isPlaying;
+  }, [isPlaying, assets.videos, column.layers, column?.id]);
 
   // New: handle video playMode events using assets cache within ColumnScene
   useEffect(() => {
@@ -797,6 +799,22 @@ const ColumnScene: React.FC<{
         };
 
         const chains: ChainItem[][] = [];
+        const normalizeParams = (layer: any): Record<string, any> => {
+          const out: Record<string, any> = {};
+          const merge = (obj: any) => {
+            if (!obj) return;
+            Object.keys(obj).forEach((k) => {
+              const v: any = obj[k];
+              out[k] = (v && typeof v === 'object' && 'value' in v) ? v.value : v;
+            });
+          };
+          // layer.params first
+          merge(layer?.params);
+          // merge nested effect params if present
+          const nestedParams = layer?.asset?.effect?.params;
+          merge(nestedParams);
+          return out;
+        };
         let current: ChainItem[] = [];
 
         const finalize = () => {
@@ -819,12 +837,12 @@ const ColumnScene: React.FC<{
           } else if (kind === 'source') {
             const effectId = resolveEffectId(layer.asset);
             if (!effectId) continue;
-            current.push({ type: 'source', effectId, params: layer.params });
+            current.push({ type: 'source', effectId, params: normalizeParams(layer) });
           } else if (kind === 'effect') {
             const effectId = resolveEffectId(layer.asset);
             if (!effectId) continue;
-            current.push({ type: 'effect', effectId, params: layer.params });
-          } else {
+            current.push({ type: 'effect', effectId, params: normalizeParams(layer) });
+              } else {
             // Unknown layer: break chain
             finalize();
           }
@@ -834,26 +852,35 @@ const ColumnScene: React.FC<{
         const elements: React.ReactElement[] = [];
 
         chains.forEach((chain, idx) => {
+          const chainKey = chain.map((it) => {
+            if (it.type === 'video') {
+              const v: any = (it as any).video;
+              // Use a stable key from the layer map instead of DOM attribute
+              const lid = (v && (v as any)["__layerKey"]) || 'vid';
+              return `video:${lid}`;
+            }
+            return `${it.type}:${(it as any).effectId || 'eff'}`;
+          }).join('|');
           if (chain.length === 1 && chain[0].type === 'video') {
             const v = chain[0];
             elements.push(
               <VideoTexture
-                key={`video-only-${idx}`}
+                key={`video-only-${chainKey}`}
                 video={v.video}
                 opacity={typeof v.opacity === 'number' ? v.opacity : 1}
-                effects={undefined}
-                compositionWidth={compositionWidth}
-                compositionHeight={compositionHeight}
-                cacheKey={`video-only-${idx}`}
-              />
-            );
-          } else {
+                    effects={undefined}
+                    compositionWidth={compositionWidth}
+                    compositionHeight={compositionHeight}
+                cacheKey={`video-only-${chainKey}`}
+                  />
+              );
+            } else {
             elements.push(
               <EffectChain
-                key={`chain-${idx}`}
+                key={`chain-${chainKey}`}
                 items={chain}
-                compositionWidth={compositionWidth}
-                compositionHeight={compositionHeight}
+                    compositionWidth={compositionWidth}
+                    compositionHeight={compositionHeight}
               />
             );
           }
@@ -871,7 +898,7 @@ const ColumnScene: React.FC<{
           if (renderedGlobalEffect) elements.push(renderedGlobalEffect);
         }
 
-        return elements.map((el, i) => React.cloneElement(el, { key: `rendered-element-${i}` }));
+        return elements;
       })()}
     </>
   );

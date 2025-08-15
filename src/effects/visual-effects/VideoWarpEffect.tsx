@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../../store/store';
 import { registerEffect } from '../../utils/effectRegistry';
+import { useOptimizedUniforms } from '../../hooks/useOptimizedUniforms';
 
 interface VideoWarpEffectProps {
   intensity?: number;
@@ -14,7 +15,7 @@ interface VideoWarpEffectProps {
   isGlobal?: boolean; // New prop to indicate if this is a global effect
 }
 
-const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
+const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
   intensity = 0.1,
   frequency = 3.0,
   speed = 1.0,
@@ -28,6 +29,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
   const { bpm } = useStore();
   const { gl, scene, camera } = useThree(); // Destructure gl, scene, camera
   const [aspect, setAspect] = React.useState<number>(16 / 9);
+  const { updateUniforms } = useOptimizedUniforms();
 
   console.log('🎨 VideoWarpEffect component rendered with props:', { intensity, frequency, speed, waveType, isGlobal });
 
@@ -163,7 +165,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
       depthTest: false,
       depthWrite: false
     });
-  }, [bufferTexture, videoTexture, isGlobal, renderTarget]);
+  }, [bufferTexture, videoTexture, isGlobal, renderTarget]); // Remove parameter dependencies to prevent re-creation
 
   // Keep aspect stable and update when valid video dims are available
   useFrame(() => {
@@ -193,28 +195,18 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
     }
 
     if (materialRef.current) {
+      // Always update time and BPM (these change every frame)
       materialRef.current.uniforms.time.value = state.clock.elapsedTime;
-      // BPM can change gradually; update each frame is fine
       materialRef.current.uniforms.bpm.value = bpm;
 
-      // Only update uniforms when values actually change (matches SliceOffset pattern)
-      if (materialRef.current.uniforms.intensity.value !== intensity) {
-        materialRef.current.uniforms.intensity.value = intensity;
-      }
-      if (materialRef.current.uniforms.frequency.value !== frequency) {
-        materialRef.current.uniforms.frequency.value = frequency;
-      }
-      if (materialRef.current.uniforms.speed.value !== speed) {
-        materialRef.current.uniforms.speed.value = speed;
-      }
-
+      // Use optimized uniform updates for parameters
       const waveTypeIndex = waveType === 'sine' ? 0 : waveType === 'cosine' ? 1 : 2;
-      if (materialRef.current.uniforms.waveType.value !== waveTypeIndex) {
-        materialRef.current.uniforms.waveType.value = waveTypeIndex;
-      }
-
-      // Texture binding is handled in useMemo and only changes when the source changes
-      // No need to constantly update tDiffuse during playback - this was causing the conflict
+      updateUniforms(materialRef.current, {
+        intensity,
+        frequency,
+        speed,
+        waveType: waveTypeIndex
+      });
     }
   });
 
@@ -249,7 +241,7 @@ const VideoWarpEffect: React.FC<VideoWarpEffectProps> = ({
       <primitive object={shaderMaterial} ref={materialRef} />
     </mesh>
   );
-};
+});
 
 // Metadata for dynamic discovery
 (VideoWarpEffect as any).metadata = {
