@@ -85,12 +85,51 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   };
 
   // Offscreen scenes for each non-video item
-  const offscreenScenes = useMemo(() => items.map(() => new THREE.Scene()), [items]);
+  const offscreenScenes = useMemo(() => {
+    return items.map(() => {
+      const s = new THREE.Scene();
+      (s as any).background = null;
+      return s;
+    });
+  }, [items]);
 
   // Keep per-index input textures to pass into effect components
   const [inputTextures, setInputTextures] = useState<Array<THREE.Texture | null>>(
     () => items.map(() => null)
   );
+
+  // Managed background meshes per stage to composite previous pass without React state lag
+  const bgMeshesRef = useRef<Array<THREE.Mesh | null>>([]);
+  React.useEffect(() => {
+    const aspect = compositionWidth / compositionHeight;
+    // Clean up existing
+    bgMeshesRef.current.forEach((m, i) => {
+      if (m) {
+        try { offscreenScenes[i].remove(m); } catch {}
+        try { (m.material as THREE.Material).dispose(); } catch {}
+        try { (m.geometry as THREE.BufferGeometry).dispose(); } catch {}
+      }
+    });
+    bgMeshesRef.current = items.map((it, idx) => {
+      if (it.type === 'video') return null;
+      const geom = new THREE.PlaneGeometry(aspect * 2, 2);
+      const mat = new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.renderOrder = -1000;
+      offscreenScenes[idx].add(mesh);
+      return mesh;
+    });
+    return () => {
+      bgMeshesRef.current.forEach((m, i) => {
+        if (m) {
+          try { offscreenScenes[i].remove(m); } catch {}
+          try { (m.material as THREE.Material).dispose(); } catch {}
+          try { (m.geometry as THREE.BufferGeometry).dispose(); } catch {}
+        }
+      });
+      bgMeshesRef.current = [];
+    };
+  }, [items, offscreenScenes, compositionWidth, compositionHeight]);
 
   // Prepare video texture once
   React.useEffect(() => {
@@ -141,10 +180,21 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       } else if (item.type === 'source') {
         const rt = rtRefs.current[idx]!;
         const currentRT = gl.getRenderTarget();
+        // update background quad to previous pass texture
+        const bgMesh = bgMeshesRef.current[idx];
+        if (bgMesh && (bgMesh.material as THREE.MeshBasicMaterial).map !== (currentTexture as any)) {
+          (bgMesh.material as THREE.MeshBasicMaterial).map = currentTexture as any;
+          (bgMesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
+        }
+        const prevClear = new THREE.Color();
+        gl.getClearColor(prevClear);
+        const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+        gl.setClearColor(0x000000, 0);
         gl.setRenderTarget(rt);
         gl.clear(true, true, true);
         gl.render(offscreenScenes[idx], camera);
         gl.setRenderTarget(currentRT);
+        gl.setClearColor(prevClear, prevAlpha);
         currentTexture = rt.texture;
         nextInputTextures[idx] = currentTexture;
       } else if (item.type === 'effect') {
@@ -152,10 +202,25 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         nextInputTextures[idx] = currentTexture;
         const rt = rtRefs.current[idx]!;
         const currentRT = gl.getRenderTarget();
+        const prevClear = new THREE.Color();
+        gl.getClearColor(prevClear);
+        const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+        // If this effect does not replace, show background previous pass
+        const EffectComponent = getEffectComponentSync((item as any).effectId);
+        const md: any = (EffectComponent as any)?.metadata || {};
+        const replacesVideo = md?.replacesVideo === true;
+        const bgMesh = bgMeshesRef.current[idx];
+        if (bgMesh) {
+          (bgMesh.material as THREE.MeshBasicMaterial).map = (!replacesVideo ? (currentTexture as any) : null);
+          (bgMesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
+          bgMesh.visible = !replacesVideo;
+        }
+        gl.setClearColor(0x000000, 0);
         gl.setRenderTarget(rt);
         gl.clear(true, true, true);
         gl.render(offscreenScenes[idx], camera);
         gl.setRenderTarget(currentRT);
+        gl.setClearColor(prevClear, prevAlpha);
         currentTexture = rt.texture;
       }
     });
@@ -192,16 +257,16 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         if (stageRT && candidate === stageRT.texture) return null;
         return candidate as THREE.Texture | null;
       })();
-      if (item.type === 'effect' && !replacesVideo && bgTex) {
+      if (((item.type === 'effect' && !replacesVideo) || item.type === 'source') && bgTex) {
         // Draw background with current input texture for overlay effects
         const aspect = compositionWidth / compositionHeight;
         portalsForStage.push(
           createPortal(
             React.createElement(
               'mesh',
-              {},
+              { renderOrder: -1000 },
               React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
-              React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false })
+              React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
             ),
             offscreenScenes[idx]
           )
@@ -234,9 +299,9 @@ export const EffectChain: React.FC<EffectChainProps> = ({
     <>
       {portals}
       {finalTextureRef.current && (
-        <mesh position={[0, 0, 0]}>
+        <mesh position={[0, 0, 0]} renderOrder={-1000}>
           <planeGeometry args={[displayAspect * 2, 2]} />
-          <meshBasicMaterial map={finalTextureRef.current} transparent={true} toneMapped={false} />
+          <meshBasicMaterial map={finalTextureRef.current} transparent={true} toneMapped={false} depthTest={false} depthWrite={false} />
         </mesh>
       )}
     </>

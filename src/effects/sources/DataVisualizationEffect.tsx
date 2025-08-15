@@ -262,17 +262,14 @@ const FlashingLine: React.FC<{
   });
 
   return (
-    <line ref={lineRef}>
-      <primitive object={geometry} />
-      <lineBasicMaterial
-        color={color}
-        transparent
-        opacity={0.3}
-        blending={THREE.AdditiveBlending}
-        depthTest={false}
-        depthWrite={false}
-      />
-    </line>
+    <primitive object={new THREE.Line(geometry, new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.3,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false
+    }))} ref={lineRef as any} />
   );
 };
 
