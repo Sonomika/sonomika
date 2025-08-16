@@ -30,7 +30,7 @@ export const Sidebar: React.FC = () => {
       <div className={`tw-fixed tw-top-0 tw-left-0 tw-h-screen tw-overflow-y-auto tw-z-[100] tw-transition-transform tw-bg-neutral-900 tw-border-r tw-border-neutral-800 tw-p-4 ${sidebarVisible ? 'tw-translate-x-0 tw-w-[280px]' : '-tw-translate-x-full tw-w-[280px]'}`}>
         <div className="tw-flex tw-items-center tw-justify-between tw-mb-4">
           <h2 className="tw-text-white tw-text-lg tw-font-semibold">VJ Control Panel</h2>
-          <button onClick={toggleSidebar} className="tw-rounded tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
+          <button onClick={toggleSidebar} className="tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
         </div>
 
         <div className="tw-space-y-8">
@@ -41,18 +41,18 @@ export const Sidebar: React.FC = () => {
               {scenes.map((scene: any) => (
                 <div
                   key={scene.id}
-                  className={`tw-flex tw-items-center tw-justify-between tw-rounded tw-border tw-px-2 tw-py-1 ${scene.id === currentSceneId ? 'tw-bg-neutral-800 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-900 tw-border-neutral-800 tw-text-neutral-300 hover:tw-bg-neutral-800'}`}
+                  className={`tw-flex tw-items-center tw-justify-between tw-border tw-px-2 tw-py-1 ${scene.id === currentSceneId ? 'tw-bg-neutral-800 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-900 tw-border-neutral-800 tw-text-neutral-300 hover:tw-bg-neutral-800'}`}
                 >
                   <span onClick={() => setCurrentScene(scene.id)} className="tw-cursor-pointer">
                     {scene.name}
                   </span>
                   <div>
-                    <button onClick={() => removeScene(scene.id)} className="tw-rounded tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-6 tw-h-6 hover:tw-bg-neutral-800">×</button>
+                    <button onClick={() => removeScene(scene.id)} className="tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-6 tw-h-6 hover:tw-bg-neutral-800">×</button>
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={addScene} className="tw-mt-2 tw-w-full tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700">
+            <button onClick={addScene} className="tw-mt-2 tw-w-full tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700">
               Add Scene
             </button>
           </section>
@@ -62,19 +62,19 @@ export const Sidebar: React.FC = () => {
             <h2 className="tw-text-sm tw-font-semibold tw-text-neutral-300 tw-mb-2">Layer Management</h2>
             <div className="tw-flex tw-flex-col tw-gap-2">
               <button
-                className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
+                className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
                 onClick={() => setShowLayerList(true)}
               >
                 Layer List
               </button>
               <button
-                className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
+                className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
                 onClick={() => setShowLayerManager(true)}
               >
                 Full Layer Manager
               </button>
               <button
-                className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
+                className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
                 onClick={() => {
                   const currentScene = scenes.find((s: any) => s.id === currentSceneId);
                   if (currentScene && currentScene.columns.length > 0) {
@@ -103,7 +103,7 @@ export const Sidebar: React.FC = () => {
                 Add Image Layer
               </button>
               <button
-                className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
+                className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
                 onClick={() => {
                   const currentScene = scenes.find((s: any) => s.id === currentSceneId);
                   if (currentScene && currentScene.columns.length > 0) {
@@ -136,7 +136,7 @@ export const Sidebar: React.FC = () => {
                 Add Video Layer
               </button>
               <button
-                className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
+                className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
                 onClick={() => {
                   const currentScene = scenes.find((s: any) => s.id === currentSceneId);
                   if (currentScene && currentScene.columns.length > 0) {
@@ -170,7 +170,7 @@ export const Sidebar: React.FC = () => {
           <section>
             <h2 className="tw-text-sm tw-font-semibold tw-text-neutral-300 tw-mb-2">Media Library</h2>
             <button
-              className="tw-rounded tw-border tw-border-neutral-700 tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-2"
+              className="tw-border tw-border-neutral-700 tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-2"
               onClick={() => setShowMediaLibrary(true)}
             >
               Open Media Library
@@ -199,12 +199,12 @@ export const Sidebar: React.FC = () => {
           {/* MIDI Devices */}
           <section>
             <h2 className="tw-text-sm tw-font-semibold tw-text-neutral-300 tw-mb-2">MIDI Devices</h2>
-            <div className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-text-neutral-400">No MIDI devices connected</div>
+            <div className="tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-text-neutral-400">No MIDI devices connected</div>
             <div className="tw-mt-2 tw-flex tw-gap-2">
-              <button className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700">
+              <button className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700">
                 Map MIDI Controls
               </button>
-              <button className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700">
+              <button className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700">
                 Map MIDI to Scenes
               </button>
             </div>

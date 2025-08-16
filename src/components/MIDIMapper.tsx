@@ -279,7 +279,7 @@ export const MIDIMapper: React.FC = () => {
       <div className="tw-bg-neutral-900 tw-flex-1 tw-overflow-auto">
         <div className="tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800">
           <span className="tw-text-sm tw-font-medium">Help</span>
-          <button className="tw-w-6 tw-h-6 tw-rounded tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
+          <button className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
         </div>
         <div className="tw-p-2 tw-text-sm tw-text-neutral-300">
           Move your mouse over the interface element that you would like more info about.

@@ -61,22 +61,22 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   return (
     <div className="tw-fixed tw-top-0 tw-left-0 tw-right-0 tw-h-8 tw-bg-gradient-to-br tw-from-[#1a1a1a] tw-to-[#2a2a2a] tw-flex tw-items-center tw-justify-between tw-px-2 tw-border-b tw-border-neutral-800 tw-z-[5000] tw-select-none tw-cursor-grab app-drag-region">
       <div className="tw-flex tw-items-center tw-flex-none tw-min-w-[120px]">
-        <div className="tw-text-white tw-text-[14px] tw-font-bold tw-ml-2 tw-px-3 tw-py-2 tw-rounded hover:tw-bg-white/10 tw-transition-colors">VJ App</div>
+        <div className="tw-text-white tw-text-[14px] tw-font-bold tw-ml-2 tw-px-3 tw-py-2 tw-rounded tw-transition-colors">VJ App</div>
       </div>
       
       <div className="tw-flex-1 tw-flex tw-justify-start tw-ml-5">
-        <div className="tw-flex tw-items-center tw-gap-5 app-no-drag">
-          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white" onClick={onMirror}>
+        <div className="tw-flex tw-items-center tw-gap-5">
+          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onMirror}>
             Mirror
           </button>
-          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white" onClick={onToggleAppFullscreen}>
+          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onToggleAppFullscreen}>
             Fullscreen
           </button>
           <div className="menu-item-dropdown" ref={fileMenuRef}>
             <Popover>
               <PopoverTrigger asChild>
                 <button 
-                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white`}
+                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag`}
                   onClick={handleFileMenuClick}
                 >
                   File
@@ -109,17 +109,17 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               )}
             </Popover>
           </div>
-          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white" onClick={onCompositionSettings}>
+          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onCompositionSettings}>
             Composition Settings
           </button>
           {process.env.NODE_ENV === 'development' && onStyleGuide && (
-            <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white" onClick={onStyleGuide}>
+            <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onStyleGuide}>
               Style Guide
             </button>
           )}
           {process.env.NODE_ENV === 'development' && onToggleDebug && (
                          <button 
-               className={`tw-px-2 tw-py-1 tw-text-xs tw-text-white`} 
+               className={`tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag`} 
                onClick={onToggleDebug}
                title={debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
              >

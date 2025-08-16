@@ -406,7 +406,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
       <div className="tw-flex tw-flex-col tw-h-full tw-bg-neutral-900 tw-text-white">
         <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
           <h2 className="tw-text-lg tw-font-semibold">Media Browser</h2>
-          <button onClick={handleClose} className="tw-rounded tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
+          <button onClick={handleClose} className="tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
         </div>
         <div className="tw-flex-1 tw-flex tw-items-center tw-justify-center">
           <div className="tw-flex tw-flex-col tw-items-center tw-gap-2 tw-text-neutral-300">
@@ -433,7 +433,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
               <button
                 onClick={navigateUp}
                 title="Up"
-                className="tw-inline-flex tw-items-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+                className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
               >
                 ↑
               </button>
@@ -454,7 +454,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                   key={f.path}
                   onClick={() => loadDirectory(f.path)}
                   title={f.path}
-                  className="tw-inline-flex tw-items-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+                  className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
                 >
                   {f.label}
                 </button>
@@ -478,7 +478,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                     className="tw-min-w-[280px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
                   />
                   <button
-                    className="tw-inline-flex tw-items-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+                    className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
                     onClick={() => pathInput && loadDirectory(pathInput)}
                   >
                     Go
@@ -633,13 +633,13 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
             <h3 className="tw-text-sm tw-font-semibold tw-text-neutral-300">LFO (Low Frequency Oscillator)</h3>
             <p className="tw-text-neutral-400">Create automated parameter animations and modulations.</p>
             <div className="tw-grid tw-grid-cols-3 tw-gap-2">
-              <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-200 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer" onClick={() => handleItemSelect({ id: 'sine', name: 'Sine Wave', type: 'lfo' })}>
+              <div className="tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-200 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer" onClick={() => handleItemSelect({ id: 'sine', name: 'Sine Wave', type: 'lfo' })}>
                 Sine Wave
               </div>
-              <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-200 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer" onClick={() => handleItemSelect({ id: 'square', name: 'Square Wave', type: 'lfo' })}>
+              <div className="tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-200 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer" onClick={() => handleItemSelect({ id: 'square', name: 'Square Wave', type: 'lfo' })}>
                 Square Wave
               </div>
-              <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-200 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer" onClick={() => handleItemSelect({ id: 'random', name: 'Random', type: 'lfo' })}>
+              <div className="tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-200 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer" onClick={() => handleItemSelect({ id: 'random', name: 'Random', type: 'lfo' })}>
                 Random
               </div>
             </div>
@@ -655,7 +655,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
     <div className="tw-flex tw-flex-col tw-h-full tw-bg-neutral-900 tw-text-white">
       <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
         <h2 className="tw-text-lg tw-font-semibold">Media Browser</h2>
-        <button onClick={handleClose} className="tw-rounded tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
+        <button onClick={handleClose} className="tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
       </div>
       
       <div className="tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
@@ -682,10 +682,10 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
           </div>
           
           <div className="tw-flex tw-gap-2">
-            <button onClick={handlePreview} className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700">
+            <button onClick={handlePreview} className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700">
               Preview
             </button>
-            <button onClick={handleAddToLayer} className="tw-rounded tw-border tw-border-sky-600 tw-bg-sky-600 tw-text-white tw-px-3 tw-py-1.5 hover:tw-bg-sky-500">
+            <button onClick={handleAddToLayer} className="tw-border tw-border-sky-600 tw-bg-sky-600 tw-text-white tw-px-3 tw-py-1.5 hover:tw-bg-sky-500">
               Add to Layer
             </button>
           </div>

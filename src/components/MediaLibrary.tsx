@@ -663,7 +663,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           </select>
         </div>
 
-        <button className="import-button tw-rounded tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5" onClick={handleImportClick}>Import</button>
+        <button className="import-button tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5" onClick={handleImportClick}>Import</button>
         
         {/* Performance Monitor */}
         <div className="tw-ml-2 tw-px-2 tw-py-1 tw-text-[10px] tw-bg-neutral-700 tw-text-white tw-rounded tw-flex tw-items-center tw-gap-2">
@@ -680,9 +680,9 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
             <option value="4">4x</option>
             <option value="5">5x</option>
           </select>
-          <button onClick={clearThumbnailQueue} className="tw-text-[10px] tw-bg-neutral-600 tw-text-white tw-rounded tw-px-1 tw-py-0.5" title="Clear thumbnail queue">Clear</button>
+          <button onClick={clearThumbnailQueue} className="tw-text-[10px] tw-bg-neutral-600 tw-text-white tw-px-1 tw-py-0.5" title="Clear thumbnail queue">Clear</button>
           <span id="cache-stats" className="tw-text-[10px] tw-text-neutral-300">-</span>
-          <button onClick={clearPersistentThumbnailCache} className="tw-text-[10px] tw-bg-red-800 tw-text-white tw-rounded tw-px-1 tw-py-0.5" title="Clear all persistent thumbnails (will regenerate on next load)">Clear All</button>
+          <button onClick={clearPersistentThumbnailCache} className="tw-text-[10px] tw-bg-red-800 tw-text-white tw-px-1 tw-py-0.5" title="Clear all persistent thumbnails (will regenerate on next load)">Clear All</button>
         </div>
       </div>
 
@@ -775,7 +775,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                   <div className="asset-actions tw-flex tw-items-center tw-justify-end">
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
-                        <button className="delete-button tw-rounded tw-bg-neutral-800 tw-text-neutral-300 hover:tw-bg-neutral-700 tw-px-2 tw-py-1" onClick={(e) => e.stopPropagation()}>⋯</button>
+                        <button className="delete-button tw-bg-neutral-800 tw-text-neutral-300 hover:tw-bg-neutral-700 tw-px-2 tw-py-1" onClick={(e) => e.stopPropagation()}>⋯</button>
                       </ContextMenuTrigger>
                       <ContextMenuContent>
                         {item.type === 'video' && (
@@ -811,7 +811,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       <div className="tw-fixed tw-left-1/2 tw-top-1/2 tw--translate-x-1/2 tw--translate-y-1/2 tw-rounded-lg tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-xl tw-w-[900px] tw-max-w-[95vw] tw-max-h-[90vh] tw-flex tw-flex-col">
         <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
           <h2 className="tw-text-base tw-font-semibold">Media Library</h2>
-          <button onClick={onClose} className="tw-w-6 tw-h-6 tw-rounded tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
+          <button onClick={onClose} className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
         </div>
 
         {renderMediaTab()}

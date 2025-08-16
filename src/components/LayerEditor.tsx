@@ -199,7 +199,7 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
 						<h4 className="tw-text-sm tw-font-semibold tw-text-white tw-mb-2">Metadata</h4>
 						<div className="tw-grid tw-gap-2 tw-grid-cols-1 md:tw-grid-cols-2">
 							{Object.entries(layer.metadata).map(([key, value]) => (
-								<div key={key} className="tw-flex tw-items-center tw-justify-between tw-text-sm tw-bg-white/5 tw-rounded tw-px-2 tw-py-1">
+								<div key={key} className="tw-flex tw-items-center tw-justify-between tw-text-sm tw-bg-white/5 tw-px-2 tw-py-1">
 									<span className="tw-text-neutral-300">{key}:</span>
 									<span className="tw-text-white tw-font-medium">{String(value)}</span>
 								</div>
@@ -216,7 +216,7 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
 			<div className="tw-fixed tw-left-1/2 tw-top-1/2 tw-w-[860px] tw-max-w-[95vw] tw-max-h-[80vh] tw-overflow-hidden tw--translate-x-1/2 tw--translate-y-1/2 tw-rounded-lg tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-xl tw-ring-1 tw-ring-black/10">
 				<div className="tw-flex tw-items-center tw-justify-between tw-border-b tw-border-neutral-800 tw-px-4 tw-py-3">
 					<h2 className="tw-text-base tw-font-semibold">Layer Editor: {layer.name}</h2>
-					<button onClick={onClose} className="tw-rounded tw-border tw-border-neutral-700 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
+					<button onClick={onClose} className="tw-border tw-border-neutral-700 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
 				</div>
 
 				<div className="tw-p-4">

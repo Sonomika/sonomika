@@ -852,7 +852,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   size="small"
                   columns={scenes.length}
                 />
-                <button onClick={addScene} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-7 tw-h-7 hover:tw-bg-neutral-800" title="Add new scene">
+                <button onClick={addScene} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-7 tw-h-7 hover:tw-bg-neutral-800" title="Add new scene">
                   +
                 </button>
               </div>
@@ -895,7 +895,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     const newBpm = bpmManager.getBPM();
                     setBpm(newBpm);
                   }}
-                  className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-8 hover:tw-bg-neutral-800"
+                  className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-8 hover:tw-bg-neutral-800"
                   title="Tap to set BPM"
                 >
                   <MixerHorizontalIcon className="tw-w-4 tw-h-4" />
@@ -907,21 +907,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 <span className="tw-text-xs tw-font-semibold tw-text-neutral-400 tw-uppercase tw-tracking-wide">Global:</span>
                 <button
                   onClick={globalPlay}
-                  className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-rounded tw-border tw-text-sm ${isGlobalPlaying ? 'tw-bg-blue-600 tw-text-white tw-border-blue-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-blue-600 hover:tw-text-white`}
+                  className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${isGlobalPlaying ? 'tw-bg-blue-600 tw-text-white tw-border-blue-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-blue-600 hover:tw-text-white`}
                   title="Global Play - Resume all videos"
                 >
                   <PlayIcon className="tw-w-4 tw-h-4" />
                 </button>
                 <button
                   onClick={globalPause}
-                  className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-rounded tw-border tw-text-sm ${!isGlobalPlaying ? 'tw-bg-purple-600 tw-text-white tw-border-purple-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-purple-600 hover:tw-text-white`}
+                  className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${!isGlobalPlaying ? 'tw-bg-purple-600 tw-text-white tw-border-purple-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-purple-600 hover:tw-text-white`}
                   title="Global Pause - Pause all videos"
                 >
                   <PauseIcon className="tw-w-4 tw-h-4" />
                 </button>
                 <button
                   onClick={globalStop}
-                  className="tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-rounded tw-border tw-text-sm tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-red-600 hover:tw-text-white hover:tw-border-red-600"
+                  className="tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-red-600 hover:tw-text-white hover:tw-border-red-600"
                   title="Global Stop - Stop all videos"
                 >
                   <StopIcon className="tw-w-4 tw-h-4" />
@@ -930,7 +930,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               
               <button 
                  onClick={() => setShowTimeline(!showTimeline)}
-                 className={`tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-text-sm tw-p-2 tw-transition-colors ${
+                 className={`tw-inline-flex tw-items-center tw-justify-center tw-border tw-text-sm tw-p-2 tw-transition-colors ${
                    showTimeline
                      ? 'tw-bg-sky-600 tw-text-white tw-border-sky-600'
                      : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'
@@ -1038,7 +1038,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                 title="Click to edit effect parameters"
                               >
                                 <button
-                                  className={`tw-inline-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-rounded tw-border ${effectSlot.enabled ? 'tw-bg-red-600 tw-border-red-600' : 'tw-bg-neutral-800 tw-border-neutral-700'} tw-text-white`}
+                                  className={`tw-inline-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-border ${effectSlot.enabled ? 'tw-bg-red-600 tw-border-red-600' : 'tw-bg-neutral-800 tw-border-neutral-700'} tw-text-white`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({

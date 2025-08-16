@@ -197,7 +197,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
       <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
         <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
           <h2 className="tw-text-base tw-font-semibold">Effects Browser</h2>
-          <button onClick={handleClose} className="tw-rounded tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
+          <button onClick={handleClose} className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
         </div>
         <div className="tw-flex-1 tw-flex tw-items-center tw-justify-center tw-p-6">
           <div className="tw-flex tw-flex-col tw-items-center tw-gap-2">
@@ -215,7 +215,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
       <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
         <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
           <h2 className="tw-text-base tw-font-semibold">Effects Browser</h2>
-          <button onClick={handleClose} className="tw-rounded tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
+          <button onClick={handleClose} className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
         </div>
         <div className="tw-flex-1 tw-overflow-auto tw-p-4">
           <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
@@ -249,7 +249,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             />
           </div>
         </div>
-        <button onClick={handleClose} className="tw-rounded tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
+        <button onClick={handleClose} className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
       </div>
 
       <div className="tw-mb-2">
@@ -324,8 +324,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             <h3 className="tw-text-sm tw-font-semibold">{selectedEffect.name}</h3>
             <p className="tw-text-xs tw-text-neutral-300 tw-mt-1">{selectedEffect.description}</p>
             <div className="tw-mt-2 tw-flex tw-gap-2">
-              <button onClick={handleAddToLayer} className="tw-rounded tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5 tw-text-sm">Add to Layer</button>
-              <button onClick={handlePreview} className="tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-1.5 tw-text-sm">Preview</button>
+              <button onClick={handleAddToLayer} className="tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5 tw-text-sm">Add to Layer</button>
+              <button onClick={handlePreview} className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-1.5 tw-text-sm">Preview</button>
             </div>
           </div>
         )}

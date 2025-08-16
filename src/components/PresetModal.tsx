@@ -54,10 +54,10 @@ export const PresetModal: React.FC<PresetModalProps> = ({
       title={title}
       footer={(
         <>
-          <button className="tw-rounded tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={onClose}>
+          <button className="tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={onClose}>
             {cancelText}
           </button>
-          <button className="tw-rounded tw-bg-purple-600 tw-px-3 tw-py-1.5 tw-text-white hover:tw-bg-purple-500" onClick={handleConfirm}>
+          <button className="tw-bg-purple-600 tw-px-3 tw-py-1.5 tw-text-white hover:tw-bg-purple-500" onClick={handleConfirm}>
             {confirmText}
           </button>
         </>

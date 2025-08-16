@@ -101,8 +101,8 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} title="Composition Settings" footer={(
       <>
-        <button className="tw-rounded tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={handleCancel}>Cancel</button>
-        <button className="tw-rounded tw-bg-purple-600 tw-px-3 tw-py-1.5 tw-text-white hover:tw-bg-purple-500" onClick={handleSave}>Save</button>
+        <button className="tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={handleCancel}>Cancel</button>
+        <button className="tw-bg-purple-600 tw-px-3 tw-py-1.5 tw-text-white hover:tw-bg-purple-500" onClick={handleSave}>Save</button>
       </>
     )}>
       <div className="modal-body tw-space-y-3">
@@ -165,7 +165,7 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
               <Popover open={sizeDropdownOpen} onOpenChange={setSizeDropdownOpen}>
                 <PopoverTrigger asChild>
                   <button 
-                    className="tw-inline-flex tw-items-center tw-gap-2 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+                    className="tw-inline-flex tw-items-center tw-gap-2 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
                     onClick={() => setSizeDropdownOpen(!sizeDropdownOpen)}
                   >
                     {getCurrentSizeName()}
@@ -196,7 +196,7 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
             <Popover open={frameRateDropdownOpen} onOpenChange={setFrameRateDropdownOpen}>
               <PopoverTrigger asChild>
                 <button 
-                  className="tw-inline-flex tw-items-center tw-gap-2 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+                  className="tw-inline-flex tw-items-center tw-gap-2 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
                   onClick={() => setFrameRateDropdownOpen(!frameRateDropdownOpen)}
                 >
                   {getCurrentFrameRateName()}

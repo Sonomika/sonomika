@@ -84,7 +84,7 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
 				<div className="tw-fixed tw-left-1/2 tw-top-1/2 tw-w-[680px] tw-max-w-[95vw] tw--translate-x-1/2 tw--translate-y-1/2 tw-rounded-lg tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-xl tw-ring-1 tw-ring-black/10">
 					<div className="tw-flex tw-items-center tw-justify-between tw-border-b tw-border-neutral-800 tw-px-4 tw-py-3">
 						<h2 className="tw-text-base tw-font-semibold">Layer List</h2>
-						<button onClick={onClose} className="tw-rounded tw-border tw-border-neutral-700 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
+						<button onClick={onClose} className="tw-border tw-border-neutral-700 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
 					</div>
 					<div className="tw-p-4">
 						<p>No scene selected.</p>
@@ -111,7 +111,7 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
 				<div className="tw-fixed tw-left-1/2 tw-top-1/2 tw-w-[720px] tw-max-w-[95vw] tw-max-h-[80vh] tw-overflow-hidden tw--translate-x-1/2 tw--translate-y-1/2 tw-rounded-lg tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-xl tw-ring-1 tw-ring-black/10">
 					<div className="tw-flex tw-items-center tw-justify-between tw-border-b tw-border-neutral-800 tw-px-4 tw-py-3">
 						<h2 className="tw-text-base tw-font-semibold">Layer List - {currentScene.name}</h2>
-						<button onClick={onClose} className="tw-rounded tw-border tw-border-neutral-700 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
+						<button onClick={onClose} className="tw-border tw-border-neutral-700 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
 					</div>
 
 					<div className="tw-p-4 tw-overflow-auto tw-max-h-[calc(80vh-120px)]">
@@ -144,7 +144,7 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
 
 										<div className="tw-flex tw-items-center tw-gap-2 tw-shrink-0">
 											<button
-												className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-w-7 tw-h-7 hover:tw-bg-neutral-800"
+												className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-w-7 tw-h-7 hover:tw-bg-neutral-800"
 												onClick={() => handleToggleLayer(layer.id)}
 												title={layer.enabled ? 'Disable Layer' : 'Enable Layer'}
 											>
@@ -156,7 +156,7 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
 											</button>
 
 											<button
-												className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-w-7 tw-h-7 hover:tw-bg-neutral-800"
+												className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-w-7 tw-h-7 hover:tw-bg-neutral-800"
 												onClick={() => handleEditLayer(layer)}
 												title="Edit Layer"
 											>
@@ -164,7 +164,7 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
 											</button>
 
 											<button
-												className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-w-7 tw-h-7 hover:tw-bg-neutral-800"
+												className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-w-7 tw-h-7 hover:tw-bg-neutral-800"
 												onClick={() => handleDeleteLayer(layer.id)}
 												title="Delete Layer"
 											>

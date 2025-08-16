@@ -145,7 +145,7 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
                 
                 <div className="tw-mt-2 tw-flex tw-items-center tw-gap-2 tw-justify-between">
                   <button
-                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${mapping.midiNote !== null ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'} ${listeningSceneId === mapping.sceneId ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
+                    className={`tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${mapping.midiNote !== null ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'} ${listeningSceneId === mapping.sceneId ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
                     onClick={() => handleStartListening(mapping.sceneId)}
                     disabled={isListening && listeningSceneId !== mapping.sceneId}
                   >
@@ -162,7 +162,7 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
                     </div>
                     
                     <button
-                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${mapping.enabled ? 'tw-bg-green-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                      className={`tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${mapping.enabled ? 'tw-bg-green-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                       onClick={() => handleToggleEnabled(mapping.sceneId)}
                       title={mapping.enabled ? 'Disable' : 'Enable'}
                     >
@@ -171,7 +171,7 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
                     
                     {mapping.midiNote !== null && (
                       <button
-                        className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-2 tw-py-1 tw-text-sm"
+                        className="tw-border tw-border-neutral-700 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-2 tw-py-1 tw-text-sm"
                         onClick={() => handleClearMapping(mapping.sceneId)}
                         title="Clear mapping"
                       >
@@ -187,15 +187,15 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
 
         {isListening && (
           <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-z-[5000]">
-            <div className="tw-fixed tw-left-1/2 tw-top-1/2 tw--translate-x-1/2 tw--translate-y-1/2 tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-4 tw-text-neutral-100 tw-shadow-xl">
+            <div className="tw-fixed tw-left-1/2 tw-top-1/2 tw--translate-x-1/2 tw--translate-y-1/2 tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-4 tw-text-neutral-100 tw-shadow-xl">
               <h3 className="tw-text-base tw-font-semibold">Waiting for MIDI Note...</h3>
               <p className="tw-text-sm tw-text-neutral-300 tw-mt-1">Press any key on your MIDI controller to assign it to the scene.</p>
-              <button className="tw-mt-3 tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-3 tw-py-1.5" onClick={handleStopListening}>Cancel</button>
+              <button className="tw-mt-3 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-3 tw-py-1.5" onClick={handleStopListening}>Cancel</button>
             </div>
           </div>
         )}
 
-        <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3">
+        <div className="tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3">
           <h4 className="tw-text-sm tw-font-semibold">How to use:</h4>
           <ul className="tw-list-disc tw-list-inside tw-text-sm tw-text-neutral-300 tw-space-y-1 tw-mt-1">
             <li>Click on a scene's MIDI button to assign a note</li>
