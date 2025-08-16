@@ -63,6 +63,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
+  const [contextHighlightedCell, setContextHighlightedCell] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
     x: number;
@@ -71,11 +72,19 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     columnId: string | null;
   }>({ visible: false, x: 0, y: 0, layerId: null, columnId: null });
 
+  // Clipboard state for copy/paste columns, cells, and clips
+  const [clipboard, setClipboard] = useState<{
+    type: 'column' | 'cell' | 'clip';
+    data: any;
+    sourceSceneId: string;
+  } | null>(null);
+
   const handleMediaLibClose = useCallback(() => {}, []);
 
   // Close context menu
   const handleContextMenuClose = useCallback(() => {
     setContextMenu({ visible: false, x: 0, y: 0, layerId: null, columnId: null });
+    setContextHighlightedCell(null);
   }, []);
 
   // Close context menu when clicking elsewhere
@@ -286,6 +295,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       layerId: layer?.id || 'unknown',
       columnId: columnId
     });
+    setContextHighlightedCell(`${columnId}-${layer?.layerNum || (layer?.name?.split(' ')[1] || '')}`);
   };
 
 
@@ -307,6 +317,188 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
         updateScene(currentSceneId, { columns: updatedColumns });
         console.log(`🗑️ Deleted layer ${contextMenu.layerId} from column ${contextMenu.columnId}`);
+      }
+    }
+    handleContextMenuClose();
+  };
+
+  // Copy column
+  const handleCopyColumn = () => {
+    if (contextMenu.columnId) {
+      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      if (currentScene) {
+        const columnToCopy = currentScene.columns.find((col: any) => col.id === contextMenu.columnId);
+        if (columnToCopy) {
+          setClipboard({
+            type: 'column',
+            data: { ...columnToCopy },
+            sourceSceneId: currentSceneId
+          });
+          console.log(`📋 Copied column ${columnToCopy.name} to clipboard`);
+        }
+      }
+    }
+    handleContextMenuClose();
+  };
+
+  // Paste column
+  const handlePasteColumn = () => {
+    if (clipboard && clipboard.type === 'column' && clipboard.data) {
+      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      if (currentScene) {
+        const pastedColumn = {
+          ...clipboard.data,
+          id: `column-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: `${clipboard.data.name} (Copy)`,
+          layers: clipboard.data.layers.map((layer: any) => ({
+            ...layer,
+            id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          }))
+        };
+
+        const updatedColumns = [...currentScene.columns, pastedColumn];
+        updateScene(currentSceneId, { columns: updatedColumns });
+        console.log(`📋 Pasted column ${pastedColumn.name} to scene ${currentSceneId}`);
+      }
+    }
+    handleContextMenuClose();
+  };
+
+  // Copy cell
+  const handleCopyCell = () => {
+    if (contextMenu.layerId && contextMenu.columnId) {
+      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      if (currentScene) {
+        const column = currentScene.columns.find((col: any) => col.id === contextMenu.columnId);
+        if (column) {
+          const cellToCopy = column.layers.find((layer: any) => layer.id === contextMenu.layerId);
+          if (cellToCopy) {
+            setClipboard({
+              type: 'cell',
+              data: { ...cellToCopy },
+              sourceSceneId: currentSceneId
+            });
+            console.log(`📋 Copied cell ${cellToCopy.name} to clipboard`);
+          }
+        }
+      }
+    }
+    handleContextMenuClose();
+  };
+
+  // Paste cell
+  const handlePasteCell = () => {
+    if (clipboard && clipboard.type === 'cell' && clipboard.data && contextMenu.columnId) {
+      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      if (currentScene) {
+        // Determine target column and layer number from the highlighted cell
+        let targetColumnId: string | null = contextMenu.columnId;
+        let targetLayerNum: number | null = null;
+        if (contextHighlightedCell) {
+          const lastDash = contextHighlightedCell.lastIndexOf('-');
+          if (lastDash !== -1) {
+            targetColumnId = contextHighlightedCell.substring(0, lastDash);
+            const numStr = contextHighlightedCell.substring(lastDash + 1);
+            const parsed = parseInt(numStr, 10);
+            if (!isNaN(parsed)) targetLayerNum = parsed;
+          }
+        }
+
+        const targetColumn = currentScene.columns.find((col: any) => col.id === targetColumnId);
+        if (targetColumn && targetLayerNum !== null) {
+          const pastedCell = {
+            ...clipboard.data,
+            id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: `${clipboard.data.name} (Copy)`,
+            layerNum: targetLayerNum
+          };
+
+          const updatedColumns = currentScene.columns.map((col: any) => {
+            if (col.id === targetColumnId) {
+              const existingIdx = col.layers.findIndex((l: any) => l.layerNum === targetLayerNum);
+              if (existingIdx >= 0) {
+                const newLayers = [...col.layers];
+                newLayers[existingIdx] = pastedCell;
+                return { ...col, layers: newLayers };
+              }
+              return { ...col, layers: [...col.layers, pastedCell] };
+            }
+            return col;
+          });
+
+          updateScene(currentSceneId, { columns: updatedColumns });
+          console.log(`📋 Pasted cell ${pastedCell.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
+        }
+      }
+    }
+    handleContextMenuClose();
+  };
+
+  // Copy clip
+  const handleCopyClip = () => {
+    if (contextMenu.layerId && contextMenu.columnId) {
+      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      if (currentScene) {
+        const column = currentScene.columns.find((col: any) => col.id === contextMenu.columnId);
+        if (column) {
+          const layerToCopy = column.layers.find((layer: any) => layer.id === contextMenu.layerId);
+          if (layerToCopy && layerToCopy.asset) {
+            setClipboard({
+              type: 'clip',
+              data: { ...layerToCopy },
+              sourceSceneId: currentSceneId
+            });
+            console.log(`📋 Copied clip ${layerToCopy.asset.name} to clipboard`);
+          }
+        }
+      }
+    }
+    handleContextMenuClose();
+  };
+
+  // Paste clip (replaces existing content)
+  const handlePasteClip = () => {
+    if (clipboard && clipboard.type === 'clip' && clipboard.data && contextMenu.columnId) {
+      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      if (currentScene) {
+        // Determine target column and layer number from the highlighted cell
+        let targetColumnId: string | null = contextMenu.columnId;
+        let targetLayerNum: number | null = null;
+        if (contextHighlightedCell) {
+          const lastDash = contextHighlightedCell.lastIndexOf('-');
+          if (lastDash !== -1) {
+            targetColumnId = contextHighlightedCell.substring(0, lastDash);
+            const numStr = contextHighlightedCell.substring(lastDash + 1);
+            const parsed = parseInt(numStr, 10);
+            if (!isNaN(parsed)) targetLayerNum = parsed;
+          }
+        }
+
+        const targetColumn = currentScene.columns.find((col: any) => col.id === targetColumnId);
+        if (targetColumn && targetLayerNum !== null) {
+          const pastedClip = {
+            ...clipboard.data,
+            id: `layer-${Date.now()}-${Math.random().toString(36).substr(36, 9)}`,
+            name: `${clipboard.data.name} (Copy)`,
+            layerNum: targetLayerNum
+          };
+
+          const updatedColumns = currentScene.columns.map((col: any) => {
+            if (col.id === targetColumnId) {
+              const existingIdx = col.layers.findIndex((l: any) => l.layerNum === targetLayerNum);
+              if (existingIdx >= 0) {
+                const newLayers = [...col.layers];
+                newLayers[existingIdx] = pastedClip;
+                return { ...col, layers: newLayers };
+              }
+              return { ...col, layers: [...col.layers, pastedClip] };
+            }
+            return col;
+          });
+
+        updateScene(currentSceneId, { columns: updatedColumns });
+        console.log(`📋 Pasted clip ${pastedClip.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
+        }
       }
     }
     handleContextMenuClose();
@@ -897,20 +1089,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="composition-row">
               {columns.map((column: any) => {
                 const isColumnPlaying = playingColumnId === column.id;
+                
+                // Check if column has any clips/assets
+                const hasClips = column.layers.some((layer: any) => {
+                  const displayName = layer?.asset?.name || layer?.asset?.metadata?.name || layer?.asset?.effect?.name || '';
+                  return !!(layer && layer.asset && displayName);
+                });
+                
                 return (
                   <div key={column.id} className="column-cell">
                     <div 
-                      className={`column-header ${isColumnPlaying ? 'playing' : ''}`}
+                      className={`column-header ${isColumnPlaying ? 'playing' : ''} ${!hasClips ? 'no-clips' : ''}`}
                       onClick={() => {
-                        console.log('🎵 Column header clicked for column:', column.id);
-                        console.log('🎵 Starting/restarting column playback from header');
-                        handleColumnPlayWrapper(column.id);
+                        // Only allow play functionality if column has clips
+                        if (hasClips) {
+                          console.log('🎵 Column header clicked for column:', column.id);
+                          console.log('🎵 Starting/restarting column playback from header');
+                          handleColumnPlayWrapper(column.id);
+                        }
                       }}
-                      title="Click anywhere to play/restart column"
+                      title={hasClips ? "Click anywhere to play/restart column" : "Column has no clips"}
+                      style={{ cursor: hasClips ? 'pointer' : 'default' }}
                     >
-                       <h4>{columns.findIndex(c => c.id === column.id) + 1}</h4>
+                      <h4>{columns.findIndex(c => c.id === column.id) + 1}</h4>
                       <div className="play-indicator">
-                        ▶
+                        {hasClips ? '▶' : '■'}
                       </div>
                     </div>
                   </div>
@@ -939,7 +1142,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   return (
                     <div
                       key={cellId}
-                      className={`grid-cell ${hasAsset ? 'has-content' : 'empty'} ${selectedLayer?.id === layer?.id ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''} ${isDragOverLayer ? 'drag-over-layer' : ''}`}
+                      className={`grid-cell ${hasAsset ? 'has-content' : 'empty'} ${selectedLayer?.id === layer?.id ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''} ${isDragOverLayer ? 'drag-over-layer' : ''} ${contextHighlightedCell === cellId ? 'context-highlight' : ''}`}
                       data-system-files={isDragOver && (() => {
                         // Check if drag contains system files
                         const dragData = (window as any).currentDragData;
@@ -1079,7 +1282,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         </div>
                       ) : (
                         <div 
-                          className="layer-content"
+                          className="layer-content empty-cell"
                           onDragOver={(e) => {
                             e.preventDefault();
                             e.currentTarget.classList.add('drag-over');
@@ -1102,9 +1305,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                               handleDropWrapper(e, column.id, layerNum);
                             }
                           }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setContextMenu({
+                              visible: true,
+                              x: e.clientX,
+                              y: e.clientY,
+                              layerId: `empty-${layerNum}`,
+                              columnId: column.id
+                            });
+                            setContextHighlightedCell(`${column.id}-${layerNum}`);
+                          }}
                         >
-                                                   <div className="layer-preview-placeholder"></div>
-                            <div className="layer-name"></div>
+                          <div className="layer-preview-placeholder"></div>
+                          <div className="layer-name"></div>
                         </div>
                       )}
                     </div>
@@ -1364,6 +1579,213 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Cell-specific options - only show if we have a layer selected (not empty cells) */}
+            {contextMenu.layerId && !contextMenu.layerId.startsWith('empty-') && (
+              <>
+                <div
+                  className="context-menu-item"
+                  style={{
+                    padding: '12px 20px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backgroundColor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    borderBottom: '1px solid #444'
+                  }}
+                  onClick={handleCopyCell}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#444';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  📋 Copy Cell
+                </div>
+                
+                <div
+                  className="context-menu-item"
+                  style={{
+                    padding: '12px 20px',
+                    color: clipboard && clipboard.type === 'cell' ? '#fff' : '#666',
+                    cursor: clipboard && clipboard.type === 'clip' ? 'pointer' : 'default',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backgroundColor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    borderBottom: '1px solid #444',
+                    opacity: clipboard && clipboard.type === 'cell' ? 1 : 0.5
+                  }}
+                  onClick={clipboard && clipboard.type === 'cell' ? handlePasteCell : undefined}
+                  onMouseEnter={(e) => {
+                    if (clipboard && clipboard.type === 'cell') {
+                      e.currentTarget.style.backgroundColor = '#444';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  📋 Paste Cell
+                </div>
+
+                {/* Clip options - for actual media/effects */}
+                <div
+                  className="context-menu-item"
+                  style={{
+                    padding: '12px 20px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backgroundColor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    borderBottom: '1px solid #444'
+                  }}
+                  onClick={handleCopyClip}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#444';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  📋 Copy Clip
+                </div>
+                
+                <div
+                  className="context-menu-item"
+                  style={{
+                    padding: '12px 20px',
+                    color: clipboard && clipboard.type === 'clip' ? '#fff' : '#666',
+                    cursor: clipboard && clipboard.type === 'clip' ? 'pointer' : 'default',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backgroundColor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    borderBottom: '1px solid #444',
+                    opacity: clipboard && clipboard.type === 'clip' ? 1 : 0.5
+                  }}
+                  onClick={clipboard && clipboard.type === 'clip' ? handlePasteClip : undefined}
+                  onMouseEnter={(e) => {
+                    if (clipboard && clipboard.type === 'clip') {
+                      e.currentTarget.style.backgroundColor = '#444';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  📋 Paste Clip
+                </div>
+              </>
+            )}
+            
+            {/* Cell paste option - show if we have a cell in clipboard (for empty cells) */}
+            {clipboard && clipboard.type === 'cell' && (
+              <div
+                className="context-menu-item"
+                style={{
+                  padding: '12px 20px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  backgroundColor: 'transparent',
+                  transition: 'background-color 0.2s ease',
+                  borderBottom: '1px solid #444'
+                }}
+                onClick={handlePasteCell}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#444';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                📋 Paste Cell
+              </div>
+            )}
+
+            {/* Clip paste option - show if we have a clip in clipboard (for empty cells) */}
+            {clipboard && clipboard.type === 'clip' && (
+              <div
+                className="context-menu-item"
+                style={{
+                  padding: '12px 20px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  backgroundColor: 'transparent',
+                  transition: 'background-color 0.2s ease',
+                  borderBottom: '1px solid #444'
+                }}
+                onClick={handlePasteClip}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#444';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                📋 Paste Clip
+              </div>
+            )}
+            
+            {/* Column options - always show */}
+            <div
+              className="context-menu-item"
+              style={{
+                padding: '12px 20px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                backgroundColor: 'transparent',
+                transition: 'background-color 0.2s ease',
+                borderBottom: '1px solid #444'
+              }}
+              onClick={handleCopyColumn}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              📋 Copy Column
+            </div>
+            
+            <div
+              className="context-menu-item"
+              style={{
+                padding: '12px 20px',
+                color: clipboard && clipboard.type === 'column' ? '#fff' : '#666',
+                cursor: clipboard && clipboard.type === 'column' ? 'pointer' : 'default',
+                fontSize: '14px',
+                fontWeight: '500',
+                backgroundColor: 'transparent',
+                transition: 'background-color 0.2s ease',
+                borderBottom: '1px solid #444',
+                opacity: clipboard && clipboard.type === 'column' ? 1 : 0.5
+              }}
+              onClick={clipboard && clipboard.type === 'column' ? handlePasteColumn : undefined}
+              onMouseEnter={(e) => {
+                if (clipboard && clipboard.type === 'column') {
+                  e.currentTarget.style.backgroundColor = '#444';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              📋 Paste Column
+            </div>
+            
+            {/* Delete option - show different text based on context */}
             <div
               className="context-menu-item"
               style={{
@@ -1384,7 +1806,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              🗑️ Delete
+              {contextMenu.layerId && contextMenu.layerId !== 'unknown' ? '🗑️ Delete Layer' : '🗑️ Delete Column'}
             </div>
           </div>
         )}
@@ -1425,6 +1847,221 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Cell-specific options - only show if we have a layer selected (not empty cells) */}
+            {contextMenu.layerId && !contextMenu.layerId.startsWith('empty-') && (
+              <>
+                <div
+                  className="context-menu-item"
+                  style={{
+                    padding: '12px 20px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backgroundColor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    borderBottom: '1px solid #444',
+                    userSelect: 'none'
+                  }}
+                  onClick={handleCopyCell}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#444';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  📋 Copy Cell
+                </div>
+                
+                <div
+                  className="context-menu-item"
+                  style={{
+                    padding: '12px 20px',
+                    color: clipboard && clipboard.type === 'cell' ? '#fff' : '#666',
+                    cursor: clipboard && clipboard.type === 'cell' ? 'pointer' : 'default',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backgroundColor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    borderBottom: '1px solid #444',
+                    opacity: clipboard && clipboard.type === 'cell' ? 1 : 0.5,
+                    userSelect: 'none'
+                  }}
+                  onClick={clipboard && clipboard.type === 'cell' ? handlePasteCell : undefined}
+                  onMouseEnter={(e) => {
+                    if (clipboard && clipboard.type === 'cell') {
+                      e.currentTarget.style.backgroundColor = '#444';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  📋 Paste Cell
+                </div>
+
+                {/* Clip options - for actual media/effects */}
+                <div
+                  className="context-menu-item"
+                  style={{
+                    padding: '12px 20px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backgroundColor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    borderBottom: '1px solid #444',
+                    userSelect: 'none'
+                  }}
+                  onClick={handleCopyClip}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#444';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  📋 Copy Clip
+                </div>
+                
+                <div
+                  className="context-menu-item"
+                  style={{
+                    padding: '12px 20px',
+                    color: clipboard && clipboard.type === 'clip' ? '#fff' : '#666',
+                    cursor: clipboard && clipboard.type === 'cell' ? 'pointer' : 'default',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backgroundColor: 'transparent',
+                    transition: 'background-color 0.2s ease',
+                    borderBottom: '1px solid #444',
+                    opacity: clipboard && clipboard.type === 'clip' ? 1 : 0.5,
+                    userSelect: 'none'
+                  }}
+                  onClick={clipboard && clipboard.type === 'clip' ? handlePasteClip : undefined}
+                  onMouseEnter={(e) => {
+                    if (clipboard && clipboard.type === 'clip') {
+                      e.currentTarget.style.backgroundColor = '#444';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  📋 Paste Clip
+                </div>
+              </>
+            )}
+            
+            {/* Cell paste option - show if we have a cell in clipboard (for empty cells) */}
+            {clipboard && clipboard.type === 'cell' && (
+              <div
+                className="context-menu-item"
+                style={{
+                  padding: '12px 20px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  backgroundColor: 'transparent',
+                  transition: 'background-color 0.2s ease',
+                  borderBottom: '1px solid #444',
+                  userSelect: 'none'
+                }}
+                onClick={handlePasteCell}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#444';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                📋 Paste Cell
+              </div>
+            )}
+
+            {/* Clip paste option - show if we have a clip in clipboard (for empty cells) */}
+            {clipboard && clipboard.type === 'clip' && (
+              <div
+                className="context-menu-item"
+                style={{
+                  padding: '12px 20px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  backgroundColor: 'transparent',
+                  transition: 'background-color 0.2s ease',
+                  borderBottom: '1px solid #444',
+                  userSelect: 'none'
+                }}
+                onClick={handlePasteClip}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#444';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                📋 Paste Clip
+              </div>
+            )}
+            
+            {/* Column options - always show */}
+            <div
+              className="context-menu-item"
+              style={{
+                padding: '12px 20px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                backgroundColor: 'transparent',
+                transition: 'background-color 0.2s ease',
+                borderBottom: '1px solid #444',
+                userSelect: 'none'
+              }}
+              onClick={handleCopyColumn}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              📋 Copy Column
+            </div>
+            
+            <div
+              className="context-menu-item"
+              style={{
+                padding: '12px 20px',
+                color: clipboard && clipboard.type === 'column' ? '#fff' : '#666',
+                cursor: clipboard && clipboard.type === 'column' ? 'pointer' : 'default',
+                fontSize: '14px',
+                fontWeight: '500',
+                backgroundColor: 'transparent',
+                transition: 'background-color 0.2s ease',
+                borderBottom: '1px solid #444',
+                opacity: clipboard && clipboard.type === 'column' ? 1 : 0.5,
+                userSelect: 'none'
+              }}
+              onClick={clipboard && clipboard.type === 'column' ? handlePasteColumn : undefined}
+              onMouseEnter={(e) => {
+                if (clipboard && clipboard.type === 'column') {
+                  e.currentTarget.style.backgroundColor = '#444';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              📋 Paste Column
+            </div>
+            
+            {/* Delete option - show different text based on context */}
             <div
               className="context-menu-item"
               style={{
@@ -1445,7 +2082,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              🗑️ Delete Clip
+              {contextMenu.layerId && contextMenu.layerId !== 'unknown' ? '🗑️ Delete Layer' : '🗑️ Delete Column'}
             </div>
           </div>
         )}
