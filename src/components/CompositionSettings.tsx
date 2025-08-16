@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/store';
+import { Dialog, Popover, PopoverTrigger, PopoverContent } from './ui';
 
 interface CompositionSettingsProps {
   isOpen: boolean;
@@ -98,132 +99,129 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={handleCancel}>
-      <div className="modal-content composition-settings-modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Composition Settings</h3>
-          <button className="modal-close" onClick={handleCancel}>×</button>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} title="Composition Settings" footer={(
+      <>
+        <button className="tw-rounded tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={handleCancel}>Cancel</button>
+        <button className="tw-rounded tw-bg-purple-600 tw-px-3 tw-py-1.5 tw-text-white hover:tw-bg-purple-500" onClick={handleSave}>Save</button>
+      </>
+    )}>
+      <div className="modal-body tw-space-y-3">
+        <div className="setting-group">
+          <label>Background Color:</label>
+          <input
+            type="color"
+            value={settings.backgroundColor || '#000000'}
+            onChange={e => setSettings(prev => ({ ...prev, backgroundColor: e.target.value }))}
+          />
         </div>
-        
-        <div className="modal-body">
-          <div className="setting-group">
-            <label>Background Color:</label>
-            <input
-              type="color"
-              value={settings.backgroundColor || '#000000'}
-              onChange={e => setSettings(prev => ({ ...prev, backgroundColor: e.target.value }))}
-            />
-          </div>
 
-          <div className="setting-group">
-            <label>Name:</label>
+        <div className="setting-group">
+          <label>Name:</label>
+          <input 
+            type="text" 
+            value={settings.name || 'new test'} 
+            onChange={e => setSettings(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="Composition name"
+          />
+        </div>
+
+        <div className="setting-group">
+          <label>Description:</label>
+          <textarea 
+            value={settings.description || ''} 
+            onChange={e => setSettings(prev => ({ ...prev, description: e.target.value }))}
+            placeholder="Composition description"
+            rows={3}
+          />
+        </div>
+
+        <div className="setting-group">
+          <label>Size:</label>
+          <div className="size-inputs">
             <input 
-              type="text" 
-              value={settings.name || 'new test'} 
-              onChange={e => setSettings(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Composition name"
+              type="number" 
+              value={settings.width} 
+              onChange={e => setSettings(prev => ({ 
+                ...prev, 
+                width: parseInt(e.target.value) || 1920,
+                aspectRatio: `${parseInt(e.target.value) || 1920}:${prev.height}`
+              }))}
+              min="1"
+              max="7680"
             />
-          </div>
-
-          <div className="setting-group">
-            <label>Description:</label>
-            <textarea 
-              value={settings.description || ''} 
-              onChange={e => setSettings(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Composition description"
-              rows={3}
+            <span>x</span>
+            <input 
+              type="number" 
+              value={settings.height} 
+              onChange={e => setSettings(prev => ({ 
+                ...prev, 
+                height: parseInt(e.target.value) || 1080,
+                aspectRatio: `${prev.width}:${parseInt(e.target.value) || 1080}`
+              }))}
+              min="1"
+              max="4320"
             />
-          </div>
-
-          <div className="setting-group">
-            <label>Size:</label>
-            <div className="size-inputs">
-              <input 
-                type="number" 
-                value={settings.width} 
-                onChange={e => setSettings(prev => ({ 
-                  ...prev, 
-                  width: parseInt(e.target.value) || 1920,
-                  aspectRatio: `${parseInt(e.target.value) || 1920}:${prev.height}`
-                }))}
-                min="1"
-                max="7680"
-              />
-              <span>x</span>
-              <input 
-                type="number" 
-                value={settings.height} 
-                onChange={e => setSettings(prev => ({ 
-                  ...prev, 
-                  height: parseInt(e.target.value) || 1080,
-                  aspectRatio: `${prev.width}:${parseInt(e.target.value) || 1080}`
-                }))}
-                min="1"
-                max="4320"
-              />
-              <div className="dropdown-container">
-                <button 
-                  className="dropdown-button"
-                  onClick={() => setSizeDropdownOpen(!sizeDropdownOpen)}
-                >
-                  {getCurrentSizeName()}
-                  <span className="dropdown-arrow">▼</span>
-                </button>
+            <div className="dropdown-container">
+              <Popover open={sizeDropdownOpen} onOpenChange={setSizeDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <button 
+                    className="tw-inline-flex tw-items-center tw-gap-2 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+                    onClick={() => setSizeDropdownOpen(!sizeDropdownOpen)}
+                  >
+                    {getCurrentSizeName()}
+                    <span className="tw-text-neutral-400">▼</span>
+                  </button>
+                </PopoverTrigger>
                 {sizeDropdownOpen && (
-                  <div className="dropdown-menu">
+                  <PopoverContent className="tw-min-w-[220px] tw-py-1">
                     {PRESET_SIZES.map((preset, index) => (
                       <button
                         key={index}
-                        className={`dropdown-item ${getCurrentSizeName() === preset.name ? 'selected' : ''}`}
+                        className={`tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 ${getCurrentSizeName() === preset.name ? 'tw-text-white' : 'tw-text-neutral-300'}`}
                         onClick={() => handleSizeSelect(preset)}
                       >
                         {preset.name}
                       </button>
                     ))}
-                  </div>
+                  </PopoverContent>
                 )}
-              </div>
+              </Popover>
             </div>
           </div>
+        </div>
 
-          <div className="setting-group">
-            <label>FrameRate:</label>
-            <div className="dropdown-container">
-              <button 
-                className="dropdown-button"
-                onClick={() => setFrameRateDropdownOpen(!frameRateDropdownOpen)}
-              >
-                {getCurrentFrameRateName()}
-                <span className="dropdown-arrow">▼</span>
-              </button>
+        <div className="setting-group">
+          <label>FrameRate:</label>
+          <div className="dropdown-container">
+            <Popover open={frameRateDropdownOpen} onOpenChange={setFrameRateDropdownOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className="tw-inline-flex tw-items-center tw-gap-2 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+                  onClick={() => setFrameRateDropdownOpen(!frameRateDropdownOpen)}
+                >
+                  {getCurrentFrameRateName()}
+                  <span className="tw-text-neutral-400">▼</span>
+                </button>
+              </PopoverTrigger>
               {frameRateDropdownOpen && (
-                <div className="dropdown-menu">
+                <PopoverContent className="tw-min-w-[220px] tw-py-1">
                   {FRAME_RATES.map((frameRate, index) => (
                     <button
                       key={index}
-                      className={`dropdown-item ${getCurrentFrameRateName() === frameRate.name ? 'selected' : ''}`}
+                      className={`tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 ${getCurrentFrameRateName() === frameRate.name ? 'tw-text-white' : 'tw-text-neutral-300'}`}
                       onClick={() => handleFrameRateSelect(frameRate)}
                     >
                       {frameRate.name}
                     </button>
                   ))}
-                </div>
+                </PopoverContent>
               )}
-            </div>
+            </Popover>
           </div>
+        </div>
 
 
-        </div>
-        
-        <div className="modal-footer">
-          <button className="btn-secondary" onClick={handleCancel}>
-            Cancel
-          </button>
-          <button className="btn-primary" onClick={handleSave}>
-            Save
-          </button>
-        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }; 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/store';
+import { Select } from './ui';
 
 interface MIDIMapping {
   id: string;
@@ -162,17 +163,13 @@ export const MIDIMapper: React.FC = () => {
       {/* Top Section: MIDI Mappings List */}
       <div className="midi-mappings-section">
         <div className="mappings-header">
-          <select 
-            value={selectedDevice}
-            onChange={(e) => setSelectedDevice(e.target.value)}
-            className="device-selector"
-          >
-            {devices.map(device => (
-              <option key={device.id} value={device.name}>
-                {device.name}
-              </option>
-            ))}
-          </select>
+          <div className="device-selector">
+            <Select
+              value={selectedDevice}
+              onChange={(v) => setSelectedDevice(v as string)}
+              options={devices.map(d => ({ value: d.name }))}
+            />
+          </div>
         </div>
         
         <div className="mappings-list">
@@ -193,67 +190,57 @@ export const MIDIMapper: React.FC = () => {
       <div className="midi-settings-section">
         <div className="settings-row">
           <label>Target:</label>
-          <select
-            value={selectedMapping?.target || ''}
-            onChange={(e) => handleSettingChange('target', e.target.value)}
-            className="setting-dropdown"
-          >
-            {targetOptions.map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
+          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+            <Select
+              value={(selectedMapping?.target || '') as string}
+              onChange={(v) => handleSettingChange('target', v as string)}
+              options={targetOptions.map(o => ({ value: o }))}
+            />
+          </div>
         </div>
 
         <div className="settings-row">
           <label>Input:</label>
-          <select
-            value={selectedMapping?.input || ''}
-            onChange={(e) => handleSettingChange('input', e.target.value)}
-            className="setting-dropdown"
-          >
-            {inputOptions.map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
+          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+            <Select
+              value={(selectedMapping?.input || '') as string}
+              onChange={(v) => handleSettingChange('input', v as string)}
+              options={inputOptions.map(o => ({ value: o }))}
+            />
+          </div>
         </div>
 
         <div className="settings-row">
           <label>Output:</label>
-          <select
-            value={selectedMapping?.output || ''}
-            onChange={(e) => handleSettingChange('output', e.target.value)}
-            className="setting-dropdown"
-          >
-            {outputOptions.map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
+          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+            <Select
+              value={(selectedMapping?.output || '') as string}
+              onChange={(v) => handleSettingChange('output', v as string)}
+              options={outputOptions.map(o => ({ value: o }))}
+            />
+          </div>
         </div>
 
         <div className="settings-row">
           <label>Channel:</label>
-          <select
-            value={selectedMapping?.channel || 1}
-            onChange={(e) => handleSettingChange('channel', parseInt(e.target.value))}
-            className="setting-dropdown"
-          >
-            {Array.from({ length: 16 }, (_, i) => i + 1).map(channel => (
-              <option key={channel} value={channel}>{channel}</option>
-            ))}
-          </select>
+          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+            <Select
+              value={(selectedMapping?.channel || 1) as number}
+              onChange={(v) => handleSettingChange('channel', Number(v))}
+              options={Array.from({ length: 16 }, (_, i) => i + 1).map(ch => ({ value: ch, label: String(ch) }))}
+            />
+          </div>
         </div>
 
         <div className="settings-row">
           <label>Note:</label>
-          <select
-            value={selectedMapping?.note || ''}
-            onChange={(e) => handleSettingChange('note', e.target.value)}
-            className="setting-dropdown"
-          >
-            {noteOptions.map(note => (
-              <option key={note} value={note}>{note}</option>
-            ))}
-          </select>
+          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+            <Select
+              value={(selectedMapping?.note || '') as string}
+              onChange={(v) => handleSettingChange('note', v as string)}
+              options={noteOptions.map(n => ({ value: n }))}
+            />
+          </div>
         </div>
       </div>
 
@@ -263,28 +250,28 @@ export const MIDIMapper: React.FC = () => {
         
         <div className="settings-row">
           <label>Status:</label>
-          <select
-            value={selectedMapping?.status || ''}
-            onChange={(e) => handleSettingChange('status', e.target.value)}
-            className="setting-dropdown"
-          >
-            <option value="Empty">Empty</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+            <Select
+              value={(selectedMapping?.status || 'Empty') as string}
+              onChange={(v) => handleSettingChange('status', v as string)}
+              options={[
+                { value: 'Empty' },
+                { value: 'Active' },
+                { value: 'Inactive' }
+              ]}
+            />
+          </div>
         </div>
 
         <div className="settings-row">
           <label>Velocity:</label>
-          <select
-            value={selectedMapping?.velocity || ''}
-            onChange={(e) => handleSettingChange('velocity', e.target.value)}
-            className="setting-dropdown"
-          >
-            {velocityOptions.map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
+          <div className="setting-dropdown">
+            <Select
+              value={(selectedMapping?.velocity || '') as string}
+              onChange={(v) => handleSettingChange('velocity', v as string)}
+              options={velocityOptions.map(v => ({ value: v }))}
+            />
+          </div>
         </div>
       </div>
 

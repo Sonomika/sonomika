@@ -17,6 +17,7 @@ import { EffectsBrowser } from './EffectsBrowser';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
 import { ButtonGroup } from './ui';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 
 
 interface LayerManagerProps {
@@ -1385,176 +1386,45 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             {/* Media Library / MIDI Mapper - Bottom Right */}
             <div className="layer-manager-media-library">
               {/* Tab Navigation */}
-              <div className="media-tabs" style={{
-                display: 'flex',
-                borderBottom: '2px solid #444',
-                marginBottom: '10px',
-                backgroundColor: '#1a1a1a'
-              }}>
-                <button 
-                  className={`media-tab ${!showMediaLibrary ? 'active' : ''}`}
-                  onClick={() => setShowMediaLibrary(false)}
-                  style={{
-                    padding: '8px 16px',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: '#ccc',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    borderBottom: '2px solid transparent',
-                    transition: 'all 0.2s ease',
-                    ...(!showMediaLibrary ? {
-                      backgroundColor: '#333',
-                      color: '#fff',
-                      borderBottomColor: '#007acc'
-                    } : {})
-                  }}
-                  onMouseEnter={(e) => {
-                    if (showMediaLibrary) {
-                      e.currentTarget.style.backgroundColor = '#2a2a2a';
-                      e.currentTarget.style.color = '#fff';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (showMediaLibrary) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#ccc';
-                    }
-                  }}
-                >
-                  Media
-                </button>
-                <button 
-                  className={`media-tab ${showMediaLibrary === 'effects' ? 'active' : ''}`}
-                  onClick={() => setShowMediaLibrary('effects')}
-                  style={{
-                    padding: '8px 16px',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: '#ccc',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    borderBottom: '2px solid transparent',
-                    transition: 'all 0.2s ease',
-                    ...(showMediaLibrary === 'effects' ? {
-                      backgroundColor: '#333',
-                      color: '#fff',
-                      borderBottomColor: '#007acc'
-                    } : {})
-                  }}
-                  onMouseEnter={(e) => {
-                    if (showMediaLibrary !== 'effects') {
-                      e.currentTarget.style.backgroundColor = '#2a2a2a';
-                      e.currentTarget.style.color = '#fff';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (showMediaLibrary !== 'effects') {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#ccc';
-                    }
-                  }}
-                >
-                  Effects
-                </button>
-                <button 
-                  className={`media-tab ${showMediaLibrary === 'midi' ? 'active' : ''}`}
-                  onClick={() => setShowMediaLibrary('midi')}
-                  style={{
-                    padding: '8px 16px',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: '#ccc',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    borderBottom: '2px solid transparent',
-                    transition: 'all 0.2s ease',
-                    ...(showMediaLibrary === 'midi' ? {
-                      backgroundColor: '#333',
-                      color: '#fff',
-                      borderBottomColor: '#007acc'
-                    } : {})
-                  }}
-                  onMouseEnter={(e) => {
-                    if (showMediaLibrary !== 'midi') {
-                      e.currentTarget.style.backgroundColor = '#2a2a2a';
-                      e.currentTarget.style.color = '#fff';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (showMediaLibrary !== 'midi') {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#ccc';
-                    }
-                  }}
-                >
-                  MIDI
-                </button>
-                <button 
-                  className={`media-tab ${showMediaLibrary === 'lfo' ? 'active' : ''}`}
-                  onClick={() => setShowMediaLibrary('lfo')}
-                  style={{
-                    padding: '8px 16px',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: '#ccc',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    borderBottom: '2px solid transparent',
-                    transition: 'all 0.2s ease',
-                    ...(showMediaLibrary === 'lfo' ? {
-                      backgroundColor: '#333',
-                      color: '#fff',
-                      borderBottomColor: '#007acc'
-                    } : {})
-                  }}
-                  onMouseEnter={(e) => {
-                    if (showMediaLibrary !== 'lfo') {
-                      e.currentTarget.style.backgroundColor = '#2a2a2a';
-                      e.currentTarget.style.color = '#fff';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (showMediaLibrary !== 'lfo') {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#ccc';
-                    }
-                  }}
-                >
-                  LFO
-                </button>
+              <div className="media-tabs tw-mb-2">
+                <Tabs value={showMediaLibrary ? String(showMediaLibrary) : 'media'} onValueChange={(val) => setShowMediaLibrary(val === 'media' ? false : (val as any))}>
+                  <TabsList>
+                    <TabsTrigger value="media">Media</TabsTrigger>
+                    <TabsTrigger value="effects">Effects</TabsTrigger>
+                    <TabsTrigger value="midi">MIDI</TabsTrigger>
+                    <TabsTrigger value="lfo">LFO</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
               
               {/* Tab Content */}
               <div className="tab-content">
-                {!showMediaLibrary && (
-                  <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
-                )}
-                {showMediaLibrary === 'effects' && (
-                  <div className="effects-tab">
-                    <h3>Effects</h3>
-                    <EffectsBrowser />
-                  </div>
-                )}
-                {showMediaLibrary === 'midi' && (
-                  <div className="midi-tab">
-                    <h3>MIDI</h3>
-                    <MIDIMapper />
-                  </div>
-                )}
-                {showMediaLibrary === 'lfo' && (
-                  <div className="lfo-tab">
-                    <h3>LFO</h3>
-                    <LFOMapper 
-                      selectedLayer={selectedLayer}
-                      onUpdateLayer={handleUpdateLayerWrapper}
-                    />
-                  </div>
-                )}
+                <Tabs value={showMediaLibrary ? String(showMediaLibrary) : 'media'} onValueChange={(val) => setShowMediaLibrary(val === 'media' ? false : (val as any))}>
+                  <TabsContent value="media">
+                    <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
+                  </TabsContent>
+                  <TabsContent value="effects">
+                    <div className="tw-space-y-2">
+                      <h3>Effects</h3>
+                      <EffectsBrowser />
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="midi">
+                    <div className="midi-tab">
+                      <h3>MIDI</h3>
+                      <MIDIMapper />
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="lfo">
+                    <div className="lfo-tab">
+                      <h3>LFO</h3>
+                      <LFOMapper 
+                        selectedLayer={selectedLayer}
+                        onUpdateLayer={handleUpdateLayerWrapper}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             </div>
           </div>
@@ -1564,122 +1434,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         {contextMenu.visible && (
           <div
             className="context-menu"
-            style={{
-              position: 'fixed',
-              left: Math.min(contextMenu.x, window.innerWidth - 150), // Ensure it doesn't go off-screen
-              top: Math.min(contextMenu.y, window.innerHeight - 60),
-              zIndex: 10000, // Very high z-index to ensure visibility
-              backgroundColor: '#2a2a2a',
-              border: '2px solid #666',
-              borderRadius: '6px',
-              padding: '8px 0',
-              minWidth: '140px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.8)',
-              fontFamily: 'system-ui, -apple-system, sans-serif'
-            }}
+            style={{ position: 'fixed', left: Math.min(contextMenu.x, window.innerWidth - 150), top: Math.min(contextMenu.y, window.innerHeight - 60), zIndex: 10000 }}
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="tw-min-w-[160px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg">
             {/* Cell-specific options - only show if we have a layer selected (not empty cells) */}
             {contextMenu.layerId && !contextMenu.layerId.startsWith('empty-') && (
               <>
-                <div
-                  className="context-menu-item"
-                  style={{
-                    padding: '12px 20px',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    backgroundColor: 'transparent',
-                    transition: 'background-color 0.2s ease',
-                    borderBottom: '1px solid #444'
-                  }}
-                  onClick={handleCopyCell}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#444';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  📋 Copy Cell
-                </div>
+                <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={handleCopyCell}>📋 Copy Cell</div>
                 
-                <div
-                  className="context-menu-item"
-                  style={{
-                    padding: '12px 20px',
-                    color: clipboard && clipboard.type === 'cell' ? '#fff' : '#666',
-                    cursor: clipboard && clipboard.type === 'clip' ? 'pointer' : 'default',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    backgroundColor: 'transparent',
-                    transition: 'background-color 0.2s ease',
-                    borderBottom: '1px solid #444',
-                    opacity: clipboard && clipboard.type === 'cell' ? 1 : 0.5
-                  }}
-                  onClick={clipboard && clipboard.type === 'cell' ? handlePasteCell : undefined}
-                  onMouseEnter={(e) => {
-                    if (clipboard && clipboard.type === 'cell') {
-                      e.currentTarget.style.backgroundColor = '#444';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  📋 Paste Cell
-                </div>
+                <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={clipboard && clipboard.type === 'cell' ? handlePasteCell : undefined} style={{ opacity: clipboard && clipboard.type === 'cell' ? 1 : 0.5 }}>📋 Paste Cell</div>
 
                 {/* Clip options - for actual media/effects */}
-                <div
-                  className="context-menu-item"
-                  style={{
-                    padding: '12px 20px',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    backgroundColor: 'transparent',
-                    transition: 'background-color 0.2s ease',
-                    borderBottom: '1px solid #444'
-                  }}
-                  onClick={handleCopyClip}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#444';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  📋 Copy Clip
-                </div>
+                <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={handleCopyClip}>📋 Copy Clip</div>
                 
-                <div
-                  className="context-menu-item"
-                  style={{
-                    padding: '12px 20px',
-                    color: clipboard && clipboard.type === 'clip' ? '#fff' : '#666',
-                    cursor: clipboard && clipboard.type === 'clip' ? 'pointer' : 'default',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    backgroundColor: 'transparent',
-                    transition: 'background-color 0.2s ease',
-                    borderBottom: '1px solid #444',
-                    opacity: clipboard && clipboard.type === 'clip' ? 1 : 0.5
-                  }}
-                  onClick={clipboard && clipboard.type === 'clip' ? handlePasteClip : undefined}
-                  onMouseEnter={(e) => {
-                    if (clipboard && clipboard.type === 'clip') {
-                      e.currentTarget.style.backgroundColor = '#444';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  📋 Paste Clip
-                </div>
+                <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={clipboard && clipboard.type === 'clip' ? handlePasteClip : undefined} style={{ opacity: clipboard && clipboard.type === 'clip' ? 1 : 0.5 }}>📋 Paste Clip</div>
               </>
             )}
             
@@ -1736,77 +1505,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             )}
             
             {/* Column options - always show */}
-            <div
-              className="context-menu-item"
-              style={{
-                padding: '12px 20px',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                backgroundColor: 'transparent',
-                transition: 'background-color 0.2s ease',
-                borderBottom: '1px solid #444'
-              }}
-              onClick={handleCopyColumn}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#444';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              📋 Copy Column
-            </div>
+            <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={handleCopyColumn}>📋 Copy Column</div>
             
-            <div
-              className="context-menu-item"
-              style={{
-                padding: '12px 20px',
-                color: clipboard && clipboard.type === 'column' ? '#fff' : '#666',
-                cursor: clipboard && clipboard.type === 'column' ? 'pointer' : 'default',
-                fontSize: '14px',
-                fontWeight: '500',
-                backgroundColor: 'transparent',
-                transition: 'background-color 0.2s ease',
-                borderBottom: '1px solid #444',
-                opacity: clipboard && clipboard.type === 'column' ? 1 : 0.5
-              }}
-              onClick={clipboard && clipboard.type === 'column' ? handlePasteColumn : undefined}
-              onMouseEnter={(e) => {
-                if (clipboard && clipboard.type === 'column') {
-                  e.currentTarget.style.backgroundColor = '#444';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              📋 Paste Column
-            </div>
+            <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={clipboard && clipboard.type === 'column' ? handlePasteColumn : undefined} style={{ opacity: clipboard && clipboard.type === 'column' ? 1 : 0.5 }}>📋 Paste Column</div>
             
             {/* Delete option - show different text based on context */}
-            <div
-              className="context-menu-item"
-              style={{
-                padding: '12px 20px',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                backgroundColor: 'transparent',
-                transition: 'background-color 0.2s ease',
-                borderBottom: 'none'
-              }}
-              onClick={handleDeleteLayer}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#444';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              {contextMenu.layerId && contextMenu.layerId !== 'unknown' ? '🗑️ Delete Layer' : '🗑️ Delete Column'}
+            <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={handleDeleteLayer}>{contextMenu.layerId && contextMenu.layerId !== 'unknown' ? '🗑️ Delete Layer' : '🗑️ Delete Column'}</div>
             </div>
           </div>
         )}

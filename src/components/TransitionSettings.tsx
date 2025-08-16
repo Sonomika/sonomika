@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStore } from '../store/store';
 import { TransitionType, AppState } from '../store/types';
+import { Dialog, Select, Slider } from './ui';
 
 type StoreActions = {
   setTransitionType: (type: TransitionType) => void;
@@ -22,22 +23,21 @@ export const TransitionSettings: React.FC<Props> = ({ onClose }) => {
   } = useStore() as Store;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <h2>Transition Settings</h2>
-
-        <div className="transition-settings">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }} title="Transition Settings">
+      <div className="transition-settings tw-space-y-3">
           <div>
             <label htmlFor="transition-type">Transition Type</label>
-            <select
-              id="transition-type"
-              value={transitionType}
-              onChange={(e) => setTransitionType(e.target.value as TransitionType)}
-            >
-              <option value="cut">Cut</option>
-              <option value="fade">Fade</option>
-              <option value="fade-through-black">Fade Through Black</option>
-            </select>
+            <div style={{ maxWidth: 220 }}>
+              <Select
+                value={transitionType}
+                onChange={(v) => setTransitionType(v as TransitionType)}
+                options={[
+                  { value: 'cut', label: 'Cut' },
+                  { value: 'fade', label: 'Fade' },
+                  { value: 'fade-through-black', label: 'Fade Through Black' },
+                ]}
+              />
+            </div>
           </div>
 
           <div>
@@ -49,19 +49,18 @@ export const TransitionSettings: React.FC<Props> = ({ onClose }) => {
                 </span>
               )}
             </label>
-            <input
-              id="transition-duration"
-              type="number"
-              min={0}
-              max={5000}
-              step={100}
-              value={transitionDuration}
-              onChange={(e) => setTransitionDuration(Number(e.target.value))}
-              disabled={transitionType === 'cut'}
-            />
+            <div style={{ maxWidth: 320 }}>
+              <Slider
+                min={0}
+                max={5000}
+                step={100}
+                value={transitionDuration}
+                onChange={(v) => setTransitionDuration(v)}
+                className={transitionType === 'cut' ? 'tw-opacity-50' : ''}
+              />
+            </div>
           </div>
-        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }; 

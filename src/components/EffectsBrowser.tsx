@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { getAllRegisteredEffects, getEffect } from '../utils/effectRegistry';
 import { effectCache, CachedEffect } from '../utils/EffectCache';
 
@@ -21,7 +22,7 @@ interface MappedEffect {
   isSource: boolean;
 }
 
-export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbedded = false }) => {
+export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   const [selectedEffect, setSelectedEffect] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'effects' | 'sources'>('effects');
@@ -136,13 +137,13 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
   const generativeSources = filteredEffects.filter(effect => effect.isSource);
 
   // Group effects by category
-  const effectsByCategory = filteredEffects.reduce((acc, effect) => {
-    if (!acc[effect.category]) {
-      acc[effect.category] = [];
-    }
-    acc[effect.category].push(effect);
-    return acc;
-  }, {} as Record<string, typeof allEffects>);
+  // const effectsByCategory = filteredEffects.reduce((acc, effect) => {
+  //   if (!acc[effect.category]) {
+  //     acc[effect.category] = [];
+  //   }
+  //   acc[effect.category].push(effect);
+  //   return acc;
+  // }, {} as Record<string, typeof allEffects>);
 
   const handleEffectSelect = (effect: any) => {
     setSelectedEffect(effect);
@@ -251,74 +252,71 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose, isEmbed
         <button onClick={handleClose} className="close-button">×</button>
       </div>
 
-      <div className="effects-tabs">
-        <button
-          className={`effects-tab ${activeTab === 'effects' ? 'active' : ''}`}
-          onClick={() => setActiveTab('effects')}
-        >
-          Visual Effects
-        </button>
-        <button
-          className={`effects-tab ${activeTab === 'sources' ? 'active' : ''}`}
-          onClick={() => setActiveTab('sources')}
-        >
-          Generative Sources
-        </button>
+      <div className="tw-mb-2">
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'effects' | 'sources')}>
+          <TabsList>
+            <TabsTrigger value="effects">Visual Effects</TabsTrigger>
+            <TabsTrigger value="sources">Generative Sources</TabsTrigger>
+          </TabsList>
+          <TabsContent value="effects" />
+          <TabsContent value="sources" />
+        </Tabs>
       </div>
 
       <div className="effects-browser-content">
 
-        {activeTab === 'effects' && (
-          <div className="effects-grid">
-            {visualEffects.map((effect) => (
-              <div
-                key={effect.id}
-                className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
-                onClick={() => handleEffectSelect(effect)}
-                draggable
-                onDragStart={(e) => handleEffectDrag(e, effect)}
-                title={`${effect.name}: ${effect.description}`}
-              >
-                <div className="effect-info">
-                  <div className="effect-name">
-                    {effect.name}
-                    {effect.metadata?.canBeGlobal && (
-                      <span className="global-effect-indicator" title="Can be used as a global effect">🌐</span>
-                    )}
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'effects' | 'sources')}>
+          <TabsContent value="effects">
+            <div className="effects-grid">
+              {visualEffects.map((effect) => (
+                <div
+                  key={effect.id}
+                  className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
+                  onClick={() => handleEffectSelect(effect)}
+                  draggable
+                  onDragStart={(e) => handleEffectDrag(e, effect)}
+                  title={`${effect.name}: ${effect.description}`}
+                >
+                  <div className="effect-info">
+                    <div className="effect-name">
+                      {effect.name}
+                      {effect.metadata?.canBeGlobal && (
+                        <span className="global-effect-indicator" title="Can be used as a global effect">🌐</span>
+                      )}
+                    </div>
+                    <div className="effect-description">{effect.description}</div>
                   </div>
-                  <div className="effect-description">{effect.description}</div>
+                  <div className="effect-tag">{effect.category}</div>
                 </div>
-                <div className="effect-tag">{effect.category}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'sources' && (
-          <div className="effects-grid">
-            {generativeSources.map((effect) => (
-              <div
-                key={effect.id}
-                className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
-                onClick={() => handleEffectSelect(effect)}
-                draggable
-                onDragStart={(e) => handleEffectDrag(e, effect)}
-                title={`${effect.name}: ${effect.description}`}
-              >
-                <div className="effect-info">
-                  <div className="effect-name">
-                    {effect.name}
-                    {effect.metadata?.canBeGlobal && (
-                      <span className="global-effect-indicator" title="Can be used as a global effect">🌐</span>
-                    )}
+              ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="sources">
+            <div className="effects-grid">
+              {generativeSources.map((effect) => (
+                <div
+                  key={effect.id}
+                  className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
+                  onClick={() => handleEffectSelect(effect)}
+                  draggable
+                  onDragStart={(e) => handleEffectDrag(e, effect)}
+                  title={`${effect.name}: ${effect.description}`}
+                >
+                  <div className="effect-info">
+                    <div className="effect-name">
+                      {effect.name}
+                      {effect.metadata?.canBeGlobal && (
+                        <span className="global-effect-indicator" title="Can be used as a global effect">🌐</span>
+                      )}
+                    </div>
+                    <div className="effect-description">{effect.description}</div>
                   </div>
-                  <div className="effect-description">{effect.description}</div>
+                  <div className="effect-tag">{effect.category}</div>
                 </div>
-                <div className="effect-tag">{effect.category}</div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
 
 
         {selectedEffect && (

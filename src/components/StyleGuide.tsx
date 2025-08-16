@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ParamRow } from './ui';
+import { ParamRow, Select, Slider } from './ui';
 import { ButtonGroup } from './ui';
 
 /**
@@ -466,16 +466,18 @@ export const StyleGuide: React.FC<StyleGuideProps> = ({ onClose }) => {
               <h3>Select Dropdown</h3>
               <div className="form-control">
                 <label className="form-label">Select Option</label>
-                <select 
-                  className="form-select"
-                  value={formData.select}
-                  onChange={(e) => setFormData({...formData, select: e.target.value})}
-                >
-                  <option value="">Choose an option</option>
-                  <option value="option1">Option 1</option>
-                  <option value="option2">Option 2</option>
-                  <option value="option3">Option 3</option>
-                </select>
+                <div style={{ maxWidth: 240 }}>
+                  <Select
+                    value={formData.select}
+                    onChange={(v) => setFormData({ ...formData, select: String(v) })}
+                    options={[
+                      { value: '', label: 'Choose an option' },
+                      { value: 'option1', label: 'Option 1' },
+                      { value: 'option2', label: 'Option 2' },
+                      { value: 'option3', label: 'Option 3' },
+                    ]}
+                  />
+                </div>
               </div>
             </div>
 
@@ -483,38 +485,23 @@ export const StyleGuide: React.FC<StyleGuideProps> = ({ onClose }) => {
               <h3>Range Sliders</h3>
               <div className="form-control">
                 <label className="form-label">Range Value: {formData.range}</label>
-                <input 
-                  className="form-range" 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={formData.range}
-                  onChange={(e) => setFormData({...formData, range: parseInt(e.target.value)})}
-                />
+                <div style={{ maxWidth: 240 }}>
+                  <Slider value={formData.range} min={0} max={100} step={1} onChange={(v) => setFormData({ ...formData, range: Number(v) })} />
+                </div>
               </div>
 
               <div className="form-control">
                 <label className="form-label">Slider 1: {formData.slider1}</label>
-                <input 
-                  className="seek-bar" 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={formData.slider1}
-                  onChange={(e) => setFormData({...formData, slider1: parseInt(e.target.value)})}
-                />
+                <div style={{ maxWidth: 240 }}>
+                  <Slider value={formData.slider1} min={0} max={100} step={1} onChange={(v) => setFormData({ ...formData, slider1: Number(v) })} />
+                </div>
               </div>
 
               <div className="form-control">
                 <label className="form-label">Slider 2: {formData.slider2}</label>
-                <input 
-                  className="seek-bar" 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={formData.slider2}
-                  onChange={(e) => setFormData({...formData, slider2: parseInt(e.target.value)})}
-                />
+                <div style={{ maxWidth: 240 }}>
+                  <Slider value={formData.slider2} min={0} max={100} step={1} onChange={(v) => setFormData({ ...formData, slider2: Number(v) })} />
+                </div>
               </div>
             </div>
 
@@ -629,11 +616,7 @@ export const StyleGuide: React.FC<StyleGuideProps> = ({ onClose }) => {
           <div className="navigation-examples">
             <div className="example-group">
               <h3>Tabs</h3>
-              <div className="effects-tabs">
-                <button className="effects-tab active">Effects</button>
-                <button className="effects-tab">Sources</button>
-                <button className="effects-tab">Generative</button>
-              </div>
+              <div className="tw-text-neutral-400 tw-text-sm">Demo uses Radix Tabs in-app</div>
             </div>
 
             <div className="example-group">

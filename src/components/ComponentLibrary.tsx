@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Select, Slider } from './ui';
+import { Dialog, Tabs, TabsList, TabsTrigger, Slider } from './ui';
 
 /**
  * Component Library - Interactive Reference for UI Consistency
@@ -88,16 +90,18 @@ const FormExamples = () => {
         <h4>Select Dropdown</h4>
         <div className="form-control">
           <label className="form-label">Select Option</label>
-          <select 
-            className="form-select"
-            value={formData.select}
-            onChange={(e) => setFormData({...formData, select: e.target.value})}
-          >
-            <option value="">Choose an option</option>
-            <option value="option1">Option 1</option>
-            <option value="option2">Option 2</option>
-            <option value="option3">Option 3</option>
-          </select>
+          <div style={{ maxWidth: 240 }}>
+            <Select
+              value={formData.select}
+              onChange={(v) => setFormData({ ...formData, select: String(v) })}
+              options={[
+                { value: '', label: 'Choose an option' },
+                { value: 'option1', label: 'Option 1' },
+                { value: 'option2', label: 'Option 2' },
+                { value: 'option3', label: 'Option 3' },
+              ]}
+            />
+          </div>
         </div>
       </div>
 
@@ -105,14 +109,9 @@ const FormExamples = () => {
         <h4>Range Slider</h4>
         <div className="form-control">
           <label className="form-label">Range Value: {formData.range}</label>
-          <input 
-            className="form-range" 
-            type="range" 
-            min="0" 
-            max="100" 
-            value={formData.range}
-            onChange={(e) => setFormData({...formData, range: parseInt(e.target.value)})}
-          />
+          <div style={{ maxWidth: 240 }}>
+            <Slider value={formData.range} min={0} max={100} step={1} onChange={(v) => setFormData({ ...formData, range: v })} />
+          </div>
         </div>
       </div>
 
@@ -239,35 +238,18 @@ const ModalExamples = () => {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Example Modal</h2>
-              <button 
-                className="modal-close" 
-                onClick={() => setShowModal(false)}
-                aria-label="Close modal"
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>This is an example modal dialog. It demonstrates proper modal structure and behavior.</p>
-              <div className="form-control">
-                <label className="form-label">Modal Input</label>
-                <input className="form-input" type="text" placeholder="Enter text in modal" />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setShowModal(false)}>
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={() => setShowModal(false)}>
-                Confirm
-              </button>
-            </div>
+        <Dialog open={showModal} onOpenChange={(open) => { if (!open) setShowModal(false); }} title="Example Modal" footer={(
+          <>
+            <button className="btn btn-outline" onClick={() => setShowModal(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={() => setShowModal(false)}>Confirm</button>
+          </>
+        )}>
+          <p>This is an example modal dialog. It demonstrates proper modal structure and behavior.</p>
+          <div className="form-control">
+            <label className="form-label">Modal Input</label>
+            <input className="form-input" type="text" placeholder="Enter text in modal" />
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );
@@ -336,15 +318,13 @@ const ComponentLibrary: React.FC = () => {
       </div>
 
       <div className="library-tabs">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val)}>
+          <TabsList>
+            {tabs.map(tab => (
+              <TabsTrigger key={tab.id} value={tab.id}>{tab.label}</TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       <div className="library-content">

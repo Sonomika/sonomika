@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { Select, Slider } from './ui';
 import { useStore } from '../store/store';
 
 interface ImageLayerProps {
@@ -237,84 +238,72 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({ layer, width, height, on
         <div className="image-layer-controls">
           <div className="control-group">
             <label>Fit Mode:</label>
-            <select
-              value={layer.fitMode || 'cover'}
-              onChange={(e) => onUpdate({ fitMode: e.target.value })}
-            >
-              <option value="cover">Cover</option>
-              <option value="contain">Contain</option>
-              <option value="stretch">Stretch</option>
-              <option value="tile">Tile</option>
-            </select>
+            <div style={{ maxWidth: 160 }}>
+              <Select
+                value={layer.fitMode || 'cover'}
+                onChange={(val) => onUpdate({ fitMode: val })}
+                options={[
+                  { value: 'cover', label: 'Cover' },
+                  { value: 'contain', label: 'Contain' },
+                  { value: 'stretch', label: 'Stretch' },
+                  { value: 'tile', label: 'Tile' },
+                ]}
+              />
+            </div>
           </div>
 
           <div className="control-group">
             <label>Scale: {layer.scale || 1}</label>
-            <input
-              type="range"
-              min="0.1"
-              max="3"
-              step="0.1"
+            <Slider
+              min={0.1}
+              max={3}
+              step={0.1}
               value={layer.scale || 1}
-              onChange={(e) => onUpdate({ scale: parseFloat(e.target.value) })}
+              onChange={(v) => onUpdate({ scale: v })}
             />
           </div>
 
           <div className="control-group">
             <label>Rotation: {layer.rotation || 0}°</label>
-            <input
-              type="range"
-              min="0"
-              max="360"
-              step="1"
+            <Slider
+              min={0}
+              max={360}
+              step={1}
               value={layer.rotation || 0}
-              onChange={(e) => onUpdate({ rotation: parseInt(e.target.value) })}
+              onChange={(v) => onUpdate({ rotation: v })}
             />
           </div>
 
           <div className="control-group">
             <label>Opacity: {Math.round((layer.opacity || 1) * 100)}%</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
+            <Slider
+              min={0}
+              max={1}
+              step={0.01}
               value={layer.opacity || 1}
-              onChange={(e) => onUpdate({ opacity: parseFloat(e.target.value) })}
+              onChange={(v) => onUpdate({ opacity: v })}
             />
           </div>
 
           <div className="control-group">
             <label>Position X: {Math.round((layer.position?.x || 0.5) * 100)}%</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
+            <Slider
+              min={0}
+              max={1}
+              step={0.01}
               value={layer.position?.x || 0.5}
-              onChange={(e) => onUpdate({ 
-                position: { 
-                  ...layer.position, 
-                  x: parseFloat(e.target.value) 
-                } 
-              })}
+              onChange={(v) => onUpdate({ position: { ...layer.position, x: v } })}
             />
           </div>
 
           <div className="control-group">
             <label>Position Y: {Math.round((layer.position?.y || 0.5) * 100)}%</label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
+            <Slider
+              min={0}
+              max={1}
+              step={0.01}
               value={layer.position?.y || 0.5}
-              onChange={(e) => onUpdate({ 
-                position: { 
-                  ...layer.position, 
-                  y: parseFloat(e.target.value) 
-                } 
-              })}
+              onChange={(v) => onUpdate({ position: { ...layer.position, y: v } })}
             />
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Slider } from './Slider';
 
 interface ParamRowProps {
   label: string;
@@ -29,7 +30,6 @@ export const ParamRow: React.FC<ParamRowProps> = ({
   showValue = true,
   showLabel = true
 }) => {
-  const percentage = ((value - min) / (max - min)) * 100;
 
   return (
     <div className="effect-param">
@@ -58,20 +58,8 @@ export const ParamRow: React.FC<ParamRowProps> = ({
         )}
         
         {showSlider && (
-          <div className="slider-container">
-            <div 
-              className="slider-fill" 
-              style={{ width: `${percentage}%` }}
-            />
-            <input
-              type="range"
-              min={min}
-              max={max}
-              step={step}
-              value={value}
-              onChange={(e) => onChange(parseFloat(e.target.value))}
-              className="param-slider"
-            />
+          <div className="slider-container" style={{ minWidth: 120, flex: 1 }}>
+            <Slider value={value} min={min} max={max} step={step} onChange={onChange} />
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import './tw.css';
 
 // Effects are loaded dynamically - no hardcoded imports needed
 

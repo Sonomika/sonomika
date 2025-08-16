@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Slider } from './ui';
 import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerList } from './LayerList';
@@ -183,14 +184,15 @@ export const Sidebar: React.FC = () => {
               <div className="bpm-display">
                 <span>BPM: {bpm}</span>
               </div>
-              <input
-                type="range"
-                min="60"
-                max="200"
-                value={bpm}
-                onChange={(e) => setBpm(parseInt(e.target.value))}
-                className="bpm-slider"
-              />
+              <div style={{ padding: '0 8px' }}>
+                <Slider
+                  min={60}
+                  max={200}
+                  step={1}
+                  value={bpm}
+                  onChange={(v) => setBpm(Math.round(Number(v)))}
+                />
+              </div>
             </div>
           </section>
 

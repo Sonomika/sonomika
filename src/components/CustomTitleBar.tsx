@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Popover, PopoverTrigger, PopoverContent } from './ui';
 
 interface CustomTitleBarProps {
   onMinimize?: () => void;
@@ -64,56 +65,61 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
       </div>
       
       <div className="title-bar-center">
-        <div className="menu-bar">
-          <button className="menu-item" onClick={onMirror}>
+        <div className="menu-bar" style={{ WebkitAppRegion: 'no-drag' as any }}>
+          <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onMirror}>
             Mirror
           </button>
-          <button className="menu-item" onClick={onToggleAppFullscreen}>
+          <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onToggleAppFullscreen}>
             Fullscreen
           </button>
           <div className="menu-item-dropdown" ref={fileMenuRef}>
-            <button 
-              className={`menu-item ${fileMenuOpen ? 'active' : ''}`} 
-              onClick={handleFileMenuClick}
-            >
-              File
-              <span className="dropdown-arrow">▼</span>
-            </button>
-            {fileMenuOpen && (
-              <div className="dropdown-menu">
+            <Popover>
+              <PopoverTrigger asChild>
                 <button 
-                  className="dropdown-item"
-                  onClick={() => handleMenuItemClick(onNewPreset)}
+                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-rounded tw-px-2 tw-py-1 tw-text-xs ${fileMenuOpen ? 'tw-text-white' : 'tw-text-neutral-200'} hover:tw-text-white`}
+                  onClick={handleFileMenuClick}
                 >
-                  New Preset
+                  File
+                  <span className="tw-text-neutral-400">▼</span>
                 </button>
-                <button 
-                  className="dropdown-item"
-                  onClick={() => handleMenuItemClick(onSavePreset)}
-                >
-                  Save Preset
-                </button>
-                <button 
-                  className="dropdown-item"
-                  onClick={() => handleMenuItemClick(onLoadPreset)}
-                >
-                  Load Preset
-                </button>
-
-              </div>
-            )}
+              </PopoverTrigger>
+              {fileMenuOpen && (
+                <PopoverContent className="tw-min-w-[180px]" >
+                  <div className="tw-flex tw-flex-col tw-py-1">
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-300"
+                      onClick={() => handleMenuItemClick(onNewPreset)}
+                    >
+                      New Preset
+                    </button>
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-300"
+                      onClick={() => handleMenuItemClick(onSavePreset)}
+                    >
+                      Save Preset
+                    </button>
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-300"
+                      onClick={() => handleMenuItemClick(onLoadPreset)}
+                    >
+                      Load Preset
+                    </button>
+                  </div>
+                </PopoverContent>
+              )}
+            </Popover>
           </div>
-          <button className="menu-item" onClick={onCompositionSettings}>
+          <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onCompositionSettings}>
             Composition Settings
           </button>
           {process.env.NODE_ENV === 'development' && onStyleGuide && (
-            <button className="menu-item" onClick={onStyleGuide}>
+            <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onStyleGuide}>
               Style Guide
             </button>
           )}
           {process.env.NODE_ENV === 'development' && onToggleDebug && (
                          <button 
-               className={`menu-item ${debugMode ? 'active' : ''}`} 
+               className={`tw-rounded tw-px-2 tw-py-1 tw-text-xs ${debugMode ? 'tw-text-white' : 'tw-text-neutral-200'} hover:tw-text-white`} 
                onClick={onToggleDebug}
                title={debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
              >

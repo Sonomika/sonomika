@@ -1,10 +1,10 @@
 import React, { useRef, useState } from 'react';
+import { Select } from './ui';
 import { LOOP_MODES, type LoopMode } from '../constants/video';
 import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
-import ReactSlider from 'react-slider';
 import { useLFOStore } from '../store/lfoStore';
-import { ParamRow, ButtonGroup } from './ui';
+import { ParamRow, ButtonGroup, Slider } from './ui';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
@@ -248,21 +248,22 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   }
 
   return (
-    <div className="layer-options-panel">
-      <div className="layer-options-header">
-        <h3>Layer Options - {selectedLayer.name}</h3>
+    <div className="layer-options-panel tw-space-y-4 tw-text-neutral-200">
+      <div className="layer-options-header tw-border-b tw-border-neutral-800 tw-pb-2">
+        <h3 className="tw-text-base tw-font-semibold">Layer Options - {selectedLayer.name}</h3>
       </div>
       
-      <div className="layer-options-content" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+      <div className="layer-options-content tw-space-y-4" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
         {/* Effect Parameters Section */}
         {hasEffect && (
-          <div className="option-group">
-            <h4>Effect Parameters</h4>
-            <div className="effect-params">
+          <div className="option-group tw-space-y-2">
+            <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Effect Parameters</h4>
+            <div className="effect-params tw-space-y-3">
               {effectMetadata ? (
                 // Use metadata if available
                 effectMetadata.parameters?.map((param: any) => {
-                  const currentValue = localParamValues[param.name] ?? selectedLayer.params?.[param.name]?.value ?? param.value;
+                  const currentValue = selectedLayer.params?.[param.name]?.value ?? param.value;
+                  const uiValue = localParamValues[param.name] ?? currentValue;
                   
                   // Debug logging for boolean parameters
                   if (param.type === 'boolean') {
@@ -276,9 +277,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   }
                   
                   return (
-                    <div key={param.name} className="effect-param">
-                      <label className="param-label">{param.description || param.name}</label>
-                      <div className="param-control">
+                    <div key={param.name} className="effect-param tw-space-y-1">
+                      <label className="param-label tw-text-xs tw-uppercase tw-text-neutral-400">{param.description || param.name}</label>
+                      <div className="param-control tw-flex tw-items-center tw-gap-2">
                         {param.type === 'color' && (
                           <input
                             type="color"
@@ -288,23 +289,22 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                           />
                         )}
                         {param.type === 'select' && (
-                          <select
-                            value={currentValue}
-                            onChange={(e) => handleEffectParamChange(param.name, e.target.value)}
-                            className="param-select"
-                          >
-                            {param.options?.map((option: any) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="tw-w-40">
+                            <Select
+                              value={uiValue}
+                              onChange={(val) => {
+                                setLocalParamValues(prev => ({ ...prev, [param.name]: val as any }));
+                                handleEffectParamChange(param.name, val);
+                              }}
+                              options={(param.options || []).map((opt: any) => ({ value: opt.value, label: opt.label }))}
+                            />
+                          </div>
                         )}
                         {param.type === 'boolean' && (
                           <div className="boolean-control">
                             <button
                               type="button"
-                              className={`toggle-button ${Boolean(currentValue) ? 'active' : 'inactive'}`}
+                              className={`toggle-button ${Boolean(currentValue) ? 'active' : 'inactive'} tw-rounded tw-px-3 tw-py-1.5 ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'}`}
                               onClick={() => {
                                 const newValue = !Boolean(currentValue);
                                 console.log(`Boolean param ${param.name} toggled to:`, newValue);
@@ -337,7 +337,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                           <ParamRow
                             key={param.name}
                             label={param.description || param.name}
-                            value={getDisplayValue(param.name, localParamValues[param.name] ?? currentValue)}
+                            value={uiValue}
                             min={param.min || 0}
                             max={param.max || 1}
                             step={param.step || 0.1}
@@ -346,14 +346,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               handleEffectParamChange(param.name, value);
                             }}
                             onIncrement={() => {
-                              const currentVal = getDisplayValue(param.name, localParamValues[param.name] ?? currentValue);
+                              const currentVal = localParamValues[param.name] ?? currentValue;
                               const step = param.step || 0.1;
                               const newValue = Math.min(param.max || 1, currentVal + step);
                               setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
                               handleEffectParamChange(param.name, newValue);
                             }}
                             onDecrement={() => {
-                              const currentVal = getDisplayValue(param.name, localParamValues[param.name] ?? currentValue);
+                              const currentVal = localParamValues[param.name] ?? currentValue;
                               const step = param.step || 0.1;
                               const newValue = Math.max(param.min || 0, currentVal - step);
                               setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
@@ -371,7 +371,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 selectedLayer.params && Object.keys(selectedLayer.params).map((paramName) => {
                   const param = selectedLayer.params?.[paramName];
                   const currentValue = param?.value ?? 1.0;
-                  
+                  const baseValue = localParamValues[paramName] ?? currentValue;
+                   
                   return (
                     <div key={paramName} className="effect-param">
                       <label className="param-label">{paramName}</label>
@@ -384,22 +385,20 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                             className="color-picker"
                           />
                         ) : (
-                          <div className="number-control">
-                            <ReactSlider
-                              className="react-slider"
-                              thumbClassName="react-slider-thumb"
-                              trackClassName="react-slider-track"
-                              min={param?.min || 0}
-                              max={param?.max || 2}
-                              step={param?.step || 0.1}
-                              value={getDisplayValue(paramName, localParamValues[paramName] ?? currentValue)}
-                              onChange={(value) => {
-                                setLocalParamValues(prev => ({ ...prev, [paramName]: value }));
-                                // Apply changes instantly while dragging
-                                handleEffectParamChange(paramName, value);
-                              }}
-                            />
-                            <span className="param-value">{getDisplayValue(paramName, localParamValues[paramName] ?? currentValue).toFixed(2)}</span>
+                          <div className="number-control tw-flex tw-items-center tw-gap-2 tw-w-full">
+                            <div style={{ flex: 1 }}>
+                              <Slider
+                                min={param?.min || 0}
+                                max={param?.max || 2}
+                                step={param?.step || 0.1}
+                                value={baseValue}
+                                onChange={(value) => {
+                                  setLocalParamValues(prev => ({ ...prev, [paramName]: value }));
+                                  handleEffectParamChange(paramName, value);
+                                }}
+                              />
+                            </div>
+                            <span className="param-value tw-w-14 tw-text-right tw-text-xs tw-text-neutral-400">{(localParamValues[paramName] ?? currentValue).toFixed(2)}</span>
                           </div>
                         )}
                       </div>

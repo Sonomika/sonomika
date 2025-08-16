@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent, Slider, Select } from './ui';
 import { ImageLayer } from './ImageLayer';
 import { VideoLayer } from './VideoLayer';
 import { useStore } from '../store/store';
@@ -97,59 +98,54 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
 
         <div className="control-group">
           <label>Opacity: {Math.round((layer.opacity || 1) * 100)}%</label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={layer.opacity || 1}
-            onChange={(e) => handleLayerUpdate({ opacity: parseFloat(e.target.value) })}
-          />
+          <div style={{ maxWidth: 260 }}>
+            <Slider
+              min={0}
+              max={1}
+              step={0.01}
+              value={layer.opacity || 1}
+              onChange={(v) => handleLayerUpdate({ opacity: v })}
+            />
+          </div>
         </div>
 
         <div className="control-group">
           <label>Scale: {layer.scale || 1}</label>
-          <input
-            type="range"
-            min="0.1"
-            max="3"
-            step="0.1"
-            value={layer.scale || 1}
-            onChange={(e) => handleLayerUpdate({ scale: parseFloat(e.target.value) })}
-          />
+          <div style={{ maxWidth: 260 }}>
+            <Slider
+              min={0.1}
+              max={3}
+              step={0.1}
+              value={layer.scale || 1}
+              onChange={(v) => handleLayerUpdate({ scale: v })}
+            />
+          </div>
         </div>
 
         <div className="control-group">
           <label>Rotation: {layer.rotation || 0}°</label>
-          <input
-            type="range"
-            min="0"
-            max="360"
-            step="1"
-            value={layer.rotation || 0}
-            onChange={(e) => handleLayerUpdate({ rotation: parseInt(e.target.value) })}
-          />
+          <div style={{ maxWidth: 260 }}>
+            <Slider
+              min={0}
+              max={360}
+              step={1}
+              value={layer.rotation || 0}
+              onChange={(v) => handleLayerUpdate({ rotation: Math.round(v) })}
+            />
+          </div>
         </div>
 
         <div className="control-group">
           <label>Blend Mode:</label>
-          <select
-            value={layer.blendMode || 'normal'}
-            onChange={(e) => handleLayerUpdate({ blendMode: e.target.value })}
-          >
-            <option value="normal">Normal</option>
-            <option value="multiply">Multiply</option>
-            <option value="screen">Screen</option>
-            <option value="overlay">Overlay</option>
-            <option value="darken">Darken</option>
-            <option value="lighten">Lighten</option>
-            <option value="color-dodge">Color Dodge</option>
-            <option value="color-burn">Color Burn</option>
-            <option value="hard-light">Hard Light</option>
-            <option value="soft-light">Soft Light</option>
-            <option value="difference">Difference</option>
-            <option value="exclusion">Exclusion</option>
-          </select>
+          <div style={{ maxWidth: 260 }}>
+            <Select
+              value={(layer.blendMode || 'normal') as string}
+              onChange={(v) => handleLayerUpdate({ blendMode: v as string })}
+              options={[
+                'normal','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','hard-light','soft-light','difference','exclusion'
+              ].map(m => ({ value: m }))}
+            />
+          </div>
         </div>
 
         <div className="control-group">
@@ -184,18 +180,13 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
         
         <div className="control-group">
           <label>Layer Type:</label>
-          <select
-            value={layer.type || 'effect'}
-            onChange={(e) => handleLayerUpdate({ type: e.target.value })}
-            disabled
-          >
-            <option value="effect">Effect</option>
-            <option value="image">Image</option>
-            <option value="video">Video</option>
-            <option value="shader">Shader</option>
-            <option value="p5js">p5.js</option>
-            <option value="threejs">Three.js</option>
-          </select>
+          <div style={{ maxWidth: 260 }}>
+            <Select
+              value={layer.type as string}
+              onChange={(v) => handleLayerUpdate({ type: v as string })}
+              options={[ 'effect','image','video','shader','p5js','threejs' ].map(t => ({ value: t }))}
+            />
+          </div>
         </div>
 
         <div className="control-group">
@@ -234,30 +225,22 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
         </div>
 
         <div className="layer-editor-tabs">
-          <button
-            className={`tab-button ${activeTab === 'preview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('preview')}
-          >
-            Preview
-          </button>
-          <button
-            className={`tab-button ${activeTab === 'controls' ? 'active' : ''}`}
-            onClick={() => setActiveTab('controls')}
-          >
-            Controls
-          </button>
-          <button
-            className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
-          >
-            Settings
-          </button>
-        </div>
-
-        <div className="layer-editor-body">
-          {activeTab === 'preview' && renderLayerContent()}
-          {activeTab === 'controls' && renderLayerControls()}
-          {activeTab === 'settings' && renderLayerSettings()}
+          <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'preview' | 'controls' | 'settings')}>
+            <TabsList>
+              <TabsTrigger value="preview">Preview</TabsTrigger>
+              <TabsTrigger value="controls">Controls</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+            <TabsContent value="preview">
+              <div className="layer-editor-body">{renderLayerContent()}</div>
+            </TabsContent>
+            <TabsContent value="controls">
+              <div className="layer-editor-body">{renderLayerControls()}</div>
+            </TabsContent>
+            <TabsContent value="settings">
+              <div className="layer-editor-body">{renderLayerSettings()}</div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

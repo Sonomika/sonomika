@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { Layer } from '../store/types';
 import { useLFOStore, type LFOMapping } from '../store/lfoStore';
-import { ParamRow } from './ui';
+import { ParamRow, Select } from './ui';
 
 interface LFOMapperProps {
   selectedLayer: Layer | null;
@@ -481,20 +481,22 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                 mappings.map(mapping => (
                   <div key={mapping.id} className="mapping-item">
                     <div className="mapping-header">
-                      <select 
-                        value={mapping.parameter}
-                        onChange={(e) => updateMapping(mapping.id, { parameter: e.target.value })}
-                        className="parameter-select"
-                      >
-                        <option>Select Parameter</option>
-                        <option>Video Slice - Slice Count</option>
-                        <option>Video Slice - Offset Amount</option>
-                        <option>Video Warp - Intensity</option>
-                        <option>ASCII - Font Size</option>
-                        <option>ASCII - Cell Size</option>
-                        <option>Layer Opacity</option>
-                        <option>Blend Mode Intensity</option>
-                      </select>
+                      <div style={{ minWidth: 240 }}>
+                        <Select 
+                          value={mapping.parameter as any}
+                          onChange={(v) => updateMapping(mapping.id, { parameter: String(v) })}
+                          options={[
+                            { value: 'Select Parameter', label: 'Select Parameter' },
+                            { value: 'Video Slice - Slice Count', label: 'Video Slice - Slice Count' },
+                            { value: 'Video Slice - Offset Amount', label: 'Video Slice - Offset Amount' },
+                            { value: 'Video Warp - Intensity', label: 'Video Warp - Intensity' },
+                            { value: 'ASCII - Font Size', label: 'ASCII - Font Size' },
+                            { value: 'ASCII - Cell Size', label: 'ASCII - Cell Size' },
+                            { value: 'Layer Opacity', label: 'Layer Opacity' },
+                            { value: 'Blend Mode Intensity', label: 'Blend Mode Intensity' },
+                          ]}
+                        />
+                      </div>
                       <div className="mapping-controls">
                         <label className="enabled-toggle">
                           <input

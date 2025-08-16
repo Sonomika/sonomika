@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { AudioWaveform } from './AudioWaveform';
 import { useStore } from '../store/store';
+import { Slider } from './ui';
 // EffectLoader import removed - using dynamic loading instead
 
 // Context Menu Component
@@ -11,7 +12,7 @@ interface ContextMenuProps {
   onDelete: () => void;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete }) => {
+const ClipContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,41 +34,12 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete }) =>
   return (
     <div
       ref={menuRef}
-      className="context-menu"
-      style={{
-        position: 'fixed',
-        left: x,
-        top: y,
-        backgroundColor: '#2a2a2a',
-        border: '1px solid #444',
-        borderRadius: '4px',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-        zIndex: 1000,
-        minWidth: '120px',
-        padding: '4px 0',
-      }}
+      className="context-menu tw-min-w-[140px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg"
+      style={{ position: 'fixed', left: x, top: y, zIndex: 1000 }}
     >
       <button
         onClick={handleDelete}
-        style={{
-          width: '100%',
-          padding: '8px 12px',
-          backgroundColor: 'transparent',
-          border: 'none',
-          color: '#ff6b6b',
-          cursor: 'pointer',
-          textAlign: 'left',
-          fontSize: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#444';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }}
+        className="tw-w-full tw-px-3 tw-py-1.5 tw-text-left tw-text-sm tw-text-red-400 hover:tw-bg-neutral-800"
       >
         🗑️ Delete
       </button>
@@ -2201,46 +2173,25 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             </div>
 
             {/* Timeline Scrubber */}
-           <div className="timeline-scrubber">
-          <input
-            type="range"
-            min="0"
-            max={duration}
-            value={currentTime}
-            onChange={(e) => {
-              const newTime = parseFloat(e.target.value);
-              setCurrentTime(newTime);
-            }}
-            onMouseDown={(e) => {
-              // Pause playback when starting to scrub
-              if (isPlaying) {
-                stopTimelinePlayback();
-              }
-            }}
-            onMouseMove={(e) => {
-              // Update time while dragging (for immediate feedback)
-              if (e.buttons === 1) { // Left mouse button is pressed
-                const rect = e.currentTarget.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-                const newTime = percentage * duration;
-                setCurrentTime(newTime);
-              }
-            }}
-            onMouseUp={(e) => {
-              // Final update when drag ends
-              const rect = e.currentTarget.getBoundingClientRect();
-              const clickX = e.clientX - rect.left;
-              const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-              const newTime = percentage * duration;
-              setCurrentTime(newTime);
-            }}
-            className="scrubber-slider"
-            style={{ 
-              background: `linear-gradient(to right, #007acc 0%, #007acc ${(currentTime / duration) * 100}%, #444 ${(currentTime / duration) * 100}%, #444 100%)`
-            }}
-          />
-           </div>
+            <div className="timeline-scrubber">
+              <div style={{ padding: '0 8px' }}>
+                <Slider
+                  min={0}
+                  max={Math.max(1, duration)}
+                  step={0.01}
+                  value={currentTime}
+                  onChange={(v) => {
+                    const newTime = typeof v === 'number' ? v : Number(v);
+                    // Pause playback when starting to scrub
+                    if (isPlaying) {
+                      stopTimelinePlayback();
+                    }
+                    setCurrentTime(newTime);
+                  }}
+                  className="tw-w-full"
+                />
+              </div>
+            </div>
            
            {/* Action Buttons */}
            <div className="action-buttons">
@@ -2455,7 +2406,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
       {/* Context Menu */}
       {contextMenu.visible && (
-        <ContextMenu
+        <ClipContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={handleContextMenuClose}

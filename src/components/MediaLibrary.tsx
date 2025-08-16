@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui';
 import { 
   generateVideoThumbnail, 
   getQueueStatus, 
@@ -9,6 +10,8 @@ import {
   removeThumbnailFromCache
 } from '../utils/ThumbnailCache';
 import { useStore } from '../store/store';
+// Radix ContextMenu wrappers are available in './ui', but this component keeps the existing
+// inline context menu implementation to avoid behavior changes.
 
 interface MediaLibraryProps {
   onClose: () => void;
@@ -25,7 +28,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string>('');
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; asset: any } | null>(null);
+  // Radix ContextMenu is used per item; no global contextMenu state needed
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasRestoredRef = useRef(false);
@@ -447,17 +450,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     return () => clearInterval(interval);
   }, []);
 
-  // Close context menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      if (contextMenu) {
-        setContextMenu(null);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [contextMenu]);
+  // No global context menu listeners needed; Radix manages open/close
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -472,16 +465,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     console.log('Removed asset:', assetId);
   };
 
-  // Handle right-click context menu
-  const handleAssetContextMenu = (e: React.MouseEvent, asset: any) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, asset });
-  };
-
-  // Close context menu
-  const closeContextMenu = () => {
-    setContextMenu(null);
-  };
+  // Context menu actions are handled inline per-item
 
   // Regenerate thumbnail for specific asset
   const regenerateThumbnail = (asset: any) => {
@@ -499,7 +483,6 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         console.error('Failed to get thumbnail path for regeneration:', asset.name, err);
       });
     }
-    closeContextMenu();
   };
 
   // Function to get a valid path for thumbnail generation
@@ -661,24 +644,26 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
   const renderMediaTab = () => (
     <>
-      <div className="media-toolbar">
+      <div className="media-toolbar tw-flex tw-items-center tw-gap-2 tw-p-2">
         <div className="search-bar">
           <input
             type="text"
             placeholder="Search assets..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)
+            }
+            className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
           />
         </div>
         <div className="filter-controls">
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1">
             <option value="all">All Types</option>
             <option value="image">Images</option>
             <option value="video">Videos</option>
           </select>
         </div>
 
-        <button className="import-button" onClick={handleImportClick}>Import</button>
+        <button className="import-button tw-rounded tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5" onClick={handleImportClick}>Import</button>
         
         {/* Performance Monitor */}
         <div style={{ 
@@ -752,7 +737,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       )}
 
       <div
-        className={`drop-zone ${isDragOver ? 'drag-over' : ''}`}
+        className={`drop-zone ${isDragOver ? 'drag-over' : ''} tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -774,7 +759,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         style={{ display: 'none' }}
       />
 
-      <div className="assets-container list">
+      <div className="assets-container list tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
         {filteredAssets.length === 0 ? (
           <div className="empty-state">
             <h3>No assets found</h3>
@@ -808,12 +793,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
               const AssetItem = React.useMemo(() => React.memo(({ item }: { item: any }) => (
                 <div
                   key={item.id}
-                  className={`asset-item ${selectedAsset?.id === item.id ? 'selected' : ''}`}
+                  className={`asset-item ${selectedAsset?.id === item.id ? 'selected' : ''} tw-rounded tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-p-2 tw-cursor-pointer`}
                   onClick={() => setSelectedAsset(item)}
                   draggable
                   onDragStart={(e) => handleDragStart(e, item)}
-                  onContextMenu={(e) => handleAssetContextMenu(e, item)}
-                >
+                 >
                   <div className="asset-preview">
                     {item.type === 'image' ? (
                       <img src={item.path} alt={item.name} draggable={false} />
@@ -840,8 +824,18 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                       <span>{item.date}</span>
                     </div>
                   </div>
-                  <div className="asset-actions">
-                    <button className="delete-button" onClick={(e) => { e.stopPropagation(); handleRemoveAsset(item.id); }}>🗑️</button>
+                  <div className="asset-actions tw-flex tw-items-center tw-justify-end">
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <button className="delete-button tw-rounded tw-bg-neutral-800 tw-text-neutral-300 hover:tw-bg-neutral-700 tw-px-2 tw-py-1" onClick={(e) => e.stopPropagation()}>⋯</button>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        {item.type === 'video' && (
+                          <ContextMenuItem onSelect={() => regenerateThumbnail(item)}>Regenerate Thumbnail</ContextMenuItem>
+                        )}
+                        <ContextMenuItem className="tw-text-red-400" onSelect={() => handleRemoveAsset(item.id)}>Delete Asset</ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   </div>
                 </div>
               )), []) as any;
@@ -875,62 +869,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         {renderMediaTab()}
       </div>
       
-      {/* Context Menu */}
-      {contextMenu && (
-        <div 
-          className="context-menu"
-          style={{
-            position: 'fixed',
-            top: contextMenu.y,
-            left: contextMenu.x,
-            backgroundColor: '#2a2a2a',
-            border: '1px solid #444',
-            borderRadius: '4px',
-            padding: '4px 0',
-            zIndex: 1000,
-            minWidth: '150px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
-          }}
-          onMouseLeave={closeContextMenu}
-        >
-          {contextMenu.asset.type === 'video' && (
-            <button
-              onClick={() => regenerateThumbnail(contextMenu.asset)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                backgroundColor: 'transparent',
-                border: 'none',
-                color: '#fff',
-                textAlign: 'left',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#444'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-              🔄 Regenerate Thumbnail
-            </button>
-          )}
-          <button
-            onClick={() => { handleRemoveAsset(contextMenu.asset.id); closeContextMenu(); }}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              color: '#ff6b6b',
-              textAlign: 'left',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#444'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            🗑️ Delete Asset
-          </button>
-        </div>
-      )}
+      {/* Item-level context menus handled via trigger buttons above */}
     </div>
   );
 }; 

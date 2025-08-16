@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Tabs, TabsList, TabsTrigger, Select } from './ui';
 import { generateVideoThumbnail } from '../utils/ThumbnailCache';
 import { getAllRegisteredEffects, getEffect } from '../utils/effectRegistry';
 import { effectCache, CachedEffect } from '../utils/EffectCache';
@@ -448,21 +449,16 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
             <div className="file-browser-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={navigateUp} className="btn" title="Up">↑</button>
               {roots.length > 0 && (
-                <select
-                  value={''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val) loadDirectory(val);
-                    e.currentTarget.value = '';
-                  }}
-                  style={{ background: '#222', color: '#fff', border: '1px solid #444', padding: '4px 6px' }}
-                  title="Drives"
-                >
-                  <option value="" disabled>Drives</option>
-                  {roots.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+                <div style={{ minWidth: 160 }}>
+                  <Select
+                    value={'' as any}
+                    onChange={(val) => {
+                      const v = String(val);
+                      if (v) loadDirectory(v);
+                    }}
+                    options={[{ value: '', label: 'Drives' }, ...roots.map((r) => ({ value: r, label: r }))]}
+                  />
+                </div>
               )}
               {favorites.map((f) => (
                 <button key={f.path} className="btn" onClick={() => loadDirectory(f.path)} title={f.path}>{f.label}</button>
@@ -622,17 +618,15 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
               <div className="midi-settings">
                 <div className="setting-group">
                   <label>MIDI Input Device:</label>
-                  <select className="midi-select">
-                    <option>No devices detected</option>
-                  </select>
+                  <div style={{ maxWidth: 260 }}>
+                    <Select value={'none'} onChange={() => {}} options={[{ value: 'none', label: 'No devices detected' }]} />
+                  </div>
                 </div>
                 <div className="setting-group">
                   <label>MIDI Channel:</label>
-                  <select className="midi-select">
-                    <option>All Channels</option>
-                    <option>Channel 1</option>
-                    <option>Channel 2</option>
-                  </select>
+                  <div style={{ maxWidth: 220 }}>
+                    <Select value={'all'} onChange={() => {}} options={[{ value: 'all', label: 'All Channels' }, { value: '1', label: 'Channel 1' }, { value: '2', label: 'Channel 2' }]} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -672,38 +666,17 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
         <button onClick={handleClose} className="close-button">×</button>
       </div>
       
-             <div className="media-browser-tabs">
-         <button
-           className={`tab-button ${activeTab === 'media' ? 'active' : ''}`}
-           onClick={() => setActiveTab('media')}
-         >
-           Media
-         </button>
-         <button
-           className={`tab-button ${activeTab === 'effects' ? 'active' : ''}`}
-           onClick={() => setActiveTab('effects')}
-         >
-           Effects
-         </button>
-         <button
-           className={`tab-button ${activeTab === 'sources' ? 'active' : ''}`}
-           onClick={() => setActiveTab('sources')}
-         >
-           Sources
-         </button>
-         <button
-           className={`tab-button ${activeTab === 'midi' ? 'active' : ''}`}
-           onClick={() => setActiveTab('midi')}
-         >
-           MIDI
-         </button>
-         <button
-           className={`tab-button ${activeTab === 'lfo' ? 'active' : ''}`}
-           onClick={() => setActiveTab('lfo')}
-         >
-           LFO
-         </button>
-       </div>
+      <div className="media-browser-tabs">
+        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabType)}>
+          <TabsList>
+            <TabsTrigger value="media">Media</TabsTrigger>
+            <TabsTrigger value="effects">Effects</TabsTrigger>
+            <TabsTrigger value="sources">Sources</TabsTrigger>
+            <TabsTrigger value="midi">MIDI</TabsTrigger>
+            <TabsTrigger value="lfo">LFO</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       <div className="media-browser-content">
         {renderTabContent()}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Dialog } from './ui';
 
 interface PresetModalProps {
   isOpen: boolean;
@@ -44,38 +45,38 @@ export const PresetModal: React.FC<PresetModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="modal-body">
-          <p>{message}</p>
-          {placeholder && (
-            <input
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={placeholder}
-              autoFocus
-              className="modal-input"
-            />
-          )}
-        </div>
-        <div className="modal-footer">
-          <button className="modal-btn modal-btn-cancel" onClick={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title={title}
+      footer={(
+        <>
+          <button className="tw-rounded tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={onClose}>
             {cancelText}
           </button>
-          <button className="modal-btn modal-btn-confirm" onClick={handleConfirm}>
+          <button className="tw-rounded tw-bg-purple-600 tw-px-3 tw-py-1.5 tw-text-white hover:tw-bg-purple-500" onClick={handleConfirm}>
             {confirmText}
           </button>
-        </div>
+        </>
+      )}
+    >
+      <div className="tw-space-y-3">
+        <p className="tw-text-neutral-300">{message}</p>
+        {placeholder && (
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={placeholder}
+            autoFocus
+            className="tw-w-full tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2.5 tw-py-1.5 tw-text-neutral-100 placeholder:tw-text-neutral-500 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-purple-600"
+          />
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 }; 

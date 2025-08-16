@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/store';
 import { MIDIManager } from '../midi/MIDIManager';
 import { AppState } from '../store/types';
+import { Dialog, Select } from './ui';
 
 interface SceneMIDIMapping {
   sceneId: string;
@@ -126,94 +127,85 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content midi-scene-mapper" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>MIDI Scene Mapping</h2>
-          <button className="close-button" onClick={onClose}>×</button>
-        </div>
-
-        <div className="scene-mapping-container">
-          <div className="mapping-section">
-            <h3>SCENES (MIDI Channel 1)</h3>
-            <div className="scene-mapping-list">
-              {sceneMappings.map((mapping) => (
-                <div key={mapping.sceneId} className="scene-mapping-item">
-                  <div className="scene-info">
-                    <span className="scene-name">{mapping.sceneName}</span>
-                    {mapping.midiNote !== null && (
-                      <span className="midi-note">
-                        {getNoteName(mapping.midiNote)}
-                      </span>
-                    )}
-                  </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }} title="MIDI Scene Mapping">
+      <div className="scene-mapping-container tw-space-y-3">
+        <div className="mapping-section">
+          <h3>SCENES (MIDI Channel 1)</h3>
+          <div className="scene-mapping-list">
+            {sceneMappings.map((mapping) => (
+              <div key={mapping.sceneId} className="scene-mapping-item">
+                <div className="scene-info">
+                  <span className="scene-name">{mapping.sceneName}</span>
+                  {mapping.midiNote !== null && (
+                    <span className="midi-note">
+                      {getNoteName(mapping.midiNote)}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="scene-controls">
+                  <button
+                    className={`midi-button ${mapping.midiNote !== null ? 'mapped' : ''} ${listeningSceneId === mapping.sceneId ? 'listening' : ''}`}
+                    onClick={() => handleStartListening(mapping.sceneId)}
+                    disabled={isListening && listeningSceneId !== mapping.sceneId}
+                  >
+                    {mapping.midiNote !== null ? getNoteName(mapping.midiNote) : 'Click to map'}
+                  </button>
                   
-                  <div className="scene-controls">
+                  <div className="scene-actions">
+                    <div style={{ minWidth: 120 }}>
+                      <Select
+                        value={mapping.midiChannel}
+                        onChange={(v) => handleChannelChange(mapping.sceneId, Number(v))}
+                        options={Array.from({ length: 16 }, (_, i) => ({ value: i + 1, label: `Ch ${i + 1}` }))}
+                      />
+                    </div>
+                    
                     <button
-                      className={`midi-button ${mapping.midiNote !== null ? 'mapped' : ''} ${listeningSceneId === mapping.sceneId ? 'listening' : ''}`}
-                      onClick={() => handleStartListening(mapping.sceneId)}
-                      disabled={isListening && listeningSceneId !== mapping.sceneId}
+                      className={`toggle-button ${mapping.enabled ? 'enabled' : 'disabled'}`}
+                      onClick={() => handleToggleEnabled(mapping.sceneId)}
+                      title={mapping.enabled ? 'Disable' : 'Enable'}
                     >
-                      {mapping.midiNote !== null ? getNoteName(mapping.midiNote) : 'Click to map'}
+                      {mapping.enabled ? '●' : '○'}
                     </button>
                     
-                    <div className="scene-actions">
-                      <select
-                        value={mapping.midiChannel}
-                        onChange={(e) => handleChannelChange(mapping.sceneId, parseInt(e.target.value))}
-                        className="channel-select"
-                      >
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map(ch => (
-                          <option key={ch} value={ch}>Ch {ch}</option>
-                        ))}
-                      </select>
-                      
+                    {mapping.midiNote !== null && (
                       <button
-                        className={`toggle-button ${mapping.enabled ? 'enabled' : 'disabled'}`}
-                        onClick={() => handleToggleEnabled(mapping.sceneId)}
-                        title={mapping.enabled ? 'Disable' : 'Enable'}
+                        className="clear-button"
+                        onClick={() => handleClearMapping(mapping.sceneId)}
+                        title="Clear mapping"
                       >
-                        {mapping.enabled ? '●' : '○'}
+                        ×
                       </button>
-                      
-                      {mapping.midiNote !== null && (
-                        <button
-                          className="clear-button"
-                          onClick={() => handleClearMapping(mapping.sceneId)}
-                          title="Clear mapping"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {isListening && (
-            <div className="listening-overlay">
-              <div className="listening-message">
-                <h3>Waiting for MIDI Note...</h3>
-                <p>Press any key on your MIDI controller to assign it to the scene.</p>
-                <button onClick={handleStopListening}>Cancel</button>
               </div>
-            </div>
-          )}
-
-          <div className="mapping-help">
-            <h4>How to use:</h4>
-            <ul>
-              <li>Click on a scene's MIDI button to assign a note</li>
-              <li>Press any key on your MIDI controller to map it</li>
-              <li>Use the channel selector to change MIDI channels</li>
-              <li>Toggle the circle button to enable/disable mappings</li>
-              <li>Click × to clear a mapping</li>
-            </ul>
+            ))}
           </div>
         </div>
+
+        {isListening && (
+          <div className="listening-overlay">
+            <div className="listening-message">
+              <h3>Waiting for MIDI Note...</h3>
+              <p>Press any key on your MIDI controller to assign it to the scene.</p>
+              <button onClick={handleStopListening}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <div className="mapping-help">
+          <h4>How to use:</h4>
+          <ul>
+            <li>Click on a scene's MIDI button to assign a note</li>
+            <li>Press any key on your MIDI controller to map it</li>
+            <li>Use the channel selector to change MIDI channels</li>
+            <li>Toggle the circle button to enable/disable mappings</li>
+            <li>Click × to clear a mapping</li>
+          </ul>
+        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }; 

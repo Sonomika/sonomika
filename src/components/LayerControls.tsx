@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useEffect } from 'react';
+import { Slider, Select } from './ui';
 import { useStore } from '../store/store';
 // EffectLoader import removed - using dynamic loading instead
 import { Layer, AppState, LayerParamValue } from '../store/types';
@@ -18,7 +19,7 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
 
   // Using dynamic discovery instead of EffectLoader
   console.log('Getting metadata for layer controls:', layer.type);
-  const metadata = null; // TODO: Implement dynamic metadata loading
+  const metadata: any = null; // TODO: Implement dynamic metadata loading
 
   // Batch parameter updates to prevent cascading re-renders
   const updateTimeoutRef = useRef<number | null>(null);
@@ -131,60 +132,47 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
       </div>
 
       <div className="control-group">
-        <label>
-          Opacity
-          <input
-            type="range"
+        <label>Opacity</label>
+        <div style={{ maxWidth: 260 }}>
+          <Slider
             min={0}
             max={1}
             step={0.01}
             value={layer.opacity}
-            onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
+            onChange={(v) => handleOpacityChange(v)}
           />
-          <span>{Math.round(layer.opacity * 100)}%</span>
-        </label>
+        </div>
+        <span>{Math.round(layer.opacity * 100)}%</span>
       </div>
 
       <div className="control-group">
-        <label>
-          Blend Mode
-          <select
-            value={layer.blendMode}
-            onChange={(e) => handleBlendModeChange(e.target.value as Layer['blendMode'])}
-          >
-            <option value="normal">Normal</option>
-            <option value="multiply">Multiply</option>
-            <option value="screen">Screen</option>
-            <option value="overlay">Overlay</option>
-            <option value="darken">Darken</option>
-            <option value="lighten">Lighten</option>
-            <option value="color-dodge">Color Dodge</option>
-            <option value="color-burn">Color Burn</option>
-            <option value="hard-light">Hard Light</option>
-            <option value="soft-light">Soft Light</option>
-            <option value="difference">Difference</option>
-            <option value="exclusion">Exclusion</option>
-          </select>
-        </label>
+        <label>Blend Mode</label>
+        <div style={{ maxWidth: 260 }}>
+          <Select
+            value={layer.blendMode as string}
+            onChange={(v) => handleBlendModeChange(v as Layer['blendMode'])}
+            options={[
+              'normal','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','hard-light','soft-light','difference','exclusion'
+            ].map(m => ({ value: m }))}
+          />
+        </div>
       </div>
 
-      {metadata?.parameters.map(param => (
+      {((metadata?.parameters as any[]) ?? []).map((param: any) => (
         <div key={param.name} className="control-group">
           <label>
             {param.name}
             {param.type === 'number' && (
-              <>
-                <input
-                  type="range"
+              <div style={{ maxWidth: 260 }}>
+                <Slider
                   min={param.min || 0}
                   max={param.max || 1}
                   step={param.step || 0.01}
-                  value={getParamValue(param.name) as number}
-                  onChange={(e) => handleParamChange(param.name, parseFloat(e.target.value))}
-                  onPointerUp={() => flushUpdates()} // Ensure final value is committed
+                  value={(getParamValue(param.name) as number) ?? 0}
+                  onChange={(v) => handleParamChange(param.name, Number(v))}
                 />
-                <span>{getParamValue(param.name)}</span>
-              </>
+                <span>{String(getParamValue(param.name))}</span>
+              </div>
             )}
             {param.type === 'boolean' && (
               <input
@@ -194,16 +182,13 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
               />
             )}
             {param.type === 'select' && param.options && (
-              <select
-                value={getParamValue(param.name) as string}
-                onChange={(e) => handleParamChangeImmediate(param.name, e.target.value)}
-              >
-                {param.options.map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              <div style={{ maxWidth: 260 }}>
+                <Select
+                  value={getParamValue(param.name) as string}
+                  onChange={(v) => handleParamChangeImmediate(param.name, v as string)}
+                  options={param.options.map((opt: string) => ({ value: opt }))}
+                />
+              </div>
             )}
           </label>
         </div>
