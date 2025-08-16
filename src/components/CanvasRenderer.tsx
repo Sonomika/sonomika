@@ -504,10 +504,10 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
         <span className="renderer-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
       </div>
       <div className="renderer-main-content">
-        <div style={{ width: '100%', height: '100%', backgroundColor }}>
+        <div className="tw-w-full tw-h-full" style={{ backgroundColor }}>
           <Canvas
             camera={{ position: [0, 0, 2], fov: 75 }}
-            style={{ width: '100%', height: '100%' }}
+            className="tw-w-full tw-h-full"
             gl={{ preserveDrawingBuffer: false, powerPreference: 'high-performance' }}
             onCreated={({ gl }) => {
               gl.autoClear = false; // Do not auto-clear between frames

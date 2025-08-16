@@ -147,7 +147,11 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
                         onClick={() => handleToggleLayer(layer.id)}
                         title={layer.enabled ? 'Disable Layer' : 'Enable Layer'}
                       >
-                        {layer.enabled ? '👁️' : '👁️‍🗨️'}
+                        {layer.enabled ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 12s4-7 10-7c2.1 0 3.9.7 5.4 1.7L20 4l2 2-2.5 2.5C21 10 22 12 22 12s-4 7-10 7c-2.1 0-3.9-.7-5.4-1.7L4 20l-2-2 2.5-2.5C3 14 2 12 2 12zm10 5a5 5 0 003.9-1.9L14.1 13A3 3 0 019 9.9L6.9 7.9A5 5 0 0012 17zm0-10a5 5 0 00-3.9 1.9L9.9 11A3 3 0 0114 14.1l2.1 2.1A5 5 0 0012 7z"/></svg>
+                        )}
                       </button>
                       
                       <button
@@ -155,7 +159,7 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
                         onClick={() => handleEditLayer(layer)}
                         title="Edit Layer"
                       >
-                        ✎
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>
                       </button>
                       
                       <button
@@ -163,7 +167,7 @@ export const LayerList: React.FC<LayerListProps> = ({ onClose }) => {
                         onClick={() => handleDeleteLayer(layer.id)}
                         title="Delete Layer"
                       >
-                        🗑️
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                       </button>
                     </div>
 

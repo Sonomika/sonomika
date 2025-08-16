@@ -74,14 +74,14 @@ export const TransitionPreview: React.FC<TransitionPreviewProps> = ({ type, dura
   }, [type, duration, isTransitioning]);
 
   return (
-    <div className="transition-preview-container">
+    <div className="tw-flex tw-flex-col tw-items-center tw-gap-2">
       <canvas
         ref={canvasRef}
         width={200}
         height={150}
-        className="transition-preview-canvas"
+        className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900"
       />
-      <div className="transition-preview-instruction">
+      <div className="tw-text-xs tw-text-neutral-400">
         {isTransitioning ? 'Transitioning...' : 'Click to preview transition'}
       </div>
     </div>

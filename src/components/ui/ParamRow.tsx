@@ -58,7 +58,7 @@ export const ParamRow: React.FC<ParamRowProps> = ({
         )}
         
         {showSlider && (
-          <div className="slider-container" style={{ minWidth: 120, flex: 1 }}>
+          <div className="slider-container tw-min-w-[120px] tw-flex-1">
             <Slider value={value} min={min} max={max} step={step} onChange={onChange} />
           </div>
         )}

@@ -41,7 +41,7 @@ const ClipContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete }
         onClick={handleDelete}
         className="tw-w-full tw-px-3 tw-py-1.5 tw-text-left tw-text-sm tw-text-red-400 hover:tw-bg-neutral-800"
       >
-        🗑️ Delete
+        Delete
       </button>
     </div>
   );
@@ -1475,52 +1475,43 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   }, [isPlaying]); // Re-add listener when isPlaying changes
 
   return (
-    <div className="timeline-container">
+    <div className="tw-overflow-hidden tw-h-full tw-flex tw-flex-col">
       <style>
         {`
-          .timeline-container { 
-            overflow-x: hidden; 
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-          }
-          .timeline-content { 
-            overflow-x: hidden; 
-            flex: 1;
-            min-height: 0;
-          }
-          
-          .context-menu {
-            position: fixed;
-            background-color: #2a2a2a;
-            border: 1px solid #444;
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            min-width: 120px;
-            padding: 4px 0;
-            font-family: inherit;
-          }
-          
-          .context-menu button {
-            width: 100%;
-            padding: 8px 12px;
-            background-color: transparent;
-            border: none;
-            color: #ff6b6b;
-            cursor: pointer;
-            text-align: left;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: background-color 0.2s ease;
-          }
-          
-          .context-menu button:hover {
-            background-color: #444;
-          }
-          
+          /* .timeline-container migrated to Tailwind */
+          /* .timeline-content migrated to Tailwind */
+           
+           .context-menu {
+             position: fixed;
+             background-color: #2a2a2a;
+             border: 1px solid #444;
+             border-radius: 4px;
+             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+             z-index: 1000;
+             min-width: 120px;
+             padding: 4px 0;
+             font-family: inherit;
+           }
+           
+           .context-menu button {
+             width: 100%;
+             padding: 8px 12px;
+             background-color: transparent;
+             border: none;
+             color: #ff6b6b;
+             cursor: pointer;
+             text-align: left;
+             font-size: 12px;
+             display: flex;
+             align-items: center;
+             gap: 8px;
+             transition: background-color 0.2s ease;
+           }
+           
+           .context-menu button:hover {
+             background-color: #444;
+           }
+           
                      .timeline-clip {
              user-select: none;
            }
@@ -1881,47 +1872,47 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
            .timeline-mark .timeline-label { position: absolute; top: 6px; left: 4px; font-size: 10px; color: #aaa; pointer-events: none; }
 
            /* Playhead */
-           .timeline-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff5252; box-shadow: 0 0 0 1px rgba(255,82,82,0.25); will-change: transform; pointer-events: auto; z-index: 4; cursor: ew-resize; }
+           /* .timeline-playhead migrated to Tailwind */
 
-                       /* Clips */
-            .timeline-clip {
-              position: absolute;
-              top: 4px;
-              bottom: 4px;
-              border-radius: 4px;
-              box-shadow: none;
-              border: none !important; /* force remove any borders */
-              display: flex;
-              align-items: center;
-              padding: 0 10px;
-              will-change: transform, width;
-              color: #fff;
-              overflow: hidden;
-              z-index: 2;
-              box-sizing: border-box;
-              background: #1e88e5 !important; /* force blue background */
-            }
-            .timeline-clip .clip-name { font-size: 12px; text-shadow: 0 1px 2px rgba(0,0,0,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .timeline-clip .clip-handle { position: absolute; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.8); opacity: 0.6; transition: opacity 0.15s ease; cursor: ew-resize; }
-            .timeline-clip .clip-handle.left { left: 0; border-radius: 4px 0 0 4px; }
-            .timeline-clip .clip-handle.right { right: 0; border-radius: 0 4px 4px 0; }
-            .timeline-clip:hover .clip-handle { opacity: 1; }
-            .timeline-clip.playing { outline: none; box-shadow: none; border: none !important; }
-            .timeline-clip.selected { 
-              border: none !important; 
-              background: #ff6b35 !important; /* Orange color for selected clips */
-              box-shadow: 0 0 0 2px #ff8c42 !important; /* Orange glow */
-            }
-            
-            /* Lasso selection */
-            .lasso-selection {
-              position: absolute;
-              border: 2px dashed #007acc;
-              background: rgba(0, 122, 204, 0.2);
-              pointer-events: none;
-              z-index: 1000;
-              position: fixed;
-            }
+           /* Clips - migrated to Tailwind */
+           .timeline-clip {
+             position: absolute;
+             top: 4px;
+             bottom: 4px;
+             border-radius: 4px;
+             box-shadow: none;
+             border: none !important; /* force remove any borders */
+             display: flex;
+             align-items: center;
+             padding: 0 10px;
+             will-change: transform, width;
+             color: #fff;
+             overflow: hidden;
+             z-index: 2;
+             box-sizing: border-box;
+             background: #1e88e5 !important; /* force blue background */
+           }
+           .timeline-clip .clip-name { font-size: 12px; text-shadow: 0 1px 2px rgba(0,0,0,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+           .timeline-clip .clip-handle { position: absolute; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.8); opacity: 0.6; transition: opacity 0.15s ease; cursor: ew-resize; }
+           .timeline-clip .clip-handle.left { left: 0; border-radius: 4px 0 0 4px; }
+           .timeline-clip .clip-handle.right { right: 0; border-radius: 0 4px 4px 0; }
+           .timeline-clip:hover .clip-handle { opacity: 1; }
+           .timeline-clip.playing { outline: none; box-shadow: none; border: none !important; }
+           .timeline-clip.selected { 
+             border: none !important; 
+             background: #ff6b35 !important; /* Orange color for selected clips */
+             box-shadow: 0 0 0 2px #ff8c42 !important; /* Orange glow */
+           }
+           
+           /* Lasso selection */
+           .lasso-selection {
+             position: absolute;
+             border: 2px dashed #007acc;
+             background: rgba(0, 122, 204, 0.2);
+             pointer-events: none;
+             z-index: 1000;
+             position: fixed;
+           }
 
            /* Duration Controls */
            .duration-controls {
@@ -2003,304 +1994,290 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
            }
         `}
       </style>
-            <div className="timeline-header">
-        {/* All Controls on One Line */}
-        <div className="timeline-controls-single-line">
-          {/* Timeline Title */}
-          <div className="timeline-title">
-            <h2>Timeline</h2>
+      <div className="tw-flex tw-flex-col tw-gap-3 tw-p-4 tw-bg-neutral-800 tw-border-b tw-border-neutral-700 tw-rounded-t-md">
+        <div className="tw-flex tw-items-center tw-gap-4 tw-p-3 tw-bg-black/30 tw-rounded-md tw-border tw-border-neutral-700 tw-whitespace-nowrap tw-overflow-x-auto">
+          <div className="tw-flex tw-items-center tw-text-white tw-font-semibold">
+            <h2 className="tw-text-lg">Timeline</h2>
           </div>
-           {/* Transport Controls */}
-           <div className="transport-buttons">
-             <button 
-               onClick={() => setCurrentTime(0)}
-               className="transport-btn"
-               title="Go to Start"
-             >
-               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                 <path d="M8 5v14l11-7z"/>
-                 <path d="M6 5h2v14H6z"/>
-               </svg>
-             </button>
-             
-             <button 
-               onClick={() => {
-                 const newTime = Math.max(0, currentTime - 1);
-                 setCurrentTime(newTime);
-               }}
-               className="transport-btn"
-               title="Step Backward"
-             >
-               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                 <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-               </svg>
-             </button>
-             
-                     <button 
-                           onClick={handlePlayButtonClick}
-               className={`transport-btn play-btn ${isPlaying ? 'playing' : ''}`}
-               title={isPlaying ? 'Pause' : 'Play'}
-             >
-               {isPlaying ? (
-                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                   <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                 </svg>
-               ) : (
-                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                   <path d="M8 5v14l11-7z"/>
-                 </svg>
-               )}
-           </button>
-             
-          <button 
-            onClick={() => {
-                 const newTime = Math.min(duration, currentTime + 1);
-                 setCurrentTime(newTime);
-               }}
-               className="transport-btn"
-               title="Step Forward"
-             >
-               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                 <path d="M4 18l8.5-6L4 6v12zm10 0V6h2v12h-2z"/>
-               </svg>
-          </button>
-             
-             <button 
-               onClick={() => setCurrentTime(duration)}
-               className="transport-btn"
-               title="Go to End"
-             >
-               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                 <path d="M8 5v14l11-7z"/>
-                 <path d="M16 5h2v14h-2z"/>
-               </svg>
-             </button>
-           </div>
-           
-           {/* Time Display */}
-           <div className="time-display">
-             <span className="current-time">{formatTime(currentTime)}</span>
-             <span className="time-separator">/</span>
-             <span className="total-time">{formatTime(duration)}</span>
-           </div>
-           
-           {/* Zoom Controls */}
-           <div className="zoom-controls">
-             <button 
-               onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
-               className="zoom-btn"
-               title="Zoom Out"
-             >
-               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                 <path d="M19 13H5v-2h14v2z"/>
-               </svg>
-             </button>
-             
-             <span className="zoom-level">{zoom.toFixed(1)}x</span>
-             
-             <button 
-               onClick={() => setZoom(Math.min(5, zoom + 0.1))}
-               className="zoom-btn"
-               title="Zoom In"
-             >
-               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-               </svg>
-             </button>
-           </div>
-           
-           {/* Timeline Duration Control */}
-           <div className="duration-controls">
-             <label className="duration-label">Duration:</label>
-             <input
-               type="number"
-               min="1"
-               max="3600"
-               step="1"
-               value={timelineDuration}
-               onChange={(e) => {
-                 const newDuration = Math.max(1, Math.min(3600, parseInt(e.target.value) || 60));
-                 setTimelineDuration(newDuration);
-               }}
-               className="duration-input"
-               title="Timeline duration in seconds"
-             />
-             <span className="duration-unit">s</span>
-             <div className="duration-presets">
-               <button
-                 onClick={() => setTimelineDuration(30)}
-                 className="duration-preset-btn"
-                 title="30 seconds"
-               >
-                 30s
-               </button>
-               <button
-                 onClick={() => setTimelineDuration(60)}
-                 className="duration-preset-btn"
-                 title="1 minute"
-               >
-                 1m
-               </button>
-               <button
-                 onClick={() => setTimelineDuration(120)}
-                 className="duration-preset-btn"
-                 title="2 minutes"
-               >
-                 2m
-               </button>
-               <button
-                 onClick={() => setTimelineDuration(300)}
-                 className="duration-preset-btn"
-                 title="5 minutes"
-               >
-                 5m
-               </button>
-             </div>
-           </div>
-           
-            {/* Magnet toggle */}
-            <div className="magnet-controls">
-              <button
-                className={`magnet-btn ${timelineSnapEnabled ? 'active' : ''}`}
-                title={timelineSnapEnabled ? 'Snap: ON' : 'Snap: OFF'}
-                onClick={() => setTimelineSnapEnabled(!timelineSnapEnabled)}
-              >
-                {/* magnet icon */}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M3 12V6a3 3 0 013-3h3v4H6v5a6 6 0 0012 0V7h-3V3h3a3 3 0 013 3v6a9 9 0 01-18 0z"/>
+          <div className="tw-flex tw-items-center tw-gap-1">
+            <button
+              onClick={() => setCurrentTime(0)}
+              className="tw-flex tw-items-center tw-justify-center tw-w-9 tw-h-9 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded tw-text-white tw-transition-colors hover:tw-bg-neutral-600"
+              title="Go to Start"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+                <path d="M6 5h2v14H6z"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                const newTime = Math.max(0, currentTime - 1);
+                setCurrentTime(newTime);
+              }}
+              className="tw-flex tw-items-center tw-justify-center tw-w-9 tw-h-9 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded tw-text-white tw-transition-colors hover:tw-bg-neutral-600"
+              title="Step Backward"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+              </svg>
+            </button>
+            <button
+              onClick={handlePlayButtonClick}
+              className={`tw-flex tw-items-center tw-justify-center tw-w-11 tw-h-11 tw-border tw-rounded tw-text-white tw-transition-colors ${
+                isPlaying ? 'tw-bg-orange-600 hover:tw-bg-orange-500 tw-border-orange-500' : 'tw-bg-sky-600 hover:tw-bg-sky-500 tw-border-sky-500'
+              }`}
+              title={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                 </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                const newTime = Math.min(duration, currentTime + 1);
+                setCurrentTime(newTime);
+              }}
+              className="tw-flex tw-items-center tw-justify-center tw-w-9 tw-h-9 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded tw-text-white tw-transition-colors hover:tw-bg-neutral-600"
+              title="Step Forward"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 18l8.5-6L4 6v12zm10 0V6h2v12h-2z"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => setCurrentTime(duration)}
+              className="tw-flex tw-items-center tw-justify-center tw-w-9 tw-h-9 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded tw-text-white tw-transition-colors hover:tw-bg-neutral-600"
+              title="Go to End"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+                <path d="M16 5h2v14h-2z"/>
+              </svg>
+            </button>
+          </div>
+          <div className="tw-flex tw-items-center tw-gap-2 tw-font-mono tw-text-sm tw-font-semibold tw-text-white tw-bg-black/50 tw-px-3 tw-py-2 tw-rounded tw-border tw-border-neutral-600 tw-min-w-[120px] tw-justify-center">
+            <span className="tw-text-emerald-400">{formatTime(currentTime)}</span>
+            <span className="tw-text-neutral-400">/</span>
+            <span className="tw-text-neutral-300">{formatTime(duration)}</span>
+          </div>
+          <div className="tw-flex tw-items-center tw-gap-2 tw-bg-black/30 tw-px-2.5 tw-py-1.5 tw-rounded tw-border tw-border-neutral-600">
+            <button
+              onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
+              className="tw-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded-[3px] tw-text-white hover:tw-bg-neutral-600"
+              title="Zoom Out"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 13H5v-2h14v2z"/>
+              </svg>
+            </button>
+            <span className="tw-text-white tw-text-xs tw-font-semibold tw-min-w-[30px] tw-text-center">{zoom.toFixed(1)}x</span>
+            <button
+              onClick={() => setZoom(Math.min(5, zoom + 0.1))}
+              className="tw-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded-[3px] tw-text-white hover:tw-bg-neutral-600"
+              title="Zoom In"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
+            </button>
+          </div>
+          <div className="tw-flex tw-items-center tw-gap-2 tw-bg-black/30 tw-px-2.5 tw-py-1.5 tw-rounded tw-border tw-border-neutral-600">
+            <label className="tw-text-neutral-300 tw-text-xs tw-font-semibold tw-whitespace-nowrap">Duration:</label>
+            <input
+              type="number"
+              min="1"
+              max="3600"
+              step="1"
+              value={timelineDuration}
+              onChange={(e) => {
+                const newDuration = Math.max(1, Math.min(3600, parseInt(e.target.value) || 60));
+                setTimelineDuration(newDuration);
+              }}
+              className="tw-w-[50px] tw-h-7 tw-bg-neutral-800 tw-border tw-border-neutral-600 tw-rounded tw-text-white tw-text-center tw-text-xs tw-font-semibold focus:tw-ring-1 focus:tw-ring-sky-600 focus:tw-border-sky-600 hover:tw-border-neutral-500"
+              title="Timeline duration in seconds"
+            />
+            <span className="tw-text-neutral-300 tw-text-xs tw-font-semibold">s</span>
+            <div className="tw-flex tw-gap-0.5">
+              <button
+                onClick={() => setTimelineDuration(30)}
+                className="tw-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded-[3px] tw-text-neutral-300 tw-text-[10px] tw-font-semibold hover:tw-bg-neutral-600 hover:tw-border-neutral-500 hover:tw-text-white active:tw-bg-neutral-500"
+                title="30 seconds"
+              >
+                30s
+              </button>
+              <button
+                onClick={() => setTimelineDuration(60)}
+                className="tw-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded-[3px] tw-text-neutral-300 tw-text-[10px] tw-font-semibold hover:tw-bg-neutral-600 hover:tw-border-neutral-500 hover:tw-text-white active:tw-bg-neutral-500"
+                title="1 minute"
+              >
+                1m
+              </button>
+              <button
+                onClick={() => setTimelineDuration(120)}
+                className="tw-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded-[3px] tw-text-neutral-300 tw-text-[10px] tw-font-semibold hover:tw-bg-neutral-600 hover:tw-border-neutral-500 hover:tw-text-white active:tw-bg-neutral-500"
+                title="2 minutes"
+              >
+                2m
+              </button>
+              <button
+                onClick={() => setTimelineDuration(300)}
+                className="tw-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded-[3px] tw-text-neutral-300 tw-text-[10px] tw-font-semibold hover:tw-bg-neutral-600 hover:tw-border-neutral-500 hover:tw-text-white active:tw-bg-neutral-500"
+                title="5 minutes"
+              >
+                5m
               </button>
             </div>
-
-            {/* Timeline Scrubber */}
-            <div className="timeline-scrubber">
-              <div style={{ padding: '0 8px' }}>
-                <Slider
-                  min={0}
-                  max={Math.max(1, duration)}
-                  step={0.01}
-                  value={currentTime}
-                  onChange={(v) => {
-                    const newTime = typeof v === 'number' ? v : Number(v);
-                    // Pause playback when starting to scrub
-                    if (isPlaying) {
-                      stopTimelinePlayback();
-                    }
-                    setCurrentTime(newTime);
-                  }}
-                  className="tw-w-full"
-                />
-              </div>
+          </div>
+          <div className="tw-flex tw-items-center tw-gap-2 tw-bg-black/30 tw-px-2.5 tw-py-1.5 tw-rounded tw-border tw-border-neutral-600">
+            <button
+              className={`tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded tw-text-white hover:tw-bg-neutral-600 ${
+                timelineSnapEnabled ? 'tw-bg-sky-600 tw-border-sky-500' : ''
+              }`}
+              title={timelineSnapEnabled ? 'Snap: ON' : 'Snap: OFF'}
+              onClick={() => setTimelineSnapEnabled(!timelineSnapEnabled)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M3 12V6a3 3 0 013-3h3v4H6v5a6 6 0 0012 0V7h-3V3h3a3 3 0 013 3v6a9 9 0 01-18 0z"/>
+              </svg>
+            </button>
+          </div>
+          <div className="tw-flex-1 tw-flex tw-items-center">
+            <div className="tw-px-2">
+              <Slider
+                min={0}
+                max={Math.max(1, duration)}
+                step={0.01}
+                value={currentTime}
+                onChange={(v) => {
+                  const newTime = typeof v === 'number' ? v : Number(v);
+                  if (isPlaying) {
+                    stopTimelinePlayback();
+                  }
+                  setCurrentTime(newTime);
+                }}
+                className="tw-w-full"
+              />
             </div>
-           
-           {/* Action Buttons */}
-           <div className="action-buttons">
-             <button 
-               onClick={() => {
-                 const earliestTime = getEarliestClipTime();
-                 if (earliestTime > 0) {
-                   setCurrentTime(earliestTime);
-                 }
-               }}
-               className="action-btn"
-               title="Go to First Clip"
-             >
-               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                 <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-               </svg>
-             </button>
-             
-             <button 
-               onClick={() => {
-                 if (window.confirm(`Clear all timeline clips for the current scene?`)) {
-                   clearTimelineData();
-                   updateTracks([
-                      { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
-                      { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
-                      { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] },
-                      { id: 'track-4', name: 'Audio', type: 'audio', clips: [] }
-                   ]);
-                   setCurrentTime(0);
-                   setSelectedClips(new Set());
-                 }
-               }}
-               className="action-btn clear-btn"
-               title="Clear Timeline"
-             >
-               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                 <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-               </svg>
-             </button>
-           </div>
+          </div>
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <button
+              onClick={() => {
+                const earliestTime = getEarliestClipTime();
+                if (earliestTime > 0) {
+                  setCurrentTime(earliestTime);
+                }
+              }}
+              className="tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-rounded tw-text-white hover:tw-bg-neutral-600"
+              title="Go to First Clip"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm(`Clear all timeline clips for the current scene?`)) {
+                  clearTimelineData();
+                  updateTracks([
+                    { id: 'track-1', name: 'Track 1', type: 'video', clips: [] },
+                    { id: 'track-2', name: 'Track 2', type: 'video', clips: [] },
+                    { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] },
+                    { id: 'track-4', name: 'Audio', type: 'audio', clips: [] }
+                  ]);
+                  setCurrentTime(0);
+                  setSelectedClips(new Set());
+                }
+              }}
+              className="tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-bg-red-700 tw-border tw-border-red-600 tw-rounded tw-text-white hover:tw-bg-red-600"
+              title="Clear Timeline"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
-              <div className="timeline-content">
-          {/* Timeline Tracks */}
-          <div 
-            className="timeline-scroll" 
-            ref={timelineRef} 
-            onScroll={handleScrollThrottled} 
-            onMouseDown={handleTimelineMouseDown}
-            onMouseMove={handleTimelineMouseMove}
-            onMouseUp={handleTimelineMouseUp}
-          >
-          <div className="timeline-inner" style={{ width: `${timelinePixelWidth}px` }}>
-            <div className="timeline-ruler">
-              {(() => {
-                const start = Math.max(0, Math.floor(visibleStartSec) - 1);
-                const end = Math.min(Math.ceil(duration), Math.ceil(visibleEndSec) + 1);
-                const marks: number[] = [];
-                for (let i = start; i <= end; i++) marks.push(i);
-                return marks.map((sec) => (
-                  <div key={`major-${sec}`} className="timeline-mark major-mark" style={{ left: `${sec * pixelsPerSecond}px`, width: '1px' }}>
-                    <span className="timeline-label">{sec}s</span>
-                  </div>
-                ));
-              })()}
-            </div>
+      <div className="tw-overflow-hidden tw-flex-1 tw-min-h-0">
+        {/* Timeline Tracks */}
+        <div 
+          className="tw-overflow-x-auto tw-overflow-y-scroll tw-h-[350px] tw-min-h-[350px] tw-pb-0.5" 
+          ref={timelineRef} 
+          onScroll={handleScrollThrottled} 
+          onMouseDown={handleTimelineMouseDown}
+          onMouseMove={handleTimelineMouseMove}
+          onMouseUp={handleTimelineMouseUp}
+        >
+        <div className="tw-relative tw-pb-2 tw-overflow-visible tw-min-h-[400px] tw-[will-change:transform]" style={{ width: `${timelinePixelWidth}px` }}>
+          <div className="tw-sticky tw-top-0 tw-h-6 tw-pointer-events-none tw-z-30">
+            {(() => {
+              const start = Math.max(0, Math.floor(visibleStartSec) - 1);
+              const end = Math.min(Math.ceil(duration), Math.ceil(visibleEndSec) + 1);
+              const marks: number[] = [];
+              for (let i = start; i <= end; i++) marks.push(i);
+              return marks.map((sec) => (
+                <div key={`major-${sec}`} className="tw-absolute tw-top-0 tw-h-6 tw-border-l tw-border-neutral-600 tw-w-px" style={{ left: `${sec * pixelsPerSecond}px` }}>
+                  <span className="tw-absolute tw-top-1.5 tw-left-1 tw-text-[10px] tw-text-neutral-400 tw-pointer-events-none">{sec}s</span>
+                </div>
+              ));
+            })()}
+          </div>
 
-            <div className="timeline-tracks">
-              {tracks.map((track) => (
-                <div key={track.id} className="timeline-track">
-                  <div className="track-header">
-                    <span className="track-badge">{track.type.toUpperCase()}</span>
-                    <span>{track.name}</span>
-                  </div>
-                  <div 
-                    className="track-content"
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, track.id, currentTime)}
-                    onClick={(e) => handleTrackClick(e, track.id)}
-                  >
-                    {(() => {
-                      const startWindow = Math.max(0, visibleStartSec - VISIBLE_BUFFER_SEC);
-                      const endWindow = Math.min(duration, visibleEndSec + VISIBLE_BUFFER_SEC);
-                      const visibleClips = track.clips.filter((clip) => {
-                        const clipStart = clip.startTime;
-                        const clipEnd = clip.startTime + clip.duration;
-                        return clipEnd >= startWindow && clipStart <= endWindow;
-                      });
-                      return visibleClips.map((clip) => {
-                        const isPlaying = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
-                        const translateX = clip.startTime * pixelsPerSecond;
-                        const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
-                        const background = '#1e88e5'; // filled blue, no border
-                        return (
-                          <div
-                            key={clip.id}
-                            data-clip-id={clip.id}
-                            className={`timeline-clip ${selectedClips.has(clip.id) ? 'selected' : ''} ${isPlaying ? 'playing' : ''}`}
-                            style={{
-                              transform: `translate3d(${translateX}px, 0, 0)`,
-                              width: `${widthPx}px`,
-                              background: background,
-                            }}
-                            draggable
-                            onDragStart={(e) => handleClipDragStart(e, clip, track.id)}
-                            onDragEnd={handleClipDragEnd}
-                                                      onClick={(e) => {
+          <div className="tw-flex tw-flex-col tw-gap-2 tw-overflow-visible tw-min-h-0">
+            {tracks.map((track) => (
+              <div key={track.id} className="tw-flex tw-flex-col tw-gap-1">
+                <div className="tw-flex tw-items-center tw-gap-2 tw-text-neutral-300 tw-text-xs tw-px-1.5 tw-py-0.5">
+                  <span className="tw-inline-flex tw-items-center tw-justify-center tw-px-1.5 tw-py-0.5 tw-rounded tw-font-semibold tw-text-[10px] tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-text-white">{track.type.toUpperCase()}</span>
+                  <span>{track.name}</span>
+                </div>
+                <div 
+                  className="tw-relative tw-rounded-md tw-bg-neutral-900 tw-shadow-[inset_0_0_0_1px_#333] tw-mb-1"
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, track.id, currentTime)}
+                  onClick={(e) => handleTrackClick(e, track.id)}
+                  style={{ minHeight: TRACK_MIN_HEIGHT }}
+                >
+                  {(() => {
+                    const startWindow = Math.max(0, visibleStartSec - VISIBLE_BUFFER_SEC);
+                    const endWindow = Math.min(duration, visibleEndSec + VISIBLE_BUFFER_SEC);
+                    const visibleClips = track.clips.filter((clip) => {
+                      const clipStart = clip.startTime;
+                      const clipEnd = clip.startTime + clip.duration;
+                      return clipEnd >= startWindow && clipStart <= endWindow;
+                    });
+                    return visibleClips.map((clip) => {
+                      const isPlaying = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
+                      const translateX = clip.startTime * pixelsPerSecond;
+                      const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
+                      const background = '#1e88e5'; // filled blue, no border
+                      return (
+                        <div
+                          key={clip.id}
+                          data-clip-id={clip.id}
+                          className={`group tw-absolute tw-top-1 tw-bottom-1 tw-rounded tw-text-white tw-overflow-hidden tw-z-20 tw-box-border tw-flex tw-items-center tw-px-2 ${
+                            selectedClips.has(clip.id)
+                              ? 'tw-bg-orange-600 tw-ring-2 tw-ring-orange-400'
+                              : ''
+                          }`}
+                          style={{
+                            transform: `translate3d(${translateX}px, 0, 0)`,
+                            width: `${widthPx}px`,
+                            background: selectedClips.has(clip.id) ? undefined : background,
+                            willChange: 'transform,width',
+                          }}
+                          draggable
+                          onDragStart={(e) => handleClipDragStart(e, clip, track.id)}
+                          onDragEnd={handleClipDragEnd}
+                          onClick={(e) => {
                             e.stopPropagation();
                             if (e.ctrlKey || e.metaKey) {
                               // Multi-select: toggle this clip
@@ -2318,102 +2295,108 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                               setSelectedClips(new Set([clip.id]));
                             }
                           }}
-                            onContextMenu={(e) => handleClipRightClick(e, clip.id, track.id)}
-                          >
-                            <div
-                              className="clip-handle left"
-                              draggable
-                              onDragStart={(ev) => {
-                                ev.stopPropagation();
-                                // Mark dragging this clip (reuse payload)
-                                setDraggingClip({ clipId: clip.id, sourceTrackId: track.id });
-                                ev.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip-trim-left', clipId: clip.id, sourceTrackId: track.id }));
-                                ev.dataTransfer.effectAllowed = 'move';
-                              }}
-                            />
-                            <span className="clip-name">{clip.name}</span>
-                            <div
-                              className="clip-handle right"
-                              draggable
-                              onDragStart={(ev) => {
-                                ev.stopPropagation();
-                                setDraggingClip({ clipId: clip.id, sourceTrackId: track.id });
-                                ev.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip-trim-right', clipId: clip.id, sourceTrackId: track.id }));
-                                ev.dataTransfer.effectAllowed = 'move';
-                              }}
-                            />
-                            {clip.type === 'audio' && SHOW_AUDIO_WAVEFORM && (
-                              <div style={{ position: 'absolute', left: 0, right: 0, top: 18, bottom: 6, padding: '0 2px' }}>
-                                <AudioWaveform
-                                  src={clip.asset?.path}
-                                  width={Math.max(1, Math.floor(clip.duration * pixelsPerSecond) - 4)}
-                                  height={Math.max(20, TRACK_MIN_HEIGHT - 28)}
-                                  color="#4CAF50"
-                                  secondaryColor="#1b5e20"
-                                />
-                              </div>
-                            )}
-                            {isPlaying && <div className="playing-indicator">▶</div>}
-                          </div>
-                        );
-                      });
-                    })()}
-                    {draggedAsset && (
-                      <div className="drag-preview">
-                        <span>Drop to place: {draggedAsset.name}</span>
-                      </div>
-                    )}
-                  </div>
+                          onContextMenu={(e) => handleClipRightClick(e, clip.id, track.id)}
+                        >
+                          <div
+                            className="tw-absolute tw-left-0 tw-top-0 tw-bottom-0 tw-w-[6px] tw-bg-white/80 tw-opacity-60 group-hover:tw-opacity-100 tw-cursor-ew-resize tw-rounded-l"
+                            draggable
+                            onDragStart={(ev) => {
+                              ev.stopPropagation();
+                              // Mark dragging this clip (reuse payload)
+                              setDraggingClip({ clipId: clip.id, sourceTrackId: track.id });
+                              ev.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip-trim-left', clipId: clip.id, sourceTrackId: track.id }));
+                              ev.dataTransfer.effectAllowed = 'move';
+                            }}
+                          />
+                          <span className="tw-text-xs tw-whitespace-nowrap tw-overflow-hidden tw-text-ellipsis">{clip.name}</span>
+                          <div
+                            className="tw-absolute tw-right-0 tw-top-0 tw-bottom-0 tw-w-[6px] tw-bg-white/80 tw-opacity-60 group-hover:tw-opacity-100 tw-cursor-ew-resize tw-rounded-r"
+                            draggable
+                            onDragStart={(ev) => {
+                              ev.stopPropagation();
+                              setDraggingClip({ clipId: clip.id, sourceTrackId: track.id });
+                              ev.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip-trim-right', clipId: clip.id, sourceTrackId: track.id }));
+                              ev.dataTransfer.effectAllowed = 'move';
+                            }}
+                          />
+                          {clip.type === 'audio' && SHOW_AUDIO_WAVEFORM && (
+                            <div style={{ position: 'absolute', left: 0, right: 0, top: 18, bottom: 6, padding: '0 2px' }}>
+                              <AudioWaveform
+                                src={clip.asset?.path}
+                                width={Math.max(1, Math.floor(clip.duration * pixelsPerSecond) - 4)}
+                                height={Math.max(20, TRACK_MIN_HEIGHT - 28)}
+                                color="#4CAF50"
+                                secondaryColor="#1b5e20"
+                              />
+                            </div>
+                          )}
+                          {isPlaying && (
+                            <div className="tw-ml-2" aria-hidden="true">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+                  {draggedAsset && (
+                    <div className="drag-preview">
+                      <span>Drop to place: {draggedAsset.name}</span>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-
-            {/* Playhead inside scrollable area */}
-            <div 
-              ref={playheadRef}
-              className="timeline-playhead"
-              style={{ 
-                transform: `translate3d(${currentTime * pixelsPerSecond}px, 0, 0)`,
-                transition: isPlaying ? 'none' : 'transform 0.1s ease'
-              }}
-              title={`Time: ${formatTime(currentTime)}`}
-              data-current-time={currentTime}
-              data-duration={duration}
-              data-position={`${(currentTime / duration) * 100}%`}
-              onMouseDown={handlePlayheadMouseDown}
-              onMouseMove={handlePlayheadMouseMove}
-              onMouseUp={handlePlayheadMouseUp}
-            />
+              </div>
+            ))}
           </div>
-        </div>
-        
-        {/* Lasso selection overlay */}
-        {isLassoSelecting && lassoStart && lassoEnd && (
-          <div
-            ref={lassoRef}
-            className="lasso-selection"
-            style={{
-              left: Math.min(lassoStart.x, lassoEnd.x),
-              top: Math.min(lassoStart.y, lassoEnd.y),
-              width: Math.max(1, Math.abs(lassoEnd.x - lassoStart.x)),
-              height: Math.max(1, Math.abs(lassoEnd.y - lassoStart.y)),
+
+          {/* Playhead inside scrollable area */}
+          <div 
+            ref={playheadRef}
+            className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[2px] tw-bg-red-500 tw-shadow-[0_0_0_1px_rgba(255,82,82,0.25)] tw-[will-change:transform] tw-pointer-events-auto tw-z-40 tw-cursor-ew-resize"
+            style={{ 
+              transform: `translate3d(${currentTime * pixelsPerSecond}px, 0, 0)`,
+              transition: isPlaying ? 'none' : 'transform 0.1s ease'
             }}
+            title={`Time: ${formatTime(currentTime)}`}
+            data-current-time={currentTime}
+            data-duration={duration}
+            data-position={`${(currentTime / duration) * 100}%`}
+            onMouseDown={handlePlayheadMouseDown}
+            onMouseMove={handlePlayheadMouseMove}
+            onMouseUp={handlePlayheadMouseUp}
           />
-        )}
-        
-
-          </div>
-
-      {/* Context Menu */}
-      {contextMenu.visible && (
-        <ClipContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={handleContextMenuClose}
-          onDelete={handleDeleteClip}
+        </div>
+      </div>
+      
+      {/* Lasso selection overlay */}
+      {isLassoSelecting && lassoStart && lassoEnd && (
+        <div
+          ref={lassoRef}
+          className="lasso-selection"
+          style={{
+            left: Math.min(lassoStart.x, lassoEnd.x),
+            top: Math.min(lassoStart.y, lassoEnd.y),
+            width: Math.max(1, Math.abs(lassoEnd.x - lassoStart.x)),
+            height: Math.max(1, Math.abs(lassoEnd.y - lassoStart.y)),
+          }}
         />
       )}
+      
 
-    </div>
-  );
-}; 
+        </div>
+
+    {/* Context Menu */}
+    {contextMenu.visible && (
+      <ClipContextMenu
+        x={contextMenu.x}
+        y={contextMenu.y}
+        onClose={handleContextMenuClose}
+        onDelete={handleDeleteClip}
+      />
+    )}
+
+  </div>
+); 
+};

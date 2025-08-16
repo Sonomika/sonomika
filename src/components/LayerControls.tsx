@@ -133,7 +133,7 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
 
       <div className="control-group">
         <label>Opacity</label>
-        <div style={{ maxWidth: 260 }}>
+        <div className="tw-max-w-[260px]">
           <Slider
             min={0}
             max={1}
@@ -147,7 +147,7 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
 
       <div className="control-group">
         <label>Blend Mode</label>
-        <div style={{ maxWidth: 260 }}>
+        <div className="tw-max-w-[260px]">
           <Select
             value={layer.blendMode as string}
             onChange={(v) => handleBlendModeChange(v as Layer['blendMode'])}
@@ -163,7 +163,7 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
           <label>
             {param.name}
             {param.type === 'number' && (
-              <div style={{ maxWidth: 260 }}>
+              <div className="tw-max-w-[260px]">
                 <Slider
                   min={param.min || 0}
                   max={param.max || 1}
@@ -182,7 +182,7 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
               />
             )}
             {param.type === 'select' && param.options && (
-              <div style={{ maxWidth: 260 }}>
+              <div className="tw-max-w-[260px]">
                 <Select
                   value={getParamValue(param.name) as string}
                   onChange={(v) => handleParamChangeImmediate(param.name, v as string)}

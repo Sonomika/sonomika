@@ -253,7 +253,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         <h3 className="tw-text-base tw-font-semibold">Layer Options - {selectedLayer.name}</h3>
       </div>
       
-      <div className="layer-options-content tw-space-y-4" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+      <div className="layer-options-content tw-space-y-4 tw-overflow-y-auto tw-max-h-[calc(100vh-200px)]">
         {/* Effect Parameters Section */}
         {hasEffect && (
           <div className="option-group tw-space-y-2">
@@ -304,7 +304,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                           <div className="boolean-control">
                             <button
                               type="button"
-                              className={`toggle-button ${Boolean(currentValue) ? 'active' : 'inactive'} tw-rounded tw-px-3 tw-py-1.5 ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'}`}
+                              className={`toggle-button ${Boolean(currentValue) ? 'active' : 'inactive'} tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'}`}
                               onClick={() => {
                                 const newValue = !Boolean(currentValue);
                                 console.log(`Boolean param ${param.name} toggled to:`, newValue);
@@ -317,16 +317,6 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                                   ...prev,
                                   [param.name]: newValue
                                 }));
-                              }}
-                              style={{
-                                padding: '8px 16px',
-                                border: 'none',
-                                borderRadius: '6px',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                userSelect: 'none',
-                                minWidth: '60px'
                               }}
                             >
                               {Boolean(currentValue) ? 'ON' : 'OFF'}

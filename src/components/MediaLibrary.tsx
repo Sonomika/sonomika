@@ -666,31 +666,13 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         <button className="import-button tw-rounded tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5" onClick={handleImportClick}>Import</button>
         
         {/* Performance Monitor */}
-        <div style={{ 
-          marginLeft: '8px', 
-          padding: '4px 8px', 
-          fontSize: '10px', 
-          backgroundColor: '#444', 
-          color: '#fff',
-          border: 'none',
-          borderRadius: '3px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <span>📸</span>
+        <div className="tw-ml-2 tw-px-2 tw-py-1 tw-text-[10px] tw-bg-neutral-700 tw-text-white tw-rounded tw-flex tw-items-center tw-gap-2">
+          <span className="tw-text-white">Queue</span>
           <span id="queue-status">-</span>
           <select 
             value="2" 
             onChange={(e) => setMaxConcurrentThumbnails(parseInt(e.target.value))}
-            style={{ 
-              fontSize: '10px', 
-              backgroundColor: '#333', 
-              color: '#fff',
-              border: '1px solid #555',
-              borderRadius: '2px',
-              padding: '1px 4px'
-            }}
+            className="tw-text-[10px] tw-bg-neutral-800 tw-text-white tw-border tw-border-neutral-600 tw-rounded tw-px-1 tw-py-0.5"
           >
             <option value="1">1x</option>
             <option value="2">2x</option>
@@ -698,35 +680,9 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
             <option value="4">4x</option>
             <option value="5">5x</option>
           </select>
-          <button 
-            onClick={clearThumbnailQueue}
-            style={{ 
-              fontSize: '8px', 
-              backgroundColor: '#666', 
-              color: '#fff',
-              border: 'none',
-              borderRadius: '2px',
-              padding: '1px 4px'
-            }}
-            title="Clear thumbnail queue"
-          >
-            Clear
-          </button>
-          <span id="cache-stats" style={{ fontSize: '8px', color: '#aaa' }}>-</span>
-          <button 
-            onClick={clearPersistentThumbnailCache}
-            style={{ 
-              fontSize: '8px', 
-              backgroundColor: '#8b0000', 
-              color: '#fff',
-              border: 'none',
-              borderRadius: '2px',
-              padding: '1px 4px'
-            }}
-            title="Clear all persistent thumbnails (will regenerate on next load)"
-          >
-            Clear All
-          </button>
+          <button onClick={clearThumbnailQueue} className="tw-text-[10px] tw-bg-neutral-600 tw-text-white tw-rounded tw-px-1 tw-py-0.5" title="Clear thumbnail queue">Clear</button>
+          <span id="cache-stats" className="tw-text-[10px] tw-text-neutral-300">-</span>
+          <button onClick={clearPersistentThumbnailCache} className="tw-text-[10px] tw-bg-red-800 tw-text-white tw-rounded tw-px-1 tw-py-0.5" title="Clear all persistent thumbnails (will regenerate on next load)">Clear All</button>
         </div>
       </div>
 
@@ -775,17 +731,9 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           <>
             {/* Performance hint for large asset lists */}
             {filteredAssets.length > 50 && (
-              <div className="performance-hint" style={{
-                padding: '8px 12px',
-                margin: '8px 0',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '4px',
-                fontSize: '12px',
-                color: '#ccc'
-              }}>
-                <strong>💡 Performance Tip:</strong> Large asset lists ({filteredAssets.length} items) are optimized with lazy thumbnail generation. 
-                Only visible items generate thumbnails to improve performance. <strong>✅ Thumbnails are now persistent and won't be lost on refresh!</strong>
+              <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-300 tw-text-[12px] tw-px-3 tw-py-2 tw-my-2">
+                <strong>Performance Tip:</strong> Large asset lists ({filteredAssets.length} items) are optimized with lazy thumbnail generation. 
+                Only visible items generate thumbnails to improve performance. <strong>Thumbnails are now persistent and won't be lost on refresh!</strong>
               </div>
             )}
             
@@ -852,7 +800,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
   if (isEmbedded) {
     return (
-      <div className="media-library-content embedded">
+      <div className="tw-h-full tw-overflow-auto tw-p-3">
         {renderMediaTab()}
       </div>
     );

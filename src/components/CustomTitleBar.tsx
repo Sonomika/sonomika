@@ -59,13 +59,13 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   };
 
   return (
-    <div className="custom-title-bar">
-      <div className="title-bar-left">
-        <div className="app-title">VJ App</div>
+    <div className="tw-fixed tw-top-0 tw-left-0 tw-right-0 tw-h-8 tw-bg-gradient-to-br tw-from-[#1a1a1a] tw-to-[#2a2a2a] tw-flex tw-items-center tw-justify-between tw-px-2 tw-border-b tw-border-neutral-800 tw-z-[5000] tw-select-none tw-cursor-grab app-drag-region">
+      <div className="tw-flex tw-items-center tw-flex-none tw-min-w-[120px]">
+        <div className="tw-text-white tw-text-[14px] tw-font-bold tw-ml-2 tw-px-3 tw-py-2 tw-rounded hover:tw-bg-white/10 tw-transition-colors">VJ App</div>
       </div>
       
-      <div className="title-bar-center">
-        <div className="menu-bar tw-flex tw-items-center tw-gap-2" style={{ WebkitAppRegion: 'no-drag' as any }}>
+      <div className="tw-flex-1 tw-flex tw-justify-start tw-ml-5">
+        <div className="tw-flex tw-items-center tw-gap-5 app-no-drag">
           <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onMirror}>
             Mirror
           </button>
@@ -129,8 +129,8 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         </div>
       </div>
       
-      <div className="title-bar-right">
-        <button className="window-control minimize" onClick={(e) => { 
+      <div className="tw-flex tw-items-center tw-gap-1 app-no-drag">
+        <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
           console.log('=== MINIMIZE BUTTON CLICKED ===');
           console.log('Event:', e);
           console.log('onMinimize function:', onMinimize);
@@ -145,7 +145,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         }}>
           <span>─</span>
         </button>
-        <button className="window-control maximize" onClick={(e) => { 
+        <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
           console.log('=== MAXIMIZE BUTTON CLICKED ===');
           console.log('Event:', e);
           console.log('onMaximize function:', onMaximize);
@@ -161,22 +161,21 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           <span>□</span>
         </button>
         <button 
-          className="window-control close" 
+          className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-[#e81123] tw-transition-colors tw-relative tw-z-[5001]" 
           onClick={(e) => {
-            console.log('=== CLOSE BUTTON CLICKED ===');
-            console.log('Event:', e);
-            console.log('Target:', e.target);
-            console.log('Current target:', e.currentTarget);
-            e.preventDefault();
-            e.stopPropagation();
-            if (onClose) {
-              console.log('Calling onClose function...');
-              onClose();
-            } else {
-              console.log('onClose function is undefined!');
-            }
+          console.log('=== CLOSE BUTTON CLICKED ===');
+          console.log('Event:', e);
+          console.log('Target:', e.target);
+          console.log('Current target:', e.currentTarget);
+          e.preventDefault();
+          e.stopPropagation();
+          if (onClose) {
+            console.log('Calling onClose function...');
+            onClose();
+          } else {
+            console.log('onClose function is undefined!');
+          }
           }}
-          style={{ position: 'relative', zIndex: 5001 }}
           title="Close Window"
         >
           <span>×</span>

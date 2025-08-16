@@ -2762,38 +2762,11 @@ body {
 }
 
 /* Layer Manager - Main Window (Dark Minimal Style) */
-.layer-manager-main {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background-color: var(--background);
-  display: flex;
-  flex-direction: column;
-  color: var(--on-background);
-  font-family: 'Inter', sans-serif;
-  overflow: hidden;
-  padding-top: 16px; /* Balanced spacing to clear header and center content */
-}
+/* .layer-manager-main migrated to Tailwind in component */
 
-.layer-manager-content {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
+/* .layer-manager-content migrated to Tailwind */
 
-.layer-manager-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.25rem 1rem;
-  background-color: var(--surface);
-  border-bottom: 1px solid var(--border-color);
-  min-height: 32px;
-  flex-shrink: 0;
-  font-weight: 500;
-  color: var(--on-surface);
-}
+/* .layer-manager-header migrated to Tailwind */
 
 .header-left {
   display: flex;
@@ -2802,76 +2775,21 @@ body {
   flex: 1;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
+/* .header-right migrated to Tailwind */
 
-.global-playback-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 1rem;
-  padding: 0.5rem;
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+/* .global-playback-controls migrated to Tailwind */
 
-.global-controls-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--on-surface-variant);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-right: 0.5rem;
-}
+/* .global-controls-label migrated to Tailwind */
 
-.global-play-btn,
-.global-pause-btn,
-.global-stop-btn {
-  background: var(--surface-variant);
-  border: 1px solid var(--border-color);
-  color: var(--on-surface-variant);
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 32px;
-}
+/* global control buttons migrated to Tailwind */
 
-.global-play-btn:hover,
-.global-pause-btn:hover,
-.global-stop-btn:hover {
-  background: var(--primary);
-  color: var(--on-primary);
-  border-color: var(--primary);
-}
+/* hover states migrated */
 
-.global-play-btn.active {
-  background: var(--primary);
-  color: var(--on-primary);
-  border-color: var(--primary);
-}
+/* active states migrated */
 
-.global-pause-btn.active {
-  background: var(--secondary);
-  color: var(--on-secondary);
-  border-color: var(--secondary);
-}
+/* active states migrated */
 
-.global-stop-btn:hover {
-  background: var(--error);
-  color: var(--on-error);
-  border-color: var(--error);
-}
+/* stop hover migrated */
 
 .header-left h2 {
   margin: 0;
@@ -2881,12 +2799,7 @@ body {
   letter-spacing: -0.025em;
 }
 
-.scene-tabs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  max-width: 400px;
-}
+/* .scene-tabs migrated to Tailwind */
 
 .scene-button-group {
   flex: 1;
@@ -2942,31 +2855,9 @@ body {
   font-weight: 600;
 }
 
-.add-scene-tab-btn {
-  background: #2a2a2a;
-  border: none;
-  color: #ccc;
-  padding: 4px 8px;
-  border-radius: 0;
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  margin-left: 4px;
-}
+/* .add-scene-tab-btn migrated to Tailwind */
 
-.add-scene-tab-btn:hover {
-  background: #3a3a3a;
-  color: #fff;
-}
+/* .add-scene-tab-btn:hover migrated to Tailwind */
 
 .bpm-control {
   display: flex;
@@ -3092,149 +2983,25 @@ body {
   border-color: #666;
 }
 
-/* Resize Handle */
-.resize-handle {
-  height: 6px;
-  background-color: #333;
-  border-top: 1px solid #555;
-  border-bottom: 1px solid #555;
-  cursor: ns-resize;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-  position: relative;
-}
-
-.resize-handle:hover {
-  background-color: #444;
-}
-
-.resize-handle.resizing {
-  background-color: #00bcd4;
-  border-color: #00bcd4;
-}
-
-.resize-indicator {
-  color: #888;
-  font-size: 0.8rem;
-  font-weight: bold;
-  user-select: none;
-}
-
-.resize-handle:hover .resize-indicator,
-.resize-handle.resizing .resize-indicator {
-  color: #fff;
-}
+/* .resize-handle and .resize-indicator migrated to Tailwind */
 
 /* No Scene Message */
-.no-scene-message {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  text-align: center;
-  color: #888;
-}
-
-.no-scene-message h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
-  color: #fff;
-}
-
-.no-scene-message p {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-}
-
-.create-scene-btn {
-  background-color: #00bcd4;
-  border: none;
-  color: #000;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.2s;
-}
-
-.create-scene-btn:hover {
-  background-color: #00a0b0;
-}
+/* .no-scene-message and .create-scene-btn migrated to Tailwind */
 
 /* Embedded Media Library */
-.layer-manager-media-library {
-  width: 33.33%;
-  background-color: #1a1a1a;
-  border-top: none;
-  overflow: hidden;
-  flex-shrink: 0;
-  flex-grow: 1;
-  box-shadow: none;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 200px;
-  order: 1;
-  contain: layout paint;
-}
+/* .layer-manager-media-library migrated to Tailwind */
 
 
 
-.layer-manager-media-library .media-library-content.embedded {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  background-color: transparent;
-  overflow: hidden;
-  min-height: 0;
-}
+/* embedded content migrated */
 
-.layer-manager-media-library .media-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  background-color: #141414;
-  border-radius: 0;
-  margin-bottom: 0;
-  flex-shrink: 0;
-  border: none;
-  border-bottom: 1px solid #333;
-  contain: paint;
-  will-change: transform;
-  transform: translateZ(0);
-}
+/* media toolbar migrated */
 
-.layer-manager-media-library .search-bar input {
-  background-color: #444;
-  border: 1px solid #555;
-  color: #fff;
-  padding: 0.5rem;
-  border-radius: 0;
-  font-size: 12px;
-  width: 150px;
-}
+/* search input migrated */
 
-.layer-manager-media-library .search-bar input:focus {
-  outline: none;
-  border-color: #00bcd4;
-}
+/* search focus migrated */
 
-.layer-manager-media-library .filter-controls select {
-  background-color: #444;
-  border: 1px solid #555;
-  color: #fff;
-  padding: 0.5rem;
-  border-radius: 0;
-  font-size: 12px;
-}
+/* filter select migrated */
 
 .layer-manager-media-library .filter-controls select:focus {
   outline: none;
@@ -4181,48 +3948,15 @@ body {
 } 
 
 /* Bottom Section Layout */
-.bottom-section {
-  display: flex;
-  background-color: var(--surface);
-  border-top: 1px solid var(--border-color);
-  overflow: hidden;
-  flex-shrink: 0;
-  z-index: 50;
-  position: relative;
-  min-height: 0;
-  width: 100%;
-}
+/* .bottom-section migrated to Tailwind */
 
 /* Bottom section content row */
-.bottom-section > div:not(.timeline-scroll) {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
+/* bottom-section children migrated to Tailwind */
 
 /* Preview Window - Bottom Right */
-.preview-window {
-  width: 33.33%;
-  background-color: var(--surface);
-  border-left: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  flex-shrink: 0;
-  flex-grow: 1;
-  min-width: 200px;
-  order: 3;
-}
+/* .preview-window migrated to Tailwind */
 
-.preview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background-color: #1a1a1a;
-  min-height: 35px;
-  flex-shrink: 0;
-}
+/* .preview-header migrated */
 
 .preview-header h3 {
   margin: 0;
@@ -6100,44 +5834,15 @@ body.resizing input[type="range"] {
 }
 
 /* Media Browser */
-.media-browser {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: #1a1a1a;
-  color: #fff;
-}
+/* .media-browser migrated to Tailwind */
 
-.media-browser.embedded {
-  height: 100%;
-  border: none;
-  width: 100%;
-  flex-shrink: 1;
-  flex-grow: 1;
-  min-width: 0;
-}
+/* .media-browser.embedded migrated to Tailwind */
 
-.media-browser-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: #2a2a2a;
-  border-bottom: 1px solid #444;
-}
+/* .media-browser-header migrated to Tailwind */
 
-.media-browser-header h2 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #00bcd4;
-}
+/* .media-browser-header h2 migrated to Tailwind */
 
-.media-browser-tabs {
-  display: flex;
-  background: #2a2a2a;
-  border-bottom: 1px solid #444;
-}
+/* .media-browser-tabs migrated to Tailwind */
 
 .tab-button {
   flex: 1;
@@ -6160,21 +5865,9 @@ body.resizing input[type="range"] {
 
 /* legacy .tab-button.active removed */
 
-.media-browser-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  max-height: calc(100vh - 120px);
-  min-height: 0;
-}
+/* .media-browser-content migrated to Tailwind */
 
-.tab-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+/* .tab-content migrated to Tailwind */
 
 /* Media Grid */
 .media-grid {
@@ -6687,77 +6380,18 @@ body.resizing input[type="range"] {
 }
 
 /* App Header Styles */
-.app-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 15px 0;
-  border-bottom: 2px solid #333;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-  border-radius: 8px;
-  padding: 15px 20px;
-}
-
-.app-header h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: bold;
-  color: #ffffff;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-}
-
-/* Custom Title Bar Styles */
-.custom-title-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 32px;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
-  border-bottom: 1px solid #333;
-  z-index: 5000; /* Keep above most app content; modals use 10000 */
+/* Utility classes for Electron drag regions */
+.app-drag-region {
   -webkit-app-region: drag;
-  user-select: none;
-  cursor: grab;
 }
+.app-no-drag {
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+/* .app-header (removed; migrated to Tailwind) */
+/* .app-header h1 (removed; migrated to Tailwind) */
 
-.title-bar-left {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  min-width: 120px;
-}
-
-.app-title {
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: bold;
-  margin-left: 10px;
-  padding: 8px 12px;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-}
-
-.app-title:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.title-bar-center {
-  flex: 1;
-  display: flex;
-  justify-content: flex-start;
-  margin-left: 20px;
-}
-
-.menu-bar {
-  display: flex;
-  gap: 20px;
-}
+/* Custom Title Bar Styles migrated to Tailwind classes in component */
 
 /* legacy .menu-item removed */
 
@@ -6765,9 +6399,7 @@ body.resizing input[type="range"] {
 
 /* legacy .menu-item.active removed */
 
-.menu-icon {
-  font-size: 14px;
-}
+/* .menu-icon (legacy; removed) */
 
 /* Dropdown styles */
 /* legacy .menu-item-dropdown removed */
@@ -6786,79 +6418,12 @@ body.resizing input[type="range"] {
 
 /* legacy dropdown-item .menu-icon removed */
 
-.title-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
+/* .title-bar-right (legacy; removed) */
 
-.window-control {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: none;
-  color: #cccccc;
-  font-size: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  -webkit-app-region: no-drag;
-}
-
-.window-control:hover {
-  background-color: #444;
-  color: #ffffff;
-}
-
-.window-control.close:hover {
-  background-color: #e81123;
-}
-
-/* Ensure window controls are properly clickable */
-.window-control {
-  cursor: pointer !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: 12px !important;
-  position: relative !important;
-  z-index: 5001 !important;
-  -webkit-app-region: no-drag !important;
-  pointer-events: auto; /* clickable even atop drag region */
-}
-
-/* Specific button styles */
-.window-control.minimize,
-.window-control.maximize,
-.window-control.close {
-  -webkit-app-region: no-drag !important;
-  pointer-events: auto !important;
-  user-select: none !important;
-}
-
-/* Debug: Make buttons more visible */
-.window-control:hover {
-  background-color: #444 !important;
-  color: #ffffff !important;
-}
-
-.window-control.close:hover {
-  background-color: #e81123 !important;
-}
-
-/* Ensure title bar right section doesn't interfere with buttons */
-.title-bar-right {
-  -webkit-app-region: no-drag !important;
-  pointer-events: auto !important;
-  position: relative !important;
-  z-index: 5002 !important;
-}
+/* window controls migrated to Tailwind in component */
 /* Adjust main content to account for title bar */
-body {
-  padding-top: 32px;
-}
+/* body top padding is handled by fixed title bar height; keep if other routes rely on it */
+body { padding-top: 32px; }
 
 /* Preset Modal Styles */
 /* legacy modal-overlay removed (using Radix Dialog) */
@@ -6906,29 +6471,11 @@ body {
 
 /* legacy modal-btn-confirm:hover removed */
 
-/* Timeline Styles */
-.timeline-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: #1a1a1a;
-  color: #fff;
-}
+/* Timeline Styles - container migrated to Tailwind */
 
-.timeline-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 20px;
-  background: #2a2a2a;
-  border-bottom: 1px solid #444;
-}
+/* .timeline-header migrated to Tailwind */
 
-.timeline-controls {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
+/* .timeline-controls migrated to Tailwind */
 
 .play-button {
   background: #4CAF50;
@@ -6957,12 +6504,7 @@ body {
 
 /* legacy time/zoom sliders removed (using Radix Slider) */
 
-.timeline-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+/* .timeline-content migrated to Tailwind */
 
 /* waveform removed */
 
@@ -6983,44 +6525,15 @@ body {
 
 /* waveform removed */
 
-.timeline-tracks {
-  flex: 1;
-  position: relative;
-  overflow: auto;
-  background: #1a1a1a;
-  display: flex;
-  flex-direction: column;
-}
+/* .timeline-tracks migrated to Tailwind */
 
-.timeline-ruler {
-  height: 30px;
-  background: #1a1a1a;
-  border-bottom: 1px solid #333;
-  position: relative;
-}
+/* .timeline-ruler migrated to Tailwind */
 
-.timeline-mark {
-  position: absolute;
-  top: 0;
-  width: 1px;
-  height: 100%;
-  background: #444;
-}
+/* .timeline-mark migrated to Tailwind */
 
-.timeline-mark.major-mark {
-  background: #666;
-  width: 1px;
-}
+/* .timeline-mark.major-mark migrated to Tailwind */
 
-.timeline-label {
-  position: absolute;
-  top: 5px;
-  left: 2px;
-  font-size: 10px;
-  color: #ccc;
-  font-weight: normal;
-  /* No rotation - horizontal labels are much more readable */
-}
+/* .timeline-label migrated to Tailwind */
 
 .timeline-track {
   height: 60px;
@@ -7146,41 +6659,13 @@ body {
   }
 }
 
-@media (max-width: 768px) {
-  .timeline-controls {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  
-  .time-slider, .zoom-slider {
-    width: 100px;
-  }
-  
-  .timeline-panels {
-    height: 200px;
-  }
-}
+/* @media (max-width: 768px): .timeline-controls and related responsive rules migrated to Tailwind */
 
-.timeline-toggle-btn {
-  background: var(--surface-variant);
-  border: 1px solid var(--outline);
-  border-radius: 4px;
-  padding: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 12px;
-}
+/* .timeline-toggle-btn migrated to Tailwind */
 
-.timeline-toggle-btn:hover {
-  background: var(--surface);
-  border-color: var(--primary);
-}
+/* .timeline-toggle-btn:hover migrated to Tailwind */
 
-.timeline-toggle-btn.active {
-  background: var(--primary);
-  color: var(--on-primary);
-  border-color: var(--primary);
-}
+/* .timeline-toggle-btn.active migrated to Tailwind */
 
 /* Debug Button in Title Bar */
 .menu-item.active {
@@ -7188,23 +6673,9 @@ body {
   color: var(--on-primary);
 }
 
-/* Timeline Preview Styles */
-.preview-timeline {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: var(--surface);
-  border-radius: 8px;
-  overflow: hidden;
-}
+/* Preview timeline container migrated to Tailwind */
 
-.preview-timeline-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  padding: 1rem;
-  gap: 1rem;
-}
+/* .preview-timeline-content migrated to Tailwind */
 
 .preview-timeline-info {
   display: flex;
@@ -7250,12 +6721,7 @@ body {
   overflow: hidden;
 }
 
-.timeline-preview-placeholder {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 1rem;
-}
+/* .timeline-preview-placeholder migrated to Tailwind */
 
 .timeline-preview-header {
   display: flex;
@@ -7408,27 +6874,15 @@ body {
 }
 
 /* Timeline Preview Styles */
-.timeline-preview-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: rgba(255, 255, 255, 0.6);
-}
+/* .timeline-preview-empty migrated to Tailwind */
 
 .timeline-preview-placeholder {
   text-align: center;
 }
 
-.placeholder-text {
-  font-size: 14px;
-  margin-bottom: 8px;
-}
+/* .placeholder-text migrated to Tailwind */
 
-.placeholder-time {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
-}
+/* .placeholder-time migrated to Tailwind */
 
 .timeline-preview-content {
   display: flex;
@@ -9266,37 +8720,15 @@ canvas,
   padding: 1rem;
 }
 
-.timeline-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
+/* duplicate .timeline-header migrated to Tailwind */
 
-.timeline-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--on-surface);
-}
+/* duplicate .timeline-title migrated to Tailwind */
 
-.timeline-controls {
-  display: flex;
-  gap: 0.5rem;
-}
+/* duplicate .timeline-controls migrated to Tailwind */
 
-.timeline-content {
-  min-height: 100px;
-}
+/* duplicate .timeline-content migrated to Tailwind */
 
-.timeline-track {
-  background-color: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-}
+/* duplicate .timeline-track migrated to Tailwind */
 
 .timeline-layer {
   position: relative;

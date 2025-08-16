@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../store/store';
 import { Timeline } from './Timeline';
 import { ButtonGroup, Popover, PopoverTrigger, PopoverContent, Slider } from './ui';
+import { PlayIcon, PauseIcon } from '@radix-ui/react-icons';
 
 interface CompositionScreenProps {
   className?: string;
@@ -36,7 +37,7 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
             onClick={() => setIsPlaying(!isPlaying)}
             className={`play-button ${isPlaying ? 'playing' : ''}`}
           >
-            {isPlaying ? '⏸️' : '▶️'}
+            {isPlaying ? <PauseIcon width={14} height={14} /> : <PlayIcon width={14} height={14} />}
           </button>
           
           <div className="bpm-control">
@@ -78,7 +79,7 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
                   
                   <div className="bpm-slider-section">
                     <label>Fine-tune:</label>
-                    <div style={{ padding: '6px 0' }}>
+                    <div className="tw-py-1.5">
                       <Slider value={bpm} min={60} max={200} step={1} onChange={(v) => setBpm(v)} />
                     </div>
                     <span className="bpm-slider-value">{bpm}</span>

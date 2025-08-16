@@ -107,9 +107,11 @@ export const usePreviewRenderer = () => {
     if (!previewContent) {
       console.log('🎨 No preview content, showing placeholder');
       return (
-        <div className="preview-placeholder">
-          <p>No preview available</p>
-          <small>Select a layer to see preview</small>
+        <div className="tw-w-full tw-h-full tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-text-sm tw-py-4">
+          <div className="tw-text-center">
+            <div>No preview available</div>
+            <div className="tw-text-xs tw-text-neutral-500">Select a layer to see preview</div>
+          </div>
         </div>
       );
     }
@@ -124,18 +126,17 @@ export const usePreviewRenderer = () => {
       if (previewContent.isEmpty || layersWithContent.length === 0) {
         console.log('🎨 No layers with content, showing empty column message');
         return (
-          <div className="preview-column">
-            <div className="preview-header-info">
-              <h4>Column Preview</h4>
-              <span className="preview-status">Empty</span>
+          <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden">
+            <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+              <h4 className="tw-text-sm tw-text-white">Column Preview</h4>
+              <span className="tw-text-xs tw-text-neutral-400">Empty</span>
             </div>
-            <div className="preview-placeholder">
-              <div className="preview-icon">📁</div>
-              <p>No media content</p>
-              <small>Drag assets from the Media Library to layers to see preview</small>
-              <div className="preview-help">
-                <p><strong>How to add content:</strong></p>
-                <ol>
+            <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-1 tw-p-4">
+              <p className="tw-text-neutral-300">No media content</p>
+              <small className="tw-text-neutral-500">Drag assets from the Media Library to layers to see preview</small>
+              <div className="tw-mt-2 tw-text-neutral-400 tw-text-xs tw-space-y-1">
+                <p className="tw-font-semibold">How to add content:</p>
+                <ol className="tw-list-decimal tw-list-inside tw-space-y-0.5">
                   <li>Open the Media Library (bottom right)</li>
                   <li>Import or drag media files</li>
                   <li>Drag assets from Media Library to layer cells</li>
@@ -156,24 +157,25 @@ export const usePreviewRenderer = () => {
       const aspectRatio = compositionSettings.width / compositionSettings.height;
       
       const previewElement = (
-        <div className="preview-column">
+        <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden">
           <div 
-            className="preview-main-content"
+            className="tw-relative tw-w-full"
             data-aspect-ratio={`${compositionSettings.width}:${compositionSettings.height}`}
             style={{ aspectRatio: aspectRatio }}
           >
-            {/* ColumnPreview component would be imported and used here */}
-            <div className="column-preview-placeholder">
-              <p>Column Preview Component</p>
-              <small>This would render the actual ColumnPreview component</small>
+            <div className="tw-flex tw-items-center tw-justify-center tw-w-full tw-h-full tw-bg-black/80">
+              <div className="tw-text-center tw-text-neutral-300 tw-text-sm">
+                <div>Column Preview Component</div>
+                <div className="tw-text-xs tw-text-neutral-500">This would render the actual ColumnPreview component</div>
+              </div>
             </div>
           </div>
-          <div className="preview-layers-info">
-            <h5>Layers in Column:</h5>
+          <div className="tw-px-3 tw-py-2">
+            <h5 className="tw-text-sm tw-font-semibold tw-text-white">Layers in Column:</h5>
             {layersWithContent.map((layer: any, index: number) => (
-              <div key={layer.id} className="preview-layer-item">
-                <div className="preview-layer-name">{layer.name}</div>
-                <div className="preview-layer-asset-type">{layer.asset.type}</div>
+              <div key={layer.id} className="tw-flex tw-items-center tw-justify-between tw-text-xs tw-text-neutral-300 tw-border-b tw-border-neutral-800 tw-py-1">
+                <div className="tw-font-medium">{layer.name}</div>
+                <div className="tw-text-neutral-400">{layer.asset.type}</div>
               </div>
             ))}
           </div>
@@ -186,22 +188,17 @@ export const usePreviewRenderer = () => {
 
     if (previewContent.type === 'layer') {
       return (
-        <div className="preview-layer">
-          <div className="preview-header-info">
-            <h4>Layer Preview</h4>
-            <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
+        <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden">
+          <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+            <h4 className="tw-text-sm tw-text-white">Layer Preview</h4>
+            <span className="tw-text-xs tw-text-neutral-400">{isPlaying ? 'Playing' : 'Stopped'}</span>
           </div>
-          <div className="preview-layer-content">
-            <div className="preview-layer-info">
-              <div className="preview-layer-name">{previewContent.layer.name}</div>
-            </div>
+          <div className="tw-p-2">
+            <div className="tw-text-sm tw-text-neutral-200 tw-mb-2">{previewContent.layer.name}</div>
             {previewContent.asset && (
-              <div className="preview-asset-display">
-                {/* CanvasRenderer component would be imported and used here */}
-                <div className="canvas-renderer-placeholder">
-                  <p>Canvas Renderer Component</p>
-                  <small>This would render the actual CanvasRenderer component</small>
-                </div>
+              <div className="tw-rounded tw-border tw-border-neutral-800 tw-bg-black tw-p-4">
+                <div className="tw-text-center tw-text-neutral-300 tw-text-sm">Canvas Renderer Component</div>
+                <div className="tw-text-center tw-text-neutral-500 tw-text-xs">This would render the actual CanvasRenderer component</div>
               </div>
             )}
           </div>
@@ -213,43 +210,41 @@ export const usePreviewRenderer = () => {
       const activeClips = previewContent.activeClips || [];
       
       return (
-        <div className="preview-timeline">
-          <div className="preview-header-info">
-            <h4>Timeline Preview</h4>
-            <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
-            <div className="preview-time-display">
+        <div className="tw-h-full tw-flex tw-flex-col">
+          <div className="tw-flex tw-items-center tw-gap-3 tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+            <h4 className="tw-text-sm tw-text-white">Timeline Preview</h4>
+            <span className="tw-text-xs tw-text-neutral-400">{isPlaying ? 'Playing' : 'Stopped'}</span>
+            <div className="tw-text-xs tw-text-neutral-400">
               Time: {Math.floor(previewContent.currentTime || 0)}s / {Math.floor(previewContent.duration || 0)}s
             </div>
           </div>
           
-          <div className="preview-timeline-content">
+          <div className="tw-flex tw-flex-col tw-gap-2 tw-flex-1 tw-p-2 tw-rounded-md tw-bg-neutral-900 tw-border tw-border-neutral-800">
             {activeClips.length === 0 ? (
-              <div className="timeline-preview-empty">
-                <div className="timeline-preview-placeholder">
-                  <div className="placeholder-text">No clips playing at current time</div>
-                  <div className="placeholder-time">{Math.floor(previewContent.currentTime || 0)}s</div>
+              <div className="tw-flex tw-items-center tw-justify-center tw-h-48 tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded">
+                <div className="tw-text-center tw-text-neutral-300">
+                  <div className="tw-text-sm">No clips playing at current time</div>
+                  <div className="tw-mt-1 tw-text-xs tw-text-neutral-400">{Math.floor(previewContent.currentTime || 0)}s</div>
                 </div>
               </div>
             ) : (
-              <div className="preview-column">
+              <div className="tw-flex tw-flex-col tw-gap-2">
                 <div 
-                  className="preview-main-content"
+                  className="tw-relative tw-rounded tw-border tw-border-neutral-800 tw-bg-black"
                   data-aspect-ratio={`${compositionSettings.width}:${compositionSettings.height}`}
                   style={{ aspectRatio: compositionSettings.width / compositionSettings.height }}
                 >
-                  {/* TimelineComposer component would be imported and used here */}
-                  <div className="timeline-composer-placeholder">
-                    <p>Timeline Composer Component</p>
-                    <small>This would render the actual TimelineComposer component</small>
+                  <div className="tw-flex tw-items-center tw-justify-center tw-w-full tw-h-full tw-text-neutral-300 tw-text-sm">
+                    Timeline Composer Component
                   </div>
                 </div>
                 
-                <div className="preview-layers-info">
-                  <h5>Active Timeline Clips:</h5>
+                <div className="tw-mt-2">
+                  <h5 className="tw-text-sm tw-font-semibold tw-text-white">Active Timeline Clips:</h5>
                   {activeClips.map((clip: any, index: number) => (
-                    <div key={`info-${clip.id}-${index}`} className="preview-layer-item">
-                      <div className="preview-layer-name">Track {clip.trackId.split('-')[1]}</div>
-                      <div className="preview-layer-asset-type">{clip.name}</div>
+                    <div key={`info-${clip.id}-${index}`} className="tw-flex tw-items-center tw-justify-between tw-text-xs tw-text-neutral-300 tw-border-b tw-border-neutral-800 tw-py-1">
+                      <div className="tw-font-medium">Track {clip.trackId.split('-')[1]}</div>
+                      <div className="tw-text-neutral-400">{clip.name}</div>
                     </div>
                   ))}
                 </div>
@@ -261,8 +256,8 @@ export const usePreviewRenderer = () => {
     }
 
     return (
-      <div className="preview-placeholder">
-        <p>Preview not available</p>
+      <div className="tw-w-full tw-h-full tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-text-sm tw-py-4">
+        <div>Preview not available</div>
       </div>
     );
   }, [previewContent, isPlaying, compositionSettings]);

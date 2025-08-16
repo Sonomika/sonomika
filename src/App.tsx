@@ -49,28 +49,12 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ 
-          backgroundColor: '#000000', 
-          color: '#ffffff', 
-          height: '100vh', 
-          padding: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <h1>Something went wrong!</h1>
-          <p>Error: {this.state.error?.message}</p>
+        <div className="tw-bg-black tw-text-white tw-h-screen tw-p-5 tw-flex tw-flex-col tw-items-center tw-justify-center">
+          <h1 className="tw-text-xl tw-font-semibold tw-mb-2">Something went wrong!</h1>
+          <p className="tw-mb-4">Error: {this.state.error?.message}</p>
           <button 
             onClick={() => window.location.reload()}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#ffffff',
-              color: '#000000',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
+            className="tw-inline-flex tw-items-center tw-justify-center tw-px-5 tw-py-2.5 tw-bg-white tw-text-black tw-rounded hover:tw-bg-neutral-200 tw-transition-colors"
           >
             Reload App
           </button>
@@ -482,15 +466,9 @@ function App() {
         onToggleDebug={handleToggleDebug}
       />
       
-      <div style={{
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
+      <div className="tw-bg-black tw-text-white tw-h-screen tw-flex tw-flex-col">
 
-        <div style={{ flex: 1, height: 'calc(100vh - 32px)' }}>
+        <div className="tw-flex-1 tw-h-[calc(100vh-32px)]">
           <LayerManager onClose={() => {}} debugMode={debugMode} />
         </div>
       </div>

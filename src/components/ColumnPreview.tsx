@@ -931,34 +931,17 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   // Error boundary
   if (error) {
     return (
-      <div className="column-preview">
-        <div className="preview-header-info">
-          <h4>Column Preview - Error</h4>
+      <div className="tw-w-full tw-h-full tw-flex tw-flex-col">
+        <div className="tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800">
+          <h4 className="tw-text-sm tw-text-white">Column Preview - Error</h4>
         </div>
-        <div className="preview-main-content">
-          <div style={{ 
-            width: '100%', 
-            height: '100%', 
-            backgroundColor: '#1a1a1a',
-            color: '#ff0000',
-            padding: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'column'
-          }}>
-            <h3>Rendering Error</h3>
-            <p>{error}</p>
+        <div className="tw-flex-1 tw-flex tw-items-center tw-justify-center tw-bg-neutral-900">
+          <div className="tw-text-center tw-text-red-500 tw-space-y-2">
+            <h3 className="tw-text-base">Rendering Error</h3>
+            <p className="tw-text-sm">{error}</p>
             <button 
               onClick={() => setError(null)}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#00bcd4',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
+              className="tw-rounded tw-bg-sky-600 hover:tw-bg-sky-500 tw-text-white tw-px-3 tw-py-1.5"
             >
               Retry
             </button>
@@ -969,62 +952,29 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   }
 
   return (
-    <div className="column-preview">
-      <div className="preview-main-content">
-           <div style={{ 
-          width: '100%', 
-          height: '100%', 
-             background: compositionBg,
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-             willChange: 'transform',
-             contain: 'layout paint size style'
-        }}>
-          {/* Full width container */}
-          <div style={{
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'transparent',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            {/* Debug indicator */}
-            <div style={{
-              position: 'absolute',
-              top: '8px',
-              right: '8px',
-              color: 'rgba(255, 255, 255, 0.6)',
-              fontSize: '10px',
-              fontWeight: 'normal',
-              zIndex: 1,
-              pointerEvents: 'none',
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-              padding: '2px 6px',
-              borderRadius: '3px'
-            }}>
-              R3F
-            </div>
-            
-            {/* Background is provided by wrapper via compositionBg; keep this layer transparent */}
-            <div style={{ position: 'absolute', inset: 0, background: 'transparent', pointerEvents: 'none' }} />
-
-            <Canvas
-              camera={{ position: [0, 0, 1], fov: 90 }}
-              style={{ 
-                width: '100%', 
-                height: '100%',
-                display: 'block',
-                background: 'transparent'
-              }}
-              gl={{ 
-                alpha: true,
-                preserveDrawingBuffer: false,
-                antialias: false,
-                powerPreference: 'high-performance',
-                premultipliedAlpha: false
-              }}
+    <div className="tw-w-full tw-h-full tw-flex tw-flex-col">
+      <div className="tw-flex-1">
+           <div className="tw-relative tw-flex tw-items-center tw-justify-center tw-w-full tw-h-full" style={{ background: compositionBg, willChange: 'transform', contain: 'layout paint size style' }}>
+            {/* Full width container */}
+           <div className="tw-w-full tw-h-full tw-bg-transparent tw-relative tw-overflow-hidden">
+              {/* Debug indicator */}
+             <div className="tw-absolute tw-top-2 tw-right-2 tw-text-white/60 tw-text-[10px] tw-font-normal tw-z-[1] tw-pointer-events-none tw-bg-black/30 tw-px-1.5 tw-py-0.5 tw-rounded">
+               R3F
+              </div>
+              
+              {/* Background is provided by wrapper via compositionBg; keep this layer transparent */}
+             <div className="tw-absolute tw-inset-0 tw-bg-transparent tw-pointer-events-none" />
+ 
+              <Canvas
+                camera={{ position: [0, 0, 1], fov: 90 }}
+               className="tw-w-full tw-h-full tw-block tw-bg-transparent"
+                gl={{ 
+                  alpha: true,
+                  preserveDrawingBuffer: false,
+                  antialias: false,
+                  powerPreference: 'high-performance',
+                  premultipliedAlpha: false
+                }}
               onCreated={({ gl, camera }) => {
                 // Check if this column contains only source effects
                 const hasOnlySourceEffects = column.layers.every((layer: any) => {

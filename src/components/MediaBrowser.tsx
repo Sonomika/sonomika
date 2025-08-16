@@ -99,21 +99,11 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
     }, [isVisible, normalized, thumb, isGenerating]);
     
     return thumb ? (
-      <img src={thumb} alt="thumb" style={{ width: 80, height: 45, objectFit: 'cover', borderRadius: 2 }} />
+      <img src={thumb} alt="thumb" className="tw-w-20 tw-h-[45px] tw-object-cover tw-rounded-[2px]" />
     ) : (
       <div 
         ref={thumbRef}
-        style={{ 
-          width: 80, 
-          height: 45, 
-          background: '#111', 
-          border: '1px solid #222',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '8px',
-          color: '#666'
-        }}
+        className="tw-w-20 tw-h-[45px] tw-bg-[#111] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-[8px] tw-text-[#666]"
         title={isGenerating ? 'Generating thumbnail...' : 'Waiting to generate...'}
       >
         {isGenerating ? 'GEN...' : 'WAIT...'}
@@ -413,15 +403,15 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
   // Render different content based on loading state
   if (isLoading) {
     return (
-      <div className="media-browser">
-        <div className="media-browser-header">
-          <h2>Media Browser</h2>
-          <button onClick={handleClose} className="close-button">×</button>
+      <div className="tw-flex tw-flex-col tw-h-full tw-bg-neutral-900 tw-text-white">
+        <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+          <h2 className="tw-text-lg tw-font-semibold">Media Browser</h2>
+          <button onClick={handleClose} className="tw-rounded tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
         </div>
-        <div className="media-browser-content">
-          <div className="loading">
-            <div className="loading-spinner"></div>
-            <div className="loading-text">{loadingProgress}</div>
+        <div className="tw-flex-1 tw-flex tw-items-center tw-justify-center">
+          <div className="tw-flex tw-flex-col tw-items-center tw-gap-2 tw-text-neutral-300">
+            <div className="tw-animate-spin tw-w-6 tw-h-6 tw-border-2 tw-border-neutral-600 tw-border-t-transparent tw-rounded-full" />
+            <div className="tw-text-sm">{loadingProgress}</div>
           </div>
         </div>
       </div>
@@ -433,20 +423,13 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
     switch (activeTab) {
       case 'media':
         return (
-          <div className="tab-content">
+          <div className="tw-p-2 tw-space-y-3">
             {!fsApi && (
-              <div style={{ 
-                background: '#ff6b6b', 
-                color: '#fff', 
-                padding: '12px', 
-                margin: '8px', 
-                borderRadius: '4px',
-                textAlign: 'center'
-              }}>
+              <div className="tw-bg-[#ff6b6b] tw-text-white tw-p-3 tw-m-2 tw-rounded tw-text-center">
                 ⚠️ File browser requires Electron. Please run the app using "npm run dev:electron" to access local files.
               </div>
             )}
-            <div className="file-browser-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
               <button
                 onClick={navigateUp}
                 title="Up"
@@ -455,7 +438,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                 ↑
               </button>
               {roots.length > 0 && (
-                <div style={{ minWidth: 160 }}>
+                <div className="tw-min-w-[160px]">
                   <Select
                     value={'' as any}
                     onChange={(val) => {
@@ -476,24 +459,23 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                   {f.label}
                 </button>
               ))}
-              <div className="breadcrumbs" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="tw-flex tw-gap-1.5 tw-flex-wrap tw-items-center">
                 {breadcrumb.map((c, i) => (
                   <React.Fragment key={c.full}>
-                    <button className="crumb" onClick={() => loadDirectory(c.full)}>{c.label}</button>
+                    <button className="tw-text-sm tw-text-sky-400 hover:tw-underline" onClick={() => loadDirectory(c.full)}>{c.label}</button>
                     {i < breadcrumb.length - 1 && <span style={{ color: '#888' }}>/</span>}
                   </React.Fragment>
                 ))}
               </div>
-              <div style={{ marginLeft: 'auto' }}>
-                <div style={{ display: 'flex', gap: 6 }}>
+              <div className="tw-ml-auto">
+                <div className="tw-flex tw-gap-1.5">
                   <input
                     type="text"
                     placeholder="Path"
                     value={pathInput}
                     onChange={(e) => setPathInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && pathInput) loadDirectory(pathInput); }}
-                    className="search-input"
-                    style={{ minWidth: 280 }}
+                    className="tw-min-w-[280px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
                   />
                   <button
                     className="tw-inline-flex tw-items-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
@@ -506,16 +488,15 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                     placeholder="Filter"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="search-input"
-                    style={{ minWidth: 140 }}
+                    className="tw-min-w-[140px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="file-list" style={{ marginTop: 8 }}>
+            <div className="tw-mt-2">
               {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 120px 180px', padding: '6px 8px', color: '#aaa', borderBottom: '1px solid #333' }}>
+              <div className="tw-grid tw-grid-cols-[80px_1fr_120px_180px] tw-px-2 tw-py-1.5 tw-text-[#aaa] tw-border-b tw-border-[#333]">
                 <div>Preview</div>
                 <div>Name</div>
                 <div>Type</div>
@@ -530,8 +511,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                     return (
                       <div
                         key={it.path}
-                        className="file-row"
-                        style={{ display: 'grid', gridTemplateColumns: '80px 1fr 120px 180px', padding: '8px', cursor: 'default', alignItems: 'center' }}
+                        className="tw-grid tw-grid-cols-[80px_1fr_120px_180px] tw-p-2 tw-cursor-default tw-items-center hover:tw-bg-neutral-800/40"
                         onDoubleClick={() => {
                           if (it.isDirectory) loadDirectory(it.path);
                         }}
@@ -547,9 +527,9 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                             <InlineThumb path={it.path} />
                           ) : null}
                         </div>
-                        <div style={{ color: it.isDirectory ? '#7fbfff' : '#fff' }}>{it.name}</div>
-                        <div style={{ textTransform: 'capitalize', color: '#ccc' }}>{typeof type === 'string' ? type : ''}</div>
-                        <div style={{ color: '#aaa' }}>{modified}</div>
+                        <div className={it.isDirectory ? 'tw-text-[#7fbfff]' : 'tw-text-white'}>{it.name}</div>
+                        <div className="tw-capitalize tw-text-[#ccc]">{typeof type === 'string' ? type : ''}</div>
+                        <div className="tw-text-[#aaa]">{modified}</div>
                       </div>
                     );
                   })}
@@ -560,31 +540,30 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
 
             case 'effects':
         return (
-          <div className="tab-content">
-            <div className="search-bar">
+          <div className="tw-p-2 tw-space-y-3">
+            <div className="tw-flex tw-items-center tw-gap-2">
               <input
                 type="text"
                 placeholder="Search effects..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
+                className="tw-min-w-[240px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
               />
             </div>
-            <div className="effects-grid">
-              {/* Visual Effects (from @effects folder) */}
-              <div className="effect-category">
-                <h3>Visual Effects</h3>
-                <div className="effect-items">
+            <div className="tw-space-y-4">
+              <div>
+                <h3 className="tw-text-sm tw-font-semibold tw-text-neutral-300">Visual Effects</h3>
+                <div className="tw-grid md:tw-grid-cols-2 xl:tw-grid-cols-3 tw-gap-2">
                   {visualEffects.map((effect) => (
                     <div
                       key={effect.id}
-                      className={`effect-item ${selectedItem?.id === effect.id ? 'selected' : ''}`}
+                      className={`tw-rounded tw-border tw-p-3 tw-bg-neutral-900 tw-border-neutral-800 hover:tw-bg-neutral-800 tw-cursor-pointer ${selectedItem?.id === effect.id ? 'tw-ring-2 tw-ring-sky-600' : ''}`}
                       onClick={() => handleItemSelect(effect)}
                       draggable
                       onDragStart={(e) => handleItemDrag(e, effect, 'effect')}
                     >
-                      <div className="effect-name">{effect.name}</div>
-                      <div className="effect-description">{effect.description}</div>
+                      <div className="tw-text-neutral-100 tw-font-medium">{effect.name}</div>
+                      <div className="tw-text-neutral-400 tw-text-sm tw-mt-0.5">{effect.description}</div>
                     </div>
                   ))}
                 </div>
@@ -595,30 +574,29 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
 
             case 'sources':
         return (
-          <div className="tab-content">
-            <div className="search-bar">
+          <div className="tw-p-2 tw-space-y-3">
+            <div className="tw-flex tw-items-center tw-gap-2">
               <input
                 type="text"
                 placeholder="Search sources..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="search-input"
+                className="tw-min-w-[240px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
               />
             </div>
-            <div className="sources-grid">
-              {/* Generative Sources (from sources folder) */}
-              <div className="source-category">
-                <h3>Generative Sources</h3>
-                <div className="source-items">
+            <div className="tw-space-y-4">
+              <div>
+                <h3 className="tw-text-sm tw-font-semibold tw-text-neutral-300">Generative Sources</h3>
+                <div className="tw-grid md:tw-grid-cols-2 xl:tw-grid-cols-3 tw-gap-2">
                   {generativeSources.map((effect) => (
                     <div
                       key={effect.id}
-                      className={`source-item ${selectedItem?.id === effect.id ? 'selected' : ''}`}
+                      className={`tw-rounded tw-border tw-p-3 tw-bg-neutral-900 tw-border-neutral-800 hover:tw-bg-neutral-800 tw-cursor-pointer ${selectedItem?.id === effect.id ? 'tw-ring-2 tw-ring-sky-600' : ''}`}
                       onClick={() => handleItemSelect(effect)}
                       draggable
                       onDragStart={(e) => handleItemDrag(e, effect, 'source')}
                     >
-                      <div className="source-name">{effect.name}</div>
+                      <div className="tw-text-neutral-100 tw-font-medium">{effect.name}</div>
                     </div>
                   ))}
                 </div>
@@ -629,22 +607,20 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
 
       case 'midi':
         return (
-          <div className="tab-content">
-            <div className="midi-content">
-              <h3>MIDI Mapping</h3>
-              <p>Configure MIDI controllers and mappings for your composition.</p>
-              <div className="midi-settings">
-                <div className="setting-group">
-                  <label>MIDI Input Device:</label>
-                  <div style={{ maxWidth: 260 }}>
-                    <Select value={'none'} onChange={() => {}} options={[{ value: 'none', label: 'No devices detected' }]} />
-                  </div>
+          <div className="tw-p-4 tw-space-y-3">
+            <h3 className="tw-text-sm tw-font-semibold tw-text-neutral-300">MIDI Mapping</h3>
+            <p className="tw-text-neutral-400">Configure MIDI controllers and mappings for your composition.</p>
+            <div className="tw-space-y-3">
+              <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+                <label className="tw-text-sm tw-text-neutral-300">MIDI Input Device:</label>
+                <div className="tw-max-w-[260px]">
+                  <Select value={'none'} onChange={() => {}} options={[{ value: 'none', label: 'No devices detected' }]} />
                 </div>
-                <div className="setting-group">
-                  <label>MIDI Channel:</label>
-                  <div style={{ maxWidth: 220 }}>
-                    <Select value={'all'} onChange={() => {}} options={[{ value: 'all', label: 'All Channels' }, { value: '1', label: 'Channel 1' }, { value: '2', label: 'Channel 2' }]} />
-                  </div>
+              </div>
+              <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+                <label className="tw-text-sm tw-text-neutral-300">MIDI Channel:</label>
+                <div className="tw-max-w-[220px]">
+                  <Select value={'all'} onChange={() => {}} options={[{ value: 'all', label: 'All Channels' }, { value: '1', label: 'Channel 1' }, { value: '2', label: 'Channel 2' }]} />
                 </div>
               </div>
             </div>
@@ -653,21 +629,19 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
 
       case 'lfo':
         return (
-          <div className="tab-content">
-            <div className="lfo-content">
-              <h3>LFO (Low Frequency Oscillator)</h3>
-              <p>Create automated parameter animations and modulations.</p>
-                             <div className="lfo-presets">
-                 <div className="lfo-preset" onClick={() => handleItemSelect({ id: 'sine', name: 'Sine Wave', type: 'lfo' })}>
-                   <div className="lfo-name">Sine Wave</div>
-                 </div>
-                 <div className="lfo-preset" onClick={() => handleItemSelect({ id: 'square', name: 'Square Wave', type: 'lfo' })}>
-                   <div className="lfo-name">Square Wave</div>
-                 </div>
-                 <div className="lfo-preset" onClick={() => handleItemSelect({ id: 'random', name: 'Random', type: 'lfo' })}>
-                   <div className="lfo-name">Random</div>
-                 </div>
-               </div>
+          <div className="tw-p-4 tw-space-y-3">
+            <h3 className="tw-text-sm tw-font-semibold tw-text-neutral-300">LFO (Low Frequency Oscillator)</h3>
+            <p className="tw-text-neutral-400">Create automated parameter animations and modulations.</p>
+            <div className="tw-grid tw-grid-cols-3 tw-gap-2">
+              <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-200 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer" onClick={() => handleItemSelect({ id: 'sine', name: 'Sine Wave', type: 'lfo' })}>
+                Sine Wave
+              </div>
+              <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-200 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer" onClick={() => handleItemSelect({ id: 'square', name: 'Square Wave', type: 'lfo' })}>
+                Square Wave
+              </div>
+              <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-200 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer" onClick={() => handleItemSelect({ id: 'random', name: 'Random', type: 'lfo' })}>
+                Random
+              </div>
             </div>
           </div>
         );
@@ -678,13 +652,13 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="media-browser">
-      <div className="media-browser-header">
-        <h2>Media Browser</h2>
-        <button onClick={handleClose} className="close-button">×</button>
+    <div className="tw-flex tw-flex-col tw-h-full tw-bg-neutral-900 tw-text-white">
+      <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+        <h2 className="tw-text-lg tw-font-semibold">Media Browser</h2>
+        <button onClick={handleClose} className="tw-rounded tw-border tw-border-neutral-700 tw-text-neutral-300 tw-w-8 tw-h-8 hover:tw-bg-neutral-800">×</button>
       </div>
       
-      <div className="media-browser-tabs">
+      <div className="tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabType)}>
           <TabsList>
             <TabsTrigger value="media">Media</TabsTrigger>
@@ -696,24 +670,25 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
         </Tabs>
       </div>
 
-      <div className="media-browser-content">
+      <div className="tw-flex-1 tw-overflow-auto tw-p-2">
         {renderTabContent()}
       </div>
 
       {selectedItem && (
-        <div className="media-browser-footer">
-          <div className="selected-item-info">
-            <span className="selected-item-name">{selectedItem.name}</span>
-            <span className="selected-item-type">{selectedItem.type}</span>
+        <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-t tw-border-neutral-800">
+          <div className="tw-flex tw-gap-2 tw-text-sm">
+            <span className="tw-font-semibold">{selectedItem.name}</span>
+            <span className="tw-text-neutral-400">{selectedItem.type}</span>
           </div>
-                     <div className="action-buttons">
-             <button onClick={handlePreview} className="action-button">
-               Preview
-             </button>
-             <button onClick={handleAddToLayer} className="action-button primary">
-               Add to Layer
-             </button>
-           </div>
+          
+          <div className="tw-flex tw-gap-2">
+            <button onClick={handlePreview} className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700">
+              Preview
+            </button>
+            <button onClick={handleAddToLayer} className="tw-rounded tw-border tw-border-sky-600 tw-bg-sky-600 tw-text-white tw-px-3 tw-py-1.5 hover:tw-bg-sky-500">
+              Add to Layer
+            </button>
+          </div>
         </div>
       )}
     </div>
