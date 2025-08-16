@@ -447,7 +447,13 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
               </div>
             )}
             <div className="file-browser-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={navigateUp} className="btn" title="Up">↑</button>
+              <button
+                onClick={navigateUp}
+                title="Up"
+                className="tw-inline-flex tw-items-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+              >
+                ↑
+              </button>
               {roots.length > 0 && (
                 <div style={{ minWidth: 160 }}>
                   <Select
@@ -461,7 +467,14 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                 </div>
               )}
               {favorites.map((f) => (
-                <button key={f.path} className="btn" onClick={() => loadDirectory(f.path)} title={f.path}>{f.label}</button>
+                <button
+                  key={f.path}
+                  onClick={() => loadDirectory(f.path)}
+                  title={f.path}
+                  className="tw-inline-flex tw-items-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+                >
+                  {f.label}
+                </button>
               ))}
               <div className="breadcrumbs" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 {breadcrumb.map((c, i) => (
@@ -482,7 +495,12 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                     className="search-input"
                     style={{ minWidth: 280 }}
                   />
-                  <button className="btn" onClick={() => pathInput && loadDirectory(pathInput)}>Go</button>
+                  <button
+                    className="tw-inline-flex tw-items-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+                    onClick={() => pathInput && loadDirectory(pathInput)}
+                  >
+                    Go
+                  </button>
                   <input
                     type="text"
                     placeholder="Filter"

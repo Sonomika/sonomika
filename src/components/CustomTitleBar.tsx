@@ -65,7 +65,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
       </div>
       
       <div className="title-bar-center">
-        <div className="menu-bar" style={{ WebkitAppRegion: 'no-drag' as any }}>
+        <div className="menu-bar tw-flex tw-items-center tw-gap-2" style={{ WebkitAppRegion: 'no-drag' as any }}>
           <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onMirror}>
             Mirror
           </button>

@@ -3,7 +3,6 @@ import { LayerManager } from './components/LayerManager';
 import { CompositionSettings } from './components/CompositionSettings';
 import { PresetModal } from './components/PresetModal';
 import { CustomTitleBar } from './components/CustomTitleBar';
-import { StyleGuide } from './components/StyleGuide';
 import { useStore } from './store/store';
 import { effectCache } from './utils/EffectCache';
 import { CanvasStreamManager } from './utils/CanvasStream';
@@ -86,7 +85,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
 function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
   const [compositionSettingsOpen, setCompositionSettingsOpen] = useState(false);
-  const [styleGuideOpen, setStyleGuideOpen] = useState(false);
+  
   const [debugMode, setDebugMode] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const usingDummyCanvas = useRef<boolean>(false);
@@ -427,17 +426,7 @@ function App() {
     setCompositionSettingsOpen(true);
   };
 
-  // Check if we're on the style guide route
-  useEffect(() => {
-    if (window.location.pathname === '/__style') {
-      setStyleGuideOpen(true);
-    }
-  }, []);
-
-  const handleStyleGuideClose = () => {
-    setStyleGuideOpen(false);
-    window.history.pushState({}, '', '/');
-  };
+  
 
   const handleToggleDebug = () => {
     setDebugMode(!debugMode);
@@ -489,7 +478,6 @@ function App() {
         onSavePreset={handleSavePreset}
         onLoadPreset={handleLoadPreset}
         onCompositionSettings={handleCompositionSettings}
-        onStyleGuide={() => setStyleGuideOpen(true)}
         debugMode={debugMode}
         onToggleDebug={handleToggleDebug}
       />
@@ -503,11 +491,7 @@ function App() {
       }}>
 
         <div style={{ flex: 1, height: 'calc(100vh - 32px)' }}>
-          {styleGuideOpen ? (
-            <StyleGuide onClose={handleStyleGuideClose} />
-          ) : (
-            <LayerManager onClose={() => {}} debugMode={debugMode} />
-          )}
+          <LayerManager onClose={() => {}} debugMode={debugMode} />
         </div>
       </div>
       
