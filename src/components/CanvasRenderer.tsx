@@ -232,7 +232,7 @@ const CanvasScene: React.FC<{
       const newVideos = new Map<string, HTMLVideoElement>();
 
       for (const assetData of assets.filter(a => a.type === 'image' || a.type === 'video')) {
-        const { asset, layer } = assetData;
+        const { asset } = assetData;
         
         if (assetData.type === 'image') {
           try {

@@ -693,15 +693,15 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       )}
 
       <div
-        className={`drop-zone ${isDragOver ? 'drag-over' : ''} tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500`}
+        className={`tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500 ${isDragOver ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={handleDropZoneClick}
       >
-        <div className="drop-zone-content">
+        <div className="tw-text-center tw-space-y-1">
           <div>Drop media files here</div>
-          <div className="drop-hint">or click to browse</div>
+          <div className="tw-text-neutral-400 tw-text-sm">or click to browse</div>
         </div>
       </div>
 
@@ -715,7 +715,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         style={{ display: 'none' }}
       />
 
-      <div className="assets-container list tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
+      <div className="tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
         {filteredAssets.length === 0 ? (
           <div className="empty-state">
             <h3>No assets found</h3>
@@ -807,11 +807,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   }
 
   return (
-    <div className="media-library-modal">
-      <div className="media-library-content">
-        <div className="media-library-header">
-          <h2>Media Library</h2>
-          <button onClick={onClose} className="close-button">×</button>
+    <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-z-[5000]">
+      <div className="tw-fixed tw-left-1/2 tw-top-1/2 tw--translate-x-1/2 tw--translate-y-1/2 tw-rounded-lg tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-xl tw-w-[900px] tw-max-w-[95vw] tw-max-h-[90vh] tw-flex tw-flex-col">
+        <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+          <h2 className="tw-text-base tw-font-semibold">Media Library</h2>
+          <button onClick={onClose} className="tw-w-6 tw-h-6 tw-rounded tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
         </div>
 
         {renderMediaTab()}

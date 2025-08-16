@@ -1,3 +1,22 @@
+@tailwind base;
+@tailwind components;
 @tailwind utilities;
+
+/* Electron window drag utilities */
+.app-drag-region { -webkit-app-region: drag; }
+.app-no-drag { -webkit-app-region: no-drag; pointer-events: auto; }
+
+/* Inter variable via local name fallback; avoid external fetch due to CSP */
+@font-face {
+	font-family: 'Inter';
+	src: local('Inter'), local('Inter Regular');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+@layer base {
+	html, body, #root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
+}
 
 

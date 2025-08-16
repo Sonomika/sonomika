@@ -109,7 +109,7 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
     // Recreate when src or color changes only (avoid heavy work on zoom)
   }, [src, color, backgroundColor]);
 
-  return <div ref={containerRef} style={{ width, height }} />;
+  return <div ref={containerRef} className="tw-bg-transparent" style={{ width, height }} />;
 };
 
 export default AudioWaveform;

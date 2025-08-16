@@ -159,11 +159,11 @@ export const MIDIMapper: React.FC = () => {
   };
 
   return (
-    <div className="midi-mapper">
+    <div className="tw-flex tw-flex-col tw-h-full tw-text-neutral-200">
       {/* Top Section: MIDI Mappings List */}
-      <div className="midi-mappings-section">
-        <div className="mappings-header">
-          <div className="device-selector">
+      <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
+        <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+          <div className="tw-min-w-[160px]">
             <Select
               value={selectedDevice}
               onChange={(v) => setSelectedDevice(v as string)}
@@ -172,25 +172,25 @@ export const MIDIMapper: React.FC = () => {
           </div>
         </div>
         
-        <div className="mappings-list">
+        <div className="tw-mt-2 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden tw-max-h-64 tw-min-h-0 tw-bg-neutral-900">
           {mappings.map((mapping) => (
             <div
               key={mapping.id}
-              className={`mapping-entry ${mapping.isActive ? 'active' : ''}`}
+              className={`tw-flex tw-justify-between tw-items-center tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 tw-cursor-pointer hover:tw-bg-neutral-800/60 ${mapping.isActive ? 'tw-bg-sky-600 tw-text-black' : ''}`}
               onClick={() => handleMappingSelect(mapping)}
             >
-              <span className="mapping-name">{mapping.name}</span>
-              <span className="mapping-note">{getNoteChannelDisplay(mapping)}</span>
+              <span className="tw-text-sm tw-font-medium">{mapping.name}</span>
+              <span className="tw-text-xs tw-font-semibold tw-text-neutral-300">{getNoteChannelDisplay(mapping)}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Middle Section: MIDI Settings */}
-      <div className="midi-settings-section">
-        <div className="settings-row">
-          <label>Target:</label>
-          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
+        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Target:</label>
+          <div className="tw-relative tw-z-[1]">
             <Select
               value={(selectedMapping?.target || '') as string}
               onChange={(v) => handleSettingChange('target', v as string)}
@@ -199,9 +199,9 @@ export const MIDIMapper: React.FC = () => {
           </div>
         </div>
 
-        <div className="settings-row">
-          <label>Input:</label>
-          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Input:</label>
+          <div className="tw-relative tw-z-[1]">
             <Select
               value={(selectedMapping?.input || '') as string}
               onChange={(v) => handleSettingChange('input', v as string)}
@@ -210,9 +210,9 @@ export const MIDIMapper: React.FC = () => {
           </div>
         </div>
 
-        <div className="settings-row">
-          <label>Output:</label>
-          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Output:</label>
+          <div className="tw-relative tw-z-[1]">
             <Select
               value={(selectedMapping?.output || '') as string}
               onChange={(v) => handleSettingChange('output', v as string)}
@@ -221,9 +221,9 @@ export const MIDIMapper: React.FC = () => {
           </div>
         </div>
 
-        <div className="settings-row">
-          <label>Channel:</label>
-          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Channel:</label>
+          <div className="tw-relative tw-z-[1]">
             <Select
               value={(selectedMapping?.channel || 1) as number}
               onChange={(v) => handleSettingChange('channel', Number(v))}
@@ -232,9 +232,9 @@ export const MIDIMapper: React.FC = () => {
           </div>
         </div>
 
-        <div className="settings-row">
-          <label>Note:</label>
-          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="tw-flex tw-items-center tw-gap-2">
+          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Note:</label>
+          <div className="tw-relative tw-z-[1]">
             <Select
               value={(selectedMapping?.note || '') as string}
               onChange={(v) => handleSettingChange('note', v as string)}
@@ -245,12 +245,12 @@ export const MIDIMapper: React.FC = () => {
       </div>
 
       {/* Lower Section: MIDI Out Velocity */}
-      <div className="midi-velocity-section">
-        <h4>MIDI Out Velocity</h4>
+      <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
+        <h4 className="tw-text-sm tw-font-semibold tw-mb-2">MIDI Out Velocity</h4>
         
-        <div className="settings-row">
-          <label>Status:</label>
-          <div className="setting-dropdown" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Status:</label>
+          <div className="tw-relative tw-z-[1]">
             <Select
               value={(selectedMapping?.status || 'Empty') as string}
               onChange={(v) => handleSettingChange('status', v as string)}
@@ -263,9 +263,9 @@ export const MIDIMapper: React.FC = () => {
           </div>
         </div>
 
-        <div className="settings-row">
-          <label>Velocity:</label>
-          <div className="setting-dropdown">
+        <div className="tw-flex tw-items-center tw-gap-2">
+          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Velocity:</label>
+          <div className="tw-min-w-[220px]">
             <Select
               value={(selectedMapping?.velocity || '') as string}
               onChange={(v) => handleSettingChange('velocity', v as string)}
@@ -276,12 +276,12 @@ export const MIDIMapper: React.FC = () => {
       </div>
 
       {/* Bottom Section: Help */}
-      <div className="midi-help-section">
-        <div className="help-header">
-          <span>Help</span>
-          <button className="help-close">×</button>
+      <div className="tw-bg-neutral-900 tw-flex-1 tw-overflow-auto">
+        <div className="tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800">
+          <span className="tw-text-sm tw-font-medium">Help</span>
+          <button className="tw-w-6 tw-h-6 tw-rounded tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
         </div>
-        <div className="help-content">
+        <div className="tw-p-2 tw-text-sm tw-text-neutral-300">
           Move your mouse over the interface element that you would like more info about.
         </div>
       </div>

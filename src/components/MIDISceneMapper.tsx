@@ -128,32 +128,32 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }} title="MIDI Scene Mapping">
-      <div className="scene-mapping-container tw-space-y-3">
-        <div className="mapping-section">
-          <h3>SCENES (MIDI Channel 1)</h3>
-          <div className="scene-mapping-list">
+      <div className="tw-space-y-3">
+        <div>
+          <h3 className="tw-text-sm tw-font-semibold">SCENES (MIDI Channel 1)</h3>
+          <div className="tw-mt-2 tw-space-y-2">
             {sceneMappings.map((mapping) => (
-              <div key={mapping.sceneId} className="scene-mapping-item">
-                <div className="scene-info">
-                  <span className="scene-name">{mapping.sceneName}</span>
+              <div key={mapping.sceneId} className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2">
+                <div className="tw-flex tw-items-center tw-justify-between">
+                  <span className="tw-text-sm tw-font-medium">{mapping.sceneName}</span>
                   {mapping.midiNote !== null && (
-                    <span className="midi-note">
+                    <span className="tw-text-xs tw-text-neutral-300">
                       {getNoteName(mapping.midiNote)}
                     </span>
                   )}
                 </div>
                 
-                <div className="scene-controls">
+                <div className="tw-mt-2 tw-flex tw-items-center tw-gap-2 tw-justify-between">
                   <button
-                    className={`midi-button ${mapping.midiNote !== null ? 'mapped' : ''} ${listeningSceneId === mapping.sceneId ? 'listening' : ''}`}
+                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${mapping.midiNote !== null ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'} ${listeningSceneId === mapping.sceneId ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
                     onClick={() => handleStartListening(mapping.sceneId)}
                     disabled={isListening && listeningSceneId !== mapping.sceneId}
                   >
                     {mapping.midiNote !== null ? getNoteName(mapping.midiNote) : 'Click to map'}
                   </button>
                   
-                  <div className="scene-actions">
-                    <div style={{ minWidth: 120 }}>
+                  <div className="tw-flex tw-items-center tw-gap-2">
+                    <div className="tw-min-w-[120px]">
                       <Select
                         value={mapping.midiChannel}
                         onChange={(v) => handleChannelChange(mapping.sceneId, Number(v))}
@@ -162,16 +162,16 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
                     </div>
                     
                     <button
-                      className={`toggle-button ${mapping.enabled ? 'enabled' : 'disabled'}`}
+                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${mapping.enabled ? 'tw-bg-green-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                       onClick={() => handleToggleEnabled(mapping.sceneId)}
                       title={mapping.enabled ? 'Disable' : 'Enable'}
                     >
-                      {mapping.enabled ? '●' : '○'}
+                      {mapping.enabled ? 'On' : 'Off'}
                     </button>
                     
                     {mapping.midiNote !== null && (
                       <button
-                        className="clear-button"
+                        className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-2 tw-py-1 tw-text-sm"
                         onClick={() => handleClearMapping(mapping.sceneId)}
                         title="Clear mapping"
                       >
@@ -186,18 +186,18 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
         </div>
 
         {isListening && (
-          <div className="listening-overlay">
-            <div className="listening-message">
-              <h3>Waiting for MIDI Note...</h3>
-              <p>Press any key on your MIDI controller to assign it to the scene.</p>
-              <button onClick={handleStopListening}>Cancel</button>
+          <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-z-[5000]">
+            <div className="tw-fixed tw-left-1/2 tw-top-1/2 tw--translate-x-1/2 tw--translate-y-1/2 tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-4 tw-text-neutral-100 tw-shadow-xl">
+              <h3 className="tw-text-base tw-font-semibold">Waiting for MIDI Note...</h3>
+              <p className="tw-text-sm tw-text-neutral-300 tw-mt-1">Press any key on your MIDI controller to assign it to the scene.</p>
+              <button className="tw-mt-3 tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-3 tw-py-1.5" onClick={handleStopListening}>Cancel</button>
             </div>
           </div>
         )}
 
-        <div className="mapping-help">
-          <h4>How to use:</h4>
-          <ul>
+        <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3">
+          <h4 className="tw-text-sm tw-font-semibold">How to use:</h4>
+          <ul className="tw-list-disc tw-list-inside tw-text-sm tw-text-neutral-300 tw-space-y-1 tw-mt-1">
             <li>Click on a scene's MIDI button to assign a note</li>
             <li>Press any key on your MIDI controller to map it</li>
             <li>Use the channel selector to change MIDI channels</li>

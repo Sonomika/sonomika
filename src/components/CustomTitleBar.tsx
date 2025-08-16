@@ -66,40 +66,40 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
       
       <div className="tw-flex-1 tw-flex tw-justify-start tw-ml-5">
         <div className="tw-flex tw-items-center tw-gap-5 app-no-drag">
-          <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onMirror}>
+          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white" onClick={onMirror}>
             Mirror
           </button>
-          <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onToggleAppFullscreen}>
+          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white" onClick={onToggleAppFullscreen}>
             Fullscreen
           </button>
           <div className="menu-item-dropdown" ref={fileMenuRef}>
             <Popover>
               <PopoverTrigger asChild>
                 <button 
-                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-rounded tw-px-2 tw-py-1 tw-text-xs ${fileMenuOpen ? 'tw-text-white' : 'tw-text-neutral-200'} hover:tw-text-white`}
+                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white`}
                   onClick={handleFileMenuClick}
                 >
                   File
-                  <span className="tw-text-neutral-400">▼</span>
+                  <span className="tw-text-white">▼</span>
                 </button>
               </PopoverTrigger>
               {fileMenuOpen && (
                 <PopoverContent className="tw-min-w-[180px]" >
                   <div className="tw-flex tw-flex-col tw-py-1">
                     <button 
-                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-300"
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-100"
                       onClick={() => handleMenuItemClick(onNewPreset)}
                     >
                       New Preset
                     </button>
                     <button 
-                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-300"
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-100"
                       onClick={() => handleMenuItemClick(onSavePreset)}
                     >
                       Save Preset
                     </button>
                     <button 
-                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-300"
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-100"
                       onClick={() => handleMenuItemClick(onLoadPreset)}
                     >
                       Load Preset
@@ -109,17 +109,17 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               )}
             </Popover>
           </div>
-          <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onCompositionSettings}>
+          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white" onClick={onCompositionSettings}>
             Composition Settings
           </button>
           {process.env.NODE_ENV === 'development' && onStyleGuide && (
-            <button className="tw-rounded tw-px-2 tw-py-1 tw-text-xs tw-text-neutral-200 hover:tw-text-white" onClick={onStyleGuide}>
+            <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white" onClick={onStyleGuide}>
               Style Guide
             </button>
           )}
           {process.env.NODE_ENV === 'development' && onToggleDebug && (
                          <button 
-               className={`tw-rounded tw-px-2 tw-py-1 tw-text-xs ${debugMode ? 'tw-text-white' : 'tw-text-neutral-200'} hover:tw-text-white`} 
+               className={`tw-px-2 tw-py-1 tw-text-xs tw-text-white`} 
                onClick={onToggleDebug}
                title={debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
              >

@@ -3,7 +3,6 @@ import { Select } from './ui';
 import { LOOP_MODES, type LoopMode } from '../constants/video';
 import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
-import { useLFOStore } from '../store/lfoStore';
 import { ParamRow, ButtonGroup, Slider } from './ui';
 
 interface LayerOptionsProps {
@@ -12,16 +11,9 @@ interface LayerOptionsProps {
 }
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
-  // Get LFO modulated values from LFO store
-  const lfoModulatedValues = useLFOStore((state) => state.modulatedValues);
+  // LFO modulated values are accessed where needed within components
   
-  // Helper function to get display value (LFO modulated or base value)
-  const getDisplayValue = (paramName: string, baseValue: number): number => {
-    if (!selectedLayer) return baseValue;
-    const key = `${selectedLayer.id}-${paramName}`;
-    const lfoValue = lfoModulatedValues[key];
-    return lfoValue ? lfoValue.modulatedValue : baseValue;
-  };
+  // Values read directly from store where needed
 
   // Update local state when selectedLayer changes
   const [loopMode, setLoopMode] = useState<LoopMode>(
@@ -233,32 +225,30 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
 
   if (!selectedLayer) {
     return (
-      <div className="layer-options-panel">
-        <div className="layer-options-header">
-          <h3>Layer Options</h3>
+      <div className="tw-space-y-4 tw-text-neutral-200">
+        <div className="tw-border-b tw-border-neutral-800 tw-pb-2">
+          <h3 className="tw-text-base tw-font-semibold">Layer Options</h3>
         </div>
-        <div className="layer-options-content">
-          <div className="no-layer-selected">
-            <h3>No Layer Selected</h3>
-            <p>Select a layer to configure options</p>
-          </div>
+        <div className="tw-space-y-2">
+          <h3 className="tw-text-sm tw-font-medium">No Layer Selected</h3>
+          <p className="tw-text-neutral-400 tw-text-sm">Select a layer to configure options</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="layer-options-panel tw-space-y-4 tw-text-neutral-200">
-      <div className="layer-options-header tw-border-b tw-border-neutral-800 tw-pb-2">
+    <div className="tw-space-y-4 tw-text-neutral-200">
+      <div className="tw-border-b tw-border-neutral-800 tw-pb-2">
         <h3 className="tw-text-base tw-font-semibold">Layer Options - {selectedLayer.name}</h3>
       </div>
       
-      <div className="layer-options-content tw-space-y-4 tw-overflow-y-auto tw-max-h-[calc(100vh-200px)]">
+      <div className="tw-space-y-4 tw-overflow-y-auto tw-max-h-[calc(100vh-200px)]">
         {/* Effect Parameters Section */}
         {hasEffect && (
-          <div className="option-group tw-space-y-2">
+          <div className="tw-space-y-2">
             <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Effect Parameters</h4>
-            <div className="effect-params tw-space-y-3">
+            <div className="tw-space-y-3">
               {effectMetadata ? (
                 // Use metadata if available
                 effectMetadata.parameters?.map((param: any) => {
@@ -277,15 +267,15 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   }
                   
                   return (
-                    <div key={param.name} className="effect-param tw-space-y-1">
-                      <label className="param-label tw-text-xs tw-uppercase tw-text-neutral-400">{param.description || param.name}</label>
-                      <div className="param-control tw-flex tw-items-center tw-gap-2">
+                    <div key={param.name} className="tw-space-y-1">
+                      <label className="tw-text-xs tw-uppercase tw-text-neutral-400">{param.description || param.name}</label>
+                      <div className="tw-flex tw-items-center tw-gap-2">
                         {param.type === 'color' && (
                           <input
                             type="color"
                             value={currentValue}
                             onChange={(e) => handleEffectParamChange(param.name, e.target.value)}
-                            className="color-picker"
+                            className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
                           />
                         )}
                         {param.type === 'select' && (
@@ -301,10 +291,10 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                           </div>
                         )}
                         {param.type === 'boolean' && (
-                          <div className="boolean-control">
+                          <div>
                             <button
                               type="button"
-                              className={`toggle-button ${Boolean(currentValue) ? 'active' : 'inactive'} tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'}`}
+                              className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'}`}
                               onClick={() => {
                                 const newValue = !Boolean(currentValue);
                                 console.log(`Boolean param ${param.name} toggled to:`, newValue);
@@ -361,34 +351,35 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 selectedLayer.params && Object.keys(selectedLayer.params).map((paramName) => {
                   const param = selectedLayer.params?.[paramName];
                   const currentValue = param?.value ?? 1.0;
-                  const baseValue = localParamValues[paramName] ?? currentValue;
-                   
+                    
                   return (
-                    <div key={paramName} className="effect-param">
-                      <label className="param-label">{paramName}</label>
-                      <div className="param-control">
+                    <div key={paramName} className="tw-space-y-1">
+                      <label className="tw-text-xs tw-uppercase tw-text-neutral-400">{paramName}</label>
+                      <div className="tw-flex tw-items-center tw-gap-2">
                         {paramName === 'color' ? (
                           <input
                             type="color"
                             value={currentValue}
                             onChange={(e) => handleEffectParamChange(paramName, e.target.value)}
-                            className="color-picker"
+                            className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
                           />
                         ) : (
-                          <div className="number-control tw-flex tw-items-center tw-gap-2 tw-w-full">
-                            <div style={{ flex: 1 }}>
+                          <div className="tw-flex tw-items-center tw-gap-2 tw-w-full">
+                            <div className="tw-flex-1">
                               <Slider
                                 min={param?.min || 0}
-                                max={param?.max || 2}
-                                step={param?.step || 0.1}
-                                value={baseValue}
-                                onChange={(value) => {
-                                  setLocalParamValues(prev => ({ ...prev, [paramName]: value }));
-                                  handleEffectParamChange(paramName, value);
-                                }}
+                                max={param?.max || 100}
+                                step={param?.step || 1}
+                                value={localParamValues[paramName] ?? (param?.value ?? 0)}
+                                onChange={(v) => handleEffectParamChange(paramName, v)}
                               />
                             </div>
-                            <span className="param-value tw-w-14 tw-text-right tw-text-xs tw-text-neutral-400">{(localParamValues[paramName] ?? currentValue).toFixed(2)}</span>
+                            <input
+                              type="number"
+                              value={Number(localParamValues[paramName] ?? (param?.value ?? 0)).toFixed(0)}
+                              onChange={(e) => handleEffectParamChange(paramName, parseFloat(e.target.value))}
+                              className="tw-w-[80px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                            />
                           </div>
                         )}
                       </div>
@@ -402,38 +393,36 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
 
         {/* Video-specific options */}
         {(() => {
-          // Check if this is a video layer (either by layer type or asset type)
-          // Also check if the asset name suggests it's a video file
           const assetName = (selectedLayer as any)?.asset?.name || '';
           const isVideoLayer = selectedLayer?.type === 'video' || 
-                              (selectedLayer as any)?.asset?.type === 'video' ||
-                              assetName.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i);
+                               (selectedLayer as any)?.asset?.type === 'video' ||
+                               assetName.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i);
           
           return isVideoLayer ? (
-            <div className="option-group">
-              <h4>Video Options</h4>
-              <div className="option-control">
-                <div className="loop-mode-buttons">
+            <div className="tw-space-y-2">
+              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Video Options</h4>
+              <div>
+                <div className="tw-flex tw-flex-wrap tw-gap-2">
                   <button
-                    className={`loop-btn ${loopMode === LOOP_MODES.NONE ? 'active' : ''}`}
+                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.NONE ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                     onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
                   >
                     None
                   </button>
                   <button
-                    className={`loop-btn ${loopMode === LOOP_MODES.LOOP ? 'active' : ''}`}
+                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.LOOP ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                     onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
                   >
                     Loop
                   </button>
                   <button
-                    className={`loop-btn ${loopMode === LOOP_MODES.REVERSE ? 'active' : ''}`}
+                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.REVERSE ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                     onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
                   >
                     Reverse
                   </button>
                   <button
-                    className={`loop-btn ${loopMode === LOOP_MODES.PING_PONG ? 'active' : ''}`}
+                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.PING_PONG ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                     onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
                   >
                     Ping-Pong
@@ -441,7 +430,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 </div>
               </div>
               
-              <div className="option-control">
+              <div>
                 <label>Play Mode:</label>
                 <ButtonGroup
                   options={[
@@ -458,23 +447,21 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           ) : null;
         })()}
 
-
-
         {loopMode !== LOOP_MODES.NONE && (
-          <div className="option-group">
-            <h4>Loop Count</h4>
-            <div className="option-control">
-              <div className="loop-count-controls">
+          <div className="tw-space-y-2">
+            <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Loop Count</h4>
+            <div>
+              <div className="tw-inline-flex tw-items-center tw-gap-2">
                 <button
-                  className="count-btn"
+                  className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700 disabled:tw-opacity-50"
                   onClick={() => handleLoopCountChange(Math.max(1, loopCount - 1))}
                   disabled={loopCount <= 1}
                 >
                   -
                 </button>
-                <span className="count-display">{loopCount}</span>
+                <span className="tw-min-w-[2ch] tw-text-center">{loopCount}</span>
                 <button
-                  className="count-btn"
+                  className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700"
                   onClick={() => handleLoopCountChange(loopCount + 1)}
                 >
                   +
@@ -484,40 +471,40 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           </div>
         )}
 
-        <div className="option-group">
-          <h4>Blend Mode</h4>
-          <div className="option-control">
-            <div className="blend-mode-buttons">
+        <div className="tw-space-y-2">
+          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Blend Mode</h4>
+          <div>
+            <div className="tw-flex tw-flex-wrap tw-gap-2">
               <button
-                className={`blend-btn ${blendMode === 'add' ? 'active' : ''}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'add' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('add')}
                 title="Add - Brightens overlapping areas"
               >
                 Add
               </button>
               <button
-                className={`blend-btn ${blendMode === 'multiply' ? 'active' : ''}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'multiply' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('multiply')}
                 title="Multiply - Darkens overlapping areas"
               >
                 Multiply
               </button>
               <button
-                className={`blend-btn ${blendMode === 'screen' ? 'active' : ''}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'screen' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('screen')}
                 title="Screen - Lightens overlapping areas"
               >
                 Screen
               </button>
               <button
-                className={`blend-btn ${blendMode === 'overlay' ? 'active' : ''}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'overlay' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('overlay')}
                 title="Overlay - Combines multiply and screen"
               >
                 Overlay
               </button>
               <button
-                className={`blend-btn ${blendMode === 'difference' ? 'active' : ''}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'difference' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('difference')}
                 title="Difference - Shows differences between layers"
               >
@@ -527,9 +514,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           </div>
         </div>
 
-        <div className="option-group">
-          <h4>General</h4>
-          <div className="option-control">
+        <div className="tw-space-y-2">
+          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">General</h4>
+          <div>
             <ParamRow
               label="Opacity"
               value={opacity}

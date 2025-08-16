@@ -463,7 +463,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                 {breadcrumb.map((c, i) => (
                   <React.Fragment key={c.full}>
                     <button className="tw-text-sm tw-text-sky-400 hover:tw-underline" onClick={() => loadDirectory(c.full)}>{c.label}</button>
-                    {i < breadcrumb.length - 1 && <span style={{ color: '#888' }}>/</span>}
+                    {i < breadcrumb.length - 1 && <span className="tw-text-neutral-500">/</span>}
                   </React.Fragment>
                 ))}
               </div>

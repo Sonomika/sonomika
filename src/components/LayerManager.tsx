@@ -696,10 +696,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       
       return (
         <div className="tw-h-full tw-flex tw-flex-col">
-          <div className="preview-header-info">
-            <h4>Timeline Preview</h4>
-            <span className="preview-status">{isPlaying ? 'Playing' : 'Stopped'}</span>
-            <div className="preview-time-display">
+          <div className="tw-flex tw-items-center tw-gap-3 tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+            <h4 className="tw-text-sm tw-text-white">Timeline Preview</h4>
+            <span className="tw-text-xs tw-text-neutral-400">{isPlaying ? 'Playing' : 'Stopped'}</span>
+            <div className="tw-text-xs tw-text-neutral-400">
               Time: {Math.floor(previewContent.currentTime)}s / {Math.floor(previewContent.duration)}s
             </div>
           </div>

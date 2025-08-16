@@ -18,8 +18,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   const lfo = useLFOStore((state) => state.lfoState);
   const setLFO = useLFOStore((state) => state.setLFOState);
   const mappings = useLFOStore((state) => state.mappings);
-  const selectedMapping = useLFOStore((state) => state.selectedMapping);
-  const setSelectedMapping = useLFOStore((state) => state.setSelectedMapping);
+  // const selectedMapping = useLFOStore((state) => state.selectedMapping);
+  // const setSelectedMapping = useLFOStore((state) => state.setSelectedMapping);
   const addMapping = useLFOStore((state) => state.addMapping);
   const removeMapping = useLFOStore((state) => state.removeMapping);
   const updateMapping = useLFOStore((state) => state.updateMapping);
@@ -63,9 +63,11 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       if (!mapping.enabled || mapping.parameter === 'Select Parameter') return;
 
       // Calculate modulated value based on LFO current value
-      const range = mapping.max - mapping.min;
+      const minVal = Number(mapping.min) || 0;
+      const maxVal = Number(mapping.max) || 0;
+      const range = maxVal - minVal;
       const normalizedLFO = (currentValue + 1) / 2; // Convert -1,1 to 0,1 range
-      const modulatedValue = mapping.min + (range * normalizedLFO);
+      const modulatedValue = minVal + (range * normalizedLFO);
 
       // Extract parameter name from the mapping
       const paramName = mapping.parameter.split(' - ')[1]?.toLowerCase().replace(/\s+/g, '');
@@ -84,10 +86,11 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
       const actualParamName = parameterMapping[paramName] || paramName;
 
-      // Get the base value for UI display
-      const baseValue = actualParamName === 'opacity' 
+      // Get the base value for UI display as a number
+      const rawBase = currentSelectedLayer.params?.[actualParamName]?.value;
+      const baseValue: number = actualParamName === 'opacity' 
         ? (currentSelectedLayer.opacity || 1) * 100 // Convert opacity back to 0-100 for display
-        : currentSelectedLayer.params?.[actualParamName]?.value || 0;
+        : (typeof rawBase === 'number' ? rawBase : Number(rawBase) || 0);
 
       // Update the parameter value
       if (actualParamName === 'opacity') {
@@ -464,24 +467,22 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
           </div>
 
           {/* Parameter Mappings */}
-          <div className="mappings-section">
-            <div className="mappings-header">
-              <h4>Parameter Mappings</h4>
-              <button className="add-mapping-btn" onClick={addMappingHandler}>
+          <div className="tw-space-y-2">
+            <div className="tw-flex tw-items-center tw-justify-between">
+              <h4 className="tw-text-sm tw-font-semibold tw-text-white">Parameter Mappings</h4>
+              <button className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700" onClick={addMappingHandler}>
                 + Map
               </button>
             </div>
             
-            <div className="mappings-list">
+            <div className="tw-space-y-2">
               {mappings.length === 0 ? (
-                <div className="no-mappings">
-                  <span>No parameters mapped. Click '+ Map' to start modulating parameters.</span>
-                </div>
-              ) : (
+                <div className="tw-text-sm tw-text-neutral-400">No parameters mapped. Click '+ Map' to start modulating parameters.</div>
+                ) : (
                 mappings.map(mapping => (
-                  <div key={mapping.id} className="mapping-item">
-                    <div className="mapping-header">
-                      <div style={{ minWidth: 240 }}>
+                  <div key={mapping.id} className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2">
+                    <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+                      <div className="tw-min-w-[240px]">
                         <Select 
                           value={mapping.parameter as any}
                           onChange={(v) => updateMapping(mapping.id, { parameter: String(v) })}
@@ -497,48 +498,50 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                           ]}
                         />
                       </div>
-                      <div className="mapping-controls">
-                        <label className="enabled-toggle">
+                      <div className="tw-flex tw-items-center tw-gap-2">
+                        <label className="tw-flex tw-items-center tw-gap-1 tw-text-sm tw-text-neutral-300">
                           <input
                             type="checkbox"
                             checked={mapping.enabled}
                             onChange={(e) => updateMapping(mapping.id, { enabled: e.target.checked })}
+                            className="tw-rounded tw-border tw-border-neutral-700"
                           />
+                          Enabled
                         </label>
                         <button 
-                          className="remove-mapping"
+                          className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-w-6 tw-h-6 hover:tw-bg-neutral-800"
                           onClick={() => removeMapping(mapping.id)}
                         >
                           ×
                         </button>
                       </div>
                     </div>
-                    <div className="mapping-range">
-                      <div className="range-control">
+                    <div className="tw-flex tw-items-center tw-gap-2 tw-mt-2">
+                      <div className="tw-flex tw-items-center tw-gap-1">
                         <label>Min:</label>
                         <input
                           type="number"
-                          value={mapping.min}
-                          onChange={(e) => updateMapping(mapping.id, { min: parseFloat(e.target.value) })}
-                          className="range-input"
+                          value={Number(mapping.min) || 0}
+                          onChange={(e) => updateMapping(mapping.id, { min: Number(e.target.value) })}
+                          className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
                         />
                       </div>
-                      <div className="range-bar">
+                      <div className="tw-relative tw-flex-1 tw-h-2 tw-rounded tw-bg-neutral-800 tw-overflow-hidden">
                         <div 
-                          className="range-indicator"
+                          className="tw-absolute tw-top-0 tw-bottom-0 tw-bg-sky-600/70"
                           style={{ 
-                            left: `${((mapping.min / 100) * 100)}%`,
-                            width: `${((mapping.max - mapping.min) / 100) * 100}%`
+                            left: `${((Number(mapping.min) / 100) * 100)}%`,
+                            width: `${((Number(mapping.max) - Number(mapping.min)) / 100) * 100}%`
                           }}
                         />
                       </div>
-                      <div className="range-control">
+                      <div className="tw-flex tw-items-center tw-gap-1">
                         <label>Max:</label>
                         <input
                           type="number"
-                          value={mapping.max}
-                          onChange={(e) => updateMapping(mapping.id, { max: parseFloat(e.target.value) })}
-                          className="range-input"
+                          value={Number(mapping.max) || 0}
+                          onChange={(e) => updateMapping(mapping.id, { max: Number(e.target.value) })}
+                          className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
                         />
                       </div>
                     </div>

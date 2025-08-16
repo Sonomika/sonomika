@@ -129,11 +129,10 @@ const TimelineScene: React.FC<{
   activeClips: any[];
   isPlaying: boolean;
   currentTime: number;
-  bpm?: number;
   globalEffects?: any[];
   compositionWidth?: number;
   compositionHeight?: number;
-}> = ({ activeClips, isPlaying, currentTime, bpm = 120, globalEffects = [], compositionWidth, compositionHeight }) => {
+}> = ({ activeClips, isPlaying, currentTime, globalEffects = [], compositionWidth, compositionHeight }) => {
   const { camera } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -443,7 +442,7 @@ const TimelineScene: React.FC<{
           if (effectLayersForVideo.length > 0) {
             // Apply the first effect to the video
             const firstEffect = effectLayersForVideo[0];
-            const effectNames = [firstEffect.asset.id].filter(Boolean);
+            // const effectNames = [firstEffect.asset.id].filter(Boolean);
 
             // Check if this effect replaces the video
             const effectId = firstEffect.asset.id || firstEffect.asset.name;
@@ -520,7 +519,7 @@ const TimelineScene: React.FC<{
         });
 
         // Then, render standalone effects using unified system
-        effectLayers.forEach((effectLayer, index) => {
+        effectLayers.forEach((effectLayer) => {
           const effectAsset = effectLayer.asset;
           if (!effectAsset) return;
 
@@ -575,24 +574,19 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
   currentTime,
   width,
   height,
-  bpm = 120,
   globalEffects = []
 }) => {
   return (
-    <div className="timeline-composer" style={{ width: '100%', height: '100%' }}>
+    <div className="tw-w-full tw-h-full">
       <Canvas
         camera={{ position: [0, 0, 1], fov: 90 }}
-        style={{ 
-          width: '100%', 
-          height: '100%',
-          display: 'block'
-        }}
+        className="tw-w-full tw-h-full tw-block"
         gl={{ 
           preserveDrawingBuffer: true,
           antialias: true,
           powerPreference: 'high-performance'
         }}
-        onCreated={({ gl, camera }) => {
+        onCreated={({ gl }) => {
           console.log('Timeline R3F Canvas created successfully');
           gl.setClearColor(0x000000, 1);
         }}
@@ -610,7 +604,6 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
             activeClips={activeClips}
             isPlaying={isPlaying}
             currentTime={currentTime}
-            bpm={bpm}
             globalEffects={globalEffects}
             compositionWidth={width}
             compositionHeight={height}

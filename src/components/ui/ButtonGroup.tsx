@@ -29,9 +29,9 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
   };
 
   return (
-    <div className={`button-group ${className}`}>
+    <div className={`tw-mt-2 ${className}`}>
       <div 
-        className="button-grid tw-grid"
+        className="tw-grid"
         style={{ 
           gridTemplateColumns: `repeat(${columns}, 1fr)`,
           gap: size === 'small' ? '4px' : size === 'medium' ? '6px' : '8px'
@@ -40,7 +40,7 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
         {options.map((option) => (
           <button
             key={option.value}
-            className={`button-option ${option.value === value ? 'active' : ''} ${sizeClasses[size]} tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-1`}
+            className={`${sizeClasses[size]} tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-1 ${option.value === value ? 'tw-bg-sky-600 tw-text-white tw-border-sky-600' : ''}`}
             onClick={() => onChange(option.value)}
             onContextMenu={option.onContextMenu}
             title={option.title}

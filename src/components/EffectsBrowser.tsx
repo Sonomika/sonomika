@@ -194,15 +194,15 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   // Render different content based on loading state - all hooks called above
   if (isLoading) {
     return (
-      <div className="effects-browser">
-        <div className="effects-browser-header">
-          <h2>Effects Browser</h2>
-          <button onClick={handleClose} className="close-button">×</button>
+      <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
+        <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+          <h2 className="tw-text-base tw-font-semibold">Effects Browser</h2>
+          <button onClick={handleClose} className="tw-rounded tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
         </div>
-        <div className="effects-browser-content">
-          <div className="loading">
-            <div className="loading-spinner"></div>
-            <div className="loading-text">{loadingProgress}</div>
+        <div className="tw-flex-1 tw-flex tw-items-center tw-justify-center tw-p-6">
+          <div className="tw-flex tw-flex-col tw-items-center tw-gap-2">
+            <div className="tw-h-6 tw-w-6 tw-animate-spin tw-rounded-full tw-border-2 tw-border-neutral-600 tw-border-t-transparent" />
+            <div className="tw-text-sm tw-text-neutral-300">{loadingProgress}</div>
           </div>
         </div>
       </div>
@@ -212,22 +212,22 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   // Show message if no effects are discovered
   if (allEffects.length === 0) {
     return (
-      <div className="effects-browser">
-        <div className="effects-browser-header">
-          <h2>Effects Browser</h2>
-          <button onClick={handleClose} className="close-button">×</button>
+      <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
+        <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+          <h2 className="tw-text-base tw-font-semibold">Effects Browser</h2>
+          <button onClick={handleClose} className="tw-rounded tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
         </div>
-        <div className="effects-browser-content">
-          <div className="no-effects">
-            <h3>No Effects Found</h3>
-            <p>The effects browser couldn't find any effects to display.</p>
-            <p>This might be because:</p>
-            <ul>
+        <div className="tw-flex-1 tw-overflow-auto tw-p-4">
+          <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
+            <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No Effects Found</h3>
+            <p className="tw-text-neutral-300">The effects browser couldn't find any effects to display.</p>
+            <p className="tw-text-neutral-400 tw-mt-2">This might be because:</p>
+            <ul className="tw-text-left tw-text-neutral-300 tw-mt-2 tw-space-y-1 tw-list-disc tw-list-inside">
               <li>No effects are in the effects folder</li>
               <li>Effects are not properly registered</li>
               <li>The registry system is not working</li>
             </ul>
-            <p>Check the browser console for more details about the registration process.</p>
+            <p className="tw-text-neutral-400 tw-mt-2">Check the browser console for more details about the registration process.</p>
           </div>
         </div>
       </div>
@@ -235,21 +235,21 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="effects-browser">
-      <div className="effects-browser-header">
-        <div className="header-left">
-          <h2>Effects Browser</h2>
-          <div className="search-bar">
+    <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
+      <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+        <div className="tw-flex tw-items-center tw-gap-3">
+          <h2 className="tw-text-base tw-font-semibold">Effects Browser</h2>
+          <div>
             <input
               type="text"
               placeholder="Search effects..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
+              className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
             />
           </div>
         </div>
-        <button onClick={handleClose} className="close-button">×</button>
+        <button onClick={handleClose} className="tw-rounded tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
       </div>
 
       <div className="tw-mb-2">
@@ -263,55 +263,55 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
         </Tabs>
       </div>
 
-      <div className="effects-browser-content">
+      <div className="tw-flex-1 tw-overflow-auto tw-p-3">
 
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'effects' | 'sources')}>
           <TabsContent value="effects">
-            <div className="effects-grid">
+            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 2xl:tw-grid-cols-3 tw-gap-2">
               {visualEffects.map((effect) => (
                 <div
                   key={effect.id}
-                  className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
+                  className={`tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-cursor-pointer hover:tw-bg-neutral-800 ${selectedEffect?.id === effect.id ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
                   onClick={() => handleEffectSelect(effect)}
                   draggable
                   onDragStart={(e) => handleEffectDrag(e, effect)}
                   title={`${effect.name}: ${effect.description}`}
                 >
-                  <div className="effect-info">
-                    <div className="effect-name">
+                  <div className="tw-flex tw-flex-col tw-gap-0.5">
+                    <div className="tw-text-sm tw-font-medium tw-flex tw-items-center tw-gap-2">
                       {effect.name}
                       {effect.metadata?.canBeGlobal && (
-                        <span className="global-effect-indicator" title="Can be used as a global effect">🌐</span>
+                        <span className="tw-inline-block tw-h-2 tw-w-2 tw-rounded-full tw-bg-sky-500" title="Can be used as a global effect" />
                       )}
                     </div>
-                    <div className="effect-description">{effect.description}</div>
+                    <div className="tw-text-xs tw-text-neutral-300">{effect.description}</div>
                   </div>
-                  <div className="effect-tag">{effect.category}</div>
+                  <div className="tw-mt-1 tw-text-[10px] tw-uppercase tw-text-neutral-400">{effect.category}</div>
                 </div>
               ))}
             </div>
           </TabsContent>
           <TabsContent value="sources">
-            <div className="effects-grid">
+            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 2xl:tw-grid-cols-3 tw-gap-2">
               {generativeSources.map((effect) => (
                 <div
                   key={effect.id}
-                  className={`effect-item ${selectedEffect?.id === effect.id ? 'selected' : ''}`}
+                  className={`tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-cursor-pointer hover:tw-bg-neutral-800 ${selectedEffect?.id === effect.id ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
                   onClick={() => handleEffectSelect(effect)}
                   draggable
                   onDragStart={(e) => handleEffectDrag(e, effect)}
                   title={`${effect.name}: ${effect.description}`}
                 >
-                  <div className="effect-info">
-                    <div className="effect-name">
+                  <div className="tw-flex tw-flex-col tw-gap-0.5">
+                    <div className="tw-text-sm tw-font-medium tw-flex tw-items-center tw-gap-2">
                       {effect.name}
                       {effect.metadata?.canBeGlobal && (
-                        <span className="global-effect-indicator" title="Can be used as a global effect">🌐</span>
+                        <span className="tw-inline-block tw-h-2 tw-w-2 tw-rounded-full tw-bg-sky-500" title="Can be used as a global effect" />
                       )}
                     </div>
-                    <div className="effect-description">{effect.description}</div>
+                    <div className="tw-text-xs tw-text-neutral-300">{effect.description}</div>
                   </div>
-                  <div className="effect-tag">{effect.category}</div>
+                  <div className="tw-mt-1 tw-text-[10px] tw-uppercase tw-text-neutral-400">{effect.category}</div>
                 </div>
               ))}
             </div>
@@ -320,16 +320,12 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
 
 
         {selectedEffect && (
-          <div className="effect-details">
-            <h3>{selectedEffect.name}</h3>
-            <p>{selectedEffect.description}</p>
-            <div className="effect-actions">
-              <button onClick={handleAddToLayer} className="add-button">
-                Add to Layer
-              </button>
-              <button onClick={handlePreview} className="preview-button">
-                Preview
-              </button>
+          <div className="tw-mt-3 tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3">
+            <h3 className="tw-text-sm tw-font-semibold">{selectedEffect.name}</h3>
+            <p className="tw-text-xs tw-text-neutral-300 tw-mt-1">{selectedEffect.description}</p>
+            <div className="tw-mt-2 tw-flex tw-gap-2">
+              <button onClick={handleAddToLayer} className="tw-rounded tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5 tw-text-sm">Add to Layer</button>
+              <button onClick={handlePreview} className="tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-1.5 tw-text-sm">Preview</button>
             </div>
           </div>
         )}
