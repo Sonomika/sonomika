@@ -281,7 +281,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                         {param.type === 'select' && (
                           <div className="tw-w-40">
                             <Select
-                              value={uiValue}
+                              value={String(uiValue)}
                               onChange={(val) => {
                                 setLocalParamValues(prev => ({ ...prev, [param.name]: val as any }));
                                 handleEffectParamChange(param.name, val);
@@ -370,8 +370,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                                 min={param?.min || 0}
                                 max={param?.max || 100}
                                 step={param?.step || 1}
-                                value={localParamValues[paramName] ?? (param?.value ?? 0)}
-                                onChange={(v) => handleEffectParamChange(paramName, v)}
+                                value={[localParamValues[paramName] ?? (param?.value ?? 0)]}
+                                onValueChange={(values) => values && values.length > 0 && handleEffectParamChange(paramName, values[0])}
                               />
                             </div>
                             <input

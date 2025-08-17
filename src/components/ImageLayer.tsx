@@ -250,8 +250,8 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({ layer, width, height, on
 							min={0.1}
 							max={3}
 							step={0.1}
-							value={layer.scale || 1}
-							onChange={(v) => onUpdate({ scale: v })}
+							value={[layer.scale || 1]}
+							onValueChange={(values) => values && values.length > 0 && onUpdate({ scale: values[0] })}
 						/>
 					</div>
 
@@ -261,8 +261,8 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({ layer, width, height, on
 							min={0}
 							max={360}
 							step={1}
-							value={layer.rotation || 0}
-							onChange={(v) => onUpdate({ rotation: v })}
+							value={[layer.rotation || 0]}
+							onValueChange={(values) => values && values.length > 0 && onUpdate({ rotation: values[0] })}
 						/>
 					</div>
 
@@ -272,8 +272,8 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({ layer, width, height, on
 							min={0}
 							max={1}
 							step={0.01}
-							value={layer.opacity || 1}
-							onChange={(v) => onUpdate({ opacity: v })}
+							value={[layer.opacity || 1]}
+							onValueChange={(values) => values && values.length > 0 && onUpdate({ opacity: values[0] })}
 						/>
 					</div>
 
@@ -283,8 +283,8 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({ layer, width, height, on
 							min={0}
 							max={1}
 							step={0.01}
-							value={layer.position?.x || 0.5}
-							onChange={(v) => onUpdate({ position: { ...layer.position, x: v } })}
+							value={[layer.position?.x || 0.5]}
+							onValueChange={(values) => values && values.length > 0 && onUpdate({ position: { ...layer.position, x: values[0] } })}
 						/>
 					</div>
 
@@ -294,8 +294,8 @@ export const ImageLayer: React.FC<ImageLayerProps> = ({ layer, width, height, on
 							min={0}
 							max={1}
 							step={0.01}
-							value={layer.position?.y || 0.5}
-							onChange={(v) => onUpdate({ position: { ...layer.position, y: v } })}
+							value={[layer.position?.y || 0.5]}
+							onValueChange={(values) => values && values.length > 0 && onUpdate({ position: { ...layer.position, y: values[0] } })}
 						/>
 					</div>
 				</div>

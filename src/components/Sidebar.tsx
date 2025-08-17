@@ -189,8 +189,8 @@ export const Sidebar: React.FC = () => {
                   min={60}
                   max={200}
                   step={1}
-                  value={bpm}
-                  onChange={(v) => setBpm(Math.round(Number(v)))}
+                  value={[bpm]}
+                  onValueChange={(values) => values && values.length > 0 && setBpm(Math.round(Number(values[0])))}
                 />
               </div>
             </div>

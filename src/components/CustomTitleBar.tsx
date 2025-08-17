@@ -11,6 +11,7 @@ interface CustomTitleBarProps {
   onSavePreset?: () => void;
   onLoadPreset?: () => void;
   onCompositionSettings?: () => void;
+  onToggleUIDemo?: () => void;
   onStyleGuide?: () => void;
   debugMode?: boolean;
   onToggleDebug?: () => void;
@@ -26,6 +27,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onSavePreset,
   onLoadPreset,
   onCompositionSettings,
+  onToggleUIDemo,
   onStyleGuide,
   debugMode = false,
   onToggleDebug
@@ -71,6 +73,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           </button>
           <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onToggleAppFullscreen}>
             Fullscreen
+          </button>
+          <button 
+            className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
+            onClick={onToggleUIDemo}
+          >
+            UI Demo
           </button>
           <div className="menu-item-dropdown" ref={fileMenuRef}>
             <Popover>
@@ -118,13 +126,13 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
             </button>
           )}
           {process.env.NODE_ENV === 'development' && onToggleDebug && (
-                         <button 
-               className={`tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag`} 
-               onClick={onToggleDebug}
-               title={debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
-             >
-               Debug
-             </button>
+            <button 
+              className={`tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag`} 
+              onClick={onToggleDebug}
+              title={debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
+            >
+              Debug
+            </button>
           )}
         </div>
       </div>
@@ -163,18 +171,18 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         <button 
           className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-[#e81123] tw-transition-colors tw-relative tw-z-[5001]" 
           onClick={(e) => {
-          console.log('=== CLOSE BUTTON CLICKED ===');
-          console.log('Event:', e);
-          console.log('Target:', e.target);
-          console.log('Current target:', e.currentTarget);
-          e.preventDefault();
-          e.stopPropagation();
-          if (onClose) {
-            console.log('Calling onClose function...');
-            onClose();
-          } else {
-            console.log('onClose function is undefined!');
-          }
+            console.log('=== CLOSE BUTTON CLICKED ===');
+            console.log('Event:', e);
+            console.log('Target:', e.target);
+            console.log('Current target:', e.currentTarget);
+            e.preventDefault();
+            e.stopPropagation();
+            if (onClose) {
+              console.log('Calling onClose function...');
+              onClose();
+            } else {
+              console.log('onClose function is undefined!');
+            }
           }}
           title="Close Window"
         >

@@ -1125,7 +1125,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                    return (
                      <div
                        key={cellId}
-                       className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? 'tw-border tw-border-neutral-800 tw-bg-neutral-900' : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${selectedLayer?.id === layer?.id ? 'tw-ring-2 tw-ring-purple-600' : ''} ${(isDragOver || isDragOverLayer) ? 'tw-ring-2 tw-ring-sky-600' : ''} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
+                                               className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? 'tw-border tw-border-neutral-800 tw-bg-neutral-900' : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${(isDragOver || isDragOverLayer) ? 'tw-ring-2 tw-ring-sky-600' : ''} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
                        data-system-files={isDragOver && (() => {
                          const dragData = (window as any).currentDragData;
                          return dragData && dragData.files && dragData.files.length > 0 ? 'true' : 'false';
@@ -1146,9 +1146,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                            (window as any).currentDragData = { files: e.dataTransfer.files };
                          }
-                         handleDragOverWrapper(e, cellId);
-                         if (draggedLayer && draggedLayer.sourceColumnId === column.id) {
+                         if (draggedLayer) {
+                           // If we're dragging any layer, treat it as a reorder operation
+                           // This allows cross-column dragging
                            handleLayerReorderDragOverWrapper(e, column.id, layerNum);
+                         } else {
+                           // Otherwise handle external asset/file drag
+                           handleDragOverWrapper(e, cellId);
                          }
                        }}
                        onDragLeave={(e) => handleDragLeaveWrapper(e)}

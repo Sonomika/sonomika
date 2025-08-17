@@ -80,7 +80,13 @@ export const CompositionScreen: React.FC<CompositionScreenProps> = ({ className 
                   <div className="bpm-slider-section">
                     <label>Fine-tune:</label>
                     <div className="tw-py-1.5">
-                      <Slider value={bpm} min={60} max={200} step={1} onChange={(v) => setBpm(v)} />
+                      <Slider 
+                        value={[bpm]} 
+                        min={60} 
+                        max={200} 
+                        step={1} 
+                        onValueChange={(values) => values && values.length > 0 && setBpm(values[0])} 
+                      />
                     </div>
                     <span className="bpm-slider-value">{bpm}</span>
                   </div>

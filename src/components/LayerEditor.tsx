@@ -101,8 +101,8 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
 							min={0}
 							max={1}
 							step={0.01}
-							value={layer.opacity || 1}
-							onChange={(v) => handleLayerUpdate({ opacity: v })}
+							value={[layer.opacity || 1]}
+							onValueChange={(values) => values && values.length > 0 && handleLayerUpdate({ opacity: values[0] })}
 						/>
 					</div>
 				</div>
@@ -114,8 +114,8 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
 							min={0.1}
 							max={3}
 							step={0.1}
-							value={layer.scale || 1}
-							onChange={(v) => handleLayerUpdate({ scale: v })}
+							value={[layer.scale || 1]}
+							onValueChange={(values) => values && values.length > 0 && handleLayerUpdate({ scale: values[0] })}
 						/>
 					</div>
 				</div>
@@ -127,8 +127,8 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
 							min={0}
 							max={360}
 							step={1}
-							value={layer.rotation || 0}
-							onChange={(v) => handleLayerUpdate({ rotation: Math.round(v) })}
+							value={[layer.rotation || 0]}
+							onValueChange={(values) => values && values.length > 0 && handleLayerUpdate({ rotation: Math.round(values[0]) })}
 						/>
 					</div>
 				</div>

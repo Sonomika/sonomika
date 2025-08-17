@@ -2154,13 +2154,15 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                 min={0}
                 max={Math.max(1, duration)}
                 step={0.01}
-                value={currentTime}
-                onChange={(v) => {
-                  const newTime = typeof v === 'number' ? v : Number(v);
-                  if (isPlaying) {
-                    stopTimelinePlayback();
+                value={[currentTime]}
+                onValueChange={(values) => {
+                  if (values && values.length > 0) {
+                    const newTime = typeof values[0] === 'number' ? values[0] : Number(values[0]);
+                    if (isPlaying) {
+                      stopTimelinePlayback();
+                    }
+                    setCurrentTime(newTime);
                   }
-                  setCurrentTime(newTime);
                 }}
                 className="tw-w-full"
               />

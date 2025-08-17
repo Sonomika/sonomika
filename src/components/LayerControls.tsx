@@ -138,8 +138,8 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
             min={0}
             max={1}
             step={0.01}
-            value={layer.opacity}
-            onChange={(v) => handleOpacityChange(v)}
+            value={[layer.opacity]}
+            onValueChange={(values) => values && values.length > 0 && handleOpacityChange(values[0])}
           />
         </div>
         <span>{Math.round(layer.opacity * 100)}%</span>
@@ -168,8 +168,8 @@ export const LayerControls: React.FC<Props> = ({ layer }) => {
                   min={param.min || 0}
                   max={param.max || 1}
                   step={param.step || 0.01}
-                  value={(getParamValue(param.name) as number) ?? 0}
-                  onChange={(v) => handleParamChange(param.name, Number(v))}
+                  value={[(getParamValue(param.name) as number) ?? 0]}
+                  onValueChange={(values) => values && values.length > 0 && handleParamChange(param.name, Number(values[0]))}
                 />
                 <span>{String(getParamValue(param.name))}</span>
               </div>

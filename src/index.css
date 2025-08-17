@@ -1,5 +1,28 @@
 /* Minimal base – UI styled via Tailwind (tw- prefix) */
 
+/* Typography System:
+ * - tw-text-xs = 12px (small text, labels, captions)
+ * - tw-text-sm = 14px (regular text, body content)
+ * - tw-text-base = 16px (default, only use when needed)
+ * - tw-text-lg+ = larger sizes for headings only
+ */
+
+/* Custom 16:9 aspect ratio enforcement */
+.thumbnail-16-9 {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  height: auto;
+  max-height: none;
+}
+
+.thumbnail-16-9 img,
+.thumbnail-16-9 video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
 :root { --border-color: #333333; }
 
 * { box-sizing: border-box; }

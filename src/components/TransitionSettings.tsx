@@ -54,8 +54,8 @@ export const TransitionSettings: React.FC<Props> = ({ onClose }) => {
                 min={0}
                 max={5000}
                 step={100}
-                value={transitionDuration}
-                onChange={(v) => setTransitionDuration(v)}
+                value={[transitionDuration]}
+                onValueChange={(values) => values && values.length > 0 && setTransitionDuration(values[0])}
                 className={transitionType === 'cut' ? 'tw-opacity-50' : ''}
               />
             </div>

@@ -3,6 +3,8 @@ import { LayerManager } from './components/LayerManager';
 import { CompositionSettings } from './components/CompositionSettings';
 import { PresetModal } from './components/PresetModal';
 import { CustomTitleBar } from './components/CustomTitleBar';
+import { UIDemo } from './components/ui';
+import { Toaster } from './components/ui';
 import { useStore } from './store/store';
 import { effectCache } from './utils/EffectCache';
 import { CanvasStreamManager } from './utils/CanvasStream';
@@ -69,6 +71,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
 function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
   const [compositionSettingsOpen, setCompositionSettingsOpen] = useState(false);
+  const [showUIDemo, setShowUIDemo] = useState(false);
   
   const [debugMode, setDebugMode] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
@@ -410,6 +413,10 @@ function App() {
     setCompositionSettingsOpen(true);
   };
 
+  const handleToggleUIDemo = () => {
+    setShowUIDemo(!showUIDemo);
+  };
+
   
 
   const handleToggleDebug = () => {
@@ -462,6 +469,7 @@ function App() {
         onSavePreset={handleSavePreset}
         onLoadPreset={handleLoadPreset}
         onCompositionSettings={handleCompositionSettings}
+        onToggleUIDemo={handleToggleUIDemo}
         debugMode={debugMode}
         onToggleDebug={handleToggleDebug}
       />
@@ -469,7 +477,11 @@ function App() {
       <div className="tw-bg-black tw-text-white tw-h-screen tw-flex tw-flex-col">
 
         <div className="tw-flex-1 tw-h-[calc(100vh-32px)]">
-          <LayerManager onClose={() => {}} debugMode={debugMode} />
+          {showUIDemo ? (
+            <UIDemo onClose={() => setShowUIDemo(false)} />
+          ) : (
+            <LayerManager onClose={() => {}} debugMode={debugMode} />
+          )}
         </div>
       </div>
       
@@ -489,6 +501,7 @@ function App() {
         isOpen={compositionSettingsOpen}
         onClose={() => setCompositionSettingsOpen(false)}
       />
+      <Toaster />
     </ErrorBoundary>
   );
 }

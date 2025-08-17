@@ -31,6 +31,14 @@ export const ParamRow: React.FC<ParamRowProps> = ({
   showLabel = true
 }) => {
 
+  // Handle the shadcn/ui Slider's onValueChange which receives an array
+  const handleSliderChange = (values: number[]) => {
+    // The Slider component passes an array, we take the first value
+    if (values && values.length > 0) {
+      onChange(values[0]);
+    }
+  };
+
   return (
     <div className="effect-param">
       {showLabel && <label className="param-label">{label}</label>}
@@ -59,7 +67,13 @@ export const ParamRow: React.FC<ParamRowProps> = ({
         
         {showSlider && (
           <div className="slider-container tw-min-w-[120px] tw-flex-1">
-            <Slider value={value} min={min} max={max} step={step} onChange={onChange} />
+            <Slider 
+              value={[value]} 
+              min={min} 
+              max={max} 
+              step={step} 
+              onValueChange={handleSliderChange} 
+            />
           </div>
         )}
       </div>

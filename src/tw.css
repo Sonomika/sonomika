@@ -19,6 +19,71 @@
 	html, body, #root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
 	/* Default form controls: rectangular (no rounding) */
 	button, input, select, textarea { border-radius: 0; }
+	
+	/* shadcn/ui CSS Variables */
+	:root {
+		--background: 0 0% 8%; /* #141414 */
+		--foreground: 0 0% 98%;
+		
+		--card: 0 0% 8%; /* #141414 */
+		--card-foreground: 0 0% 98%;
+		
+		--popover: 0 0% 8%; /* #141414 */
+		--popover-foreground: 0 0% 98%;
+		
+		--primary: 0 0% 98%;
+		--primary-foreground: 0 0% 8%; /* #141414 */
+		
+		--secondary: 0 0% 12%; /* #1f1f1f */
+		--secondary-foreground: 0 0% 98%;
+		
+		--muted: 0 0% 12%; /* #1f1f1f */
+		--muted-foreground: 0 0% 63.9%;
+		
+		--accent: 0 0% 12%; /* #1f1f1f */
+		--accent-foreground: 0 0% 98%;
+		
+		--destructive: 0 84.2% 60.2%;
+		--destructive-foreground: 0 0% 98%;
+		
+		--border: 0 0% 14.9%; /* #262626 */
+		--input: 0 0% 14.9%; /* #262626 */
+		--ring: 0 0% 83.1%;
+		
+		--radius: 0.5rem;
+	}
+
+	.dark {
+		--background: 0 0% 8%; /* #141414 */
+		--foreground: 0 0% 98%;
+		
+		--card: 0 0% 8%; /* #141414 */
+		--card-foreground: 0 0% 98%;
+		
+		--popover: 0 0% 8%; /* #141414 */
+		--popover-foreground: 0 0% 98%;
+		
+		--primary: 0 0% 98%;
+		--primary-foreground: 0 0% 8%; /* #141414 */
+		
+		--secondary: 0 0% 12%; /* #1f1f1f */
+		--secondary-foreground: 0 0% 98%;
+		
+		--muted: 0 0% 12%; /* #1f1f1f */
+		--muted-foreground: 0 0% 63.9%;
+		
+		--accent: 0 0% 12%; /* #1f1f1f */
+		--accent-foreground: 0 0% 98%;
+		
+		--destructive: 0 84.2% 60.2%;
+		--destructive-foreground: 0 0% 98%;
+		
+		--border: 0 0% 14.9%; /* #262626 */
+		--input: 0 0% 14.9%; /* #262626 */
+		--ring: 0 0% 83.1%;
+		
+		--radius: 0.5rem;
+	}
 }
 
 
