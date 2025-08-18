@@ -17,6 +17,7 @@ import { EffectsBrowser } from './EffectsBrowser';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
 import { ButtonGroup } from './ui';
+import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { PlayIcon, PauseIcon, StopIcon, GridIcon, RowsIcon, TrashIcon, CopyIcon } from '@radix-ui/react-icons';
 import { MixerHorizontalIcon } from '@radix-ui/react-icons';
@@ -1351,12 +1352,22 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   {selectedLayer ? `Layer Options - ${selectedLayer.name}` : 'Layer Options'}
                 </h3>
               </div>
-              <div className="tw-overflow-auto tw-h-[calc(100%-60px)] tw-px-3">
-                <LayerOptions 
-                  selectedLayer={selectedLayer}
-                  onUpdateLayer={handleUpdateSelectedLayer}
-                />
-              </div>
+                             <div className="tw-h-[calc(100%-60px)] tw-px-3">
+                 <ScrollArea.Root className="tw-h-full" type="always">
+                   <ScrollArea.Viewport className="tw-h-full tw-w-full">
+                     <LayerOptions 
+                       selectedLayer={selectedLayer}
+                       onUpdateLayer={handleUpdateSelectedLayer}
+                     />
+                   </ScrollArea.Viewport>
+                   <ScrollArea.Scrollbar
+                     className="tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation=horizontal]:tw-flex-col tw-data-[orientation=horizontal]:tw-h-2.5"
+                     orientation="vertical"
+                   >
+                     <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
+                   </ScrollArea.Scrollbar>
+                 </ScrollArea.Root>
+               </div>
             </div>
 
             {/* Media Library / MIDI Mapper - Bottom Right */}
@@ -1373,35 +1384,45 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 </Tabs>
               </div>
               
-              {/* Tab Content */}
-              <div className="tw-p-3 tw-overflow-auto tw-h-full">
-                <Tabs value={showMediaLibrary ? String(showMediaLibrary) : 'media'} onValueChange={(val) => setShowMediaLibrary(val === 'media' ? false : (val as any))}>
-                  <TabsContent value="media">
-                    <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
-                  </TabsContent>
-                  <TabsContent value="effects">
-                    <div className="tw-space-y-2">
-                      <h3>Effects</h3>
-                      <EffectsBrowser />
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="midi">
-                    <div className="midi-tab">
-                      <h3>MIDI</h3>
-                      <MIDIMapper />
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="lfo">
-                    <div className="lfo-tab">
-                      <h3>LFO</h3>
-                      <LFOMapper 
-                        selectedLayer={selectedLayer}
-                        onUpdateLayer={handleUpdateLayerWrapper}
-                      />
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
+                             {/* Tab Content */}
+               <div className="tw-p-3 tw-h-full">
+                 <ScrollArea.Root className="tw-h-full" type="always">
+                   <ScrollArea.Viewport className="tw-h-full tw-w-full">
+                     <Tabs value={showMediaLibrary ? String(showMediaLibrary) : 'media'} onValueChange={(val) => setShowMediaLibrary(val === 'media' ? false : (val as any))}>
+                       <TabsContent value="media">
+                         <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
+                       </TabsContent>
+                       <TabsContent value="effects">
+                         <div className="tw-space-y-2">
+                           <h3>Effects</h3>
+                           <EffectsBrowser />
+                         </div>
+                       </TabsContent>
+                       <TabsContent value="midi">
+                         <div className="midi-tab">
+                           <h3>MIDI</h3>
+                           <MIDIMapper />
+                         </div>
+                       </TabsContent>
+                       <TabsContent value="lfo">
+                         <div className="lfo-tab">
+                           <h3>LFO</h3>
+                           <LFOMapper 
+                             selectedLayer={selectedLayer}
+                             onUpdateLayer={handleUpdateLayerWrapper}
+                           />
+                         </div>
+                       </TabsContent>
+                     </Tabs>
+                   </ScrollArea.Viewport>
+                   <ScrollArea.Scrollbar
+                     className="tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation=horizontal]:tw-flex-col tw-data-[orientation=horizontal]:tw-h-2.5"
+                     orientation="vertical"
+                   >
+                     <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
+                   </ScrollArea.Scrollbar>
+                 </ScrollArea.Root>
+               </div>
             </div>
           </div>
         </div>

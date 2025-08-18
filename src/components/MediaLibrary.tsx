@@ -2,11 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui';
 import { 
   generateVideoThumbnail, 
-  getQueueStatus, 
-  setMaxConcurrentThumbnails, 
-  clearThumbnailQueue,
   getCacheStats,
-  clearPersistentThumbnailCache,
   removeThumbnailFromCache
 } from '../utils/ThumbnailCache';
 import { useStore } from '../store/store';
@@ -424,31 +420,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     });
   }, [processedAssets, searchTerm, filterType]);
 
-  // Update queue status display
-  useEffect(() => {
-    const updateStatus = () => {
-      const status = getQueueStatus();
-      const cacheStats = getCacheStats();
-      
-      const statusElement = document.getElementById('queue-status');
-      if (statusElement) {
-        statusElement.textContent = `${status.activeGenerations}/${status.maxConcurrent} (${status.queueLength} queued)`;
-      }
-      
-      const cacheElement = document.getElementById('cache-stats');
-      if (cacheElement) {
-        cacheElement.textContent = `${cacheStats.memoryCacheCount} mem, ${cacheStats.persistentCacheCount} stored`;
-      }
-    };
 
-    // Update immediately
-    updateStatus();
-    
-    // Update every second
-    const interval = setInterval(updateStatus, 1000);
-    
-    return () => clearInterval(interval);
-  }, []);
 
   // No global context menu listeners needed; Radix manages open/close
 
@@ -665,25 +637,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
         <button className="import-button tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5" onClick={handleImportClick}>Import</button>
         
-        {/* Performance Monitor */}
-        <div className="tw-ml-2 tw-px-2 tw-py-1 tw-text-[10px] tw-bg-neutral-700 tw-text-white tw-rounded tw-flex tw-items-center tw-gap-2">
-          <span className="tw-text-white">Queue</span>
-          <span id="queue-status">-</span>
-          <select 
-            value="2" 
-            onChange={(e) => setMaxConcurrentThumbnails(parseInt(e.target.value))}
-            className="tw-text-[10px] tw-bg-neutral-800 tw-text-white tw-border tw-border-neutral-600 tw-rounded tw-px-1 tw-py-0.5"
-          >
-            <option value="1">1x</option>
-            <option value="2">2x</option>
-            <option value="3">3x</option>
-            <option value="4">4x</option>
-            <option value="5">5x</option>
-          </select>
-          <button onClick={clearThumbnailQueue} className="tw-text-[10px] tw-bg-neutral-600 tw-text-white tw-px-1 tw-py-0.5" title="Clear thumbnail queue">Clear</button>
-          <span id="cache-stats" className="tw-text-[10px] tw-text-neutral-300">-</span>
-          <button onClick={clearPersistentThumbnailCache} className="tw-text-[10px] tw-bg-red-800 tw-text-white tw-px-1 tw-py-0.5" title="Clear all persistent thumbnails (will regenerate on next load)">Clear All</button>
-        </div>
+
       </div>
 
       {duplicateWarning && (
