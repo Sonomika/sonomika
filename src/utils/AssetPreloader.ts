@@ -3,6 +3,7 @@ import { getAssetPath } from './LayerManagerUtils';
 // Simple global caches to persist across column switches
 const imageCache: Map<string, HTMLImageElement> = new Map();
 const videoCache: Map<string, HTMLVideoElement> = new Map();
+const videoFrameCanvasCache: Map<string, HTMLCanvasElement> = new Map();
 const inflightVideoPromises: Map<string, Promise<HTMLVideoElement>> = new Map();
 const inflightImagePromises: Map<string, Promise<HTMLImageElement>> = new Map();
 
@@ -38,6 +39,10 @@ export function getCachedVideo(assetId: string): HTMLVideoElement | undefined {
 
 export function getCachedImage(assetId: string): HTMLImageElement | undefined {
   return imageCache.get(assetId);
+}
+
+export function getCachedVideoCanvas(assetId: string): HTMLCanvasElement | undefined {
+  return videoFrameCanvasCache.get(assetId);
 }
 
 async function preloadImageAsset(asset: any): Promise<HTMLImageElement> {
@@ -121,6 +126,7 @@ async function preloadVideoAsset(asset: any, layer?: any): Promise<HTMLVideoElem
 
       if (video.readyState >= 2) {
         videoCache.set(id, video);
+        trySeedFirstFrameCanvas(id, video);
         tryPlay();
         resolve(video);
       } else {
@@ -137,6 +143,32 @@ async function preloadVideoAsset(asset: any, layer?: any): Promise<HTMLVideoElem
   return promise.finally(() => {
     inflightVideoPromises.delete(id);
   });
+}
+
+function trySeedFirstFrameCanvas(id: string, video: HTMLVideoElement) {
+  try {
+    if (!video.videoWidth || !video.videoHeight) return;
+    const canvas = videoFrameCanvasCache.get(id) || document.createElement('canvas');
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const anyVideo: any = video as any;
+    const draw = () => {
+      try {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        videoFrameCanvasCache.set(id, canvas);
+      } catch {}
+    };
+    if (typeof anyVideo.requestVideoFrameCallback === 'function') {
+      anyVideo.requestVideoFrameCallback(() => draw());
+    } else {
+      // Delay a tick to allow current frame to become available
+      setTimeout(draw, 0);
+    }
+  } catch {}
 }
 
 

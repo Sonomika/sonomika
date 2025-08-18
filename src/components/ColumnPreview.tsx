@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
 import EffectLoader from './EffectLoader';
-import { getCachedVideo } from '../utils/AssetPreloader';
+import { getCachedVideo, getCachedVideoCanvas } from '../utils/AssetPreloader';
 import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
 import EffectChain, { ChainItem } from './EffectChain';
 
@@ -130,6 +130,26 @@ const VideoTexture: React.FC<{
           } catch {}
           setFallbackTexture(tex);
         }
+        // If preloader captured a first frame, seed immediately
+        try {
+          // Prefer explicit asset id if available on the video element
+          let seeded: HTMLCanvasElement | null = null;
+          try {
+            const layerAssetId = (video as any).dataset?.assetId || null;
+            if (layerAssetId) seeded = getCachedVideoCanvas(layerAssetId) || null;
+          } catch {}
+          if (!seeded && cacheKey) {
+            seeded = getCachedVideoCanvas(cacheKey.replace(/^video-only-/, '')) || null;
+          }
+          if (seeded) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(seeded, 0, 0, canvas.width, canvas.height);
+              if (fallbackTexture) fallbackTexture.needsUpdate = true;
+              if (cacheKey) lastFrameCanvasCache.set(cacheKey, canvas);
+            }
+          }
+        } catch {}
         // Try to seed the fallback immediately from the current frame
         try {
           const ctx = canvas.getContext('2d');
@@ -365,13 +385,16 @@ const ColumnScene: React.FC<{
   globalEffects?: any[];
   compositionWidth?: number;
   compositionHeight?: number;
-}> = ({ column, isPlaying, globalEffects = [], compositionWidth, compositionHeight }) => {
+  onFirstFrameReady?: () => void;
+}> = ({ column, isPlaying, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady }) => {
   const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
   const pendingRestartRef = useRef<boolean>(false);
+  const firstFrameReadyRef = useRef<boolean>(false);
+  const frameCounterRef = useRef<number>(0);
   
   // Use ref to track loaded assets to prevent infinite loops
   const loadedAssetsRef = useRef<{
@@ -503,6 +526,7 @@ const ColumnScene: React.FC<{
               video.style.backgroundColor = 'transparent';
               video.crossOrigin = 'anonymous';
               video.setAttribute('data-layer-id', layer.id); // Add layer ID for playMode control
+              try { (video as any).dataset = { ...(video as any).dataset, assetId: asset.id }; } catch {}
               try { (video as any)["__layerKey"] = layer.id; } catch {}
               
               // Performance optimization for column switching
@@ -662,6 +686,19 @@ const ColumnScene: React.FC<{
     // Ensure camera is looking at the center
     camera.lookAt(0, 0, 0);
   }, [camera]);
+
+  // Signal first frame ready: when any video is ready or when effects-only have rendered a couple of frames
+  useFrame(() => {
+    if (firstFrameReadyRef.current) return;
+    const hasVideos = column.layers.some((l: any) => l.asset?.type === 'video');
+    const anyReady = Array.from(assets.videos.values()).some(v => v.readyState >= 2);
+    frameCounterRef.current += 1;
+    const enoughFrames = frameCounterRef.current >= 2;
+    if (anyReady || (!hasVideos && enoughFrames)) {
+      firstFrameReadyRef.current = true;
+      try { onFirstFrameReady && onFirstFrameReady(); } catch {}
+    }
+  });
 
   // Sort layers from bottom to top
   const sortedLayers = useMemo(() => {
@@ -879,7 +916,7 @@ const ColumnScene: React.FC<{
               continue;
             }
             if (current.length > 0) finalize(); // enforce: video must be bottom-most in its stack
-            current.push({ type: 'video', video, opacity: layer.opacity, blendMode: layer.blendMode });
+            current.push({ type: 'video', video, assetId: layer.asset.id, opacity: layer.opacity, blendMode: layer.blendMode });
           } else if (kind === 'source') {
             const effectId = resolveEffectId(layer.asset);
             if (!effectId) continue;
@@ -928,12 +965,12 @@ const ColumnScene: React.FC<{
                 key={`video-only-${chainKey}`}
                 video={v.video}
                 opacity={typeof v.opacity === 'number' ? v.opacity : 1}
-                    effects={undefined}
-                    compositionWidth={compositionWidth}
-                    compositionHeight={compositionHeight}
+                effects={undefined}
+                compositionWidth={compositionWidth}
+                compositionHeight={compositionHeight}
                 cacheKey={`video-only-${chainKey}`}
-                  />
-              );
+              />
+            );
             } else {
             elements.push(
               <EffectChain
@@ -964,6 +1001,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   globalEffects = []
 }) => {
   const [error, setError] = useState<string | null>(null);
+  const [maskVisible, setMaskVisible] = useState<boolean>(true);
   // Use composition background color behind the transparent canvas so sources show correct bg
   const compositionBg = (() => {
     try {
@@ -1005,6 +1043,10 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
            <div className="tw-relative tw-flex tw-items-center tw-justify-center tw-w-full tw-h-full" style={{ background: compositionBg, willChange: 'transform', contain: 'layout paint size style' }}>
             {/* Full width container */}
            <div className="tw-w-full tw-h-full tw-bg-transparent tw-relative tw-overflow-hidden">
+              {/* Black mask overlay to hide composition background until first frame is ready */}
+              {maskVisible && (
+                <div className="tw-absolute tw-inset-0 tw-bg-black tw-z-[5] tw-pointer-events-none" />
+              )}
               {/* Debug indicator */}
              <div className="tw-absolute tw-top-2 tw-right-2 tw-text-white/60 tw-text-[10px] tw-font-normal tw-z-[1] tw-pointer-events-none tw-bg-black/30 tw-px-1.5 tw-py-0.5 tw-rounded">
                R3F
@@ -1149,6 +1191,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 globalEffects={globalEffects}
                 compositionWidth={width}
                 compositionHeight={height}
+                onFirstFrameReady={() => setMaskVisible(false)}
               />
             </Canvas>
           </div>

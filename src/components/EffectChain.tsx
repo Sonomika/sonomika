@@ -2,9 +2,10 @@ import React, { useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { createPortal, useFrame, useThree } from '@react-three/fiber';
 import { getEffectComponentSync } from '../utils/EffectLoader';
+import { getCachedVideoCanvas } from '../utils/AssetPreloader';
 
 export type ChainItem =
-  | { type: 'video'; video: HTMLVideoElement; opacity?: number; blendMode?: string }
+  | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string }
   | { type: 'source'; effectId: string; params?: Record<string, any> }
   | { type: 'effect'; effectId: string; params?: Record<string, any> };
 
@@ -22,6 +23,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   const { gl, camera } = useThree();
 
   const [videoTexture, setVideoTexture] = useState<THREE.VideoTexture | null>(null);
+  const [seedTexture, setSeedTexture] = useState<THREE.CanvasTexture | null>(null);
 
   // Per-stage render targets to keep texture identity stable
   const rtRefs = useRef<Array<THREE.WebGLRenderTarget | null>>([]);
@@ -139,10 +141,43 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   }, [sceneSignature, offscreenScenes, compositionWidth, compositionHeight]);
 
   // Prepare video texture once per base video element
-  const baseVideoEl = useMemo(() => {
+  const firstVideoItem = useMemo(() => {
     const firstVideo = items.find((it) => it.type === 'video') as Extract<ChainItem, { type: 'video' }> | undefined;
-    return firstVideo?.video || null;
+    return firstVideo || null;
   }, [items]);
+  const baseVideoEl = firstVideoItem?.video || null;
+  const baseVideoAssetId = firstVideoItem?.assetId;
+
+  // Seed a texture from preloader's first-frame canvas (for initial frame before videoTexture is ready)
+  React.useEffect(() => {
+    try {
+      if (!baseVideoAssetId) {
+        if (seedTexture) { try { seedTexture.dispose(); } catch {} }
+        setSeedTexture(null);
+        return;
+      }
+      const canvas = getCachedVideoCanvas(baseVideoAssetId);
+      if (!canvas) {
+        if (seedTexture) { try { seedTexture.dispose(); } catch {} }
+        setSeedTexture(null);
+        return;
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      try {
+        (tex as any).colorSpace = (THREE as any).SRGBColorSpace || (tex as any).colorSpace;
+        if (!(tex as any).colorSpace && (THREE as any).sRGBEncoding) {
+          (tex as any).encoding = (THREE as any).sRGBEncoding;
+        }
+      } catch {}
+      setSeedTexture((prev) => { if (prev) { try { prev.dispose(); } catch {} } return tex; });
+    } catch {
+      if (seedTexture) { try { seedTexture.dispose(); } catch {} }
+      setSeedTexture(null);
+    }
+    return () => { /* no-op cleanup here; handled on next change */ };
+  }, [baseVideoAssetId]);
 
   React.useEffect(() => {
     if (!baseVideoEl) return;
@@ -179,7 +214,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
 
   useFrame(() => {
     ensureRTs();
-    let currentTexture: THREE.Texture | null = null;
+    let currentTexture: THREE.Texture | null = seedTexture;
     const nextInputTextures: Array<THREE.Texture | null> = items.map(() => null);
 
     // Step 1: find base as we go bottom->top within this chain
@@ -247,7 +282,10 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       }
     });
 
-    finalTextureRef.current = currentTexture;
+    // Keep showing previous final texture until a new one is ready to avoid background showing through
+    if (currentTexture) {
+      finalTextureRef.current = currentTexture;
+    }
     // Push input textures to effect portals only when identity changes to avoid re-renders/glitches
     let changed = false;
     if (nextInputTextures.length !== inputTextures.length) {
