@@ -851,7 +851,12 @@ const ColumnScene: React.FC<{
 
         const elements: React.ReactElement[] = [];
 
-        chains.forEach((chain, idx) => {
+        // Determine any enabled global effects to append to each chain
+        const enabledGlobalEffects = Array.isArray(globalEffects)
+          ? globalEffects.filter((ge: any) => ge && ge.enabled)
+          : [];
+
+        chains.forEach((chain) => {
           const chainKey = chain.map((it) => {
             if (it.type === 'video') {
               const v: any = (it as any).video;
@@ -861,8 +866,17 @@ const ColumnScene: React.FC<{
             }
             return `${it.type}:${(it as any).effectId || 'eff'}`;
           }).join('|');
-          if (chain.length === 1 && chain[0].type === 'video') {
-            const v = chain[0];
+          // Append enabled global effects at the end of each chain so they run as part of the chain
+          const chainWithGlobals: ChainItem[] = enabledGlobalEffects.length > 0
+            ? ([...chain, ...enabledGlobalEffects.map((ge: any) => ({
+                type: 'effect',
+                effectId: ge.effectId,
+                params: ge.params || {}
+              }))] as ChainItem[])
+            : chain;
+
+          if (chainWithGlobals.length === 1 && chainWithGlobals[0].type === 'video') {
+            const v = chainWithGlobals[0] as Extract<ChainItem, { type: 'video' }>;
             elements.push(
               <VideoTexture
                 key={`video-only-${chainKey}`}
@@ -878,25 +892,13 @@ const ColumnScene: React.FC<{
             elements.push(
               <EffectChain
                 key={`chain-${chainKey}`}
-                items={chain}
+                items={chainWithGlobals}
                     compositionWidth={compositionWidth}
                     compositionHeight={compositionHeight}
               />
             );
           }
         });
-
-        // Global effects: keep single active for now (unchanged behavior)
-        const activeGlobalEffect = globalEffects.find((effect: any) => effect.enabled);
-        if (activeGlobalEffect) {
-          const renderedGlobalEffect = renderEffect(
-            activeGlobalEffect.effectId,
-            activeGlobalEffect.effectId,
-            activeGlobalEffect.params,
-            true
-          );
-          if (renderedGlobalEffect) elements.push(renderedGlobalEffect);
-        }
 
         return elements;
       })()}

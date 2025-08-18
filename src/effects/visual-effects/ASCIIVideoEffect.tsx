@@ -24,6 +24,59 @@ export const ASCIIVideoEffect: React.FC<ASCIIVideoEffectProps> = ({
   invert = false,
   isGlobal = false
 }) => {
+  // Normalize various color input types to a hex string like '#rrggbb'
+  const normalizeColorToHex = (input: any): string => {
+    try {
+      if (input == null) return '#ffffff';
+      // Unwrap { value: ... }
+      if (typeof input === 'object' && 'value' in input) {
+        return normalizeColorToHex((input as any).value);
+      }
+      // THREE.Color instance
+      if (typeof input === 'object' && (input as any).isColor) {
+        const c = input as any;
+        return `#${c.getHexString()}`;
+      }
+      // { r, g, b } objects (0-1 or 0-255)
+      if (typeof input === 'object' &&
+          typeof (input as any).r === 'number' &&
+          typeof (input as any).g === 'number' &&
+          typeof (input as any).b === 'number') {
+        const r = (input as any).r;
+        const g = (input as any).g;
+        const b = (input as any).b;
+        const rr = r > 1 ? Math.round(r) : Math.round(r * 255);
+        const gg = g > 1 ? Math.round(g) : Math.round(g * 255);
+        const bb = b > 1 ? Math.round(b) : Math.round(b * 255);
+        const toHex = (n: number) => n.toString(16).padStart(2, '0');
+        return `#${toHex(rr)}${toHex(gg)}${toHex(bb)}`;
+      }
+      // numeric hex like 0xff00ff
+      if (typeof input === 'number') {
+        return `#${(input as number).toString(16).padStart(6, '0')}`;
+      }
+      if (typeof input === 'string') {
+        const s = input.trim();
+        if (s.startsWith('#')) return s;
+        // rudimentary rgb(a) parser
+        if (s.startsWith('rgb')) {
+          const m = s.match(/rgba?\(([^)]+)\)/i);
+          if (m) {
+            const parts = m[1].split(',').map((p) => parseFloat(p.trim()));
+            const [r, g, b] = parts;
+            const toHex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+          }
+        }
+        // fallback - let THREE.Color parse common strings
+        try {
+          const c = new THREE.Color(s);
+          return `#${c.getHexString()}`;
+        } catch {}
+      }
+    } catch {}
+    return '#ffffff';
+  };
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { gl, scene, camera } = useThree();
@@ -160,7 +213,7 @@ void main() {
         uCharacters: { value: asciiTexture },
         uCellSize: { value: cellSize },
         uCharactersCount: { value: characters.length },
-        uColor: { value: new THREE.Color(color) },
+        uColor: { value: new THREE.Color(normalizeColorToHex(color)) },
         uInvert: { value: invert },
         resolution: { value: new THREE.Vector2(1920, 1080) }
       },
@@ -204,8 +257,11 @@ void main() {
       if (materialRef.current.uniforms.uCharactersCount.value !== characters.length) {
         materialRef.current.uniforms.uCharactersCount.value = characters.length;
       }
-      if (materialRef.current.uniforms.uColor.value.getHexString() !== color.replace('#', '')) {
-        materialRef.current.uniforms.uColor.value.set(color);
+      const normalizedColor = normalizeColorToHex(color);
+      const currentHex = materialRef.current.uniforms.uColor.value.getHexString();
+      const targetHex = normalizedColor.startsWith('#') ? normalizedColor.slice(1) : normalizedColor;
+      if (currentHex !== targetHex) {
+        materialRef.current.uniforms.uColor.value.set(normalizedColor);
       }
       if (materialRef.current.uniforms.uInvert.value !== invert) {
         materialRef.current.uniforms.uInvert.value = invert;

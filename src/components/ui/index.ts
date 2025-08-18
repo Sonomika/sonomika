@@ -1,7 +1,18 @@
 export { ButtonGroup } from './ButtonGroup';
 export { ParamRow } from './ParamRow';
 export { Slider } from './Slider';
-export { Dialog } from './Dialog';
+export { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogDescription,
+  DialogClose,
+  DialogTrigger,
+  DialogPortal,
+  DialogOverlay
+} from './Dialog';
 export { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from './ContextMenu';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
 export { Popover, PopoverTrigger, PopoverContent } from './Popover';

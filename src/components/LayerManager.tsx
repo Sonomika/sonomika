@@ -987,11 +987,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             params: getDefaultEffectParams(data.id || data.name)
           };
                           
-                          // Add the effect slot to the scene's global effects
-                          // Disable all existing effects and enable only the new one
+                          // Add the effect slot to the scene's global effects (stackable, preserve order)
                           const currentGlobalEffects = currentScene?.globalEffects || [];
                           const updatedEffects = [
-                            ...currentGlobalEffects.map((effect: any) => ({ ...effect, enabled: false })),
+                            ...currentGlobalEffects,
                             newEffectSlot
                           ];
                           updateScene(currentSceneId, { globalEffects: updatedEffects });

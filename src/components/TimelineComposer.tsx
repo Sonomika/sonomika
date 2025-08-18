@@ -1,8 +1,9 @@
 import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import EffectChain, { ChainItem } from './EffectChain';
+import { getEffectComponentSync } from '../utils/EffectLoader';
 import EffectLoader from './EffectLoader';
-import { useEffectComponent } from '../utils/EffectLoader';
 
 interface TimelineComposerProps {
   activeClips: any[];
@@ -370,27 +371,30 @@ const TimelineScene: React.FC<{
     return asset.path || '';
   };
 
-  // Unified effect rendering system using dynamic loading
-  const renderEffect = (effectId: string, effectName: string, params: any = {}, isGlobal: boolean = false) => {
-    const effectKey = isGlobal ? `global-${effectId}` : `layer-${effectId}`;
-    const effectParams = params || {};
-    
-    console.log(`🎨 Rendering ${isGlobal ? 'global' : 'layer'} effect:`, effectId, effectName, effectParams);
-    
-    return (
-      <EffectLoader
-        key={effectKey}
-        effectId={effectId}
-        params={effectParams}
-        isGlobal={isGlobal}
-        fallback={
-          <mesh>
-            <planeGeometry args={[4, 4]} />
-            <meshBasicMaterial color={0x888888} />
-          </mesh>
-        }
-      />
-    );
+  // Helper to resolve and classify effects similar to ColumnPreview
+  const resolveEffectId = (asset: any): string | null => {
+    if (!asset) return null;
+    let effectId: string | null = null;
+    if (asset.effect) {
+      effectId = asset.effect.id || asset.effect.name || asset.effect.type || null;
+    } else {
+      effectId = asset.id || asset.name || asset.filePath || null;
+    }
+    if (effectId && effectId.endsWith('.tsx')) {
+      effectId = effectId.replace('.tsx', '').replace(/^.*[\\\/]/, '');
+    }
+    return effectId;
+  };
+
+  const classifyClip = (clip: any): 'video' | 'source' | 'effect' | 'unknown' => {
+    if (!clip?.asset) return 'unknown';
+    if (clip.asset.type === 'video') return 'video';
+    const effectId = resolveEffectId(clip.asset);
+    if (!effectId) return 'unknown';
+    const Comp = getEffectComponentSync(effectId);
+    const md = (Comp as any)?.metadata;
+    if (md?.isSource === true || md?.folder === 'sources') return 'source';
+    return 'effect';
   };
 
   return (
@@ -398,119 +402,77 @@ const TimelineScene: React.FC<{
       {/* Background */}
       <color attach="background" args={[0, 0, 0]} />
       
-      {/* Render all layers using unified system */}
+      {/* Render all clips using chain-based stacking with global effects appended */}
       {(() => {
-        // Find all video layers and effect layers
-        const videoLayers = activeClips.filter(clip => 
-          clip.asset && clip.asset.type === 'video'
-        );
-        const effectLayers = activeClips.filter(clip => 
-          clip.asset && (
-            clip.asset.type === 'p5js' || 
-            clip.asset.type === 'effect' || 
-            clip.asset.type === 'threejs' ||
-            clip.asset.isEffect
-          )
-        );
+        const chains: ChainItem[][] = [];
+        let currentChain: ChainItem[] = [];
 
-        console.log('Timeline video layers:', videoLayers.map(l => l.name));
-        console.log('Timeline effect layers:', effectLayers.map(l => l.name));
-        console.log('Timeline all clips:', activeClips.map(l => ({ name: l.name, asset: l.asset?.name, type: l.asset?.type })));
+        const mergeParams = (src: any): Record<string, any> => {
+          const out: Record<string, any> = {};
+          const merge = (obj: any) => {
+            if (!obj) return;
+            Object.keys(obj).forEach((k) => {
+              const v: any = obj[k];
+              out[k] = (v && typeof v === 'object' && 'value' in v) ? v.value : v;
+            });
+          };
+          merge(src?.params);
+          const nested = src?.asset?.effect?.params;
+          merge(nested);
+          return out;
+        };
 
-        const renderedElements: React.ReactElement[] = [];
-
-        // First, render video layers
-        videoLayers.forEach((videoClip, index) => {
-          const video = assets.videos.get(videoClip.asset.id);
-          if (!video) return;
-
-          // Ensure video is at the correct time before rendering (performance optimized)
-          const targetTime = videoClip.relativeTime || 0;
-          if (Math.abs(video.currentTime - targetTime) > 0.1) {
-            // Increased threshold to reduce seeking frequency for better performance
-            video.currentTime = targetTime;
-          }
-
-          const key = `video-${videoClip.id}-${index}`;
-
-          // Check if there are any effect layers that should be applied to this video
-          const effectLayersForVideo = effectLayers.filter(effectLayer => {
-            const effectAsset = effectLayer.asset;
-            return effectAsset && effectAsset.type === 'effect';
-          });
-
-          if (effectLayersForVideo.length > 0) {
-            // Apply the first effect to the video
-            const firstEffect = effectLayersForVideo[0];
-            // const effectNames = [firstEffect.asset.id].filter(Boolean);
-
-            // Check if this effect replaces the video
-            const effectId = firstEffect.asset.id || firstEffect.asset.name;
-            const EffectComponent = useEffectComponent(effectId);
-            const effectMetadata = EffectComponent ? (EffectComponent as any).metadata : null;
-            const replacesVideo = effectMetadata?.replacesVideo === true;
-
-            console.log('🎬 Timeline effect metadata check:', { effectId, replacesVideo, metadata: effectMetadata });
-
-            const videoTexture = new THREE.VideoTexture(video);
-            videoTexture.minFilter = THREE.LinearFilter;
-            videoTexture.magFilter = THREE.LinearFilter;
-            videoTexture.format = THREE.RGBAFormat;
-            videoTexture.generateMipmaps = false;
-
-            if (replacesVideo) {
-              // Only render the effect, skip the base video
-              console.log('🎬 Timeline effect replaces video, skipping base video render');
-              renderedElements.push(
-                <EffectLoader
-                  key={`${key}-effects`}
-                  effectId={effectId}
-                  params={{
-                    ...firstEffect.params,
-                    videoTexture: videoTexture
-                  }}
-                  fallback={
-                    <mesh>
-                      <planeGeometry args={[2, 2]} />
-                      <meshBasicMaterial color={0xff0000} />
-                    </mesh>
-                  }
-                />
-              );
-            } else {
-              // Render both the base video and the effect on top
-              renderedElements.push(
-                <React.Fragment key={`${key}-container`}>
-                  <mesh key={`${key}-video`}>
-                    <planeGeometry args={[2, 2]} />
-                    <meshBasicMaterial map={videoTexture} />
-                  </mesh>
-                  <EffectLoader
-                    key={`${key}-effects`}
-                    effectId={effectId}
-                    params={{
-                      ...firstEffect.params,
-                      videoTexture: videoTexture
-                    }}
-                    fallback={
-                      <mesh>
-                        <planeGeometry args={[2, 2]} />
-                        <meshBasicMaterial color={0xff0000} />
-                      </mesh>
-                    }
-                  />
-                </React.Fragment>
-              );
+        // Build chains based on activeClips order
+        activeClips.forEach((clip: any) => {
+          const kind = classifyClip(clip);
+          if (kind === 'video') {
+            const video = assets.videos.get(clip.asset.id);
+            if (!video) {
+              if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
+              return;
             }
+            if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
+            currentChain.push({ type: 'video', video, opacity: clip.opacity, blendMode: clip.blendMode });
+          } else if (kind === 'source') {
+            const eid = resolveEffectId(clip.asset);
+            if (eid) currentChain.push({ type: 'source', effectId: eid, params: mergeParams(clip) });
+          } else if (kind === 'effect') {
+            const eid = resolveEffectId(clip.asset);
+            if (eid) currentChain.push({ type: 'effect', effectId: eid, params: mergeParams(clip) });
           } else {
-            // Render normal video
-            renderedElements.push(
+            if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
+          }
+        });
+        if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
+
+        // Enabled global effects to append to each chain
+        const enabledGlobals = Array.isArray(globalEffects) ? globalEffects.filter((g: any) => g && g.enabled) : [];
+
+        const elements: React.ReactElement[] = [];
+        chains.forEach((chain) => {
+          const chainKey = chain.map((it) => it.type === 'video' ? 'video' : `${it.type}:${(it as any).effectId || 'eff'}`).join('|');
+          const chainWithGlobals: ChainItem[] = enabledGlobals.length > 0
+            ? ([...chain, ...enabledGlobals.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {} }))] as ChainItem[])
+            : chain;
+
+          if (chainWithGlobals.length === 1 && chainWithGlobals[0].type === 'video') {
+            const v = chainWithGlobals[0] as Extract<ChainItem, { type: 'video' }>;
+            elements.push(
               <VideoTexture
-                key={key}
-                video={video}
-                opacity={videoClip.opacity || 1}
-                blendMode={videoClip.blendMode || 'add'}
-                effects={videoClip.effects}
+                key={`video-only-${chainKey}`}
+                video={v.video}
+                opacity={typeof v.opacity === 'number' ? v.opacity : 1}
+                blendMode={'add'}
+                effects={undefined}
+                compositionWidth={compositionWidth}
+                compositionHeight={compositionHeight}
+              />
+            );
+          } else {
+            elements.push(
+              <EffectChain
+                key={`chain-${chainKey}`}
+                items={chainWithGlobals}
                 compositionWidth={compositionWidth}
                 compositionHeight={compositionHeight}
               />
@@ -518,50 +480,7 @@ const TimelineScene: React.FC<{
           }
         });
 
-        // Then, render standalone effects using unified system
-        effectLayers.forEach((effectLayer) => {
-          const effectAsset = effectLayer.asset;
-          if (!effectAsset) return;
-
-
-          
-          // Use unified effect renderer for all effects
-          const renderedEffect = renderEffect(
-            effectAsset.id, 
-            effectAsset.name, 
-            effectLayer.params, 
-            false // isGlobal = false for layer effects
-          );
-          
-          if (renderedEffect) {
-            renderedElements.push(renderedEffect);
-            console.log('🎨 Added timeline effect to rendered elements:', effectAsset.id);
-          }
-        });
-
-        // Apply global effects using unified system
-        const activeGlobalEffect = globalEffects.find((effect: any) => effect.enabled);
-        
-        if (activeGlobalEffect) {
-          console.log('🌐 Applying timeline global effect:', activeGlobalEffect.effectId);
-          
-          // Use unified effect renderer for global effects
-          const renderedGlobalEffect = renderEffect(
-            activeGlobalEffect.effectId,
-            activeGlobalEffect.effectId, // Use effectId as name for globals
-            activeGlobalEffect.params,
-            true // isGlobal = true for global effects
-          );
-          
-          if (renderedGlobalEffect) {
-            renderedElements.push(renderedGlobalEffect);
-            console.log('🌐 Added timeline global effect to rendered elements:', activeGlobalEffect.effectId);
-          }
-        }
-
-        return renderedElements.map((element, index) => 
-          React.cloneElement(element, { key: `rendered-element-${index}` })
-        );
+        return elements.map((el, i) => React.cloneElement(el, { key: `rendered-element-${i}` }));
       })()}
     </>
   );
