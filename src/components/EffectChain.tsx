@@ -13,12 +13,16 @@ interface EffectChainProps {
   items: ChainItem[];
   compositionWidth?: number;
   compositionHeight?: number;
+  opacity?: number;
+  baseAssetId?: string;
 }
 
 export const EffectChain: React.FC<EffectChainProps> = ({
   items,
   compositionWidth = 1920,
-  compositionHeight = 1080
+  compositionHeight = 1080,
+  opacity = 1,
+  baseAssetId
 }) => {
   const { gl, camera } = useThree();
 
@@ -146,7 +150,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
     return firstVideo || null;
   }, [items]);
   const baseVideoEl = firstVideoItem?.video || null;
-  const baseVideoAssetId = firstVideoItem?.assetId;
+  const baseVideoAssetId = (firstVideoItem?.assetId as any) || baseAssetId || null;
 
   // Seed a texture from preloader's first-frame canvas (for initial frame before videoTexture is ready)
   React.useEffect(() => {
@@ -156,7 +160,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         setSeedTexture(null);
         return;
       }
-      const canvas = getCachedVideoCanvas(baseVideoAssetId);
+      const canvas = baseVideoAssetId ? getCachedVideoCanvas(String(baseVideoAssetId)) : undefined;
       if (!canvas) {
         if (seedTexture) { try { seedTexture.dispose(); } catch {} }
         setSeedTexture(null);
@@ -214,7 +218,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
 
   useFrame(() => {
     ensureRTs();
-    let currentTexture: THREE.Texture | null = seedTexture;
+    let currentTexture: THREE.Texture | null = seedTexture || null;
     const nextInputTextures: Array<THREE.Texture | null> = items.map(() => null);
 
     // Step 1: find base as we go bottom->top within this chain
@@ -272,13 +276,21 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           }
           bgMesh.visible = !!nextMap;
         }
-        gl.setClearColor(0x000000, 0);
-        gl.setRenderTarget(rt);
-        gl.clear(true, true, true);
-        gl.render(offscreenScenes[idx], camera);
-        gl.setRenderTarget(currentRT);
-        gl.setClearColor(prevClear, prevAlpha);
-        currentTexture = rt.texture;
+        // Guard: if this effect needs prior pass (overlay) but there's no input yet,
+        // skip writing a blank frame to RT so we keep showing the previous final texture
+        const needsInput = !replacesVideo;
+        const hasInput = Boolean(currentTexture);
+        if (needsInput && !hasInput) {
+          // do not update currentTexture; keep previous
+        } else {
+          gl.setClearColor(0x000000, 0);
+          gl.setRenderTarget(rt);
+          gl.clear(true, true, true);
+          gl.render(offscreenScenes[idx], camera);
+          gl.setRenderTarget(currentRT);
+          gl.setClearColor(prevClear, prevAlpha);
+          currentTexture = rt.texture;
+        }
       }
     });
 
@@ -374,7 +386,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       {finalTextureRef.current && (
         <mesh position={[0, 0, 0]} renderOrder={-1000}>
           <planeGeometry args={[displayAspect * 2, 2]} />
-          <meshBasicMaterial map={finalTextureRef.current} transparent={true} toneMapped={false} depthTest={false} depthWrite={false} />
+          <meshBasicMaterial map={finalTextureRef.current} transparent={true} toneMapped={false} depthTest={false} depthWrite={false} opacity={opacity} />
         </mesh>
       )}
     </>

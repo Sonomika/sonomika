@@ -2,7 +2,9 @@ import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import EffectChain, { ChainItem } from './EffectChain';
+import { getCachedVideoCanvas } from '../utils/AssetPreloader';
 import { getEffectComponentSync } from '../utils/EffectLoader';
+import { videoAssetManager } from '../utils/VideoAssetManager';
 import EffectLoader from './EffectLoader';
 
 interface TimelineComposerProps {
@@ -13,9 +15,13 @@ interface TimelineComposerProps {
   height: number;
   bpm?: number;
   globalEffects?: any[];
+  tracks?: any[];
 }
 
-// Video texture component for R3F (same as ColumnPreview)
+// Cache last frame canvases per asset to avoid flashes across mounts
+const lastFrameCanvasCache: Map<string, HTMLCanvasElement> = new Map();
+
+// Video texture component for R3F with fallback like ColumnPreview
 const VideoTexture: React.FC<{ 
   video: HTMLVideoElement; 
   opacity: number; 
@@ -23,9 +29,14 @@ const VideoTexture: React.FC<{
   effects?: any;
   compositionWidth?: number;
   compositionHeight?: number;
-}> = ({ video, opacity, blendMode, effects, compositionWidth, compositionHeight }) => {
+  assetId?: string;
+}> = ({ video, opacity, blendMode, effects, compositionWidth, compositionHeight, assetId }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [fallbackTexture, setFallbackTexture] = useState<THREE.CanvasTexture | null>(null);
+  const liveMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const fallbackMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   
   // Use composition settings for aspect ratio instead of video's natural ratio
   const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
@@ -42,7 +53,6 @@ const VideoTexture: React.FC<{
 
   useEffect(() => {
     if (video) {
-      console.log('Creating video texture for:', video.src);
       const videoTexture = new THREE.VideoTexture(video);
       videoTexture.minFilter = THREE.LinearFilter;
       videoTexture.magFilter = THREE.LinearFilter;
@@ -52,20 +62,97 @@ const VideoTexture: React.FC<{
     }
   }, [video]);
 
+  // Initialize fallback canvas/texture and seed from preloader if available
+  useEffect(() => {
+    if (!video) return;
+    const ensureCanvasAndTexture = () => {
+      if (!offscreenCanvasRef.current) {
+        if (assetId && lastFrameCanvasCache.has(assetId)) {
+          offscreenCanvasRef.current = lastFrameCanvasCache.get(assetId)!;
+        } else {
+          offscreenCanvasRef.current = document.createElement('canvas');
+        }
+      }
+      const canvas = offscreenCanvasRef.current;
+      if (video.videoWidth && video.videoHeight) {
+        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
+        if (!fallbackTexture) {
+          const tex = new THREE.CanvasTexture(canvas);
+          tex.minFilter = THREE.LinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+          setFallbackTexture(tex);
+        }
+        // Seed from preloader's first frame if present
+        try {
+          const seeded = assetId ? (getCachedVideoCanvas(assetId) || null) : null;
+          if (seeded) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(seeded, 0, 0, canvas.width, canvas.height);
+              if (fallbackTexture) fallbackTexture.needsUpdate = true;
+              if (assetId) lastFrameCanvasCache.set(assetId, canvas);
+            }
+          }
+        } catch {}
+      }
+    };
+    ensureCanvasAndTexture();
+  }, [video, fallbackTexture, assetId]);
+
+  // Update textures and control opacity
   useFrame(() => {
-    if (texture && video.readyState >= 2) {
+    const ready = !!(texture && video.readyState >= 2);
+    const canvas = offscreenCanvasRef.current;
+    const hasFallback = !!(fallbackTexture && canvas && canvas.width > 0 && canvas.height > 0);
+    let liveAlpha = 1;
+    let fallbackAlpha = 0;
+    if (!ready) {
+      liveAlpha = 0;
+      fallbackAlpha = hasFallback ? 1 : 0;
+    }
+    if (liveMaterialRef.current) {
+      liveMaterialRef.current.opacity = opacity * liveAlpha;
+      liveMaterialRef.current.transparent = true;
+    }
+    if (fallbackMaterialRef.current) {
+      fallbackMaterialRef.current.opacity = opacity * fallbackAlpha;
+      fallbackMaterialRef.current.transparent = true;
+    }
+    if (texture && ready) {
       texture.needsUpdate = true;
+      // Keep fallback updated when possible
+      if (canvas && fallbackTexture) {
+        try {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            fallbackTexture.needsUpdate = true;
+            if (assetId) lastFrameCanvasCache.set(assetId, canvas);
+          }
+        } catch {}
+      }
     }
   });
 
+  // If no texture yet and no fallback, render nothing (mask handles initial); otherwise show fallback
   if (!texture || video.readyState < 2) {
-    console.log('Video not ready, readyState:', video.readyState);
-    // Render a transparent placeholder instead of null to prevent black flash
+    const compositionAspectRatio = aspectRatio;
+    const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
+    const scaleY = Math.max(videoAspectRatio / compositionAspectRatio, 1);
+    const finalScaleX = compositionAspectRatio * 2 * scaleX;
+    const finalScaleY = 2 * scaleY;
     return (
-      <mesh>
-        <planeGeometry args={[aspectRatio * 2, 2]} />
-        <meshBasicMaterial color={0x000000} transparent opacity={0} />
-      </mesh>
+      <group>
+        {fallbackTexture && (
+          <mesh>
+            <planeGeometry args={[finalScaleX, finalScaleY]} />
+            <meshBasicMaterial ref={fallbackMaterialRef} map={fallbackTexture} transparent opacity={opacity} side={THREE.DoubleSide} />
+          </mesh>
+        )}
+      </group>
     );
   }
 
@@ -95,17 +182,28 @@ const VideoTexture: React.FC<{
   const finalScaleY = 2 * scaleY;
   
   return (
-    <mesh ref={meshRef}>
-      <planeGeometry args={[finalScaleX, finalScaleY]} />
-      <meshBasicMaterial 
-        map={texture} 
-        transparent 
-        opacity={opacity}
-        blending={getBlendMode(blendMode)}
-        side={THREE.DoubleSide}
-        alphaTest={0.1}
-      />
-    </mesh>
+    <group>
+      {/* Fallback behind */}
+      {fallbackTexture && (
+        <mesh>
+          <planeGeometry args={[finalScaleX, finalScaleY]} />
+          <meshBasicMaterial ref={fallbackMaterialRef} map={fallbackTexture} transparent opacity={opacity} side={THREE.DoubleSide} />
+        </mesh>
+      )}
+      {/* Live on top */}
+      <mesh ref={meshRef}>
+        <planeGeometry args={[finalScaleX, finalScaleY]} />
+        <meshBasicMaterial 
+          ref={liveMaterialRef}
+          map={texture} 
+          transparent 
+          opacity={1}
+          blending={getBlendMode(blendMode)}
+          side={THREE.DoubleSide}
+          alphaTest={0.1}
+        />
+      </mesh>
+    </group>
   );
 };
 
@@ -133,7 +231,8 @@ const TimelineScene: React.FC<{
   globalEffects?: any[];
   compositionWidth?: number;
   compositionHeight?: number;
-}> = ({ activeClips, isPlaying, currentTime, globalEffects = [], compositionWidth, compositionHeight }) => {
+  onFirstFrameReady?: () => void;
+}> = ({ activeClips, isPlaying, currentTime, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady }) => {
   const { camera } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -149,6 +248,9 @@ const TimelineScene: React.FC<{
   const globalAssetCacheRef = useRef<{
     videos: Map<string, HTMLVideoElement>;
   }>({ videos: new Map() });
+
+  const firstFrameReadyRef = useRef<boolean>(false);
+  const frameCounterRef = useRef<number>(0);
 
   console.log('TimelineScene rendering with:', { activeClips, isPlaying, currentTime, assetsCount: assets.images.size + assets.videos.size });
 
@@ -189,42 +291,15 @@ const TimelineScene: React.FC<{
           }
         } else if (asset.type === 'video') {
           try {
-            // Check global cache first to prevent flash during timeline changes
-            let video = globalAssetCacheRef.current.videos.get(asset.id);
-            
-            if (video) {
-              console.log('✅ Using cached video for asset:', asset.name);
-              newVideos.set(asset.id, video);
-              continue; // Skip the loading process
+            // Use persistent video per assetId
+            let managed = videoAssetManager.get(asset.id);
+            if (!managed) {
+              managed = await videoAssetManager.getOrCreate(asset, (a) => getAssetPath(a, true));
             }
-            
-            console.log('Loading new video with path:', getAssetPath(asset, true), 'for asset:', asset.name);
-            video = document.createElement('video');
-            const assetPath = getAssetPath(asset, true); // Use file path for video playback
-            video.src = assetPath;
-            video.muted = true;
-            video.loop = true;
-            video.autoplay = true;
-            video.playsInline = true;
-            video.style.backgroundColor = 'transparent';
-            
-            // Performance optimization for timeline playback and column switching
-            video.style.imageRendering = 'optimizeSpeed';
-            video.preload = 'auto'; // Changed from 'metadata' to 'auto' for better caching
-            
-            await new Promise<void>((resolve, reject) => {
-              video.addEventListener('loadeddata', () => {
-                console.log('Video loaded successfully:', asset.name);
-                resolve();
-              });
-              video.addEventListener('error', reject);
-              video.load();
-            });
-            
-            // Cache the video globally for future timeline/column switches
+            const video = managed.element;
             globalAssetCacheRef.current.videos.set(asset.id, video);
             newVideos.set(asset.id, video);
-            console.log(`✅ Video loaded and cached for clip ${clip.name}:`, asset.name);
+            console.log(`✅ Video manager provided element for clip ${clip.name}:`, asset.name);
           } catch (error) {
             console.error(`❌ Failed to load video for clip ${clip.name}:`, error);
           }
@@ -313,6 +388,19 @@ const TimelineScene: React.FC<{
     }
     camera.lookAt(0, 0, 0);
   }, [camera]);
+
+  // Signal first frame ready when a video is ready or after a couple of frames for effects-only
+  useFrame(() => {
+    if (firstFrameReadyRef.current) return;
+    const hasVideos = activeClips.some((c: any) => c?.asset?.type === 'video');
+    const anyReady = Array.from(assets.videos.values()).some(v => v.readyState >= 2);
+    frameCounterRef.current += 1;
+    const enoughFrames = frameCounterRef.current >= 2;
+    if (anyReady || (!hasVideos && enoughFrames)) {
+      firstFrameReadyRef.current = true;
+      try { onFirstFrameReady && onFirstFrameReady(); } catch {}
+    }
+  });
 
   // Helper function to get proper file path for Electron
   const getAssetPath = (asset: any, useForPlayback: boolean = false) => {
@@ -432,7 +520,7 @@ const TimelineScene: React.FC<{
               return;
             }
             if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
-            currentChain.push({ type: 'video', video, opacity: clip.opacity, blendMode: clip.blendMode });
+            currentChain.push({ type: 'video', video, opacity: clip.opacity, blendMode: clip.blendMode, assetId: clip.asset?.id });
           } else if (kind === 'source') {
             const eid = resolveEffectId(clip.asset);
             if (eid) currentChain.push({ type: 'source', effectId: eid, params: mergeParams(clip) });
@@ -449,36 +537,146 @@ const TimelineScene: React.FC<{
         const enabledGlobals = Array.isArray(globalEffects) ? globalEffects.filter((g: any) => g && g.enabled) : [];
 
         const elements: React.ReactElement[] = [];
-        chains.forEach((chain) => {
+        // Compute blending across successive chains for a short window around cuts
+        const CROSSFADE_MS = 160; // chosen for minimal perceptibility
+        const chainsWithKeys = chains.map((chain, idx) => ({ chain, idx }));
+        // Persist last fully-built video chain to reuse briefly if incoming isn't ready
+        const lastVideoChainRef = (TimelineScene as any).__lastVideoChainRef || { current: null as any };
+        (TimelineScene as any).__lastVideoChainRef = lastVideoChainRef;
+        // Build quick lookups for active clips by asset
+        const fadeWindowSec = CROSSFADE_MS / 1000;
+        const byAsset: Record<string, { relativeTime: number; duration: number; startTime: number; trackId?: string }> = {} as any;
+        activeClips.forEach((c: any) => {
+          if (c?.asset?.id != null) {
+            byAsset[c.asset.id] = {
+              relativeTime: Math.max(0, c.relativeTime || 0),
+              duration: Math.max(0.001, c.duration || 0.001),
+              startTime: c.startTime || 0,
+              trackId: c.trackId
+            };
+          }
+        });
+        const anyIncomingNotReady = activeClips.some((c: any) => {
+          if (!c?.asset?.id) return false;
+          const rel = Math.max(0, c.relativeTime || 0);
+          if (rel > fadeWindowSec) return false;
+          const v = assets.videos.get(c.asset.id);
+          const anyV: any = v as any;
+          const produced = anyV && (anyV.__firstFrameProduced || (v && v.readyState >= 2));
+          return !produced;
+        });
+
+        let appendedFallback = false;
+        chainsWithKeys.forEach(({ chain, idx }) => {
           const chainKey = chain.map((it) => it.type === 'video' ? 'video' : `${it.type}:${(it as any).effectId || 'eff'}`).join('|');
           const chainWithGlobals: ChainItem[] = enabledGlobals.length > 0
             ? ([...chain, ...enabledGlobals.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {} }))] as ChainItem[])
             : chain;
 
+          // Determine crossfade factor based on currentTime proximity to neighboring clip boundaries
+          let opacity = 1;
+          try {
+            // Find clips backing this chain: any active clip at current time in activeClips that maps to items in this chain
+            const thisVideoId = (chainWithGlobals.find((it) => it.type === 'video') as any)?.video as HTMLVideoElement | undefined;
+            const thisAssetId = thisVideoId ? (activeClips.find((c: any) => assets.videos.get(c.asset?.id) === thisVideoId)?.asset?.id) : undefined;
+            // Find nearest previous/next boundary across all tracks
+            const times: number[] = [];
+            activeClips.forEach((c: any) => {
+              if (!c?.asset) return;
+              times.push(c.startTime);
+              times.push(c.startTime + c.duration);
+            });
+            let minEdgeDistMs = Infinity;
+            for (const t of times) {
+              const dist = Math.abs((currentTime - t) * 1000);
+              if (dist < minEdgeDistMs) minEdgeDistMs = dist;
+            }
+            if (minEdgeDistMs <= CROSSFADE_MS) {
+              const f = Math.max(0, Math.min(1, minEdgeDistMs / CROSSFADE_MS));
+              // Determine incoming/outgoing behavior using relativeTime
+              const clipMeta = thisAssetId ? byAsset[thisAssetId] : undefined;
+              const rel = clipMeta ? clipMeta.relativeTime : undefined;
+              const dur = clipMeta ? clipMeta.duration : undefined;
+              const anyV: any = thisVideoId as any;
+              const produced = anyV && (anyV.__firstFrameProduced || (thisVideoId && (thisVideoId as any).readyState >= 2));
+              const isIncoming = rel != null && rel <= fadeWindowSec;
+              const isOutgoing = rel != null && dur != null && (dur - rel) <= fadeWindowSec;
+              // For different videos at a cut, ensure we don't expose background by prioritizing outgoing until incoming is truly ready
+              if (isIncoming && !produced) {
+                opacity = 0; // hold off showing incoming until first frame exists
+              } else if (isOutgoing && anyIncomingNotReady) {
+                opacity = 1; // keep outgoing fully visible until incoming is ready
+              } else {
+                opacity = f; // default crossfade
+              }
+            }
+          } catch {}
+
+          const containsVideo = chainWithGlobals.some((it) => it.type === 'video');
+          if (containsVideo && !anyIncomingNotReady) {
+            // Update last chain snapshot only when stable
+            lastVideoChainRef.current = chainWithGlobals;
+          }
+
           if (chainWithGlobals.length === 1 && chainWithGlobals[0].type === 'video') {
             const v = chainWithGlobals[0] as Extract<ChainItem, { type: 'video' }>;
+            // If this video is the incoming and not produced yet, skip drawing it this frame (hold outgoing)
+            try {
+              const thisAssetId = activeClips.find((c: any) => assets.videos.get(c.asset?.id) === v.video)?.asset?.id;
+              const clipMeta = thisAssetId ? byAsset[thisAssetId] : undefined;
+              const rel = clipMeta ? clipMeta.relativeTime : undefined;
+              const isIncoming = rel != null && rel <= fadeWindowSec;
+              const anyV: any = v.video as any;
+              const produced = anyV && (anyV.__firstFrameProduced || (v.video && (v.video as any).readyState >= 2));
+              if (isIncoming && !produced) {
+                return; // skip rendering this incoming video chain
+              }
+            } catch {}
             elements.push(
               <VideoTexture
-                key={`video-only-${chainKey}`}
+                key={`video-only-${chainKey}-${idx}`}
                 video={v.video}
-                opacity={typeof v.opacity === 'number' ? v.opacity : 1}
+                opacity={typeof v.opacity === 'number' ? Math.max(0, Math.min(1, v.opacity * opacity)) : opacity}
                 blendMode={'add'}
                 effects={undefined}
                 compositionWidth={compositionWidth}
                 compositionHeight={compositionHeight}
+                assetId={(activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === v.video)?.asset?.id) || undefined}
               />
             );
           } else {
+            // Propagate baseAssetId from the chain's video (if any) so EffectChain can seed correctly
+            const baseVid = chainWithGlobals.find((it) => it.type === 'video') as any;
+            const baseAssetIdForChain = baseVid ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === baseVid.video)?.asset?.id) : undefined;
             elements.push(
               <EffectChain
-                key={`chain-${chainKey}`}
+                key={`chain-${chainKey}-${idx}`}
                 items={chainWithGlobals}
                 compositionWidth={compositionWidth}
                 compositionHeight={compositionHeight}
+                opacity={opacity}
+                baseAssetId={baseAssetIdForChain}
               />
             );
           }
         });
+
+        // If incoming isn't ready, re-append the last video chain so it continues to display beneath overlays
+        if (anyIncomingNotReady && lastVideoChainRef.current && !appendedFallback) {
+          const chainWithGlobals = lastVideoChainRef.current as ChainItem[];
+          const chainKey = 'last-video-fallback';
+          elements.push(
+            <EffectChain
+              key={`chain-${chainKey}`}
+              items={chainWithGlobals}
+              compositionWidth={compositionWidth}
+              compositionHeight={compositionHeight}
+              opacity={1}
+              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
+            />
+          );
+          appendedFallback = true;
+        }
 
         return elements.map((el, i) => React.cloneElement(el, { key: `rendered-element-${i}` }));
       })()}
@@ -493,21 +691,31 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
   currentTime,
   width,
   height,
-  globalEffects = []
+  globalEffects = [],
+  tracks = []
 }) => {
+  const [maskVisible, setMaskVisible] = useState<boolean>(true);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const cutOverlayRef = useRef<HTMLDivElement | null>(null);
   return (
-    <div className="tw-w-full tw-h-full">
+    <div className="tw-w-full tw-h-full tw-relative" style={{ background: '#000' }}>
+      {maskVisible && (
+        <div className="tw-absolute tw-inset-0 tw-bg-black tw-z-[5] tw-pointer-events-none" />
+      )}
       <Canvas
         camera={{ position: [0, 0, 1], fov: 90 }}
         className="tw-w-full tw-h-full tw-block"
         gl={{ 
-          preserveDrawingBuffer: true,
+          preserveDrawingBuffer: false,
           antialias: true,
           powerPreference: 'high-performance'
         }}
         onCreated={({ gl }) => {
           console.log('Timeline R3F Canvas created successfully');
-          gl.setClearColor(0x000000, 1);
+          // Keep alpha to let the black container show through and avoid red flashes
+          try { (gl as any).setClearColor?.(0x000000, 0); } catch {}
+          // Keep a handle to the canvas for cut overlays
+          try { canvasElRef.current = (gl as any).domElement as HTMLCanvasElement; } catch {}
         }}
         onError={(error) => {
           console.error('Timeline R3F Canvas error:', error);
@@ -526,9 +734,25 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
             globalEffects={globalEffects}
             compositionWidth={width}
             compositionHeight={height}
+            onFirstFrameReady={() => setMaskVisible(false)}
           />
         </Suspense>
       </Canvas>
+      {/* Cut overlay element (DOM), created dynamically on clip switches */}
+      {(() => {
+        if (!cutOverlayRef.current) {
+          const el = document.createElement('div');
+          el.style.position = 'absolute';
+          el.style.inset = '0';
+          el.style.pointerEvents = 'none';
+          el.style.opacity = '0';
+          el.style.zIndex = '6';
+          cutOverlayRef.current = el;
+          const parent = el?.parentElement || document.querySelector('.tw-w-full.tw-h-full.tw-relative');
+          try { (parent || document.body).appendChild(el); } catch {}
+        }
+        return null;
+      })()}
     </div>
   );
 };

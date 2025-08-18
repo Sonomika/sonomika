@@ -765,9 +765,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               }
               const safeStart = clampStartToNeighbors(destTrackClips, snappedStart, moving.duration, moving.id);
               const newDuration = Math.max(0.1, moving.duration - (safeStart - moving.startTime));
-              // Respect original video duration
-              const maxDuration = moving.asset?.duration || moving.duration;
-              const clampedDuration = Math.min(newDuration, maxDuration);
+              // For effects, allow arbitrary duration; for videos, respect original asset duration if available
+              let clampedDuration = newDuration;
+              if ((moving as any).type !== 'effect') {
+                const maxDuration = (moving as any).asset?.duration || newDuration;
+                clampedDuration = Math.min(newDuration, maxDuration);
+              }
               const trimmed = { ...moving, startTime: safeStart, duration: clampedDuration };
               removed = removed.map((t) =>
                 t.id === trackId
@@ -792,9 +795,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                 .sort((a, b) => a.startTime - b.startTime)[0];
               const maxEnd = nextClip ? nextClip.startTime : duration;
               const safeDuration = Math.min(newDuration, maxEnd - moving.startTime);
-              // Respect original video duration
-              const maxDuration = moving.asset?.duration || moving.duration;
-              const clampedDuration = Math.min(safeDuration, maxDuration);
+              // For effects, allow arbitrary duration; for videos, respect original asset duration if available
+              let clampedDuration = safeDuration;
+              if ((moving as any).type !== 'effect') {
+                const maxDuration = (moving as any).asset?.duration || safeDuration;
+                clampedDuration = Math.min(safeDuration, maxDuration);
+              }
               const trimmed = { ...moving, duration: Math.max(0.1, clampedDuration) };
               removed = removed.map((t) =>
                 t.id === trackId
@@ -857,7 +863,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             duration: asset.duration,
           };
 
-          const desiredDuration = asset.duration || 5;
+          // For effects, allow arbitrary timeline length; for videos, use asset duration if known
+          const desiredDuration = asset.type === 'effect' ? (asset.duration || 5) : (asset.duration || 5);
           
           if (existingClip) {
             // Replace the existing clip
