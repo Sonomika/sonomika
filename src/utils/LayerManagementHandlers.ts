@@ -1,7 +1,9 @@
 /**
  * Handle column play event
  */
-export const handleColumnPlay = (
+import { preloadColumnAssets } from './AssetPreloader';
+
+export const handleColumnPlay = async (
   columnId: string,
   currentScene: any,
   setPreviewContent: (content: any) => void,
@@ -12,33 +14,49 @@ export const handleColumnPlay = (
   const column = currentScene?.columns.find((col: any) => col.id === columnId);
   console.log('🎵 Found column:', column);
   
-  if (column) {
-    const layersWithContent = column.layers.filter((layer: any) => layer.asset);
-    console.log('🎵 Column layers with content:', layersWithContent);
-    console.log('🎵 Total layers in column:', column.layers.length);
-    
-    if (layersWithContent.length === 0) {
-      console.log('❌ No layers with content in column:', columnId);
-      // Show a helpful message in the preview
-      setPreviewContent({
-        type: 'column',
-        columnId: columnId,
-        column: column,
-        layers: column.layers,
-        isEmpty: true
+  if (!column) return;
+  const layersWithContent = column.layers.filter((layer: any) => layer.asset);
+  console.log('🎵 Column layers with content:', layersWithContent);
+  console.log('🎵 Total layers in column:', column.layers.length);
+
+  if (layersWithContent.length === 0) {
+    console.log('❌ No layers with content in column:', columnId);
+    setPreviewContent({
+      type: 'column',
+      columnId,
+      column,
+      layers: column.layers,
+      isEmpty: true
+    });
+    setIsPlaying(false);
+    return;
+  }
+
+  // Preload assets before switching preview to avoid flashes
+  try {
+    await preloadColumnAssets(column, { timeoutMs: 1500 });
+  } catch (e) {
+    console.warn('Preload failed or timed out, proceeding:', e);
+  }
+
+  console.log('✅ Assets preloaded, updating preview');
+  setPreviewContent({
+    type: 'column',
+    columnId,
+    column,
+    layers: layersWithContent
+  });
+  setIsPlaying(true);
+  // Defer play to ensure the preview mounts and event listeners are attached
+  try {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try { playColumn(columnId); } catch {}
       });
-      setIsPlaying(false);
-    } else {
-      console.log('✅ Playing column with layers:', layersWithContent);
-      setPreviewContent({
-        type: 'column',
-        columnId: columnId,
-        column: column,
-        layers: layersWithContent
-      });
-      setIsPlaying(true);
-      playColumn(columnId);
-    }
+    });
+  } catch {
+    // Fallback without RAF
+    setTimeout(() => { try { playColumn(columnId); } catch {} }, 0);
   }
 };
 

@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
 import EffectLoader from './EffectLoader';
+import { getCachedVideo } from '../utils/AssetPreloader';
 import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
 import EffectChain, { ChainItem } from './EffectChain';
 
@@ -370,6 +371,7 @@ const ColumnScene: React.FC<{
     images: Map<string, HTMLImageElement>;
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
+  const pendingRestartRef = useRef<boolean>(false);
   
   // Use ref to track loaded assets to prevent infinite loops
   const loadedAssetsRef = useRef<{
@@ -377,10 +379,9 @@ const ColumnScene: React.FC<{
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
 
-  // Global asset cache to persist videos across column switches
-  const globalAssetCacheRef = useRef<{
-    videos: Map<string, HTMLVideoElement>;
-  }>({ videos: new Map() });
+  // Local cache remains for continuity within this component instance,
+  // but we also consult the global preloader cache to avoid flashes.
+  const globalAssetCacheRef = useRef<{ videos: Map<string, HTMLVideoElement> }>({ videos: new Map() });
 
   // Performance optimization: removed excessive logging
 
@@ -462,8 +463,8 @@ const ColumnScene: React.FC<{
           }
         } else if (asset.type === 'video') {
           try {
-            // Check global cache first to prevent flash during column switches
-            let video = globalAssetCacheRef.current.videos.get(asset.id);
+            // Prefer globally preloaded/cached video first to prevent flash during column switches
+            let video = getCachedVideo(asset.id) || globalAssetCacheRef.current.videos.get(asset.id);
             
             if (video) {
               console.log('✅ Using cached video for asset:', asset.name);
@@ -528,7 +529,7 @@ const ColumnScene: React.FC<{
 
               try { void video.play(); } catch {}
 
-              // Cache the video globally for future column switches
+              // Cache locally for this component, while global cache is managed by preloader
               globalAssetCacheRef.current.videos.set(asset.id, video);
               newVideos.set(asset.id, video);
               console.log(`✅ Video ready and cached for layer ${layer.name}:`, asset.name);
@@ -600,11 +601,56 @@ const ColumnScene: React.FC<{
 
     document.addEventListener('videoRestart', handleVideoRestart as EventListener);
     document.addEventListener('videoContinue', handleVideoContinue as EventListener);
+    const handleColumnPlayEvt = (e: CustomEvent) => {
+      const { columnId } = e.detail || {};
+      if (columnId !== column.id) return;
+      // Mark restart pending; we'll try now and on subsequent asset updates
+      pendingRestartRef.current = true;
+      const tryRestart = () => {
+        let handledAny = false;
+        column.layers.forEach((l: any) => {
+          if (!l?.asset || l.asset.type !== 'video') return;
+          const mode = (l as any).playMode ?? 'restart';
+          const v = assets.videos.get(l.asset.id);
+          if (mode === 'restart' && v) {
+            try { v.currentTime = 0; } catch {}
+            try { void v.play(); } catch {}
+            handledAny = true;
+          }
+        });
+        if (handledAny) pendingRestartRef.current = false;
+        return handledAny;
+      };
+      // Immediate and a couple of retries to cover async asset readiness
+      if (!tryRestart()) {
+        setTimeout(tryRestart, 60);
+        setTimeout(tryRestart, 140);
+      }
+    };
+    document.addEventListener('columnPlay', handleColumnPlayEvt as EventListener);
     return () => {
       document.removeEventListener('videoRestart', handleVideoRestart as EventListener);
       document.removeEventListener('videoContinue', handleVideoContinue as EventListener);
+      document.removeEventListener('columnPlay', handleColumnPlayEvt as EventListener);
     };
   }, [column.id, column.layers, assets.videos]);
+
+  // If assets arrive after a columnPlay, complete pending restart
+  useEffect(() => {
+    if (!pendingRestartRef.current) return;
+    let handledAny = false;
+    column.layers.forEach((l: any) => {
+      if (!l?.asset || l.asset.type !== 'video') return;
+      const mode = (l as any).playMode ?? 'restart';
+      const v = assets.videos.get(l.asset.id);
+      if (mode === 'restart' && v) {
+        try { v.currentTime = 0; } catch {}
+        try { void v.play(); } catch {}
+        handledAny = true;
+      }
+    });
+    if (handledAny) pendingRestartRef.current = false;
+  }, [assets.videos, column.layers]);
 
   // Set up camera
   useEffect(() => {
