@@ -9,16 +9,18 @@ import { Timeline } from './Timeline';
 import TimelineComposer from './TimelineComposer';
 import { BPMManager } from '../engine/BPMManager';
 import { v4 as uuidv4 } from 'uuid';
-import { getAssetPath, createColumn, getDefaultEffectParams, handleDragOver, handleDragLeave, handleLayerClick } from '../utils/LayerManagerUtils';
+import { getAssetPath, createColumn, handleDragOver, handleDragLeave, handleLayerClick } from '../utils/LayerManagerUtils';
 import { handleDrop, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
 import { handleColumnPlay, handleUpdateLayer } from '../utils/LayerManagementHandlers';
-import { createSceneContextMenu } from '../utils/SceneManagementHandlers';
+import { handleSceneRename } from '../utils/SceneManagementHandlers';
 import { EffectsBrowser } from './EffectsBrowser';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
-import { ButtonGroup } from './ui';
+// Scenes header now uses ContextMenu for actions
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui/ContextMenu';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
+import { GlobalEffectsTab } from './GlobalEffectsTab';
 import { PlayIcon, PauseIcon, StopIcon, GridIcon, RowsIcon, TrashIcon, CopyIcon } from '@radix-ui/react-icons';
 import { MixerHorizontalIcon } from '@radix-ui/react-icons';
 
@@ -34,7 +36,7 @@ const MemoMediaLibrary = React.memo(MediaLibrary);
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop } = useStore() as any;
+  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop } = useStore() as any;
   const [bpmInputValue, setBpmInputValue] = useState(bpm.toString());
   
   // Sync local BPM input with store BPM
@@ -51,7 +53,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
   
   const [selectedLayer, setSelectedLayer] = useState<any>(null);
-  const [selectedGlobalEffectKey, setSelectedGlobalEffectKey] = useState<string | null>(null);
+  const [selectedGlobalEffectKey] = useState<string | null>(null);
   // Selected column is currently not used in UI state; pass no-op where needed
   const [paneSizes, setPaneSizes] = useState({
     gridHeight: 50, // percentage of viewport height - start at 50/50
@@ -65,6 +67,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   const [showTimeline, setShowTimeline] = useState(false);
   const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
+  const [middlePanelTab, setMiddlePanelTab] = useState<'global' | 'layer'>('layer');
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
   const [contextHighlightedCell, setContextHighlightedCell] = useState<string | null>(null);
@@ -796,26 +799,39 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Migrate global effects to new format if needed
   if (currentScene.globalEffects) {
     let effectsMigrated = false;
-    const migratedEffects = currentScene.globalEffects.map((effect: any) => {
-      if (typeof effect === 'string') {
+    const migratedEffects = (currentScene.globalEffects as any[])
+      .map((effect: any) => {
+        // Drop null/undefined entries safely
+        if (effect == null) {
+          effectsMigrated = true;
+          return null;
+        }
         // Old format: just a string ID
+        if (typeof effect === 'string') {
+          effectsMigrated = true;
+          return {
+            id: uuidv4(),
+            effectId: effect,
+            enabled: true,
+            params: {}
+          };
+        }
+        // New format object but missing id
+        if (typeof effect === 'object') {
+          if (!('id' in effect) || !effect.id) {
+            effectsMigrated = true;
+            return {
+              ...effect,
+              id: uuidv4()
+            };
+          }
+          return effect;
+        }
+        // Unknown type, drop it
         effectsMigrated = true;
-        return {
-          id: uuidv4(),
-          effectId: effect,
-          enabled: true,
-          params: {}
-        };
-      } else if (!effect.id) {
-        // New format but missing ID
-        effectsMigrated = true;
-        return {
-          ...effect,
-          id: uuidv4()
-        };
-      }
-      return effect;
-    });
+        return null;
+      })
+      .filter((e: any) => e != null);
 
     if (effectsMigrated) {
       console.log('🔄 Migrating global effects to new format');
@@ -832,27 +848,41 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           <div className="tw-flex tw-items-center tw-justify-between tw-min-h-8 tw-px-4 tw-py-1 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <div className="header-left">
               <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
-                <ButtonGroup
-                  options={scenes.map((scene: any) => ({
-                    value: scene.id,
-                    label: scene.name,
-                    onContextMenu: (e: React.MouseEvent) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      
-                      // Remove any existing menus
-                      const existingMenus = document.querySelectorAll('.scene-context-menu');
-                      existingMenus.forEach(menu => menu.remove());
-                      
-                      createSceneContextMenu(scene, scenes, updateScene, removeScene);
-                    },
-                    title: "Right-click to rename or delete scene"
-                  }))}
-                  value={currentSceneId}
-                  onChange={(sceneId) => setCurrentScene(sceneId as string)}
-                  size="small"
-                  columns={scenes.length}
-                />
+                {scenes.map((scene: any, index: number) => (
+                  <ContextMenu key={scene.id}>
+                    <ContextMenuTrigger asChild>
+                      <button
+                        className={`tw-text-xs tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-1 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-bg-sky-600 tw-text-white tw-border-sky-600' : ''}`}
+                        onClick={() => setCurrentScene(scene.id)}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/x-scene-index', String(index));
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                        }}
+                        onDrop={(e) => {
+                          const fromStr = e.dataTransfer.getData('application/x-scene-index');
+                          if (fromStr) {
+                            const from = parseInt(fromStr, 10);
+                            if (!Number.isNaN(from)) reorderScenes(from, index);
+                          }
+                        }}
+                        title={"Right-click to rename, duplicate, or delete"}
+                      >
+                        {scene.name}
+                      </button>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem onSelect={() => handleSceneRename(scene, updateScene)}>Rename</ContextMenuItem>
+                      <ContextMenuItem onSelect={() => duplicateScene(scene.id)}>Duplicate</ContextMenuItem>
+                      {scenes.length > 1 && (
+                        <ContextMenuItem className="tw-text-red-400" onSelect={() => removeScene(scene.id)}>Delete</ContextMenuItem>
+                      )}
+                    </ContextMenuContent>
+                  </ContextMenu>
+                ))}
                 <button onClick={addScene} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-7 tw-h-7 hover:tw-bg-neutral-800" title="Add new scene">
                   +
                 </button>
@@ -960,120 +990,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               />
             ) : (
               <>
-                {/* Global Effects Row */}
-                <div className="tw-px-3 tw-py-2">
-                  <div 
-                    className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2"
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.add('drag-over');
-                    }}
-                    onDragLeave={(e) => {
-                      e.currentTarget.classList.remove('drag-over');
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.remove('drag-over');
-                      
-                      try {
-                        const data = JSON.parse(e.dataTransfer.getData('application/json'));
-                        if (data.isEffect) {
-                          console.log('🌐 Adding global effect:', data);
-                          
-                                    const newEffectSlot = {
-            id: uuidv4(),
-            effectId: data.id || data.name,
-            enabled: true,
-            params: getDefaultEffectParams(data.id || data.name)
-          };
-                          
-                          // Add the effect slot to the scene's global effects (stackable, preserve order)
-                          const currentGlobalEffects = currentScene?.globalEffects || [];
-                          const updatedEffects = [
-                            ...currentGlobalEffects,
-                            newEffectSlot
-                          ];
-                          updateScene(currentSceneId, { globalEffects: updatedEffects });
-                          console.log('🌐 Global effects updated:', updatedEffects);
-                        }
-                      } catch (error) {
-                        console.error('Error adding global effect:', error);
-                      }
-                    }}
-                  >
-                    <div className="tw-grid tw-grid-cols-5 tw-gap-2">
-                      {Array.from({ length: 10 }, (_, index) => {
-                        const effectSlot = currentScene?.globalEffects?.[index];
-                        
-                        if (effectSlot) {
-                          // Render existing effect slot
-                          return (
-                            <div
-                              key={effectSlot.id || `effect-${index}`}
-                              className={`tw-rounded tw-border tw-p-2 tw-bg-neutral-900 tw-border-neutral-800 ${effectSlot.enabled ? 'tw-ring-2 tw-ring-sky-600' : ''}`}
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                const updatedEffects = currentScene.globalEffects.filter((_: any, i: number) => i !== index);
-                                updateScene(currentSceneId, { globalEffects: updatedEffects });
-                              }}
-                              title="Right-click to remove"
-                            >
-                              <div 
-                                className="tw-flex tw-items-center tw-gap-2 tw-cursor-pointer"
-                                onClick={() => {
-                                  // Select this effect to edit in layer options panel
-                                  const pseudoLayer = {
-                                    id: `global-effect-layer-${effectSlot.id}-${index}`,
-                                    name: effectSlot.effectId || 'Global Effect',
-                                    type: 'effect',
-                                    asset: { id: effectSlot.effectId, name: effectSlot.effectId, type: 'effect', isEffect: true },
-                                    params: effectSlot.params || {},
-                                    blendMode: 'add',
-                                    opacity: 1.0,
-                                  };
-                                  setSelectedLayer(pseudoLayer);
-                                  setSelectedGlobalEffectKey(`${index}:${effectSlot.id}`);
-                                }}
-                                title="Click to edit effect parameters"
-                              >
-                                <button
-                                  className={`tw-inline-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-border ${effectSlot.enabled ? 'tw-bg-red-600 tw-border-red-600' : 'tw-bg-neutral-800 tw-border-neutral-700'} tw-text-white`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const updatedEffects = currentScene.globalEffects.map((slot: any, i: number) => ({
-                                      ...slot,
-                                      enabled: i === index ? !slot.enabled : false
-                                    }));
-                                    updateScene(currentSceneId, { globalEffects: updatedEffects });
-                                  }}
-                                  title={effectSlot.enabled ? 'Stop Global Effect' : 'Play Global Effect'}
-                                >
-                                  {effectSlot.enabled ? (
-                                    <StopIcon width={12} height={12} />
-                                  ) : (
-                                    <PlayIcon width={12} height={12} />
-                                  )}
-                                </button>
-                                <span className="tw-text-sm tw-text-neutral-200">
-                                  {effectSlot.name || effectSlot.effectId || 'Unknown Effect'}
-                                </span>
-                                {effectSlot.enabled && <div className="tw-text-red-500">•</div>}
-                              </div>
-                            </div>
-                          );
-                      } else {
-                        // Render empty slot
-                        return (
-                          <div key={`empty-slot-${index}`} className="tw-rounded tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900 tw-p-2">
-                           <div className="tw-h-6" />
-                          </div>
-                        );
-                      }
-                       })}
-                    </div>
-                  </div>
-                </div>
+                {/* Global Effects Row removed - moved into Global tab */}
 
             {/* Composition Row */}
             <div className="tw-grid tw-gap-2" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
@@ -1309,13 +1226,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
 
 
-          {/* Resize Handle */}
-          <div 
-            className={`${isResizing ? 'tw-bg-cyan-500 tw-border-cyan-500' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700'} tw-h-1.5 tw-border-y tw-border-neutral-700 tw-cursor-ns-resize`}
-            onMouseDown={handleResizeStart}
-          >
-            <div className="tw-text-neutral-400 tw-text-xs tw-text-center">⋮⋮</div>
-          </div>
+                     
+
+           {/* Resize Handle */}
+           <div 
+             className={`${isResizing ? 'tw-bg-cyan-500 tw-border-cyan-500' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700'} tw-h-1.5 tw-border-y tw-border-neutral-700 tw-cursor-ns-resize`}
+             onMouseDown={handleResizeStart}
+           >
+             <div className="tw-text-neutral-400 tw-text-xs tw-text-center">⋮⋮</div>
+           </div>
 
           {/* Bottom Section with Preview, Layer Options, and Media Library */}
           <div 
@@ -1344,43 +1263,54 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               </div>
             </div>
 
-            {/* Layer Options - Bottom Center */}
+            {/* Layer Options / Global - Bottom Center */}
             <div className="tw-flex-1 tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
-              <div className="tw-border-b tw-border-neutral-800 tw-pb-2 tw-px-3 tw-py-2">
-                <h3 className="tw-text-base tw-font-semibold tw-text-neutral-200">
-                  {selectedLayer ? `Layer Options - ${selectedLayer.name}` : 'Layer Options'}
-                </h3>
+              <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
+                <Tabs value={middlePanelTab} onValueChange={(value) => setMiddlePanelTab(value as 'global' | 'layer')} className="tw-w-full">
+                  <TabsList className="tw-grid tw-w-full tw-grid-cols-2">
+                    <TabsTrigger value="global">Global</TabsTrigger>
+                    <TabsTrigger value="layer">Layer</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
                              <div className="tw-h-[calc(100%-60px)] tw-px-3">
                  <ScrollArea.Root className="tw-h-full" type="always">
                    <ScrollArea.Viewport className="tw-h-full tw-w-full">
-                     <LayerOptions 
-                       selectedLayer={selectedLayer}
-                       onUpdateLayer={handleUpdateSelectedLayer}
-                     />
+                     {middlePanelTab === 'global' ? (
+                       <div className="tw-h-full">
+                         <GlobalEffectsTab className="tw-h-full" />
+                       </div>
+                     ) : (
+                       <div className="tw-h-full">
+                         <LayerOptions 
+                           selectedLayer={selectedLayer}
+                           onUpdateLayer={handleUpdateSelectedLayer}
+                         />
+                       </div>
+                     )}
                    </ScrollArea.Viewport>
-                   <ScrollArea.Scrollbar
-                     className="tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation=horizontal]:tw-flex-col tw-data-[orientation=horizontal]:tw-h-2.5"
-                     orientation="vertical"
-                   >
-                     <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
-                   </ScrollArea.Scrollbar>
-                 </ScrollArea.Root>
-               </div>
+                  <ScrollArea.Scrollbar
+                    className="tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation:horizontal]:tw-flex-col tw-data-[orientation:horizontal]:tw-h-2.5"
+                    orientation="vertical"
+                  >
+                    <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
+                  </ScrollArea.Scrollbar>
+                </ScrollArea.Root>
+              </div>
             </div>
 
             {/* Media Library / MIDI Mapper - Bottom Right */}
             <div className="tw-w-1/3 tw-min-w-[320px] tw-overflow-hidden tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
               {/* Tab Navigation */}
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
-                <Tabs value={showMediaLibrary ? String(showMediaLibrary) : 'media'} onValueChange={(val) => setShowMediaLibrary(val === 'media' ? false : (val as any))}>
-                  <TabsList>
-                    <TabsTrigger value="media">Media</TabsTrigger>
-                    <TabsTrigger value="effects">Effects</TabsTrigger>
-                    <TabsTrigger value="midi">MIDI</TabsTrigger>
-                    <TabsTrigger value="lfo">LFO</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                               <Tabs value={showMediaLibrary ? String(showMediaLibrary) : 'media'} onValueChange={(val) => setShowMediaLibrary(val === 'media' ? false : (val as any))}>
+                 <TabsList>
+                   <TabsTrigger value="media">Media</TabsTrigger>
+                   <TabsTrigger value="effects">Effects</TabsTrigger>
+                   <TabsTrigger value="midi">MIDI</TabsTrigger>
+                   <TabsTrigger value="lfo">LFO</TabsTrigger>
+                 </TabsList>
+               </Tabs>
               </div>
               
                              {/* Tab Content */}

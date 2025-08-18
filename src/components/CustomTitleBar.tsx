@@ -11,6 +11,7 @@ interface CustomTitleBarProps {
   onSavePreset?: () => void;
   onLoadPreset?: () => void;
   onCompositionSettings?: () => void;
+  onOpenSettings?: () => void;
   onToggleUIDemo?: () => void;
   onStyleGuide?: () => void;
   debugMode?: boolean;
@@ -27,6 +28,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onSavePreset,
   onLoadPreset,
   onCompositionSettings,
+  onOpenSettings,
   onToggleUIDemo,
   onStyleGuide,
   debugMode = false,
@@ -119,6 +121,9 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           </div>
           <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onCompositionSettings}>
             Composition Settings
+          </button>
+          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onOpenSettings}>
+            Settings
           </button>
           {process.env.NODE_ENV === 'development' && onStyleGuide && (
             <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onStyleGuide}>

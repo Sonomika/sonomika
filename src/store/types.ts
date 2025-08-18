@@ -87,6 +87,7 @@ export interface AppState {
   isGlobalPlaying: boolean; // Track global play/pause state
   bpm: number;
   sidebarVisible: boolean;
+  accessibilityEnabled: boolean; // Global accessibility mode
   midiMappings: MIDIMapping[];
   selectedLayerId: string | null;
   selectedTimelineClip: any | null;

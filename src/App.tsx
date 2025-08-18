@@ -3,6 +3,7 @@ import { LayerManager } from './components/LayerManager';
 import { CompositionSettings } from './components/CompositionSettings';
 import { PresetModal } from './components/PresetModal';
 import { CustomTitleBar } from './components/CustomTitleBar';
+import { SettingsDialog } from './components/SettingsDialog';
 import { UIDemo } from './components/ui';
 import { Toaster } from './components/ui';
 import { useStore } from './store/store';
@@ -71,12 +72,13 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
 function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
   const [compositionSettingsOpen, setCompositionSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [showUIDemo, setShowUIDemo] = useState(false);
   
   const [debugMode, setDebugMode] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const usingDummyCanvas = useRef<boolean>(false);
-  const { savePreset, loadPreset } = useStore();
+  const { savePreset, loadPreset, accessibilityEnabled } = useStore() as any;
   const lastSaveRef = useRef<number>(0);
   
   // Modal states
@@ -413,6 +415,18 @@ function App() {
     setCompositionSettingsOpen(true);
   };
 
+  useEffect(() => {
+    // Toggle global class to control accessibility highlights
+    const root = document.documentElement;
+    if (accessibilityEnabled) {
+      root.classList.remove('a11y-off');
+      root.classList.add('a11y-on');
+    } else {
+      root.classList.remove('a11y-on');
+      root.classList.add('a11y-off');
+    }
+  }, [accessibilityEnabled]);
+
   const handleToggleUIDemo = () => {
     setShowUIDemo(!showUIDemo);
   };
@@ -469,6 +483,7 @@ function App() {
         onSavePreset={handleSavePreset}
         onLoadPreset={handleLoadPreset}
         onCompositionSettings={handleCompositionSettings}
+        onOpenSettings={() => setSettingsOpen(true)}
         onToggleUIDemo={handleToggleUIDemo}
         debugMode={debugMode}
         onToggleDebug={handleToggleDebug}
@@ -501,6 +516,7 @@ function App() {
         isOpen={compositionSettingsOpen}
         onClose={() => setCompositionSettingsOpen(false)}
       />
+      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <Toaster />
     </ErrorBoundary>
   );

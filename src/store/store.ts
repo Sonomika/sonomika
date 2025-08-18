@@ -46,6 +46,7 @@ const initialState: AppState = {
   isGlobalPlaying: false, // Global play/pause state
   bpm: 120,
   sidebarVisible: true,
+  accessibilityEnabled: false,
   midiMappings: [],
   selectedLayerId: null,
   selectedTimelineClip: null,
@@ -72,6 +73,10 @@ export const useStore = create<AppState & {
   setCurrentScene: (sceneId: string) => void;
   updateScene: (sceneId: string, updates: Partial<Scene>) => void;
   removeScene: (sceneId: string) => void;
+  duplicateScene: (sceneId: string) => void;
+  reorderScenes: (fromIndex: number, toIndex: number) => void;
+  setAccessibilityEnabled: (enabled: boolean) => void;
+  toggleAccessibility: () => void;
   addColumn: (sceneId: string) => void;
   updateLayer: (layerId: string, updates: Partial<Layer>) => void;
   toggleSidebar: () => void;
@@ -134,6 +139,43 @@ export const useStore = create<AppState & {
           ? state.scenes[0].id 
           : state.currentSceneId,
       })),
+
+      duplicateScene: (sceneId: string) => set((state) => {
+        const srcIndex = state.scenes.findIndex(s => s.id === sceneId);
+        if (srcIndex === -1) return {} as any;
+        const src = state.scenes[srcIndex];
+        const cloned = {
+          id: uuidv4(),
+          name: `${src.name} Copy`,
+          columns: src.columns.map((col) => ({
+            id: uuidv4(),
+            name: col.name,
+            layers: col.layers.map((layer) => ({
+              ...layer,
+              id: uuidv4(),
+            }))
+          })),
+          globalEffects: (src.globalEffects || []).map((eff: any) => {
+            if (!eff) return eff;
+            return { ...eff, id: uuidv4() };
+          })
+        } as Scene as any;
+        const nextScenes = [...state.scenes];
+        nextScenes.splice(srcIndex + 1, 0, cloned);
+        return { scenes: nextScenes } as any;
+      }),
+
+      reorderScenes: (fromIndex: number, toIndex: number) => set((state) => {
+        if (fromIndex === toIndex) return {} as any;
+        if (fromIndex < 0 || toIndex < 0 || fromIndex >= state.scenes.length || toIndex >= state.scenes.length) return {} as any;
+        const scenes = [...state.scenes];
+        const [moved] = scenes.splice(fromIndex, 1);
+        scenes.splice(toIndex, 0, moved);
+        return { scenes } as any;
+      }),
+
+      setAccessibilityEnabled: (enabled: boolean) => set({ accessibilityEnabled: enabled }),
+      toggleAccessibility: () => set((state) => ({ accessibilityEnabled: !state.accessibilityEnabled })),
 
       addColumn: (sceneId: string) => set((state) => ({
         scenes: state.scenes.map(scene =>
