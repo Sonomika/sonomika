@@ -4,6 +4,9 @@ export class CanvasStreamManager {
   private canvas: HTMLCanvasElement | null = null;
   private isWindowOpen: boolean = false;
   private animationId: number | null = null;
+  private browserWindow: Window | null = null;
+  private mirrorCanvas: HTMLCanvasElement | null = null;
+  private mirrorCtx: CanvasRenderingContext2D | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -109,12 +112,36 @@ export class CanvasStreamManager {
       }
     });
 
-    // Start streaming the canvas directly
+    // Cache refs for drawing in web environment
+    this.browserWindow = streamWindow;
+    this.mirrorCanvas = streamWindow.document.getElementById('mirror-canvas') as HTMLCanvasElement | null;
+    this.mirrorCtx = this.mirrorCanvas ? this.mirrorCanvas.getContext('2d') : null;
+
+    // Sync backing store size with viewport for crisp rendering
+    const resizeMirrorCanvas = () => {
+      if (!this.browserWindow || !this.mirrorCanvas) return;
+      const dpr = this.browserWindow.devicePixelRatio || 1;
+      const width = Math.floor(this.browserWindow.innerWidth * dpr);
+      const height = Math.floor(this.browserWindow.innerHeight * dpr);
+      if (this.mirrorCanvas.width !== width || this.mirrorCanvas.height !== height) {
+        this.mirrorCanvas.width = width;
+        this.mirrorCanvas.height = height;
+      }
+    };
+
+    resizeMirrorCanvas();
+    this.browserWindow.addEventListener('resize', resizeMirrorCanvas);
+    this.browserWindow.addEventListener('beforeunload', () => {
+      this.closeMirrorWindow();
+    });
+
+    this.isWindowOpen = true;
+    // Start streaming frames to the browser window
     this.startCanvasCapture();
   }
 
   private startCanvasCapture(): void {
-    if (!this.canvas || !window.electron) {
+    if (!this.canvas) {
       return;
     }
 
@@ -138,32 +165,54 @@ export class CanvasStreamManager {
         // Check if canvas has content
         if (this.canvas!.width > 0 && this.canvas!.height > 0) {
           try {
-            // Capture at full composition resolution (1920x1080)
-            const originalWidth = this.canvas!.width;
-            const originalHeight = this.canvas!.height;
-            
-            // Composite on a temp canvas with the composition background to avoid black alpha in JPEG
-            const targetWidth = 1920;
-            const targetHeight = 1080;
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = targetWidth;
-            tempCanvas.height = targetHeight;
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            if (tempCtx) {
-              const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
-              // Fill background
-              tempCtx.fillStyle = bg;
-              tempCtx.fillRect(0, 0, targetWidth, targetHeight);
-              // Draw original canvas scaled to target
-              tempCtx.drawImage(this.canvas!, 0, 0, targetWidth, targetHeight);
-              const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
-              if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
-                if (window.electron && window.electron.sendCanvasData) {
+            if (window.electron && window.electron.sendCanvasData) {
+              // Electron path: composite to 1920x1080 and send as JPEG data URL
+              const targetWidth = 1920;
+              const targetHeight = 1080;
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = targetWidth;
+              tempCanvas.height = targetHeight;
+              const tempCtx = tempCanvas.getContext('2d');
+              if (tempCtx) {
+                const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
+                // Fill background
+                tempCtx.fillStyle = bg;
+                tempCtx.fillRect(0, 0, targetWidth, targetHeight);
+                // Draw original canvas scaled to target
+                tempCtx.drawImage(this.canvas!, 0, 0, targetWidth, targetHeight);
+                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
+                if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
                   window.electron.sendCanvasData(dataUrl);
                   lastDataUrl = dataUrl;
                 }
+              }
+            } else if (this.browserWindow && !this.browserWindow.closed && this.mirrorCtx && this.mirrorCanvas) {
+              // Web path: draw directly to the mirror window canvas, preserving aspect ratio (cover)
+              const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
+              const destW = this.mirrorCanvas.width;
+              const destH = this.mirrorCanvas.height;
 
+              // Clear with background
+              this.mirrorCtx.save();
+              this.mirrorCtx.fillStyle = bg;
+              this.mirrorCtx.fillRect(0, 0, destW, destH);
+
+              const srcW = this.canvas!.width;
+              const srcH = this.canvas!.height;
+              const scale = Math.max(destW / srcW, destH / srcH);
+              const drawW = Math.floor(srcW * scale);
+              const drawH = Math.floor(srcH * scale);
+              const dx = Math.floor((destW - drawW) / 2);
+              const dy = Math.floor((destH - drawH) / 2);
+
+              this.mirrorCtx.imageSmoothingEnabled = true;
+              this.mirrorCtx.imageSmoothingQuality = 'high';
+              this.mirrorCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
+              this.mirrorCtx.restore();
+            } else {
+              // Browser mirror closed: stop streaming
+              if (this.browserWindow && this.browserWindow.closed) {
+                this.closeMirrorWindow();
               }
             }
           } catch (error) {
@@ -189,8 +238,15 @@ export class CanvasStreamManager {
     
     if (window.electron && window.electron.closeMirrorWindow) {
       window.electron.closeMirrorWindow();
-      this.isWindowOpen = false;
     }
+
+    if (this.browserWindow && !this.browserWindow.closed) {
+      try { this.browserWindow.close(); } catch {}
+    }
+    this.browserWindow = null;
+    this.mirrorCanvas = null;
+    this.mirrorCtx = null;
+    this.isWindowOpen = false;
   }
 
   isMirrorWindowOpen(): boolean {
