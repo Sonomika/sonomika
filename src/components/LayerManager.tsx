@@ -1345,11 +1345,18 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             </div>
 
             {/* Layer Options - Bottom Center */}
-            <div className="tw-flex-1 tw-min-w-[260px] tw-overflow-auto tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
-              <LayerOptions 
-                selectedLayer={selectedLayer}
-                onUpdateLayer={handleUpdateSelectedLayer}
-              />
+            <div className="tw-flex-1 tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
+              <div className="tw-border-b tw-border-neutral-800 tw-pb-2 tw-px-3 tw-py-2">
+                <h3 className="tw-text-base tw-font-semibold tw-text-neutral-200">
+                  {selectedLayer ? `Layer Options - ${selectedLayer.name}` : 'Layer Options'}
+                </h3>
+              </div>
+              <div className="tw-overflow-auto tw-h-[calc(100%-60px)] tw-px-3">
+                <LayerOptions 
+                  selectedLayer={selectedLayer}
+                  onUpdateLayer={handleUpdateSelectedLayer}
+                />
+              </div>
             </div>
 
             {/* Media Library / MIDI Mapper - Bottom Right */}

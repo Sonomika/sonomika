@@ -238,12 +238,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   }
 
   return (
-    <div className="tw-space-y-4 tw-text-neutral-200">
-      <div className="tw-border-b tw-border-neutral-800 tw-pb-2">
-        <h3 className="tw-text-base tw-font-semibold">Layer Options - {selectedLayer.name}</h3>
-      </div>
-      
-      <div className="tw-space-y-4 tw-overflow-y-auto tw-max-h-[calc(100vh-200px)]">
+    <div className="tw-text-neutral-200 tw-pt-2">
+      <div className="tw-space-y-4">
         {/* Effect Parameters Section */}
         {hasEffect && (
           <div className="tw-space-y-2">
