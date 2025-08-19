@@ -10,6 +10,7 @@ import { useStore } from './store/store';
 import { effectCache } from './utils/EffectCache';
 import { CanvasStreamManager } from './utils/CanvasStream';
 import './index.css';
+import { attachLFOEngineGlobalListeners } from './engine/LFOEngine';
 
 // Effects are loaded dynamically - no hardcoded imports needed
 
@@ -99,6 +100,8 @@ function App() {
   });
 
   useEffect(() => {
+    // Attach global LFO engine listeners (column/global play events)
+    try { attachLFOEngineGlobalListeners(); } catch {}
     // Detect Windows taskbar and adjust app height
     const adjustForTaskbar = () => {
       const viewportHeight = window.innerHeight;

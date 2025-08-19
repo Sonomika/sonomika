@@ -36,12 +36,17 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   const updateMappingForLayer = useLFOStore((state) => state.updateMappingForLayer);
   const setLFOModulatedValue = useLFOStore((state) => state.setModulatedValue);
 
-  // Sync UI tab with store mode (view only). Do NOT change generator mode on tab switch.
-  useEffect(() => {
+  // Sync UI tab with per-layer mode, but only when the mode actually changes
+  const currentMode = (() => {
     const lid = selectedLayer?.id;
-    const current = lid ? lfoStateByLayer[lid] : undefined;
-    if (current?.mode) setActiveTab(current.mode);
-  }, [selectedLayer?.id, lfoStateByLayer]);
+    return lid ? (lfoStateByLayer[lid]?.mode as any) : undefined;
+  })();
+  useEffect(() => {
+    if (currentMode && currentMode !== activeTab) {
+      setActiveTab(currentMode as 'lfo' | 'random');
+    }
+    // Only depend on the computed mode to avoid re-running on unrelated per-layer state updates (e.g., currentValue)
+  }, [currentMode, activeTab]);
 
   // Refs to avoid dependencies
   const selectedLayerRef = useRef(selectedLayer);
@@ -339,7 +344,6 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       value = value * ((lfo.depth || 100) / 100) + ((lfo.offset || 0) / 100);
       value = Math.max(-1, Math.min(1, value));
       applyLFOModulation(value);
-      if (lid) setLFOForLayer(lid, { currentValue: value });
       drawWaveform();
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -365,7 +369,6 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       const max = Math.max(Number(lfo.randomMin || -100), Number(lfo.randomMax || 100)) / 100;
       const rand = min + Math.random() * (max - min);
       const clamped = Math.max(-1, Math.min(1, rand));
-      if (lid) setLFOForLayer(lid, { currentValue: clamped });
       applyLFOModulation(clamped);
 
       // Additionally, fire randomize triggers for mappings that request it
@@ -515,7 +518,11 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
         <div className="lfo-controls-top"></div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'lfo' | 'random')}>
+      <Tabs value={activeTab} onValueChange={(v) => {
+        setActiveTab(v as 'lfo' | 'random');
+        const lid2 = selectedLayerRef.current?.id;
+        if (lid2) setLFOForLayer(lid2, { mode: v as any });
+      }}>
         <TabsList>
           <TabsTrigger value="random">Random</TabsTrigger>
           <TabsTrigger value="lfo">LFO</TabsTrigger>
