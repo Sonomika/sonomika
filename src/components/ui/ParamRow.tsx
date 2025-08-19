@@ -15,6 +15,7 @@ interface ParamRowProps {
   showValue?: boolean;
   showLabel?: boolean;
   valueDisplay?: string;
+  buttonsAfter?: boolean;
 }
 
 export const ParamRow: React.FC<ParamRowProps> = ({
@@ -30,7 +31,8 @@ export const ParamRow: React.FC<ParamRowProps> = ({
   showSlider = true,
   showValue = true,
   showLabel = true,
-  valueDisplay
+  valueDisplay,
+  buttonsAfter = false
 }) => {
 
   // Handle the shadcn/ui Slider's onValueChange which receives an array
@@ -46,8 +48,19 @@ export const ParamRow: React.FC<ParamRowProps> = ({
     : (step >= 1 ? Math.round(value) : value.toFixed(step < 0.01 ? 3 : step < 0.1 ? 2 : 1));
   const displayValue = valueDisplay ?? formattedValue;
 
+  const Buttons = showButtons && onIncrement && onDecrement ? (
+    <div className="param-buttons tw-inline-flex tw-items-center tw-gap-1">
+      <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-6 tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onDecrement}>
+        -
+      </button>
+      <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-6 tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onIncrement}>
+        +
+      </button>
+    </div>
+  ) : null;
+
   return (
-    <div className="effect-param tw-flex tw-items-center tw-gap-2 tw-w-full">
+    <div className="effect-param tw-flex tw-items-center tw-gap-2 tw-w-full tw-min-w-0 tw-pr-6">
       {showLabel && (
         <label className="param-label tw-text-xs tw-uppercase tw-text-neutral-400 tw-shrink-0 tw-w-[180px]">
           {label}
@@ -60,19 +73,10 @@ export const ParamRow: React.FC<ParamRowProps> = ({
         </span>
       )}
 
-      {showButtons && onIncrement && onDecrement && (
-        <div className="param-buttons tw-inline-flex tw-items-center tw-gap-1">
-          <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-6 tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onDecrement}>
-            -
-          </button>
-          <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-6 tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onIncrement}>
-            +
-          </button>
-        </div>
-      )}
+      {!buttonsAfter && Buttons}
 
       {showSlider && (
-        <div className="slider-container tw-w-[240px]">
+        <div className="slider-container tw-flex-1 tw-min-w-0">
           <Slider 
             value={[value]} 
             min={min} 
@@ -82,6 +86,8 @@ export const ParamRow: React.FC<ParamRowProps> = ({
           />
         </div>
       )}
+
+      {buttonsAfter && Buttons}
     </div>
   );
 };

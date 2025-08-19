@@ -300,22 +300,57 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   }
 
   return (
-    <div className="tw-text-neutral-200 tw-pt-2 tw-pr-6">
+    <div className="tw-text-neutral-200 tw-pt-2 tw-pr-12">
       <div className="tw-space-y-4">
         {hasEffect && (
           <div className="tw-space-y-2">
-            <div className="tw-flex tw-items-center tw-justify-between">
-              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">
+            <div className="tw-grid tw-items-center" style={{ gridTemplateColumns: '180px 1fr 48px' }}>
+              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300 tw-col-span-2 tw-min-w-0 tw-pr-2 tw-truncate">
                 Effect Parameters{effectId ? ` · ${String(effectId)}` : ''}
               </h4>
-              <button
-                type="button"
-                className="tw-text-xs tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 hover:tw-bg-neutral-800"
-                onClick={randomizeEffectParams}
-                title="Randomize effect parameters"
-              >
-                Randomize
-              </button>
+              <div className="tw-flex tw-justify-end tw-items-center tw-gap-1">
+                <button
+                  type="button"
+                  onClick={randomizeEffectParams}
+                  className="tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none"
+                  title="Randomize unlocked parameters"
+                >
+                  <DiceIcon className="tw-text-white" />
+                </button>
+                {(() => {
+                  const total = (effectMetadata?.parameters || []).length;
+                  const lockedCount = (effectMetadata?.parameters || []).reduce((acc: number, p: any) => acc + (lockedParams[p.name] ? 1 : 0), 0);
+                  const allLocked = total > 0 && lockedCount === total;
+                  const toggleAllLocks = () => {
+                    if (!selectedLayer || !effectMetadata) return;
+                    const lock = !allLocked;
+                    const params = { ...(selectedLayer.params || {}) } as Record<string, any>;
+                    (effectMetadata.parameters as any[]).forEach((p: any) => {
+                      const prev = params[p.name] || { value: p.value };
+                      params[p.name] = { ...prev, locked: lock };
+                    });
+                    onUpdateLayer(selectedLayer.id, { params });
+                    const nextLocks: Record<string, boolean> = {};
+                    (effectMetadata.parameters as any[]).forEach((p: any) => { nextLocks[p.name] = lock; });
+                    setLockedParams(nextLocks);
+                  };
+                  return (
+                    <button
+                      type="button"
+                      onClick={toggleAllLocks}
+                      className="tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none"
+                      aria-pressed={allLocked}
+                      title={allLocked ? 'Unlock all parameters' : 'Lock all parameters'}
+                    >
+                      {allLocked ? (
+                        <LockIcon className="tw-text-neutral-300" />
+                      ) : (
+                        <UnlockIcon className="tw-text-white" />
+                      )}
+                    </button>
+                  );
+                })()}
+              </div>
             </div>
             <div className="tw-space-y-3 tw-pr-6">
               {effectMetadata ? (
@@ -331,7 +366,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
 
                       {/* Numeric inline: value, +/- and slider in one row */}
                       {param.type === 'number' && (
-                        <div className="tw-flex tw-items-center tw-gap-2">
+                        <div className="tw-flex-1 tw-min-w-0">
                           <ParamRow
                             key={param.name}
                             label={param.description || param.name}
@@ -339,6 +374,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                             min={param.min || 0}
                             max={param.max || 1}
                             step={param.step || 0.1}
+                            buttonsAfter
                             onChange={(value) => {
                               if (isLocked) return;
                               setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
@@ -637,17 +673,24 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
 
         <div className="tw-space-y-2">
           <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">General</h4>
-          <div>
-            <ParamRow
-              label="Opacity"
-              value={opacity}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={(value) => handleOpacityChange(value)}
-              onIncrement={() => handleOpacityChange(Math.min(1, opacity + 0.01))}
-              onDecrement={() => handleOpacityChange(Math.max(0, opacity - 0.01))}
-            />
+          <div className="tw-flex tw-items-center tw-gap-2 tw-pr-6">
+            <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-shrink-0 tw-w-[180px]">Opacity</label>
+            <div className="tw-flex-1 tw-min-w-0">
+              <ParamRow
+                label="Opacity"
+                value={opacity}
+                min={0}
+                max={1}
+                step={0.01}
+                buttonsAfter
+                showLabel={false}
+                onChange={(value) => handleOpacityChange(value)}
+                onIncrement={() => handleOpacityChange(Math.min(1, opacity + 0.01))}
+                onDecrement={() => handleOpacityChange(Math.max(0, opacity - 0.01))}
+              />
+            </div>
+            {/* Spacer to align with random/lock icons column on other rows */}
+            <div className="tw-ml-2 tw-w-[48px] tw-shrink-0" />
           </div>
         </div>
 

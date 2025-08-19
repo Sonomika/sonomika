@@ -2340,26 +2340,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                                     resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === videoId || l?.asset?.name === videoId));
                                   }
                                 }
-                                // Auto-create a mapped effect layer only for effect clips if none exists
-                                if (!resolvedLayer && scene && columns.length > 0 && clip?.asset && clip?.type === 'effect') {
-                                  const newLayerId = `layer-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-                                  const newLayer = {
-                                    id: newLayerId,
-                                    type: 'effect',
-                                    name: `Layer ${trackNum}`,
-                                    layerNum: trackNum,
-                                    opacity: 1,
-                                    blendMode: 'add',
-                                    locked: false,
-                                    params: {},
-                                    asset: { ...(clip.asset || {}), isEffect: true }
-                                  } as any;
-                                  const updatedColumns = columns.map((c: any, idx: number) => idx === 0 ? { ...c, layers: [...c.layers.filter((l: any) => l.layerNum !== trackNum), newLayer] } : c);
-                                  updateScene(currentSceneId, { columns: updatedColumns });
-                                  resolvedLayer = newLayer;
-                                }
+                                // Do not auto-create a mapped layer from timeline; keep timeline/column separate
                                 if (typeof setSelectedTimelineClip === 'function') {
-                                  setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: resolvedLayer?.id || null, trackNum });
+                                  setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: null, trackNum });
                                 }
                               } catch {}
                               try {

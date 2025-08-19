@@ -358,7 +358,6 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       let value = waveValue(time * (lfo.rate || 1) * 2 * Math.PI + (lfo.phase || 0) * 0.01 * 2 * Math.PI, lfo.waveform || 'sine', time, lfo.rate || 1);
       value = value * ((lfo.depth || 100) / 100) + ((lfo.offset || 0) / 100);
       value = Math.max(-1, Math.min(1, value));
-      applyLFOModulation(value);
       drawWaveform();
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -629,28 +628,28 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                   </div>
                 )}
                 <div className="param-row">
-                  <ParamRow label="Depth" value={Number(lfo.depth || 100)} min={0} max={100} step={1}
+                  <ParamRow label="Depth" value={Number(lfo.depth || 100)} min={0} max={100} step={1} buttonsAfter
                     onChange={(value) => lid && setLFOForLayer(lid, { depth: value })}
                     onIncrement={() => lid && setLFOForLayer(lid, { depth: Math.min(100, Number(lfo.depth || 100) + 1) })}
                     onDecrement={() => lid && setLFOForLayer(lid, { depth: Math.max(0, Number(lfo.depth || 100) - 1) })}
                   />
                 </div>
             <div className="param-row">
-                  <ParamRow label="Depth" value={Number(lfo.depth || 100)} min={0} max={100} step={1}
+                  <ParamRow label="Depth" value={Number(lfo.depth || 100)} min={0} max={100} step={1} buttonsAfter
                 onChange={(value) => lid && setLFOForLayer(lid, { depth: value })}
                 onIncrement={() => lid && setLFOForLayer(lid, { depth: Math.min(100, Number(lfo.depth || 100) + 1) })}
                 onDecrement={() => lid && setLFOForLayer(lid, { depth: Math.max(0, Number(lfo.depth || 100) - 1) })}
               />
             </div>
             <div className="param-row">
-                  <ParamRow label="Offset" value={Number(lfo.offset || 0)} min={-100} max={100} step={1}
+                  <ParamRow label="Offset" value={Number(lfo.offset || 0)} min={-100} max={100} step={1} buttonsAfter
                 onChange={(value) => lid && setLFOForLayer(lid, { offset: value })}
                 onIncrement={() => lid && setLFOForLayer(lid, { offset: Math.min(100, Number(lfo.offset || 0) + 1) })}
                 onDecrement={() => lid && setLFOForLayer(lid, { offset: Math.max(-100, Number(lfo.offset || 0) - 1) })}
               />
             </div>
             <div className="param-row">
-                  <ParamRow label="Phase" value={Number(lfo.phase || 0)} min={0} max={100} step={1}
+                  <ParamRow label="Phase" value={Number(lfo.phase || 0)} min={0} max={100} step={1} buttonsAfter
                 onChange={(value) => lid && setLFOForLayer(lid, { phase: value })}
                 onIncrement={() => lid && setLFOForLayer(lid, { phase: Math.min(100, Number(lfo.phase || 0) + 1) })}
                 onDecrement={() => lid && setLFOForLayer(lid, { phase: Math.max(0, Number(lfo.phase || 0) - 1) })}

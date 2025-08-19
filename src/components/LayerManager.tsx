@@ -625,7 +625,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         if (!matchedLayer) {
           matchedLayer = sceneAllLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && effectMatches(l, clip?.asset)) || null;
         }
-        const resolvedParams = matchedLayer?.params || clip.params || {};
+        // Timeline clips should remain separate from column view; prefer clip params
+        const resolvedParams = clip.params || matchedLayer?.params || {};
         return {
           id: `timeline-layer-${clip.id}`,
           name: `Layer ${trackNumber}`,
@@ -1183,6 +1184,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                    // Find layer by layer number or name fallback
                    const layer = column.layers.find((l: any) => l.layerNum === layerNum || l.name === `Layer ${layerNum}`);
                    const displayName = layer?.asset?.name || layer?.asset?.metadata?.name || layer?.asset?.effect?.name || '';
+                   const displayNameClean = (displayName || '').replace(/\.[^/.]+$/, '');
                    const hasAsset = Boolean(layer?.asset);
                    const cellId = `${column.id}-${layerNum}`;
                    const isDragOver = dragOverCell === cellId;
@@ -1272,8 +1274,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              {layer.asset.type === 'image' && (
                                <img
                                  src={getAssetPath(layer.asset)}
-                                 alt={layer.asset.name}
-                                 className="tw-w-full tw-max-h-24 tw-object-cover tw-rounded"
+                                 alt={displayNameClean}
+                                 className="tw-w-full tw-aspect-video tw-object-cover tw-rounded"
                                  onLoad={() => {
                                    console.log('Image loaded successfully:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
                                  }}
@@ -1288,33 +1290,32 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                />
                              )}
                              {layer.asset.type === 'video' && (
-                               <video
-                                 src={getAssetPath(layer.asset, true)}
-                                 className="tw-w-full tw-max-h-24 tw-rounded"
-                                 muted
-                                 onLoadStart={() => console.log('Layer video loading:', layer.asset.name)}
-                                 onLoadedData={() => console.log('Layer video loaded:', layer.asset.name)}
-                                 onError={(e) => console.error('Layer video error:', layer.asset.name, e)}
-                               />
+                               <div className="tw-w-full tw-aspect-video tw-rounded tw-overflow-hidden">
+                                 <video
+                                   src={getAssetPath(layer.asset, true)}
+                                   className="tw-w-full tw-h-full tw-object-cover"
+                                   muted
+                                   onLoadStart={() => console.log('Layer video loading:', layer.asset.name)}
+                                   onLoadedData={() => console.log('Layer video loaded:', layer.asset.name)}
+                                   onError={(e) => console.error('Layer video error:', layer.asset.name, e)}
+                                 />
+                               </div>
                              )}
-                             {(layer.asset.isEffect || layer.asset.type === 'p5js' || layer.asset.type === 'threejs') && (
-                               <div className="tw-flex tw-items-center tw-justify-between">
-                                 <div className="tw-text-xs tw-text-neutral-300">Effect</div>
-                                 <div className="tw-text-[10px] tw-px-1.5 tw-py-0.5 tw-rounded tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-text-neutral-300">
-                                   {layer.asset.type.toUpperCase()}
-                                 </div>
+                             {(layer.asset.isEffect || layer.asset.type === 'effect' || layer.asset.type === 'p5js' || layer.asset.type === 'threejs') && (
+                               <div className="tw-w-full tw-aspect-video tw-bg-black tw-rounded tw-flex tw-items-center tw-justify-center">
+                                 <div className="tw-w-2 tw-h-2 tw-rounded-full tw-bg-white/90" />
                                </div>
                              )}
                            </div>
                            <div 
-                              className="tw-text-xs tw-text-neutral-200 tw-cursor-grab"
+                              className="tw-text-xs tw-text-neutral-200 tw-cursor-grab tw-truncate tw-whitespace-nowrap tw-overflow-hidden"
                               draggable={true}
                               onDragStart={(e) => {
                                 e.stopPropagation();
                                 handleLayerReorderDragStart(e, layer, column.id, setDraggedLayer);
                               }}
                             >
-                             {displayName || 'Empty'}
+                             {displayNameClean || 'Empty'}
                            </div>
                            {layer.blendMode && layer.blendMode !== 'add' && (
                              <div className="tw-text-[10px] tw-text-neutral-400">
@@ -1413,7 +1414,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             </div>
 
             {/* Layer Options / Global - Bottom Center */}
-            <div className="tw-flex-1 tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
+            <div className="tw-flex-1 tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
                 <Tabs value={middlePanelTab} onValueChange={(value) => { setMiddlePanelTab(value as 'global' | 'layer'); try { localStorage.setItem('vj-ui-middle-tab', value); } catch {} }} className="tw-w-full">
                   <TabsList className="tw-grid tw-w-full tw-grid-cols-2">
@@ -1422,9 +1423,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   </TabsList>
                 </Tabs>
               </div>
-                             <div className="tw-h-[calc(100%-60px)] tw-px-3">
+                             <div className="tw-flex-1 tw-min-h-0 tw-px-3">
                  <ScrollArea.Root className="tw-h-full" type="always">
-                   <ScrollArea.Viewport className="tw-h-full tw-w-full">
+                   <ScrollArea.Viewport className="tw-h-full tw-w-full tw-pr-[72px] tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
                      {middlePanelTab === 'global' ? (
                        <div className="tw-h-full">
                          <GlobalEffectsTab className="tw-h-full" />
@@ -1449,7 +1450,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             </div>
 
             {/* Media Library / MIDI Mapper - Bottom Right */}
-            <div className="tw-w-1/3 tw-min-w-[320px] tw-overflow-hidden tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
+            <div className="tw-w-1/3 tw-min-w-[320px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
               {/* Tab Navigation */}
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
                                <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'media')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
@@ -1461,11 +1462,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                  </TabsList>
                </Tabs>
               </div>
-              
+               
                              {/* Tab Content */}
-               <div className="tw-p-3 tw-h-full">
+               <div className="tw-p-3 tw-flex-1 tw-min-h-0">
                  <ScrollArea.Root className="tw-h-full" type="always">
-                   <ScrollArea.Viewport className="tw-h-full tw-w-full">
+                   <ScrollArea.Viewport className="tw-h-full tw-w-full tw-pr-3 tw-pb-3">
                      <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'media')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
                        <TabsContent value="media">
                          <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />

@@ -288,6 +288,10 @@ export const useStore = create<AppState & {
        stopColumn: () => {
          try {
            set({ playingColumnId: null });
+           // Dispatch column stop event
+           document.dispatchEvent(new CustomEvent('columnStop', {
+             detail: { type: 'columnStop' }
+           }));
          } catch (error) {
            console.warn('Failed to stop column:', error);
          }
@@ -317,6 +321,10 @@ export const useStore = create<AppState & {
            document.dispatchEvent(new CustomEvent('globalPause', {
              detail: { type: 'globalPause' }
            }));
+           // Pause LFO engine as well
+           document.dispatchEvent(new CustomEvent('columnStop', {
+             detail: { type: 'columnStop' }
+           }));
            // Dispatch pause event for all video layers
            document.dispatchEvent(new CustomEvent('videoPause', {
              detail: { type: 'videoPause', allColumns: true }
@@ -332,6 +340,10 @@ export const useStore = create<AppState & {
            // Dispatch global stop event
            document.dispatchEvent(new CustomEvent('globalStop', {
              detail: { type: 'globalStop' }
+           }));
+           // Also signal column stop for LFO engine
+           document.dispatchEvent(new CustomEvent('columnStop', {
+             detail: { type: 'columnStop' }
            }));
            // Dispatch stop event for all video layers
            document.dispatchEvent(new CustomEvent('videoStop', {

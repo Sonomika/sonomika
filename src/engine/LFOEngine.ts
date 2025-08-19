@@ -101,6 +101,17 @@ class LFOEngineImpl {
 
   onGlobalPlay() {
     this.start();
+    // Ensure a column is marked as playing so engine has layers to modulate
+    try {
+      const state = useStore.getState() as any;
+      if (!state.playingColumnId) {
+        const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+        const firstColumn = scene?.columns?.[0];
+        if (firstColumn && typeof state.playColumn === 'function') {
+          state.playColumn(firstColumn.id);
+        }
+      }
+    } catch {}
   }
 
   onGlobalPause() {
@@ -108,6 +119,10 @@ class LFOEngineImpl {
   }
 
   onGlobalStop() {
+    this.stop();
+  }
+
+  onColumnStop() {
     this.stop();
   }
 
@@ -358,13 +373,34 @@ export function getLFOEngine(): LFOEngineImpl {
 export function attachLFOEngineGlobalListeners() {
   const engine = getLFOEngine();
   const onColumnPlay = () => engine.onColumnPlay();
+  const onColumnStop = () => engine.onColumnStop();
   const onGlobalPlay = () => engine.onGlobalPlay();
   const onGlobalPause = () => engine.onGlobalPause();
   const onGlobalStop = () => engine.onGlobalStop();
   document.addEventListener('columnPlay', onColumnPlay as any);
+  document.addEventListener('columnStop', onColumnStop as any);
   document.addEventListener('globalPlay', onGlobalPlay as any);
   document.addEventListener('globalPause', onGlobalPause as any);
   document.addEventListener('globalStop', onGlobalStop as any);
+
+  // Extra safety: subscribe to store state to auto-start/stop on playing state changes
+  try {
+    const subscribe = (useStore as any).subscribe as (<T>(selector: (state: any) => T, listener: (state: T, prevState: T) => void) => () => void) | undefined;
+    if (subscribe) {
+      // Listen to a slice that includes flags we care about
+      subscribe(
+        (state: any) => ({ isGlobalPlaying: state.isGlobalPlaying, playingColumnId: state.playingColumnId }),
+        (state, prev) => {
+          try {
+            if (state.isGlobalPlaying && !prev.isGlobalPlaying) engine.start();
+            if (!state.isGlobalPlaying && prev.isGlobalPlaying) engine.stop();
+            if (state.playingColumnId && !prev.playingColumnId) engine.start();
+            if (!state.playingColumnId && prev.playingColumnId) engine.stop();
+          } catch {}
+        }
+      );
+    }
+  } catch {}
 }
 
 
