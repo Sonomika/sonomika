@@ -36,9 +36,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   const updateMapping = useLFOStore((state) => state.updateMapping);
   const setLFOModulatedValue = useLFOStore((state) => state.setModulatedValue);
 
-  // Sync UI tab with store mode
+  // Sync UI tab with store mode (view only). Do NOT change generator mode on tab switch.
   useEffect(() => { setActiveTab(lfo.mode); }, [lfo.mode]);
-  useEffect(() => { setLFO({ mode: activeTab }); }, [activeTab]);
 
   // Refs to avoid dependencies
   const selectedLayerRef = useRef(selectedLayer);
@@ -501,8 +500,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'lfo' | 'random')}>
         <TabsList>
+          <TabsTrigger value="random">Random</TabsTrigger>
           <TabsTrigger value="lfo">LFO</TabsTrigger>
-          <TabsTrigger value="random">Random (BPM)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="lfo">

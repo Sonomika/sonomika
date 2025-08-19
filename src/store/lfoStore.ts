@@ -72,7 +72,7 @@ export const useLFOStore = create<LFOStore>()(
       
       // Persisted LFO state and mappings (initial values)
       lfoState: {
-        mode: 'lfo',
+        mode: 'random',
         waveform: 'sine',
         rate: 1.0,
         depth: 100,

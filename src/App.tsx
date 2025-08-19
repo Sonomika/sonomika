@@ -137,6 +137,9 @@ function App() {
     } catch {}
   }, [accentColor]);
 
+  // Background LFO/Random engine stays active regardless of which UI is focused
+  // Removed background loop to avoid interference with panel engine
+
   // Auto-save preset every 30 seconds (disabled by default)
   useEffect(() => {
     // Set to true to enable auto-backup

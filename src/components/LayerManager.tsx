@@ -1439,8 +1439,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
                    </ScrollArea.Scrollbar>
                  </ScrollArea.Root>
++               {/* Keep LFO engine mounted so Random/LFO continue across app tab switches */}
++               <div style={{ display: 'none' }} aria-hidden>
++                 <LFOMapper selectedLayer={effectiveSelectedLayer || selectedLayer} onUpdateLayer={handleUpdateLayerWrapper} />
++               </div>
                </div>
-            </div>
+             </div>
           </div>
         </div>
 
