@@ -10,6 +10,7 @@ export interface LFOModulatedValue {
 }
 
 export interface LFOState {
+  mode: 'lfo' | 'random';
   waveform: string;
   rate: number;
   depth: number;
@@ -21,6 +22,10 @@ export interface LFOState {
   hold: boolean;
   retrigger: boolean;
   currentValue: number;
+  // Random (BPM) generator settings
+  randomMin: number; // -100..100, mapped to -1..1
+  randomMax: number; // -100..100, mapped to -1..1
+  skipPercent: number; // 0..100 chance to skip triggering on a beat
 }
 
 export interface LFOMapping {
@@ -63,6 +68,7 @@ export const useLFOStore = create<LFOStore>()(
       
       // Persisted LFO state and mappings (initial values)
       lfoState: {
+        mode: 'lfo',
         waveform: 'sine',
         rate: 1.0,
         depth: 100,
@@ -73,7 +79,11 @@ export const useLFOStore = create<LFOStore>()(
         tempoSync: false,
         hold: false,
         retrigger: false,
-        currentValue: 0
+        currentValue: 0,
+        // Random defaults
+        randomMin: -100,
+        randomMax: 100,
+        skipPercent: 0,
       },
       mappings: [],
       selectedMapping: null,
