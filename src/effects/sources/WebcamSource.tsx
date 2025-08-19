@@ -137,7 +137,7 @@ const WebcamSource: React.FC<WebcamSourceProps> = ({
 	folder: 'sources',
 	isSource: true,
 	parameters: [
-		{ name: 'deviceId', type: 'select', value: '', description: 'Camera device', options: [{ value: '', label: 'Default Camera' }] },
+		{ name: 'deviceId', type: 'select', value: '', description: 'Camera device', options: [{ value: '', label: 'Default Camera' }], lockDefault: true },
 		{ name: 'width', type: 'number', value: 1280, min: 160, max: 3840, step: 1, description: 'Requested width' },
 		{ name: 'height', type: 'number', value: 720, min: 120, max: 2160, step: 1, description: 'Requested height' },
 		{ name: 'fps', type: 'number', value: 30, min: 1, max: 60, step: 1, description: 'Requested frame rate' },

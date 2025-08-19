@@ -17,11 +17,12 @@ export interface Asset {
 }
 
 export interface LayerParamValue {
-  value: number | boolean | string;
+  value: number | boolean | string | any[];
   min?: number;
   max?: number;
   step?: number;
-  options?: string[];
+  options?: string[] | { value: string; label?: string }[];
+  locked?: boolean;
 }
 
 export interface Layer {
@@ -86,7 +87,7 @@ export interface AppState {
   playingColumnId: string | null; // Track which column is currently playing
   isGlobalPlaying: boolean; // Track global play/pause state
   bpm: number;
-  sidebarVisible: boolean;
+  sidebarVisible: boolean; // Global accessibility mode
   accessibilityEnabled: boolean; // Global accessibility mode
   midiMappings: MIDIMapping[];
   selectedLayerId: string | null;

@@ -4,17 +4,38 @@ import { LOOP_MODES, type LoopMode } from '../constants/video';
 import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
 import { ParamRow, ButtonGroup, Slider } from './ui';
+import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
   onUpdateLayer: (layerId: string, options: Partial<Layer>) => void;
 }
 
-export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
-  // LFO modulated values are accessed where needed within components
-  
-  // Values read directly from store where needed
+// Minimal inline SVG icons for lock/unlock (no emoji)
+const LockIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M7 10V7a5 5 0 0 1 10 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2"/>
+  </svg>
+);
+const UnlockIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M7 10V8a5 5 0 1 1 10 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2"/>
+  </svg>
+);
+// Minimal dice icon
+const DiceIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="9" cy="9" r="1.5" fill="currentColor"/>
+    <circle cx="15" cy="15" r="1.5" fill="currentColor"/>
+    <circle cx="15" cy="9" r="1.5" fill="currentColor"/>
+    <circle cx="9" cy="15" r="1.5" fill="currentColor"/>
+  </svg>
+);
 
+export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
   // Update local state when selectedLayer changes
   const [loopMode, setLoopMode] = useState<LoopMode>(
     (selectedLayer as any)?.loopMode || LOOP_MODES.NONE
@@ -29,7 +50,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   );
   const opacityRafRef = useRef<number | null>(null);
   const opacityPendingRef = useRef<number>(selectedLayer?.opacity || 1.0);
-  const [localParamValues, setLocalParamValues] = useState<Record<string, number>>({});
+  const [localParamValues, setLocalParamValues] = useState<Record<string, any>>({});
+  const [lockedParams, setLockedParams] = useState<Record<string, boolean>>({});
 
   // Check if the layer has an effect
   const hasEffect = selectedLayer?.type === 'effect' || (selectedLayer as any)?.asset?.type === 'effect' || (selectedLayer as any)?.asset?.isEffect;
@@ -38,21 +60,17 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   // Try multiple ways to find the effect component
   let effectComponent = null;
   if (hasEffect) {
-    // Try the exact ID first
     effectComponent = effectId ? getEffect(effectId) : null;
-    
-    // If not found, try common variations
     if (!effectComponent && effectId) {
       const variations = [
         effectId,
-        effectId.replace(/-/g, ''), // Remove hyphens
-        effectId.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, ''), // Add hyphens
+        effectId.replace(/-/g, ''),
+        effectId.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, ''),
         effectId.toLowerCase(),
         effectId.toUpperCase(),
-        effectId.replace(/Effect$/, ''), // Remove "Effect" suffix
-        effectId + 'Effect', // Add "Effect" suffix
+        effectId.replace(/Effect$/, ''),
+        effectId + 'Effect',
       ];
-      
       for (const variation of variations) {
         effectComponent = getEffect(variation);
         if (effectComponent) {
@@ -65,6 +83,66 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   
   const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
 
+  const toggleLock = (name: string) => {
+    setLockedParams(prev => {
+      const next = { ...prev, [name]: !prev[name] };
+      if (selectedLayer) {
+        const params = { ...(selectedLayer.params || {}) } as Record<string, any>;
+        if (!params[name]) {
+          const def = (effectMetadata?.parameters || []).find((p: any) => p.name === name);
+          params[name] = { value: def?.value };
+        }
+        params[name] = { ...(params[name] || {}), locked: next[name] };
+        onUpdateLayer(selectedLayer.id, { params });
+      }
+      return next;
+    });
+  };
+
+  // Randomize effect parameters (excludes blend mode, opacity, and locked params)
+  const randomizeEffectParams = () => {
+    if (!selectedLayer || !hasEffect || !effectMetadata) return;
+
+    const unlockedDefs = (effectMetadata.parameters || []).filter((p: any) => !lockedParams[p.name]);
+    if (unlockedDefs.length === 0) return;
+
+    const randomized = globalRandomize(unlockedDefs, selectedLayer.params);
+    if (!randomized || Object.keys(randomized).length === 0) return;
+
+    const prevParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
+    const updatedParams = { ...prevParams } as Record<string, any>;
+    Object.entries(randomized).forEach(([name, obj]) => {
+      updatedParams[name] = { ...(prevParams[name] || {}), value: (obj as any).value };
+    });
+
+    onUpdateLayer(selectedLayer.id, { params: updatedParams });
+
+    setLocalParamValues((prev) => {
+      const next = { ...prev } as Record<string, any>;
+      Object.entries(randomized).forEach(([name, obj]) => {
+        (next as any)[name] = (obj as any).value;
+      });
+      return next;
+    });
+  };
+
+  // Randomize a single parameter
+  const randomizeSingleParam = (paramDef: any) => {
+    if (!selectedLayer || !hasEffect || !effectMetadata) return;
+    const name = paramDef.name;
+    if (lockedParams[name]) return;
+    const randomized = globalRandomize([paramDef], selectedLayer.params);
+    if (!randomized || !randomized[name]) return;
+    const val = (randomized[name] as any).value;
+    const prevParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
+    const updatedParams = {
+      ...prevParams,
+      [name]: { ...(prevParams[name] || {}), value: val }
+    } as Record<string, any>;
+    onUpdateLayer(selectedLayer.id, { params: updatedParams });
+    setLocalParamValues(prev => ({ ...prev, [name]: val }));
+  };
+
   // Sync local state with selectedLayer when it changes
   React.useEffect(() => {
     if (selectedLayer) {
@@ -73,38 +151,30 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       setBlendMode(selectedLayer.blendMode || 'add');
       setOpacity(selectedLayer.opacity || 1.0);
       
-      // Initialize playMode if it doesn't exist
-      const currentPlayMode = (selectedLayer as any)?.playMode;
-      if (currentPlayMode === undefined) {
-        // Set default playMode to 'restart' and update the layer
-        const defaultPlayMode = 'restart';
-        setPlayMode(defaultPlayMode);
-        onUpdateLayer(selectedLayer.id, { playMode: defaultPlayMode });
-      } else {
-        setPlayMode(currentPlayMode);
-      }
-      
-      // Initialize effect parameters if they don't exist
-      if (hasEffect && effectMetadata && selectedLayer.params) {
-        const updatedParams = { ...selectedLayer.params };
-        let hasChanges = false;
-        
-        effectMetadata.parameters?.forEach((param: any) => {
-          if (updatedParams[param.name] === undefined) {
-            updatedParams[param.name] = { value: param.value };
-            hasChanges = true;
-            console.log(`Initializing param ${param.name} with default value:`, param.value);
+      if (hasEffect && effectMetadata?.parameters) {
+        const baseParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
+        let needsUpdate = false;
+        (effectMetadata.parameters as any[]).forEach((p: any) => {
+          if (baseParams[p.name] === undefined) {
+            baseParams[p.name] = { value: p.value };
+            needsUpdate = true;
           }
         });
-        
-        // Update layer with initialized parameters if needed
-        if (hasChanges) {
-          console.log('Initializing effect parameters:', updatedParams);
-          onUpdateLayer(selectedLayer.id, { params: updatedParams });
+        if (needsUpdate) {
+          onUpdateLayer(selectedLayer.id, { params: baseParams });
         }
       }
       
-      // Sync local param values - only update if they're different
+      const initialLocks: Record<string, boolean> = {};
+      if (hasEffect && effectMetadata?.parameters) {
+        (effectMetadata.parameters as any[]).forEach((p: any) => {
+          const persisted = (selectedLayer.params as any)?.[p.name]?.locked;
+          if (typeof persisted === 'boolean') initialLocks[p.name] = persisted;
+          else if (p.lockDefault) initialLocks[p.name] = true;
+        });
+      }
+      setLockedParams(initialLocks);
+      
       const paramValues: Record<string, any> = {};
       if (selectedLayer.params) {
         Object.keys(selectedLayer.params).forEach(paramName => {
@@ -115,18 +185,25 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         });
       }
       
-      // Only update local param values if they're actually different
       setLocalParamValues(prev => {
         const hasChanges = Object.keys(paramValues).some(key => 
           prev[key] !== paramValues[key]
         );
         return hasChanges ? paramValues : prev;
       });
+
+      const currentPlayMode = (selectedLayer as any)?.playMode;
+      if (currentPlayMode === undefined) {
+        const defaultPlayMode = 'restart';
+        setPlayMode(defaultPlayMode);
+        onUpdateLayer(selectedLayer.id, { playMode: defaultPlayMode });
+      } else {
+        setPlayMode(currentPlayMode);
+      }
     }
-  }, [selectedLayer?.id, hasEffect, effectMetadata?.parameters]); // Only re-run when these specific values change
+  }, [selectedLayer?.id, hasEffect, effectMetadata?.parameters]);
 
   const handleLoopModeChange = (mode: LoopMode) => {
-    console.log('🎬 Loop mode changed to:', mode, 'for layer:', selectedLayer?.name);
     setLoopMode(mode);
     if (selectedLayer) {
       onUpdateLayer(selectedLayer.id, {
@@ -189,39 +266,17 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
 
   const handleEffectParamChange = (paramName: string, value: any) => {
     if (selectedLayer) {
-      const currentParams = selectedLayer.params || {};
-      
-      // Ensure boolean parameters are properly initialized with their default values
-      if (effectMetadata) {
-        const paramDef = effectMetadata.parameters?.find((p: any) => p.name === paramName);
-        if (paramDef && paramDef.type === 'boolean' && currentParams[paramName] === undefined) {
-          // Initialize boolean parameter with default value if not already set
-          currentParams[paramName] = { value: paramDef.value };
-        }
-      }
-      
-      // Preserve all existing parameters and only update the changed one
-      const updatedParams = { ...currentParams };
-      updatedParams[paramName] = { value: value };
-      
-      // Update the layer with the new parameters
-      onUpdateLayer(selectedLayer.id, { params: updatedParams });
-      
-      // Also update local state for immediate UI feedback
+      const currentParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
+      if (currentParams[paramName] === undefined) currentParams[paramName] = {};
+      const prevLocked = currentParams[paramName].locked;
+      currentParams[paramName] = { ...currentParams[paramName], value, ...(prevLocked !== undefined ? { locked: prevLocked } : {}) };
+      onUpdateLayer(selectedLayer.id, { params: currentParams });
       setLocalParamValues(prev => ({
         ...prev,
         [paramName]: value
       }));
     }
   };
-
-  // Debug logging removed for performance during slider drags
-
-  // List all registered effects for debugging
-  if (hasEffect && !effectComponent) {
-    console.log('⚠️ Effect not found in registry. Available effects:');
-    // This will be logged by the effectRegistry.ts file
-  }
 
   if (!selectedLayer) {
     return (
@@ -238,33 +293,52 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   }
 
   return (
-    <div className="tw-text-neutral-200 tw-pt-2">
+    <div className="tw-text-neutral-200 tw-pt-2 tw-pr-6">
       <div className="tw-space-y-4">
-        {/* Effect Parameters Section */}
         {hasEffect && (
           <div className="tw-space-y-2">
-            <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Effect Parameters</h4>
-            <div className="tw-space-y-3">
+            <div className="tw-flex tw-items-center tw-justify-between">
+              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Effect Parameters</h4>
+              <button
+                type="button"
+                className="tw-text-xs tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 hover:tw-bg-neutral-800"
+                onClick={randomizeEffectParams}
+                title="Randomize effect parameters"
+              >
+                Randomize
+              </button>
+            </div>
+            <div className="tw-space-y-3 tw-pr-6">
               {effectMetadata ? (
-                // Use metadata if available
                 effectMetadata.parameters?.map((param: any) => {
                   const currentValue = selectedLayer.params?.[param.name]?.value ?? param.value;
                   const uiValue = localParamValues[param.name] ?? currentValue;
-                  
-                  // Debug logging for boolean parameters
-                  if (param.type === 'boolean') {
-                    console.log(`Boolean param ${param.name}:`, {
-                      defaultValue: param.value,
-                      layerValue: selectedLayer.params?.[param.name]?.value,
-                      localValue: localParamValues[param.name],
-                      currentValue: currentValue,
-                      type: typeof currentValue
-                    });
-                  }
+                  const isLocked = !!lockedParams[param.name];
                   
                   return (
                     <div key={param.name} className="tw-space-y-1">
-                      <label className="tw-text-xs tw-uppercase tw-text-neutral-400">{param.description || param.name}</label>
+                      <div className="tw-flex tw-items-center tw-justify-between">
+                        <label className="tw-text-xs tw-uppercase tw-text-neutral-400">{param.description || param.name}</label>
+                        <div className="tw-flex tw-items-center tw-gap-1">
+                          <button
+                            type="button"
+                            onClick={() => randomizeSingleParam(param)}
+                            className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                            title="Randomize this parameter"
+                          >
+                            <DiceIcon className="tw-text-white" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleLock(param.name)}
+                            className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                            title={isLocked ? 'Unlock parameter' : 'Lock parameter'}
+                            aria-pressed={isLocked}
+                          >
+                            {isLocked ? <LockIcon className="tw-text-neutral-400" /> : <UnlockIcon className="tw-text-white" />}
+                          </button>
+                        </div>
+                      </div>
                       <div className="tw-flex tw-items-center tw-gap-2">
                         {param.type === 'color' && (
                           <input
@@ -272,6 +346,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                             value={currentValue}
                             onChange={(e) => handleEffectParamChange(param.name, e.target.value)}
                             className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
+                            disabled={isLocked}
                           />
                         )}
                         {param.type === 'select' && (
@@ -279,10 +354,11 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                             <Select
                               value={String(uiValue)}
                               onChange={(val) => {
+                                if (isLocked) return;
                                 setLocalParamValues(prev => ({ ...prev, [param.name]: val as any }));
                                 handleEffectParamChange(param.name, val);
                               }}
-                              options={(param.options || []).map((opt: any) => ({ value: opt.value, label: opt.label }))}
+                              options={(param.options || []).map((opt: any) => (typeof opt === 'string' ? { value: opt, label: opt } : { value: opt.value, label: opt.label || opt.value }))}
                             />
                           </div>
                         )}
@@ -290,20 +366,17 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                           <div>
                             <button
                               type="button"
-                              className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'}`}
+                              className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
                               onClick={() => {
+                                if (isLocked) return;
                                 const newValue = !Boolean(currentValue);
-                                console.log(`Boolean param ${param.name} toggled to:`, newValue);
-                                
-                                // Update the parameter in the effect
                                 handleEffectParamChange(param.name, newValue);
-                                
-                                // Update local state for immediate UI feedback
                                 setLocalParamValues(prev => ({
                                   ...prev,
                                   [param.name]: newValue
                                 }));
                               }}
+                              disabled={isLocked}
                             >
                               {Boolean(currentValue) ? 'ON' : 'OFF'}
                             </button>
@@ -318,10 +391,12 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                             max={param.max || 1}
                             step={param.step || 0.1}
                             onChange={(value) => {
+                              if (isLocked) return;
                               setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
                               handleEffectParamChange(param.name, value);
                             }}
                             onIncrement={() => {
+                              if (isLocked) return;
                               const currentVal = localParamValues[param.name] ?? currentValue;
                               const step = param.step || 0.1;
                               const newValue = Math.min(param.max || 1, currentVal + step);
@@ -329,6 +404,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               handleEffectParamChange(param.name, newValue);
                             }}
                             onDecrement={() => {
+                              if (isLocked) return;
                               const currentVal = localParamValues[param.name] ?? currentValue;
                               const step = param.step || 0.1;
                               const newValue = Math.max(param.min || 0, currentVal - step);
@@ -343,14 +419,37 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   );
                 })
               ) : (
-                // Fallback: show parameters from layer.params
                 selectedLayer.params && Object.keys(selectedLayer.params).map((paramName) => {
                   const param = selectedLayer.params?.[paramName];
                   const currentValue = param?.value ?? 1.0;
+                  const isLocked = !!lockedParams[paramName];
                     
                   return (
                     <div key={paramName} className="tw-space-y-1">
-                      <label className="tw-text-xs tw-uppercase tw-text-neutral-400">{paramName}</label>
+                      <div className="tw-flex tw-items-center tw-justify-between">
+                        <label className="tw-text-xs tw-uppercase tw-text-neutral-400">{paramName}</label>
+                        <div className="tw-flex tw-items-center tw-gap-1">
+                          <button
+                            type="button"
+                            className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                            title="Randomize this parameter"
+                            onClick={() => {
+                              // Without metadata we cannot safely randomize; no-op
+                            }}
+                          >
+                            <DiceIcon className="tw-text-white" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleLock(paramName)}
+                            className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                            title={isLocked ? 'Unlock parameter' : 'Lock parameter'}
+                            aria-pressed={isLocked}
+                          >
+                            {isLocked ? <LockIcon className="tw-text-neutral-400" /> : <UnlockIcon className="tw-text-white" />}
+                          </button>
+                        </div>
+                      </div>
                       <div className="tw-flex tw-items-center tw-gap-2">
                         {paramName === 'color' ? (
                           <input
@@ -358,6 +457,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                             value={currentValue}
                             onChange={(e) => handleEffectParamChange(paramName, e.target.value)}
                             className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
+                            disabled={isLocked}
                           />
                         ) : (
                           <div className="tw-flex tw-items-center tw-gap-2 tw-w-full">
@@ -367,14 +467,15 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                                 max={param?.max || 100}
                                 step={param?.step || 1}
                                 value={[localParamValues[paramName] ?? (param?.value ?? 0)]}
-                                onValueChange={(values) => values && values.length > 0 && handleEffectParamChange(paramName, values[0])}
+                                onValueChange={(values) => !isLocked && values && values.length > 0 && handleEffectParamChange(paramName, values[0])}
                               />
                             </div>
                             <input
                               type="number"
                               value={Number(localParamValues[paramName] ?? (param?.value ?? 0)).toFixed(0)}
-                              onChange={(e) => handleEffectParamChange(paramName, parseFloat(e.target.value))}
+                              onChange={(e) => !isLocked && handleEffectParamChange(paramName, parseFloat(e.target.value))}
                               className="tw-w-[80px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                              disabled={isLocked}
                             />
                           </div>
                         )}
