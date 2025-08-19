@@ -2169,6 +2169,16 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                       stopTimelinePlayback();
                     }
                     setCurrentTime(newTime);
+                    try {
+                      if (onPreviewUpdate) {
+                        // Recompute active clips at this time using local logic
+                        const activeNow = (tracks || []).flatMap((tr) => {
+                          const inWindow = tr.clips.filter((c: any) => newTime >= c.startTime && newTime < c.startTime + c.duration);
+                          return inWindow.map((c: any) => ({ ...c, trackId: tr.id, relativeTime: newTime - c.startTime }));
+                        });
+                        onPreviewUpdate({ type: 'timeline', activeClips: activeNow, isPlaying });
+                      }
+                    } catch {}
                   }
                 }}
                 className="tw-w-full"
@@ -2302,6 +2312,25 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                             } else {
                               // Single select: clear others and select this one
                               setSelectedClips(new Set([clip.id]));
+                              try {
+                                const state = (useStore as any).getState();
+                                const { scenes, currentSceneId, setSelectedTimelineClip } = state;
+                                const scene = scenes?.find((s: any) => s.id === currentSceneId);
+                                const columns: any[] = scene?.columns || [];
+                                const allLayers: any[] = columns.flatMap((c: any) => c.layers || []);
+                                const trackNum = parseInt((track.id || 'track-1').split('-')[1] || '1', 10);
+                                let resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && l?.layerNum === trackNum);
+                                if (!resolvedLayer) {
+                                  const effectId = clip?.asset?.id || clip?.asset?.name || clip?.name;
+                                  resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === effectId || l?.asset?.name === effectId));
+                                }
+                                if (!resolvedLayer) {
+                                  resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect')) || null;
+                                }
+                                if (typeof setSelectedTimelineClip === 'function') {
+                                  setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: resolvedLayer?.id || null, trackNum });
+                                }
+                              } catch {}
                             }
                           }}
                           onContextMenu={(e) => handleClipRightClick(e, clip.id, track.id)}

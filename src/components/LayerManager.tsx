@@ -36,7 +36,7 @@ const MemoMediaLibrary = React.memo(MediaLibrary);
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop } = useStore() as any;
+  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip } = useStore() as any;
   const [bpmInputValue, setBpmInputValue] = useState(bpm.toString());
   
   // Sync local BPM input with store BPM
@@ -164,6 +164,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   // Unified updater: handles real layers and pseudo global-effect layers
   const handleUpdateSelectedLayer = (layerId: string, options: any) => {
+    // If timeline selected and a mapped layerId exists, force updates to that layer
+    const forcedLayerId = (selectedTimelineClip && selectedTimelineClip.layerId) ? selectedTimelineClip.layerId : null;
+    if (forcedLayerId) {
+      handleUpdateLayerWrapper(forcedLayerId, options);
+      // Nudge preview timeline state so it re-renders with latest params
+      try {
+        setPreviewContent((prev: any) => (prev && prev.type === 'timeline' ? { ...prev } : prev));
+      } catch {}
+      return;
+    }
     if (layerId.startsWith('global-effect-layer-')) {
       if (!currentScene) return;
       if (!selectedGlobalEffectKey) return;
@@ -523,6 +533,34 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     handleLayerReorderDrop(e, targetColumnId, targetLayerNum, draggedLayer, currentScene, currentSceneId, updateScene);
   };
 
+  // Helpers to robustly match effect ids/names between timeline clips and scene layers
+  const normalize = (s?: string) => (s || '').toString().trim();
+  const toVariants = (id?: string) => {
+    const raw = normalize(id);
+    if (!raw) return [] as string[];
+    const dashed = raw.replace(/([A-Z])/g, '-$1').replace(/^-/, '').toLowerCase();
+    const noEffect = raw.replace(/Effect$/i, '');
+    const withEffect = raw.match(/Effect$/i) ? raw : `${raw}Effect`;
+    return Array.from(new Set([
+      raw,
+      raw.toLowerCase(),
+      raw.toUpperCase(),
+      dashed,
+      dashed.replace(/-effect$/, ''),
+      noEffect,
+      noEffect.toLowerCase(),
+      withEffect,
+      withEffect.toLowerCase(),
+    ]));
+  };
+  const getAssetId = (asset: any) => normalize(asset?.id || asset?.name || asset?.effectId || '');
+  const layerEffectId = (layer: any) => normalize(layer?.asset?.id || layer?.asset?.name || '');
+  const effectMatches = (layer: any, clipAsset: any) => {
+    const lv = toVariants(layerEffectId(layer));
+    const cv = toVariants(getAssetId(clipAsset));
+    return lv.some((a) => cv.includes(a));
+  };
+
   // Render preview content
   const renderPreviewContent = () => {
     console.log('🎨 renderPreviewContent called');
@@ -545,9 +583,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     if (previewContent.type === 'timeline') {
       console.log('🎬 Rendering timeline preview via ColumnPreview');
       const activeClips = previewContent.activeClips || [];
+      // Prepare scene layers for parameter resolution so timeline reflects live edits
+      const sceneAllLayers = (currentScene?.columns || []).flatMap((c: any) => c.layers || []);
       // Convert active clips into a temporary column structure
       const tempLayers = activeClips.map((clip: any) => {
         const trackNumber = parseInt((clip.trackId || 'track-1').split('-')[1] || '1', 10);
+        const matchedLayer = sceneAllLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && effectMatches(l, clip?.asset));
+        const resolvedParams = matchedLayer?.params || clip.params || {};
         return {
           id: `timeline-layer-${clip.id}`,
           name: `Layer ${trackNumber}`,
@@ -556,7 +598,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           asset: clip.asset,
           opacity: 1,
           blendMode: 'add',
-          params: clip.params || {},
+          params: resolvedParams,
           effects: clip.type === 'effect' ? [clip.asset] : undefined,
         };
       });
@@ -780,6 +822,50 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       </div>
     );
   }
+
+  // Resolve layer from selectedTimelineClip if present
+  let effectiveSelectedLayer = selectedLayer;
+  if (selectedTimelineClip && currentSceneId) {
+    const scene = scenes.find((s: any) => s.id === currentSceneId);
+    if (scene) {
+      const allLayers = scene.columns.flatMap((c: any) => c.layers);
+      // Prefer an explicit layerId supplied by timeline selection
+      if (selectedTimelineClip.layerId) {
+        const layer = allLayers.find((l: any) => l.id === selectedTimelineClip.layerId);
+        if (layer) effectiveSelectedLayer = layer;
+      }
+      if (!effectiveSelectedLayer) {
+        // Try deterministic mapping: Track N => Layer N
+        const trackNum = parseInt((selectedTimelineClip.trackId || 'track-1').split('-')[1] || '1', 10);
+        const byNum = allLayers.find((l: any) => l.layerNum === trackNum);
+        if (byNum) effectiveSelectedLayer = byNum;
+      }
+      if (!effectiveSelectedLayer) {
+        // Fallback: try to match by effect id/name
+        const effectId = selectedTimelineClip?.data?.asset?.id || selectedTimelineClip?.data?.asset?.name || selectedTimelineClip?.data?.name;
+        const match = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === effectId || l?.asset?.name === effectId));
+        if (match) effectiveSelectedLayer = match;
+      }
+      if (!effectiveSelectedLayer) {
+        const effectLayer = allLayers.find((l: any) => l?.asset?.isEffect || l?.type === 'effect');
+        if (effectLayer) effectiveSelectedLayer = effectLayer;
+      }
+    }
+  }
+
+  // Auto-focus Layer tab and select resolved layer when a timeline clip is chosen
+  useEffect(() => {
+    if (!selectedTimelineClip) return;
+    try {
+      // Switch to Layer tab
+      setMiddlePanelTab('layer');
+      // Always try to set selection to resolved layer to trigger LayerOptions render
+      const scene = scenes.find((s: any) => s.id === currentSceneId);
+      const allLayers = scene ? scene.columns.flatMap((c: any) => c.layers) : [];
+      const resolved = (selectedTimelineClip.layerId && allLayers.find((l: any) => l.id === selectedTimelineClip.layerId)) || effectiveSelectedLayer;
+      if (resolved) setSelectedLayer(resolved);
+    } catch {}
+  }, [selectedTimelineClip?.id]);
 
   // Ensure we have at least 20 columns
   const columns = [...currentScene.columns];
@@ -1285,7 +1371,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      ) : (
                        <div className="tw-h-full">
                          <LayerOptions 
-                           selectedLayer={selectedLayer}
+                           selectedLayer={effectiveSelectedLayer || selectedLayer}
                            onUpdateLayer={handleUpdateSelectedLayer}
                          />
                        </div>
