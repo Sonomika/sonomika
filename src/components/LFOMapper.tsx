@@ -585,7 +585,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                   </div>
                 </div>
                 {(lfo.randomTimingMode || 'sync') === 'sync' ? (
-                  <div className="param-row">
+            <div className="param-row">
                     {(() => {
                       const allowedDenoms = [2, 4, 8, 16, 32, 64];
                       const normDiv = normalizeDivision(lfo.randomDivision);
@@ -599,12 +599,12 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                         setLFO({ randomDivision: `1/${denom}` as any, randomDivisionIndex: clamped as any });
                       };
                       return (
-                        <ParamRow
+              <ParamRow
                           label="Division"
                           value={currentIndex}
-                          min={0}
+                min={0}
                           max={allowedDenoms.length - 1}
-                          step={1}
+                step={1}
                           onChange={setByIndex}
                           onIncrement={() => setByIndex(currentIndex + 1)}
                           onDecrement={() => setByIndex(currentIndex - 1)}
@@ -612,10 +612,10 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                         />
                       );
                     })()}
-                  </div>
+            </div>
                 ) : (
-                  <div className="param-row">
-                    <ParamRow
+            <div className="param-row">
+              <ParamRow
                       label="Hz"
                       value={Number(lfo.randomHz || 2)}
                       min={0.1}

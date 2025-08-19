@@ -40,7 +40,8 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
         {options.map((option) => (
           <button
             key={option.value}
-            className={`${sizeClasses[size]} tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-1 ${option.value === value ? 'tw-bg-sky-600 tw-text-white tw-border-sky-600' : ''}`}
+            className={`${sizeClasses[size]} tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-1 ${option.value === value ? 'tw-text-white' : ''}`}
+            style={option.value === value ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
             onClick={() => onChange(option.value)}
             onContextMenu={option.onContextMenu}
             title={option.title}

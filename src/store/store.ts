@@ -47,6 +47,7 @@ const initialState: AppState = {
   bpm: 120,
   sidebarVisible: true,
   accessibilityEnabled: false,
+  accentColor: '#00bcd4',
   midiMappings: [],
   selectedLayerId: null,
   selectedTimelineClip: null,
@@ -103,6 +104,7 @@ export const useStore = create<AppState & {
     ensureVideoPersistence: (assetId: string) => void;
     debugStorage: () => void;
   updateCompositionSettings: (settings: Partial<CompositionSettings>) => void;
+  setAccentColor: (hex: string) => void;
   reorderLayers: (columnId: string, startIndex: number, endIndex: number) => void;
   moveBetweenColumns: (sourceColumnId: string, destinationColumnId: string, sourceIndex: number, destinationIndex: number) => void;
   savePreset: (presetName?: string) => string | null;
@@ -176,6 +178,15 @@ export const useStore = create<AppState & {
 
       setAccessibilityEnabled: (enabled: boolean) => set({ accessibilityEnabled: enabled }),
       toggleAccessibility: () => set((state) => ({ accessibilityEnabled: !state.accessibilityEnabled })),
+
+      setAccentColor: (hex: string) => set((state) => {
+        const color = /^#?[0-9a-fA-F]{6}$/.test(hex) ? (hex.startsWith('#') ? hex : `#${hex}`) : state.accentColor || '#00bcd4';
+        // Apply to CSS var for global theming
+        try {
+          document.documentElement.style.setProperty('--accent', color);
+        } catch {}
+        return { accentColor: color } as any;
+      }),
 
       addColumn: (sceneId: string) => set((state) => ({
         scenes: state.scenes.map(scene =>

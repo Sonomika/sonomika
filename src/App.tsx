@@ -78,7 +78,7 @@ function App() {
   const [debugMode, setDebugMode] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const usingDummyCanvas = useRef<boolean>(false);
-  const { savePreset, loadPreset, accessibilityEnabled } = useStore() as any;
+  const { savePreset, loadPreset, accessibilityEnabled, accentColor } = useStore() as any;
   const lastSaveRef = useRef<number>(0);
   
   // Modal states
@@ -128,6 +128,14 @@ function App() {
       window.removeEventListener('resize', adjustForTaskbar);
     };
   }, []);
+
+  // Apply accent color to CSS var on mount and when it changes
+  useEffect(() => {
+    try {
+      const color = accentColor || '#00bcd4';
+      document.documentElement.style.setProperty('--accent', color);
+    } catch {}
+  }, [accentColor]);
 
   // Auto-save preset every 30 seconds (disabled by default)
   useEffect(() => {

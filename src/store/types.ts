@@ -89,6 +89,7 @@ export interface AppState {
   bpm: number;
   sidebarVisible: boolean; // Global accessibility mode
   accessibilityEnabled: boolean; // Global accessibility mode
+  accentColor?: string;
   midiMappings: MIDIMapping[];
   selectedLayerId: string | null;
   selectedTimelineClip: any | null;

@@ -57,7 +57,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
           <button className="tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={onClose}>
             {cancelText}
           </button>
-          <button className="tw-bg-purple-600 tw-px-3 tw-py-1.5 tw-text-white hover:tw-bg-purple-500" onClick={handleConfirm}>
+          <button className="tw-px-3 tw-py-1.5 tw-text-white" style={{ backgroundColor: 'var(--accent)' }} onClick={handleConfirm}>
             {confirmText}
           </button>
         </>
@@ -73,7 +73,8 @@ export const PresetModal: React.FC<PresetModalProps> = ({
             onKeyPress={handleKeyPress}
             placeholder={placeholder}
             autoFocus
-            className="tw-w-full tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2.5 tw-py-1.5 tw-text-neutral-100 placeholder:tw-text-neutral-500 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-purple-600"
+            className="tw-w-full tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2.5 tw-py-1.5 tw-text-neutral-100 placeholder:tw-text-neutral-500 focus:tw-outline-none focus:tw-ring-2"
+            style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
           />
         )}
       </div>

@@ -23,7 +23,7 @@
   object-position: center;
 }
 
-:root { --border-color: #333333; }
+:root { --border-color: #333333; --accent: #00bcd4; }
 
 * { box-sizing: border-box; }
 

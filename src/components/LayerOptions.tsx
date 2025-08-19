@@ -383,7 +383,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                         <div>
                           <button
                             type="button"
-                            className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
+                            className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
+                            style={Boolean(currentValue) ? { backgroundColor: 'var(--accent)' } : undefined}
                             onClick={() => {
                               if (isLocked) return;
                               const newValue = !Boolean(currentValue);
@@ -506,25 +507,29 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               <div>
                 <div className="tw-flex tw-flex-wrap tw-gap-2">
                   <button
-                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.NONE ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.NONE ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                    style={loopMode === LOOP_MODES.NONE ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                     onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
                   >
                     None
                   </button>
                   <button
-                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.LOOP ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.LOOP ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                    style={loopMode === LOOP_MODES.LOOP ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                     onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
                   >
                     Loop
                   </button>
                   <button
-                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.REVERSE ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.REVERSE ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                    style={loopMode === LOOP_MODES.REVERSE ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                     onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
                   >
                     Reverse
                   </button>
                   <button
-                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.PING_PONG ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.PING_PONG ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                    style={loopMode === LOOP_MODES.PING_PONG ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                     onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
                   >
                     Ping-Pong
@@ -578,35 +583,40 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           <div>
             <div className="tw-flex tw-flex-wrap tw-gap-2">
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'add' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'add' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                style={blendMode === 'add' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                 onClick={() => handleBlendModeChange('add')}
                 title="Add - Brightens overlapping areas"
               >
                 Add
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'multiply' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'multiply' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                style={blendMode === 'multiply' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                 onClick={() => handleBlendModeChange('multiply')}
                 title="Multiply - Darkens overlapping areas"
               >
                 Multiply
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'screen' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'screen' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                style={blendMode === 'screen' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                 onClick={() => handleBlendModeChange('screen')}
                 title="Screen - Lightens overlapping areas"
               >
                 Screen
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'overlay' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'overlay' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                style={blendMode === 'overlay' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                 onClick={() => handleBlendModeChange('overlay')}
                 title="Overlay - Combines multiply and screen"
               >
                 Overlay
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'difference' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'difference' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                style={blendMode === 'difference' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                 onClick={() => handleBlendModeChange('difference')}
                 title="Difference - Shows differences between layers"
               >

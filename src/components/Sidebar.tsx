@@ -170,7 +170,8 @@ export const Sidebar: React.FC = () => {
           <section>
             <h2 className="tw-text-sm tw-font-semibold tw-text-neutral-300 tw-mb-2">Media Library</h2>
             <button
-              className="tw-border tw-border-neutral-700 tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-2"
+              className="tw-border tw-border-neutral-700 tw-text-white tw-px-3 tw-py-2"
+              style={{ backgroundColor: 'var(--accent)' }}
               onClick={() => setShowMediaLibrary(true)}
             >
               Open Media Library

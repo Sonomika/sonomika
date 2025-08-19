@@ -271,7 +271,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               {visualEffects.map((effect) => (
                 <div
                   key={effect.id}
-                  className={`tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-cursor-pointer hover:tw-bg-neutral-800 ${selectedEffect?.id === effect.id ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
+                  className={`tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-cursor-pointer hover:tw-bg-neutral-800 ${selectedEffect?.id === effect.id ? 'tw-ring-2' : ''}`}
+                  style={selectedEffect?.id === effect.id ? ({ ['--tw-ring-color' as any]: 'var(--accent)' } as any) : undefined}
                   onClick={() => handleEffectSelect(effect)}
                   draggable
                   onDragStart={(e) => handleEffectDrag(e, effect)}
@@ -296,7 +297,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               {generativeSources.map((effect) => (
                 <div
                   key={effect.id}
-                  className={`tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-cursor-pointer hover:tw-bg-neutral-800 ${selectedEffect?.id === effect.id ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
+                  className={`tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-cursor-pointer hover:tw-bg-neutral-800 ${selectedEffect?.id === effect.id ? 'tw-ring-2' : ''}`}
+                  style={selectedEffect?.id === effect.id ? ({ ['--tw-ring-color' as any]: 'var(--accent)' } as any) : undefined}
                   onClick={() => handleEffectSelect(effect)}
                   draggable
                   onDragStart={(e) => handleEffectDrag(e, effect)}
@@ -324,7 +326,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             <h3 className="tw-text-sm tw-font-semibold">{selectedEffect.name}</h3>
             <p className="tw-text-xs tw-text-neutral-300 tw-mt-1">{selectedEffect.description}</p>
             <div className="tw-mt-2 tw-flex tw-gap-2">
-              <button onClick={handleAddToLayer} className="tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5 tw-text-sm">Add to Layer</button>
+              <button onClick={handleAddToLayer} className="tw-text-white tw-px-3 tw-py-1.5 tw-text-sm" style={{ backgroundColor: 'var(--accent)' }}>Add to Layer</button>
               <button onClick={handlePreview} className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-1.5 tw-text-sm">Preview</button>
             </div>
           </div>

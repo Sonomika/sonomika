@@ -773,7 +773,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="tw-text-center tw-space-y-2">
               <h3 className="tw-text-lg">Welcome to VJ</h3>
               <p className="tw-text-sm tw-text-neutral-300">Create your first scene to get started</p>
-              <button onClick={addScene} className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-bg-sky-600 hover:tw-bg-sky-500 tw-text-white tw-px-3 tw-py-1.5">Create New Scene</button>
+              <button onClick={addScene} className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }}>Create New Scene</button>
             </div>
           </div>
         </div>
@@ -852,7 +852,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <ContextMenu key={scene.id}>
                     <ContextMenuTrigger asChild>
                       <button
-                        className={`tw-text-xs tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-1 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-bg-sky-600 tw-text-white tw-border-sky-600' : ''}`}
+                        className={`tw-text-xs tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-1 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-text-white' : ''}`}
+                        style={scene.id === currentSceneId ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                         onClick={() => setCurrentScene(scene.id)}
                         draggable
                         onDragStart={(e) => {
@@ -945,7 +946,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 </button>
                 <button
                   onClick={globalPause}
-                  className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${!isGlobalPlaying ? 'tw-bg-purple-600 tw-text-white tw-border-purple-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-purple-600 hover:tw-text-white`}
+                  className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${!isGlobalPlaying ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'}`}
+                  style={!isGlobalPlaying ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                   title="Global Pause - Pause all videos"
                 >
                   <PauseIcon className="tw-w-4 tw-h-4" />

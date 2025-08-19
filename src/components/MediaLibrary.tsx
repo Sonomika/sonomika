@@ -635,7 +635,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           </select>
         </div>
 
-        <button className="import-button tw-bg-purple-600 hover:tw-bg-purple-500 tw-text-white tw-px-3 tw-py-1.5" onClick={handleImportClick}>Import</button>
+        <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
         
 
       </div>
