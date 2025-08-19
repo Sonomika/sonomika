@@ -184,7 +184,14 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const zoom = timelineZoom;
   const setZoom = setTimelineZoom;
   const [isPlaying, setIsPlaying] = useState(false);
-  const [selectedClips, setSelectedClips] = useState<Set<string>>(new Set());
+  const [selectedClips, setSelectedClips] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('vj-timeline-selected-clips');
+      if (!raw) return new Set<string>();
+      const arr = JSON.parse(raw);
+      return new Set<string>(Array.isArray(arr) ? arr : []);
+    } catch { return new Set<string>(); }
+  });
   const [draggedAsset, setDraggedAsset] = useState<any>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   // waveform state managed by wavesurfer
@@ -2314,22 +2321,51 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                               setSelectedClips(new Set([clip.id]));
                               try {
                                 const state = (useStore as any).getState();
-                                const { scenes, currentSceneId, setSelectedTimelineClip } = state;
+                                const { scenes, currentSceneId, setSelectedTimelineClip, updateScene } = state;
                                 const scene = scenes?.find((s: any) => s.id === currentSceneId);
                                 const columns: any[] = scene?.columns || [];
                                 const allLayers: any[] = columns.flatMap((c: any) => c.layers || []);
                                 const trackNum = parseInt((track.id || 'track-1').split('-')[1] || '1', 10);
-                                let resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && l?.layerNum === trackNum);
-                                if (!resolvedLayer) {
+                                let resolvedLayer: any = null;
+                                if (clip?.type === 'effect') {
                                   const effectId = clip?.asset?.id || clip?.asset?.name || clip?.name;
                                   resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === effectId || l?.asset?.name === effectId));
+                                  if (!resolvedLayer) {
+                                    resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && l?.layerNum === trackNum);
+                                  }
+                                } else if (clip?.type === 'video') {
+                                  resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && l?.layerNum === trackNum);
+                                  if (!resolvedLayer) {
+                                    const videoId = clip?.asset?.id || clip?.asset?.name || clip?.name;
+                                    resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === videoId || l?.asset?.name === videoId));
+                                  }
                                 }
-                                if (!resolvedLayer) {
-                                  resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect')) || null;
+                                // Auto-create a mapped effect layer only for effect clips if none exists
+                                if (!resolvedLayer && scene && columns.length > 0 && clip?.asset && clip?.type === 'effect') {
+                                  const newLayerId = `layer-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+                                  const newLayer = {
+                                    id: newLayerId,
+                                    type: 'effect',
+                                    name: `Layer ${trackNum}`,
+                                    layerNum: trackNum,
+                                    opacity: 1,
+                                    blendMode: 'add',
+                                    locked: false,
+                                    params: {},
+                                    asset: { ...(clip.asset || {}), isEffect: true }
+                                  } as any;
+                                  const updatedColumns = columns.map((c: any, idx: number) => idx === 0 ? { ...c, layers: [...c.layers.filter((l: any) => l.layerNum !== trackNum), newLayer] } : c);
+                                  updateScene(currentSceneId, { columns: updatedColumns });
+                                  resolvedLayer = newLayer;
                                 }
                                 if (typeof setSelectedTimelineClip === 'function') {
                                   setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: resolvedLayer?.id || null, trackNum });
                                 }
+                              } catch {}
+                              try {
+                                const nextSel = new Set<string>([clip.id]);
+                                setSelectedClips(nextSel);
+                                localStorage.setItem('vj-timeline-selected-clips', JSON.stringify(Array.from(nextSel)));
                               } catch {}
                             }
                           }}

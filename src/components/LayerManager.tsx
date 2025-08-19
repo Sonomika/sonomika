@@ -36,7 +36,7 @@ const MemoMediaLibrary = React.memo(MediaLibrary);
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip } = useStore() as any;
+  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId } = useStore() as any;
   const [bpmInputValue, setBpmInputValue] = useState(bpm.toString());
   
   // Sync local BPM input with store BPM
@@ -65,9 +65,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [isPlaying, setIsPlaying] = useState(false);
   const [, setRefreshTrigger] = useState(0);
 
-  const [showTimeline, setShowTimeline] = useState(false);
+  const { showTimeline, setShowTimeline } = useStore() as any;
   const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
-  const [middlePanelTab, setMiddlePanelTab] = useState<'global' | 'layer'>('layer');
+  const [middlePanelTab, setMiddlePanelTab] = useState<'global' | 'layer'>(() => {
+    try {
+      const saved = localStorage.getItem('vj-ui-middle-tab');
+      return (saved === 'global' || saved === 'layer') ? (saved as any) : 'layer';
+    } catch { return 'layer'; }
+  });
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
   const [contextHighlightedCell, setContextHighlightedCell] = useState<string | null>(null);
@@ -128,8 +133,25 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   console.log('Current scene:', currentScene);
 
   const handleLayerClickWrapper = (layer: any, columnId: string) => {
+    // Clear any timeline selection when directly interacting with grid layers
+    try { setSelectedTimelineClip(null); } catch {}
+    // Persist selection in global store for refresh restore
+    try { if (layer?.id) setSelectedLayerId(layer.id); } catch {}
     handleLayerClick(layer, columnId, setSelectedLayer, () => {});
   };
+
+  // Hydrate local selectedLayer from persisted store selection when in column view
+  useEffect(() => {
+    if (showTimeline) return;
+    if (!persistedSelectedLayerId) return;
+    try {
+      const scene = scenes.find((s: any) => s.id === currentSceneId);
+      if (!scene) return;
+      const allLayers = scene.columns.flatMap((c: any) => c.layers || []);
+      const match = allLayers.find((l: any) => l.id === persistedSelectedLayerId);
+      if (match) setSelectedLayer(match);
+    } catch {}
+  }, [showTimeline, persistedSelectedLayerId, currentSceneId, scenes]);
 
   // const handleColumnClickWrapper = (columnId: string) => {
   //   handleColumnClick(columnId, setSelectedColumn);
@@ -164,8 +186,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   // Unified updater: handles real layers and pseudo global-effect layers
   const handleUpdateSelectedLayer = (layerId: string, options: any) => {
-    // If timeline selected and a mapped layerId exists, force updates to that layer
-    const forcedLayerId = (selectedTimelineClip && selectedTimelineClip.layerId) ? selectedTimelineClip.layerId : null;
+    // Only reroute updates to timeline's resolved layer when timeline preview is active
+    const forcedLayerId = (previewContent && previewContent.type === 'timeline' && selectedTimelineClip && selectedTimelineClip.layerId)
+      ? selectedTimelineClip.layerId
+      : null;
     if (forcedLayerId) {
       handleUpdateLayerWrapper(forcedLayerId, options);
       // Nudge preview timeline state so it re-renders with latest params
@@ -588,7 +612,19 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       // Convert active clips into a temporary column structure
       const tempLayers = activeClips.map((clip: any) => {
         const trackNumber = parseInt((clip.trackId || 'track-1').split('-')[1] || '1', 10);
-        const matchedLayer = sceneAllLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && effectMatches(l, clip?.asset));
+        let matchedLayer: any = null;
+        // 1) If the selected timeline clip matches this clip, prefer exact layerId
+        if (selectedTimelineClip && selectedTimelineClip.id === clip.id && selectedTimelineClip.layerId) {
+          matchedLayer = sceneAllLayers.find((l: any) => l.id === selectedTimelineClip.layerId) || null;
+        }
+        // 2) If not found, try deterministic mapping: Track N => Layer N
+        if (!matchedLayer) {
+          matchedLayer = sceneAllLayers.find((l: any) => l.layerNum === trackNumber && (l?.asset?.isEffect || l?.type === 'effect')) || null;
+        }
+        // 3) Fallback to effect id/name match
+        if (!matchedLayer) {
+          matchedLayer = sceneAllLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && effectMatches(l, clip?.asset)) || null;
+        }
         const resolvedParams = matchedLayer?.params || clip.params || {};
         return {
           id: `timeline-layer-${clip.id}`,
@@ -835,16 +871,18 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         if (layer) effectiveSelectedLayer = layer;
       }
       if (!effectiveSelectedLayer) {
+        const assetId = selectedTimelineClip?.data?.asset?.id || selectedTimelineClip?.data?.asset?.name || selectedTimelineClip?.data?.name;
+        const isVideo = selectedTimelineClip?.data?.type === 'video' || selectedTimelineClip?.data?.asset?.type === 'video';
+        const match = isVideo
+          ? allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === assetId || l?.asset?.name === assetId))
+          : allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === assetId || l?.asset?.name === assetId));
+        if (match) effectiveSelectedLayer = match;
+      }
+      if (!effectiveSelectedLayer) {
         // Try deterministic mapping: Track N => Layer N
         const trackNum = parseInt((selectedTimelineClip.trackId || 'track-1').split('-')[1] || '1', 10);
         const byNum = allLayers.find((l: any) => l.layerNum === trackNum);
         if (byNum) effectiveSelectedLayer = byNum;
-      }
-      if (!effectiveSelectedLayer) {
-        // Fallback: try to match by effect id/name
-        const effectId = selectedTimelineClip?.data?.asset?.id || selectedTimelineClip?.data?.asset?.name || selectedTimelineClip?.data?.name;
-        const match = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === effectId || l?.asset?.name === effectId));
-        if (match) effectiveSelectedLayer = match;
       }
       if (!effectiveSelectedLayer) {
         const effectLayer = allLayers.find((l: any) => l?.asset?.isEffect || l?.type === 'effect');
@@ -857,15 +895,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   useEffect(() => {
     if (!selectedTimelineClip) return;
     try {
-      // Switch to Layer tab
       setMiddlePanelTab('layer');
-      // Always try to set selection to resolved layer to trigger LayerOptions render
       const scene = scenes.find((s: any) => s.id === currentSceneId);
       const allLayers = scene ? scene.columns.flatMap((c: any) => c.layers) : [];
-      const resolved = (selectedTimelineClip.layerId && allLayers.find((l: any) => l.id === selectedTimelineClip.layerId)) || effectiveSelectedLayer;
+      let resolved: any = null;
+      if (selectedTimelineClip.layerId) {
+        resolved = allLayers.find((l: any) => l.id === selectedTimelineClip.layerId) || null;
+      }
+      if (!resolved && typeof selectedTimelineClip.trackNum === 'number') {
+        const byNum = allLayers.find((l: any) => l.layerNum === selectedTimelineClip.trackNum);
+        if (byNum) resolved = byNum;
+      }
+      if (!resolved) {
+        const assetId = selectedTimelineClip?.data?.asset?.id || selectedTimelineClip?.data?.asset?.name || selectedTimelineClip?.data?.name;
+        if (selectedTimelineClip?.data?.type === 'video') {
+          resolved = allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === assetId || l?.asset?.name === assetId)) || null;
+        } else {
+          resolved = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === assetId || l?.asset?.name === assetId)) || null;
+        }
+      }
+      if (!resolved) {
+        resolved = allLayers.find((l: any) => l?.asset?.isEffect || l?.type === 'effect') || null;
+      }
       if (resolved) setSelectedLayer(resolved);
     } catch {}
-  }, [selectedTimelineClip?.id]);
+  }, [selectedTimelineClip, scenes, currentSceneId]);
 
   // Ensure we have at least 20 columns
   const columns = [...currentScene.columns];
@@ -1048,7 +1102,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               </div>
               
               <button 
-                 onClick={() => setShowTimeline(!showTimeline)}
+                 onClick={() => {
+                   const next = !showTimeline;
+                   setShowTimeline(next);
+                   if (!next) {
+                     // Leaving timeline view: clear timeline-specific selection
+                     try { setSelectedTimelineClip(null); } catch {}
+                   }
+                 }}
                  className={`tw-inline-flex tw-items-center tw-justify-center tw-border tw-text-sm tw-p-2 tw-transition-colors ${
                    showTimeline
                      ? 'tw-bg-sky-600 tw-text-white tw-border-sky-600'
@@ -1354,7 +1415,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             {/* Layer Options / Global - Bottom Center */}
             <div className="tw-flex-1 tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
-                <Tabs value={middlePanelTab} onValueChange={(value) => setMiddlePanelTab(value as 'global' | 'layer')} className="tw-w-full">
+                <Tabs value={middlePanelTab} onValueChange={(value) => { setMiddlePanelTab(value as 'global' | 'layer'); try { localStorage.setItem('vj-ui-middle-tab', value); } catch {} }} className="tw-w-full">
                   <TabsList className="tw-grid tw-w-full tw-grid-cols-2">
                     <TabsTrigger value="global">Global</TabsTrigger>
                     <TabsTrigger value="layer">Layer</TabsTrigger>
@@ -1391,7 +1452,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="tw-w-1/3 tw-min-w-[320px] tw-overflow-hidden tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
               {/* Tab Navigation */}
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
-                               <Tabs value={showMediaLibrary ? String(showMediaLibrary) : 'media'} onValueChange={(val) => setShowMediaLibrary(val === 'media' ? false : (val as any))}>
+                               <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'media')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
                  <TabsList>
                    <TabsTrigger value="media">Media</TabsTrigger>
                    <TabsTrigger value="effects">Effects</TabsTrigger>
@@ -1405,7 +1466,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                <div className="tw-p-3 tw-h-full">
                  <ScrollArea.Root className="tw-h-full" type="always">
                    <ScrollArea.Viewport className="tw-h-full tw-w-full">
-                     <Tabs value={showMediaLibrary ? String(showMediaLibrary) : 'media'} onValueChange={(val) => setShowMediaLibrary(val === 'media' ? false : (val as any))}>
+                     <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'media')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
                        <TabsContent value="media">
                          <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
                        </TabsContent>
@@ -1439,10 +1500,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
                    </ScrollArea.Scrollbar>
                  </ScrollArea.Root>
-+               {/* Keep LFO engine mounted so Random/LFO continue across app tab switches */}
-+               <div style={{ display: 'none' }} aria-hidden>
-+                 <LFOMapper selectedLayer={effectiveSelectedLayer || selectedLayer} onUpdateLayer={handleUpdateLayerWrapper} />
-+               </div>
+                {/* Keep LFO engine mounted so Random/LFO continue across app tab switches */}
+                <div style={{ display: 'none' }} aria-hidden>
+                  <LFOMapper selectedLayer={effectiveSelectedLayer || selectedLayer} onUpdateLayer={handleUpdateLayerWrapper} />
+                </div>
                </div>
              </div>
           </div>

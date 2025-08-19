@@ -52,6 +52,7 @@ const initialState: AppState = {
   selectedLayerId: null,
   selectedTimelineClip: null,
   previewMode: 'composition',
+  showTimeline: false,
   transitionType: 'fade',
   transitionDuration: 500,
   assets: [],
@@ -85,6 +86,7 @@ export const useStore = create<AppState & {
   setSelectedLayer: (layerId: string | null) => void;
   setSelectedTimelineClip: (clip: any | null) => void;
   setPreviewMode: (mode: AppState['previewMode']) => void;
+  setShowTimeline: (show: boolean) => void;
   addMIDIMapping: (mapping: MIDIMapping) => void;
   removeMIDIMapping: (index: number) => void;
   setMIDIMappings: (mappings: MIDIMapping[]) => void;
@@ -217,6 +219,8 @@ export const useStore = create<AppState & {
       setSelectedTimelineClip: (clip: any | null) => set({ selectedTimelineClip: clip }),
 
       setPreviewMode: (mode: AppState['previewMode']) => set({ previewMode: mode }),
+
+      setShowTimeline: (show: boolean) => set({ showTimeline: show }),
 
       addMIDIMapping: (mapping: MIDIMapping) => set((state) => ({
         midiMappings: [...state.midiMappings, mapping],
@@ -640,8 +644,10 @@ export const useStore = create<AppState & {
            playingColumnId: state.playingColumnId,
            bpm: state.bpm,
            sidebarVisible: state.sidebarVisible,
+           showTimeline: (state as any).showTimeline,
            midiMappings: state.midiMappings,
            selectedLayerId: state.selectedLayerId,
+           selectedTimelineClip: state.selectedTimelineClip,
            previewMode: state.previewMode,
            transitionType: state.transitionType,
            transitionDuration: state.transitionDuration,

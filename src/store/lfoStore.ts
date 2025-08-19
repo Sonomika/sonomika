@@ -40,26 +40,49 @@ export interface LFOMapping {
   enabled: boolean;
 }
 
+const DEFAULT_LFO_STATE: LFOState = {
+  mode: 'random',
+  waveform: 'sine',
+  rate: 1.0,
+  depth: 100,
+  offset: 0,
+  phase: 0,
+  jitter: 0,
+  smooth: 0,
+  tempoSync: false,
+  hold: false,
+  retrigger: false,
+  currentValue: 0,
+  // Random defaults
+  randomMin: -100,
+  randomMax: 100,
+  skipPercent: 0,
+  randomTimingMode: 'sync',
+  randomDivision: '1/4',
+  randomHz: 2.0,
+  randomDivisionIndex: 1,
+};
+
 interface LFOStore {
   // Non-persisted real-time values
   modulatedValues: Record<string, LFOModulatedValue>;
   
-  // Persisted LFO state and mappings
-  lfoState: LFOState;
-  mappings: LFOMapping[];
-  selectedMapping: string | null;
+  // Persisted LFO state and mappings, scoped per layer id
+  lfoStateByLayer: Record<string, LFOState>;
+  mappingsByLayer: Record<string, LFOMapping[]>;
+  selectedMapping: string | null; // kept global for UI convenience
   
   // Actions for modulated values (not persisted)
   setModulatedValue: (key: string, value: LFOModulatedValue) => void;
   clearModulatedValue: (key: string) => void;
   getModulatedValue: (layerId: string, parameterName: string) => LFOModulatedValue | null;
   
-  // Actions for LFO state (persisted)
-  setLFOState: (state: Partial<LFOState>) => void;
-  setMappings: (mappings: LFOMapping[]) => void;
-  addMapping: (mapping: LFOMapping) => void;
-  removeMapping: (id: string) => void;
-  updateMapping: (id: string, updates: Partial<LFOMapping>) => void;
+  // Actions for LFO state (persisted) — per layer
+  setLFOStateForLayer: (layerId: string, state: Partial<LFOState>) => void;
+  setMappingsForLayer: (layerId: string, mappings: LFOMapping[]) => void;
+  addMappingForLayer: (layerId: string, mapping: LFOMapping) => void;
+  removeMappingForLayer: (layerId: string, id: string) => void;
+  updateMappingForLayer: (layerId: string, id: string, updates: Partial<LFOMapping>) => void;
   setSelectedMapping: (id: string | null) => void;
 }
 
@@ -70,30 +93,9 @@ export const useLFOStore = create<LFOStore>()(
       // Non-persisted real-time values
       modulatedValues: {},
       
-      // Persisted LFO state and mappings (initial values)
-      lfoState: {
-        mode: 'random',
-        waveform: 'sine',
-        rate: 1.0,
-        depth: 100,
-        offset: 0,
-        phase: 0,
-        jitter: 0,
-        smooth: 0,
-        tempoSync: false,
-        hold: false,
-        retrigger: false,
-        currentValue: 0,
-        // Random defaults
-        randomMin: -100,
-        randomMax: 100,
-        skipPercent: 0,
-        randomTimingMode: 'sync',
-        randomDivision: '1/4',
-        randomHz: 2.0,
-        randomDivisionIndex: 1,
-      },
-      mappings: [],
+      // Persisted LFO state and mappings (initial values) — empty, filled lazily per layer
+      lfoStateByLayer: {},
+      mappingsByLayer: {},
       selectedMapping: null,
       
       // Actions for modulated values (not persisted)
@@ -116,23 +118,43 @@ export const useLFOStore = create<LFOStore>()(
         return state.modulatedValues[key] || null;
       },
       
-      // Actions for LFO state (persisted)
-      setLFOState: (newState: Partial<LFOState>) => set((state) => ({
-        lfoState: { ...state.lfoState, ...newState }
+      // Actions for LFO state (persisted) — per layer
+      setLFOStateForLayer: (layerId: string, newState: Partial<LFOState>) => set((state) => {
+        const current = state.lfoStateByLayer[layerId] || DEFAULT_LFO_STATE;
+        return {
+          lfoStateByLayer: {
+            ...state.lfoStateByLayer,
+            [layerId]: { ...current, ...newState },
+          }
+        };
+      }),
+
+      setMappingsForLayer: (layerId: string, mappings: LFOMapping[]) => set((state) => ({
+        mappingsByLayer: {
+          ...state.mappingsByLayer,
+          [layerId]: [...mappings],
+        }
       })),
-      
-      setMappings: (mappings: LFOMapping[]) => set({ mappings }),
-      
-      addMapping: (mapping: LFOMapping) => set((state) => ({
-        mappings: [...state.mappings, mapping]
+
+      addMappingForLayer: (layerId: string, mapping: LFOMapping) => set((state) => ({
+        mappingsByLayer: {
+          ...state.mappingsByLayer,
+          [layerId]: [...(state.mappingsByLayer[layerId] || []), mapping],
+        }
       })),
-      
-      removeMapping: (id: string) => set((state) => ({
-        mappings: state.mappings.filter(m => m.id !== id)
+
+      removeMappingForLayer: (layerId: string, id: string) => set((state) => ({
+        mappingsByLayer: {
+          ...state.mappingsByLayer,
+          [layerId]: (state.mappingsByLayer[layerId] || []).filter(m => m.id !== id),
+        }
       })),
-      
-      updateMapping: (id: string, updates: Partial<LFOMapping>) => set((state) => ({
-        mappings: state.mappings.map(m => m.id === id ? { ...m, ...updates } : m)
+
+      updateMappingForLayer: (layerId: string, id: string, updates: Partial<LFOMapping>) => set((state) => ({
+        mappingsByLayer: {
+          ...state.mappingsByLayer,
+          [layerId]: (state.mappingsByLayer[layerId] || []).map(m => m.id === id ? { ...m, ...updates } : m),
+        }
       })),
       
       setSelectedMapping: (id: string | null) => set({ selectedMapping: id }),
@@ -141,8 +163,8 @@ export const useLFOStore = create<LFOStore>()(
       name: 'lfo-storage',
       // Only persist LFO state and mappings, NOT real-time modulated values
       partialize: (state) => ({
-        lfoState: state.lfoState,
-        mappings: state.mappings,
+        lfoStateByLayer: state.lfoStateByLayer,
+        mappingsByLayer: state.mappingsByLayer,
         selectedMapping: state.selectedMapping
       }),
     }

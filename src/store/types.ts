@@ -94,6 +94,9 @@ export interface AppState {
   selectedLayerId: string | null;
   selectedTimelineClip: any | null;
   previewMode: 'composition' | 'layer';
+  showTimeline: boolean; // Persisted: whether timeline view is active
+  middlePanelTab?: 'global' | 'layer';
+  rightPanelTab?: 'media' | 'effects' | 'midi' | 'lfo';
   transitionType: TransitionType;
   transitionDuration: number;
   assets: Asset[];
