@@ -143,7 +143,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     setLocalParamValues(prev => ({ ...prev, [name]: val }));
   };
 
-  // Sync local state with selectedLayer when it changes
+  // Sync local state with selectedLayer and live param changes
   React.useEffect(() => {
     if (selectedLayer) {
       setLoopMode((selectedLayer as any).loopMode || LOOP_MODES.NONE);
@@ -201,7 +201,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         setPlayMode(currentPlayMode);
       }
     }
-  }, [selectedLayer?.id, hasEffect, effectMetadata?.parameters]);
+  }, [selectedLayer?.id, selectedLayer?.params, hasEffect, effectMetadata?.parameters]);
+
+  // Reflect external opacity changes (e.g., LFO) into the local UI state
+  React.useEffect(() => {
+    if (typeof selectedLayer?.opacity === 'number') {
+      setOpacity(selectedLayer.opacity);
+    }
+  }, [selectedLayer?.opacity]);
 
   const handleLoopModeChange = (mode: LoopMode) => {
     setLoopMode(mode);
@@ -298,7 +305,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         {hasEffect && (
           <div className="tw-space-y-2">
             <div className="tw-flex tw-items-center tw-justify-between">
-              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Effect Parameters</h4>
+              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">
+                Effect Parameters{effectId ? ` · ${String(effectId)}` : ''}
+              </h4>
               <button
                 type="button"
                 className="tw-text-xs tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 hover:tw-bg-neutral-800"

@@ -151,6 +151,11 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     if (now - lastUpdateTime.current < updateThrottleMs) return;
     lastUpdateTime.current = now;
 
+    // Accumulate updates to avoid clobbering when multiple mappings are active
+    let pendingParams = { ...(currentSelectedLayer.params || {}) } as Record<string, any>;
+    let pendingOpacity: number | undefined = undefined;
+    let anyChanged = false;
+
     currentMappings.forEach(mapping => {
       if (!mapping.enabled || mapping.parameter === 'Select Parameter') return;
 
@@ -216,7 +221,6 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
           // Randomize this parameter
           const effectId: string | undefined = (currentSelectedLayer as any)?.asset?.id || (currentSelectedLayer as any)?.asset?.name;
           const isEffect = (currentSelectedLayer as any)?.type === 'effect' || (currentSelectedLayer as any)?.asset?.isEffect;
-          let updatedParams = { ...(currentSelectedLayer.params || {}) } as Record<string, any>;
           if (isEffect && effectId) {
             const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
             const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
@@ -224,16 +228,18 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
             if (paramDef) {
               const randomized = globalRandomize([paramDef], currentSelectedLayer.params);
               if (randomized && randomized[actualParamName]) {
-                updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: (randomized as any)[actualParamName].value };
-                currentOnUpdateLayer(currentSelectedLayer.id, { params: updatedParams });
+                const updParams = { ...(currentSelectedLayer.params || {}) } as Record<string, any>;
+                updParams[actualParamName] = { ...(updParams[actualParamName] || {}), value: (randomized as any)[actualParamName].value };
+                currentOnUpdateLayer(currentSelectedLayer.id, { params: updParams });
                 return;
               }
             }
           }
           // Fallback: random within mapping min/max scaled to layer param
           const val = minVal + Math.random() * (maxVal - minVal);
-          updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: val };
-          currentOnUpdateLayer(currentSelectedLayer.id, { params: updatedParams });
+          const updParams2 = { ...(currentSelectedLayer.params || {}) } as Record<string, any>;
+          updParams2[actualParamName] = { ...(updParams2[actualParamName] || {}), value: val };
+          currentOnUpdateLayer(currentSelectedLayer.id, { params: updParams2 });
         }
         return; // Do not continuous-modulate when mapping is randomize
       }
@@ -241,19 +247,23 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       // Normal continuous modulation
       if (actualParamName === 'opacity') {
         const clampedValue = Math.max(0, Math.min(1, modulatedValue / 100));
-        currentOnUpdateLayer(currentSelectedLayer.id, { opacity: clampedValue });
+        pendingOpacity = clampedValue;
+        anyChanged = true;
       } else {
-        const currentParams = currentSelectedLayer.params || {};
+        const currentParams = pendingParams;
         const currentVal = currentParams[actualParamName]?.value;
-        if (!isNumber(currentVal)) return;
-        const newParams = { 
-          ...currentParams, 
-          [actualParamName]: { 
-            ...currentParams[actualParamName], 
-            value: modulatedValue 
-          } 
-        };
-        currentOnUpdateLayer(currentSelectedLayer.id, { params: newParams });
+        if (!isNumber(currentVal)) {
+          // If param exists but is non-number, skip
+        } else {
+          pendingParams = { 
+            ...currentParams, 
+            [actualParamName]: { 
+              ...currentParams[actualParamName], 
+              value: modulatedValue 
+            } 
+          };
+          anyChanged = true;
+        }
       }
 
       const key = `${currentSelectedLayer.id}-${actualParamName}`;
@@ -268,6 +278,11 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
         timestamp: now
       });
     });
+    if (anyChanged) {
+      const update: any = { params: pendingParams };
+      if (typeof pendingOpacity === 'number') update.opacity = pendingOpacity;
+      currentOnUpdateLayer(currentSelectedLayer.id, update);
+    }
   }, []);
 
   // Waveform drawing and animation (same as before)...
@@ -551,15 +566,75 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                         { value: 'randomsmooth', label: 'Random (Smooth)' },
                       ]}
                     />
-            </div>
-          </div>
-            <div className="param-row">
-                  <ParamRow label="Rate" value={Number(lfo.rate || 1)} min={0.01} max={20} step={0.01}
-                onChange={(value) => lid && setLFOForLayer(lid, { rate: value })}
-                onIncrement={() => lid && setLFOForLayer(lid, { rate: Math.min(20, Number(lfo.rate || 1) + 0.01) })}
-                onDecrement={() => lid && setLFOForLayer(lid, { rate: Math.max(0.01, Number(lfo.rate || 1) - 0.01) })}
-              />
-            </div>
+                  </div>
+                </div>
+                <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+                  <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Timing</label>
+                  <div className="tw-w-[240px] tw-flex tw-gap-2">
+                    <button
+                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.lfoTimingMode as any) || 'hz') === 'sync' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
+                      onClick={() => lid && setLFOForLayer(lid, { lfoTimingMode: 'sync' })}
+                    >
+                      Sync
+                    </button>
+                    <button
+                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.lfoTimingMode as any) || 'hz') === 'hz' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
+                      onClick={() => lid && setLFOForLayer(lid, { lfoTimingMode: 'hz' })}
+                    >
+                      Hz
+                    </button>
+                  </div>
+                </div>
+                {(((lfo.lfoTimingMode as any) || 'hz') as string) === 'sync' ? (
+                  <div className="param-row">
+                    {(() => {
+                      const allowedDenoms = [2, 4, 8, 16, 32, 64];
+                      const normDiv = normalizeDivision((lfo.lfoDivision as any));
+                      const currentDenom = Number(normDiv?.match(/\d+/)?.[0] || 4);
+                      const currentIndex = Number.isFinite(lfo.lfoDivisionIndex as any) && (lfo.lfoDivisionIndex as any) != null
+                        ? Math.max(0, Math.min(allowedDenoms.length - 1, Math.round(Number(lfo.lfoDivisionIndex as any))))
+                        : Math.max(0, allowedDenoms.indexOf(currentDenom));
+                      const setByIndex = (idx: number) => {
+                        const clamped = Math.max(0, Math.min(allowedDenoms.length - 1, Math.round(idx)));
+                        const denom = allowedDenoms[clamped];
+                        if (lid) setLFOForLayer(lid, { lfoDivision: `1/${denom}` as any, lfoDivisionIndex: clamped as any });
+                      };
+                      return (
+                        <ParamRow
+                          label="Division"
+                          value={currentIndex}
+                          min={0}
+                          max={allowedDenoms.length - 1}
+                          step={1}
+                          onChange={setByIndex}
+                          onIncrement={() => setByIndex(currentIndex + 1)}
+                          onDecrement={() => setByIndex(currentIndex - 1)}
+                          valueDisplay={`1/${allowedDenoms[currentIndex]}`}
+                        />
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="param-row">
+                    <ParamRow
+                      label="Hz"
+                      value={Number((lfo.lfoHz as any) || Number(lfo.rate || 1))}
+                      min={0.01}
+                      max={20}
+                      step={0.01}
+                      onChange={(value) => lid && setLFOForLayer(lid, { lfoHz: value, rate: value })}
+                      onIncrement={() => lid && setLFOForLayer(lid, { lfoHz: Math.min(20, Number((lfo.lfoHz as any) || Number(lfo.rate || 1)) + 0.01), rate: Math.min(20, Number((lfo.lfoHz as any) || Number(lfo.rate || 1)) + 0.01) })}
+                      onDecrement={() => lid && setLFOForLayer(lid, { lfoHz: Math.max(0.01, Number((lfo.lfoHz as any) || Number(lfo.rate || 1)) - 0.01), rate: Math.max(0.01, Number((lfo.lfoHz as any) || Number(lfo.rate || 1)) - 0.01) })}
+                    />
+                  </div>
+                )}
+                <div className="param-row">
+                  <ParamRow label="Depth" value={Number(lfo.depth || 100)} min={0} max={100} step={1}
+                    onChange={(value) => lid && setLFOForLayer(lid, { depth: value })}
+                    onIncrement={() => lid && setLFOForLayer(lid, { depth: Math.min(100, Number(lfo.depth || 100) + 1) })}
+                    onDecrement={() => lid && setLFOForLayer(lid, { depth: Math.max(0, Number(lfo.depth || 100) - 1) })}
+                  />
+                </div>
             <div className="param-row">
                   <ParamRow label="Depth" value={Number(lfo.depth || 100)} min={0} max={100} step={1}
                 onChange={(value) => lid && setLFOForLayer(lid, { depth: value })}

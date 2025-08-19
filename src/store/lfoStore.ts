@@ -22,6 +22,11 @@ export interface LFOState {
   hold: boolean;
   retrigger: boolean;
   currentValue: number;
+  // LFO timing
+  lfoTimingMode?: 'sync' | 'hz';
+  lfoDivision?: '1/1' | '1/2' | '1/4' | '1/8' | '1/16' | '1/32' | '1/64';
+  lfoHz?: number;
+  lfoDivisionIndex?: number; // 0..5 maps to [2,4,8,16,32,64]
   // Random (BPM) generator settings
   randomMin: number; // -100..100, mapped to -1..1
   randomMax: number; // -100..100, mapped to -1..1
@@ -53,6 +58,11 @@ const DEFAULT_LFO_STATE: LFOState = {
   hold: false,
   retrigger: false,
   currentValue: 0,
+  // LFO timing defaults
+  lfoTimingMode: 'hz',
+  lfoDivision: '1/4',
+  lfoHz: 1.0,
+  lfoDivisionIndex: 1,
   // Random defaults
   randomMin: -100,
   randomMax: 100,
