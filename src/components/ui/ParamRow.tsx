@@ -14,6 +14,7 @@ interface ParamRowProps {
   showSlider?: boolean;
   showValue?: boolean;
   showLabel?: boolean;
+  valueDisplay?: string;
 }
 
 export const ParamRow: React.FC<ParamRowProps> = ({
@@ -28,7 +29,8 @@ export const ParamRow: React.FC<ParamRowProps> = ({
   showButtons = true,
   showSlider = true,
   showValue = true,
-  showLabel = true
+  showLabel = true,
+  valueDisplay
 }) => {
 
   // Handle the shadcn/ui Slider's onValueChange which receives an array
@@ -39,44 +41,47 @@ export const ParamRow: React.FC<ParamRowProps> = ({
     }
   };
 
+  const formattedValue = label.toLowerCase() === 'opacity'
+    ? `${Math.round(value * 100)}%`
+    : (step >= 1 ? Math.round(value) : value.toFixed(step < 0.01 ? 3 : step < 0.1 ? 2 : 1));
+  const displayValue = valueDisplay ?? formattedValue;
+
   return (
-    <div className="effect-param">
-      {showLabel && <label className="param-label">{label}</label>}
-      <div className="param-control">
-        {showValue && (
-          <span className="param-value">
-            {label.toLowerCase() === 'opacity' 
-              ? `${Math.round(value * 100)}%`
-              : step >= 1 
-                ? Math.round(value) 
-                : value.toFixed(step < 0.01 ? 3 : step < 0.1 ? 2 : 1)
-            }
-          </span>
-        )}
-        
-        {showButtons && onIncrement && onDecrement && (
-          <div className="param-buttons">
-            <button type="button" className="param-btn" onClick={onDecrement}>
-              -
-            </button>
-            <button type="button" className="param-btn" onClick={onIncrement}>
-              +
-            </button>
-          </div>
-        )}
-        
-        {showSlider && (
-          <div className="slider-container tw-min-w-[120px] tw-flex-1">
-            <Slider 
-              value={[value]} 
-              min={min} 
-              max={max} 
-              step={step} 
-              onValueChange={handleSliderChange} 
-            />
-          </div>
-        )}
-      </div>
+    <div className="effect-param tw-flex tw-items-center tw-gap-2 tw-w-full">
+      {showLabel && (
+        <label className="param-label tw-text-xs tw-uppercase tw-text-neutral-400 tw-shrink-0 tw-w-[180px]">
+          {label}
+        </label>
+      )}
+
+      {showValue && (
+        <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums tw-min-w-[44px] tw-text-right">
+          {displayValue}
+        </span>
+      )}
+
+      {showButtons && onIncrement && onDecrement && (
+        <div className="param-buttons tw-inline-flex tw-items-center tw-gap-1">
+          <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-6 tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onDecrement}>
+            -
+          </button>
+          <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-6 tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onIncrement}>
+            +
+          </button>
+        </div>
+      )}
+
+      {showSlider && (
+        <div className="slider-container tw-w-[240px]">
+          <Slider 
+            value={[value]} 
+            min={min} 
+            max={max} 
+            step={step} 
+            onValueChange={handleSliderChange} 
+          />
+        </div>
+      )}
     </div>
   );
 };

@@ -26,6 +26,10 @@ export interface LFOState {
   randomMin: number; // -100..100, mapped to -1..1
   randomMax: number; // -100..100, mapped to -1..1
   skipPercent: number; // 0..100 chance to skip triggering on a beat
+  randomTimingMode?: 'sync' | 'hz';
+  randomDivision?: '1/1' | '1/2' | '1/4' | '1/8' | '1/16' | '1/32' | '1/64';
+  randomHz?: number;
+  randomDivisionIndex?: number; // 0..5 maps to [2,4,8,16,32,64]
 }
 
 export interface LFOMapping {
@@ -84,6 +88,10 @@ export const useLFOStore = create<LFOStore>()(
         randomMin: -100,
         randomMax: 100,
         skipPercent: 0,
+        randomTimingMode: 'sync',
+        randomDivision: '1/4',
+        randomHz: 2.0,
+        randomDivisionIndex: 1,
       },
       mappings: [],
       selectedMapping: null,

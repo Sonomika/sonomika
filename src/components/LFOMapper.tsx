@@ -25,6 +25,7 @@ const RANDOMIZE_ALL = '__randomize_all';
 export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLayer }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
+  const randomHoldRef = useRef<{ step: number; value: number }>({ step: -1, value: 0 });
   const [activeTab, setActiveTab] = useState<'lfo' | 'random'>('lfo');
   
   const lfo = useLFOStore((state) => state.lfoState);
@@ -51,6 +52,82 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
   const lastUpdateTime = useRef(0);
   const updateThrottleMs = 50;
+
+  // Waveform helpers
+  const waveValue = (t: number, type: string, timeSec?: number, rateHz?: number): number => {
+    // t is radians; convert to normalized cycles for non-sine shapes
+    const cycles = t / (2 * Math.PI);
+    const frac = cycles - Math.floor(cycles);
+    switch ((type || 'sine').toLowerCase()) {
+      case 'square':
+        return Math.sign(Math.sin(t)) || 1;
+      case 'triangle': {
+        // 2*abs(2*frac - 1) - 1 → [-1,1]
+        return 2 * Math.abs(2 * frac - 1) - 1;
+      }
+      case 'sawup': {
+        // Saw rising from -1 to 1
+        return 2 * frac - 1;
+      }
+      case 'sawdown': {
+        return 1 - 2 * frac;
+      }
+      case 'random': {
+        // Sample-and-hold random; changes at `rateHz` times per second
+        const r = Math.max(0.0001, rateHz || 1);
+        const ts = Math.floor((timeSec || 0) * r);
+        if (randomHoldRef.current.step !== ts) {
+          randomHoldRef.current.step = ts;
+          randomHoldRef.current.value = Math.random() * 2 - 1; // [-1,1]
+        }
+        return randomHoldRef.current.value;
+      }
+      case 'randomsmooth': {
+        // Linear-interpolated random values per step
+        const r = Math.max(0.0001, rateHz || 1);
+        const x = (timeSec || 0) * r;
+        const i0 = Math.floor(x);
+        const f = x - i0;
+        const y0 = (Math.sin(i0 + 1) * 43758.5453123 - Math.floor(Math.sin(i0 + 1) * 43758.5453123)) * 2 - 1;
+        const y1 = (Math.sin(i0 + 2) * 43758.5453123 - Math.floor(Math.sin(i0 + 2) * 43758.5453123)) * 2 - 1;
+        return y0 + (y1 - y0) * f;
+      }
+      case 'sine':
+      default:
+        return Math.sin(t);
+    }
+  };
+
+  // Parse musical division strings like "1/4", "1/8.", "1/8T" to an interval in ms
+  const parseDivisionToMs = (bpm: number, division: string | undefined): number => {
+    const div = (division || '1/4').trim();
+    const dotted = div.endsWith('.') || div.endsWith('d');
+    const triplet = /t$/i.test(div);
+    const core = div.replace(/[.d]|t$/i, '');
+    const match = core.match(/^\s*1\s*\/\s*(\d+)\s*$/);
+    const denom = match ? Math.max(1, parseInt(match[1], 10)) : 4;
+    const quarterMs = (60 / Math.max(1, bpm)) * 1000;
+    // duration in quarter notes is 4/denom
+    let ms = quarterMs * (4 / denom);
+    if (dotted) ms *= 1.5;
+    if (triplet) ms *= 2 / 3;
+    return ms;
+  };
+
+  const normalizeDivision = (division: string | undefined): string => {
+    const allowedDenoms = [2, 4, 8, 16, 32, 64];
+    const m = String(division || '1/4').match(/\d+/);
+    const d = m ? Number(m[0]) : 4;
+    if (allowedDenoms.includes(d)) return `1/${d}`;
+    // pick nearest allowed denominator
+    let best = 4;
+    let bestDiff = Infinity;
+    for (const a of allowedDenoms) {
+      const diff = Math.abs(a - d);
+      if (diff < bestDiff) { bestDiff = diff; best = a; }
+    }
+    return `1/${best}`;
+  };
 
   const applyLFOModulation = useCallback((currentValue: number) => {
     const currentSelectedLayer = selectedLayerRef.current;
@@ -213,10 +290,32 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     const frequency = lfo.rate;
     const amplitude = (lfo.depth / 100) * (height / 2 - 10);
     const offsetY = centerY + (lfo.offset / 100) * (height / 2 - 10);
+    // Simple hash for deterministic preview noise 0..1
+    const hash01 = (n: number) => {
+      const s = Math.sin(n) * 43758.5453123;
+      return s - Math.floor(s);
+    };
+
     for (let i = 0; i <= points; i++) {
       const x = (width / points) * i;
       const t = (i / points) * 4 * Math.PI * frequency + (lfo.phase / 100) * 2 * Math.PI;
-      let y = Math.sin(t);
+      let y: number;
+      const wf = (lfo.waveform || 'sine').toLowerCase();
+      if (wf === 'random') {
+        const segments = Math.max(1, Math.round(8 * frequency));
+        const step = Math.floor((i / points) * segments);
+        y = hash01(step + 1) * 2 - 1;
+      } else if (wf === 'randomsmooth') {
+        const segments = Math.max(1, Math.round(8 * frequency));
+        const pos = (i / points) * segments;
+        const i0 = Math.floor(pos);
+        const f = pos - i0;
+        const y0 = hash01(i0 + 1) * 2 - 1;
+        const y1 = hash01(i0 + 2) * 2 - 1;
+        y = y0 + (y1 - y0) * f;
+      } else {
+        y = waveValue(t, lfo.waveform);
+      }
       const plotY = offsetY - y * amplitude;
       if (i === 0) ctx.moveTo(x, plotY); else ctx.lineTo(x, plotY);
     }
@@ -228,7 +327,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     if (lfo.mode !== 'lfo') return;
     const animate = () => {
       const time = Date.now() * 0.001;
-      let value = Math.sin(time * lfo.rate * 2 * Math.PI + lfo.phase * 0.01 * 2 * Math.PI);
+      let value = waveValue(time * lfo.rate * 2 * Math.PI + lfo.phase * 0.01 * 2 * Math.PI, lfo.waveform, time, lfo.rate);
       value = value * (lfo.depth / 100) + (lfo.offset / 100);
       value = Math.max(-1, Math.min(1, value));
       applyLFOModulation(value);
@@ -238,13 +337,16 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     };
     animate();
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
-  }, [lfo.mode, lfo.rate, lfo.phase, lfo.depth, lfo.offset]);
+  }, [lfo.mode, lfo.rate, lfo.phase, lfo.depth, lfo.offset, lfo.waveform]);
 
   // Random generator: BPM-synced trigger with skip probability
   useEffect(() => {
     if (lfo.mode !== 'random') return;
     const bpmMgr = BPMManager.getInstance();
-    const onBeat = () => {
+    let timer: number | null = null;
+    const clearTimer = () => { if (timer != null) { clearInterval(timer); timer = null; } };
+
+    const fireRandom = () => {
       // Skip based on percentage
       const skip = Math.random() * 100 < (lfo.skipPercent || 0);
       if (skip) return;
@@ -316,9 +418,27 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
         }
       });
     };
-    bpmMgr.addCallback(onBeat);
-    return () => bpmMgr.removeCallback(onBeat);
-  }, [lfo.mode, lfo.randomMin, lfo.randomMax, lfo.skipPercent]);
+
+    // Mode: sync to BPM divisions using its own interval that updates on BPM/division changes
+    if ((lfo.randomTimingMode || 'sync') === 'sync') {
+      let currentBpm = bpmMgr.getBPM();
+      const restart = () => {
+        clearTimer();
+        const ms = parseDivisionToMs(currentBpm, lfo.randomDivision || '1/4');
+        timer = window.setInterval(fireRandom, ms);
+      };
+      const onBpmChange = (b: number) => { currentBpm = b; restart(); };
+      bpmMgr.addCallback(onBpmChange);
+      restart();
+      return () => { clearTimer(); bpmMgr.removeCallback(onBpmChange); };
+    }
+
+    // Mode: fixed Hz interval
+    const hz = Math.max(0.1, Math.min(20, lfo.randomHz || 2));
+    const intervalMs = 1000 / hz;
+    timer = window.setInterval(fireRandom, intervalMs);
+    return () => clearTimer();
+  }, [lfo.mode, lfo.randomMin, lfo.randomMax, lfo.skipPercent, lfo.randomTimingMode, lfo.randomDivision, lfo.randomHz]);
 
   const addMappingHandler = () => {
     const newMapping: LFOMapping = {
@@ -386,40 +506,58 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
         </TabsList>
 
         <TabsContent value="lfo">
-          <div className="lfo-content-wrapper">
-            <div className="lfo-main">
-              <div className="waveform-section">
+      <div className="lfo-content-wrapper">
+        <div className="lfo-main">
+          <div className="waveform-section">
                 <canvas ref={canvasRef} width={300} height={120} className="waveform-canvas" />
               </div>
               <div className="lfo-parameters">
-                <div className="param-row">
+                <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+                  <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Waveform</label>
+                  <div className="tw-w-[240px]">
+                    <Select
+                      value={lfo.waveform as any}
+                      onChange={(v) => setLFO({ waveform: String(v) })}
+                      options={[
+                        { value: 'sine', label: 'Sine' },
+                        { value: 'triangle', label: 'Triangle' },
+                        { value: 'square', label: 'Square' },
+                        { value: 'sawup', label: 'Saw Up' },
+                        { value: 'sawdown', label: 'Saw Down' },
+                        { value: 'random', label: 'Random (S&H)' },
+                        { value: 'randomsmooth', label: 'Random (Smooth)' },
+                      ]}
+                    />
+            </div>
+          </div>
+            <div className="param-row">
                   <ParamRow label="Rate" value={lfo.rate} min={0.01} max={20} step={0.01}
-                    onChange={(value) => setLFO({ rate: value })}
-                    onIncrement={() => setLFO({ rate: Math.min(20, lfo.rate + 0.01) })}
-                    onDecrement={() => setLFO({ rate: Math.max(0.01, lfo.rate - 0.01) })}
-                  />
-                </div>
-                <div className="param-row">
+                onChange={(value) => setLFO({ rate: value })}
+                onIncrement={() => setLFO({ rate: Math.min(20, lfo.rate + 0.01) })}
+                onDecrement={() => setLFO({ rate: Math.max(0.01, lfo.rate - 0.01) })}
+              />
+            </div>
+            <div className="param-row">
                   <ParamRow label="Depth" value={lfo.depth} min={0} max={100} step={1}
-                    onChange={(value) => setLFO({ depth: value })}
-                    onIncrement={() => setLFO({ depth: Math.min(100, lfo.depth + 1) })}
-                    onDecrement={() => setLFO({ depth: Math.max(0, lfo.depth - 1) })}
-                  />
-                </div>
-                <div className="param-row">
+                onChange={(value) => setLFO({ depth: value })}
+                onIncrement={() => setLFO({ depth: Math.min(100, lfo.depth + 1) })}
+                onDecrement={() => setLFO({ depth: Math.max(0, lfo.depth - 1) })}
+              />
+            </div>
+            <div className="param-row">
                   <ParamRow label="Offset" value={lfo.offset} min={-100} max={100} step={1}
-                    onChange={(value) => setLFO({ offset: value })}
-                    onIncrement={() => setLFO({ offset: Math.min(100, lfo.offset + 1) })}
-                    onDecrement={() => setLFO({ offset: Math.max(-100, lfo.offset - 1) })}
-                  />
-                </div>
-                <div className="param-row">
+                onChange={(value) => setLFO({ offset: value })}
+                onIncrement={() => setLFO({ offset: Math.min(100, lfo.offset + 1) })}
+                onDecrement={() => setLFO({ offset: Math.max(-100, lfo.offset - 1) })}
+              />
+            </div>
+            <div className="param-row">
                   <ParamRow label="Phase" value={lfo.phase} min={0} max={100} step={1}
-                    onChange={(value) => setLFO({ phase: value })}
-                    onIncrement={() => setLFO({ phase: Math.min(100, lfo.phase + 1) })}
-                    onDecrement={() => setLFO({ phase: Math.max(0, lfo.phase - 1) })}
-                  />
-                </div>
+                onChange={(value) => setLFO({ phase: value })}
+                onIncrement={() => setLFO({ phase: Math.min(100, lfo.phase + 1) })}
+                onDecrement={() => setLFO({ phase: Math.max(0, lfo.phase - 1) })}
+              />
+            </div>
               </div>
             </div>
           </div>
@@ -429,6 +567,66 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
           <div className="lfo-content-wrapper">
             <div className="lfo-main">
               <div className="lfo-parameters">
+                <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+                  <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Timing</label>
+                  <div className="tw-w-[240px] tw-flex tw-gap-2">
+                    <button
+                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ (lfo.randomTimingMode || 'sync') === 'sync' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
+                      onClick={() => setLFO({ randomTimingMode: 'sync' })}
+                    >
+                      Sync
+                    </button>
+                    <button
+                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ (lfo.randomTimingMode || 'sync') === 'hz' ? 'tw-bg-sky-600 tw-border-sky-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
+                      onClick={() => setLFO({ randomTimingMode: 'hz' })}
+                    >
+                      Hz
+                    </button>
+                  </div>
+                </div>
+                {(lfo.randomTimingMode || 'sync') === 'sync' ? (
+                  <div className="param-row">
+                    {(() => {
+                      const allowedDenoms = [2, 4, 8, 16, 32, 64];
+                      const normDiv = normalizeDivision(lfo.randomDivision);
+                      const currentDenom = Number(normDiv.match(/\d+/)?.[0] || 4);
+                      const currentIndex = Number.isFinite(lfo.randomDivisionIndex) && lfo.randomDivisionIndex != null
+                        ? Math.max(0, Math.min(allowedDenoms.length - 1, Math.round(lfo.randomDivisionIndex as any)))
+                        : Math.max(0, allowedDenoms.indexOf(currentDenom));
+                      const setByIndex = (idx: number) => {
+                        const clamped = Math.max(0, Math.min(allowedDenoms.length - 1, Math.round(idx)));
+                        const denom = allowedDenoms[clamped];
+                        setLFO({ randomDivision: `1/${denom}` as any, randomDivisionIndex: clamped as any });
+                      };
+                      return (
+                        <ParamRow
+                          label="Division"
+                          value={currentIndex}
+                          min={0}
+                          max={allowedDenoms.length - 1}
+                          step={1}
+                          onChange={setByIndex}
+                          onIncrement={() => setByIndex(currentIndex + 1)}
+                          onDecrement={() => setByIndex(currentIndex - 1)}
+                          valueDisplay={`1/${allowedDenoms[currentIndex]}`}
+                        />
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="param-row">
+                    <ParamRow
+                      label="Hz"
+                      value={Number(lfo.randomHz || 2)}
+                      min={0.1}
+                      max={20}
+                      step={0.01}
+                      onChange={(value) => setLFO({ randomHz: value })}
+                      onIncrement={() => setLFO({ randomHz: Math.min(20, Number(lfo.randomHz || 2) + 0.01) })}
+                      onDecrement={() => setLFO({ randomHz: Math.max(0.1, Number(lfo.randomHz || 2) - 0.01) })}
+                    />
+                  </div>
+                )}
                 <div className="param-row">
                   <ParamRow label="Min" value={toNumberOr(lfo.randomMin, -100)} min={-100} max={100} step={1}
                     onChange={(value) => setLFO({ randomMin: value })}
@@ -436,14 +634,14 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                     onDecrement={() => setLFO({ randomMin: Math.max(-100, toNumberOr(lfo.randomMin, -100) - 1) })}
                   />
                 </div>
-                <div className="param-row">
+            <div className="param-row">
                   <ParamRow label="Max" value={toNumberOr(lfo.randomMax, 100)} min={-100} max={100} step={1}
                     onChange={(value) => setLFO({ randomMax: value })}
                     onIncrement={() => setLFO({ randomMax: Math.min(100, toNumberOr(lfo.randomMax, 100) + 1) })}
                     onDecrement={() => setLFO({ randomMax: Math.max(-100, toNumberOr(lfo.randomMax, 100) - 1) })}
-                  />
-                </div>
-                <div className="param-row">
+              />
+            </div>
+            <div className="param-row">
                   <ParamRow label="Skip %" value={toNumberOr(lfo.skipPercent, 0)} min={0} max={100} step={1}
                     onChange={(value) => setLFO({ skipPercent: value })}
                     onIncrement={() => setLFO({ skipPercent: Math.min(100, toNumberOr(lfo.skipPercent, 0) + 1) })}
@@ -461,77 +659,77 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
       {/* Mappings section retained */}
       <div className="tw-space-y-2 tw-mt-3">
-        <div className="tw-flex tw-items-center tw-justify-between">
-          <h4 className="tw-text-sm tw-font-semibold tw-text-white">Parameter Mappings</h4>
-          <button className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700" onClick={addMappingHandler}>
-            + Map
-          </button>
-        </div>
+            <div className="tw-flex tw-items-center tw-justify-between">
+              <h4 className="tw-text-sm tw-font-semibold tw-text-white">Parameter Mappings</h4>
+              <button className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700" onClick={addMappingHandler}>
+                + Map
+              </button>
+            </div>
         {/* existing mappings list preserved */}
-        <div className="tw-space-y-2">
-          {mappings.length === 0 ? (
-            <div className="tw-text-sm tw-text-neutral-400">No parameters mapped. Click '+ Map' to start modulating parameters.</div>
-          ) : (
-            mappings.map(mapping => (
-              <div key={mapping.id} className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2">
-                <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
-                  <div className="tw-min-w-[240px]">
-                    <Select 
-                      value={mapping.parameter as any}
-                      onChange={(v) => updateMapping(mapping.id, { parameter: String(v) })}
+            <div className="tw-space-y-2">
+              {mappings.length === 0 ? (
+                <div className="tw-text-sm tw-text-neutral-400">No parameters mapped. Click '+ Map' to start modulating parameters.</div>
+                ) : (
+                mappings.map(mapping => (
+                  <div key={mapping.id} className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2">
+                    <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+                      <div className="tw-min-w-[240px]">
+                        <Select 
+                          value={mapping.parameter as any}
+                          onChange={(v) => updateMapping(mapping.id, { parameter: String(v) })}
                       options={buildParameterOptions()}
-                    />
+                        />
+                      </div>
+                      <div className="tw-flex tw-items-center tw-gap-2">
+                        <label className="tw-flex tw-items-center tw-gap-1 tw-text-sm tw-text-neutral-300">
+                          <input
+                            type="checkbox"
+                            checked={mapping.enabled}
+                            onChange={(e) => updateMapping(mapping.id, { enabled: e.target.checked })}
+                            className="tw-rounded tw-border tw-border-neutral-700"
+                          />
+                          Enabled
+                        </label>
+                        <button 
+                          className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-w-6 tw-h-6 hover:tw-bg-neutral-800"
+                          onClick={() => removeMapping(mapping.id)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    <div className="tw-flex tw-items-center tw-gap-2 tw-mt-2">
+                      <div className="tw-flex tw-items-center tw-gap-1">
+                        <label>Min:</label>
+                        <input
+                          type="number"
+                          value={Number(mapping.min) || 0}
+                          onChange={(e) => updateMapping(mapping.id, { min: Number(e.target.value) })}
+                          className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
+                        />
+                      </div>
+                      <div className="tw-relative tw-flex-1 tw-h-2 tw-rounded tw-bg-neutral-800 tw-overflow-hidden">
+                        <div 
+                          className="tw-absolute tw-top-0 tw-bottom-0 tw-bg-sky-600/70"
+                          style={{ 
+                            left: `${((Number(mapping.min) / 100) * 100)}%`,
+                            width: `${((Number(mapping.max) - Number(mapping.min)) / 100) * 100}%`
+                          }}
+                        />
+                      </div>
+                      <div className="tw-flex tw-items-center tw-gap-1">
+                        <label>Max:</label>
+                        <input
+                          type="number"
+                          value={Number(mapping.max) || 0}
+                          onChange={(e) => updateMapping(mapping.id, { max: Number(e.target.value) })}
+                          className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="tw-flex tw-items-center tw-gap-2">
-                    <label className="tw-flex tw-items-center tw-gap-1 tw-text-sm tw-text-neutral-300">
-                      <input
-                        type="checkbox"
-                        checked={mapping.enabled}
-                        onChange={(e) => updateMapping(mapping.id, { enabled: e.target.checked })}
-                        className="tw-rounded tw-border tw-border-neutral-700"
-                      />
-                      Enabled
-                    </label>
-                    <button 
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-w-6 tw-h-6 hover:tw-bg-neutral-800"
-                      onClick={() => removeMapping(mapping.id)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-                <div className="tw-flex tw-items-center tw-gap-2 tw-mt-2">
-                  <div className="tw-flex tw-items-center tw-gap-1">
-                    <label>Min:</label>
-                    <input
-                      type="number"
-                      value={Number(mapping.min) || 0}
-                      onChange={(e) => updateMapping(mapping.id, { min: Number(e.target.value) })}
-                      className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
-                    />
-                  </div>
-                  <div className="tw-relative tw-flex-1 tw-h-2 tw-rounded tw-bg-neutral-800 tw-overflow-hidden">
-                    <div 
-                      className="tw-absolute tw-top-0 tw-bottom-0 tw-bg-sky-600/70"
-                      style={{ 
-                        left: `${((Number(mapping.min) / 100) * 100)}%`,
-                        width: `${((Number(mapping.max) - Number(mapping.min)) / 100) * 100}%`
-                      }}
-                    />
-                  </div>
-                  <div className="tw-flex tw-items-center tw-gap-1">
-                    <label>Max:</label>
-                    <input
-                      type="number"
-                      value={Number(mapping.max) || 0}
-                      onChange={(e) => updateMapping(mapping.id, { max: Number(e.target.value) })}
-                      className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+                ))
+              )}
         </div>
       </div>
     </div>

@@ -316,73 +316,13 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   const isLocked = !!lockedParams[param.name];
                   
                   return (
-                    <div key={param.name} className="tw-space-y-1">
-                      <div className="tw-flex tw-items-center tw-justify-between">
-                        <label className="tw-text-xs tw-uppercase tw-text-neutral-400">{param.description || param.name}</label>
-                        <div className="tw-flex tw-items-center tw-gap-1">
-                          <button
-                            type="button"
-                            onClick={() => randomizeSingleParam(param)}
-                            className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
-                            title="Randomize this parameter"
-                          >
-                            <DiceIcon className="tw-text-white" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleLock(param.name)}
-                            className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
-                            title={isLocked ? 'Unlock parameter' : 'Lock parameter'}
-                            aria-pressed={isLocked}
-                          >
-                            {isLocked ? <LockIcon className="tw-text-neutral-400" /> : <UnlockIcon className="tw-text-white" />}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="tw-flex tw-items-center tw-gap-2">
-                        {param.type === 'color' && (
-                          <input
-                            type="color"
-                            value={currentValue}
-                            onChange={(e) => handleEffectParamChange(param.name, e.target.value)}
-                            className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
-                            disabled={isLocked}
-                          />
-                        )}
-                        {param.type === 'select' && (
-                          <div className="tw-w-40">
-                            <Select
-                              value={String(uiValue)}
-                              onChange={(val) => {
-                                if (isLocked) return;
-                                setLocalParamValues(prev => ({ ...prev, [param.name]: val as any }));
-                                handleEffectParamChange(param.name, val);
-                              }}
-                              options={(param.options || []).map((opt: any) => (typeof opt === 'string' ? { value: opt, label: opt } : { value: opt.value, label: opt.label || opt.value }))}
-                            />
-                          </div>
-                        )}
-                        {param.type === 'boolean' && (
-                          <div>
-                            <button
-                              type="button"
-                              className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
-                              onClick={() => {
-                                if (isLocked) return;
-                                const newValue = !Boolean(currentValue);
-                                handleEffectParamChange(param.name, newValue);
-                                setLocalParamValues(prev => ({
-                                  ...prev,
-                                  [param.name]: newValue
-                                }));
-                              }}
-                              disabled={isLocked}
-                            >
-                              {Boolean(currentValue) ? 'ON' : 'OFF'}
-                            </button>
-                          </div>
-                        )}
-                        {param.type === 'number' && (
+                    <div key={param.name} className="tw-flex tw-items-center tw-gap-2 tw-w-full">
+                      {/* Label */}
+                      <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-shrink-0 tw-w-[180px]">{param.description || param.name}</label>
+
+                      {/* Numeric inline: value, +/- and slider in one row */}
+                      {param.type === 'number' && (
+                        <div className="tw-flex tw-items-center tw-gap-2">
                           <ParamRow
                             key={param.name}
                             label={param.description || param.name}
@@ -413,7 +353,72 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                             }}
                             showLabel={false}
                           />
-                        )}
+                        </div>
+                      )}
+
+                      {/* Other control types keep compact width */}
+                      {param.type === 'color' && (
+                        <input
+                          type="color"
+                          value={currentValue}
+                          onChange={(e) => handleEffectParamChange(param.name, e.target.value)}
+                          className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
+                          disabled={isLocked}
+                        />
+                      )}
+                      {param.type === 'select' && (
+                        <div className="tw-w-[240px]">
+                          <Select
+                            value={String(uiValue)}
+                            onChange={(val) => {
+                              if (isLocked) return;
+                              setLocalParamValues(prev => ({ ...prev, [param.name]: val as any }));
+                              handleEffectParamChange(param.name, val);
+                            }}
+                            options={(param.options || []).map((opt: any) => (typeof opt === 'string' ? { value: opt, label: opt } : { value: opt.value, label: opt.label || opt.value }))}
+                          />
+                        </div>
+                      )}
+                      {param.type === 'boolean' && (
+                        <div>
+                          <button
+                            type="button"
+                            className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-bg-purple-600 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
+                            onClick={() => {
+                              if (isLocked) return;
+                              const newValue = !Boolean(currentValue);
+                              handleEffectParamChange(param.name, newValue);
+                              setLocalParamValues(prev => ({
+                                ...prev,
+                                [param.name]: newValue
+                              }));
+                            }}
+                            disabled={isLocked}
+                          >
+                            {Boolean(currentValue) ? 'ON' : 'OFF'}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Icons at end */}
+                      <div className="tw-flex tw-items-center tw-gap-1 tw-shrink-0 tw-ml-auto tw-w-[48px] tw-justify-end">
+                        <button
+                          type="button"
+                          onClick={() => randomizeSingleParam(param)}
+                          className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                          title="Randomize this parameter"
+                        >
+                          <DiceIcon className="tw-text-white" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleLock(param.name)}
+                          className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                          title={isLocked ? 'Unlock parameter' : 'Lock parameter'}
+                          aria-pressed={isLocked}
+                        >
+                          {isLocked ? <LockIcon className="tw-text-neutral-400" /> : <UnlockIcon className="tw-text-white" />}
+                        </button>
                       </div>
                     </div>
                   );
