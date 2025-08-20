@@ -27,8 +27,9 @@ export const ShortcutHelp: React.FC<Props> = ({ onClose }) => {
   };
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }} title="Keyboard Shortcuts">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <div className="shortcut-help tw-space-y-2">
+        <h3 className="tw-text-base tw-font-semibold">Keyboard Shortcuts</h3>
         {shortcuts.map(([key, config]) => (
           <div key={key} className="tw-flex tw-items-center tw-gap-3">
             <kbd>{formatKey(key)}</kbd>

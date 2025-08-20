@@ -50,8 +50,8 @@ export class MIDIProcessor {
               if (mapping.target.param === 'opacity') {
                 store.updateLayer(mapping.target.id, { opacity: velocity / 127 });
               } else if (mapping.target.param) {
-                const metadata = this.getEffectMetadata(layer.type);
-                const paramConfig = metadata?.parameters.find(p => p.name === mapping.target.param);
+                const metadata = this.getEffectMetadata(layer.type) as any;
+                const paramConfig = metadata?.parameters.find((p: any) => p.name === mapping.target.param);
                 if (paramConfig && paramConfig.type === 'number') {
                   const range = (paramConfig.max || 1) - (paramConfig.min || 0);
                   const normalizedValue = velocity / 127;
@@ -91,8 +91,8 @@ export class MIDIProcessor {
               if (mapping.target.param === 'opacity') {
                 store.updateLayer(mapping.target.id, { opacity: value / 127 });
               } else if (mapping.target.param) {
-                const metadata = this.getEffectMetadata(layer.type);
-                const paramConfig = metadata?.parameters.find(p => p.name === mapping.target.param);
+                const metadata = this.getEffectMetadata(layer.type) as any;
+                const paramConfig = metadata?.parameters.find((p: any) => p.name === mapping.target.param);
                 if (paramConfig && paramConfig.type === 'number') {
                   const range = (paramConfig.max || 1) - (paramConfig.min || 0);
                   const normalizedValue = value / 127;

@@ -225,9 +225,9 @@ export const MIDIMapper: React.FC = () => {
           <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Channel:</label>
           <div className="tw-relative tw-z-[1]">
             <Select
-              value={(selectedMapping?.channel || 1) as number}
+              value={String(selectedMapping?.channel || 1)}
               onChange={(v) => handleSettingChange('channel', Number(v))}
-              options={Array.from({ length: 16 }, (_, i) => i + 1).map(ch => ({ value: ch, label: String(ch) }))}
+              options={Array.from({ length: 16 }, (_, i) => i + 1).map(ch => ({ value: String(ch), label: String(ch) }))}
             />
           </div>
         </div>

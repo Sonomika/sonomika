@@ -52,7 +52,7 @@ const WireframeHeadSource: React.FC<WireframeHeadSourceProps> = ({
     const url = resolveUrl(modelUrl);
     loader.load(
       url,
-      (geo) => {
+      (geo: THREE.BufferGeometry) => {
         if (disposed) return;
         // Remove normals/uvs as in example (not needed for this shader)
         geo.deleteAttribute('normal');
@@ -66,7 +66,7 @@ const WireframeHeadSource: React.FC<WireframeHeadSourceProps> = ({
         }
         geo.setAttribute('center', new THREE.BufferAttribute(centers, 3));
         // Normalize to unit size and center
-        const box = new THREE.Box3().setFromObject(new THREE.Mesh(geo));
+        const box = new THREE.Box3().setFromObject(new THREE.Mesh(geo as any));
         const size = new THREE.Vector3();
         const centre = new THREE.Vector3();
         box.getSize(size);
@@ -78,7 +78,7 @@ const WireframeHeadSource: React.FC<WireframeHeadSourceProps> = ({
         setGeometry(geo);
       },
       undefined,
-      (err) => {
+      (err: any) => {
         console.error('Wireframe head load error:', { err, url });
       }
     );

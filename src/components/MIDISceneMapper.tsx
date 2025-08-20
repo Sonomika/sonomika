@@ -23,7 +23,7 @@ const getNoteName = (note: number): string => {
 };
 
 export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { scenes, setCurrentScene, updateScene } = useStore() as any;
+  const { scenes, setCurrentScene } = useStore() as any;
   const [sceneMappings, setSceneMappings] = useState<SceneMIDIMapping[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [listeningSceneId, setListeningSceneId] = useState<string | null>(null);
@@ -127,8 +127,11 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
   };
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }} title="MIDI Scene Mapping">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <div className="tw-space-y-3">
+        <div className="tw-flex tw-items-center tw-justify-between">
+          <h3 className="tw-text-base tw-font-semibold">MIDI Scene Mapping</h3>
+        </div>
         <div>
           <h3 className="tw-text-sm tw-font-semibold">SCENES (MIDI Channel 1)</h3>
           <div className="tw-mt-2 tw-space-y-2">
@@ -156,9 +159,9 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
                   <div className="tw-flex tw-items-center tw-gap-2">
                     <div className="tw-min-w-[120px]">
                       <Select
-                        value={mapping.midiChannel}
+                        value={String(mapping.midiChannel)}
                         onChange={(v) => handleChannelChange(mapping.sceneId, Number(v))}
-                        options={Array.from({ length: 16 }, (_, i) => ({ value: i + 1, label: `Ch ${i + 1}` }))}
+                        options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `Ch ${i + 1}` }))}
                       />
                     </div>
                     

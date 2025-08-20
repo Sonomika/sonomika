@@ -269,7 +269,7 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
 };
 
 // Register the effect with metadata
-Video3DSliceEffect.metadata = {
+(Video3DSliceEffect as any).metadata = {
   name: '3D Video Slices',
   description: 'Splits video into 3D horizontal slices that move independently in 3D space',
   category: '3D Effects',

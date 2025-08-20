@@ -51,19 +51,9 @@ export const PresetModal: React.FC<PresetModalProps> = ({
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      title={title}
-      footer={(
-        <>
-          <button className="tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={onClose}>
-            {cancelText}
-          </button>
-          <button className="tw-px-3 tw-py-1.5 tw-text-white" style={{ backgroundColor: 'var(--accent)' }} onClick={handleConfirm}>
-            {confirmText}
-          </button>
-        </>
-      )}
     >
       <div className="tw-space-y-3">
+        <h3 className="tw-text-base tw-font-semibold">{title}</h3>
         <p className="tw-text-neutral-300">{message}</p>
         {placeholder && (
           <input
@@ -77,6 +67,14 @@ export const PresetModal: React.FC<PresetModalProps> = ({
             style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
           />
         )}
+        <div className="tw-flex tw-justify-end tw-gap-2 tw-pt-2">
+          <button className="tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={onClose}>
+            {cancelText}
+          </button>
+          <button className="tw-px-3 tw-py-1.5 tw-text-white" style={{ backgroundColor: 'var(--accent)' }} onClick={handleConfirm}>
+            {confirmText}
+          </button>
+        </div>
       </div>
     </Dialog>
   );

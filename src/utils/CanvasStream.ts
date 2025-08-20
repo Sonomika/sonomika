@@ -148,8 +148,9 @@ export class CanvasStreamManager {
     // Set mirror background to match composition
     try {
       const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
-      if (typeof window.electron?.setMirrorBackground === 'function') {
-        window.electron.setMirrorBackground(bg);
+      const electronAny: any = (window as any).electron;
+      if (electronAny && typeof electronAny.setMirrorBackground === 'function') {
+        electronAny.setMirrorBackground(bg);
       }
     } catch {}
 

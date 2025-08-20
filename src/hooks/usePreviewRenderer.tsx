@@ -56,7 +56,7 @@ export const usePreviewRenderer = () => {
       }
       
       // Update preview content immediately without causing flash
-      const newPreviewContent = {
+      const newPreviewContent: PreviewContent = {
         type: 'column',
         columnId: columnId,
         column: column,

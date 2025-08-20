@@ -62,11 +62,9 @@ export const AudioWaveform: React.FC<AudioWaveformProps> = ({
       interact: false,
       normalize: true,
       backend: preferMediaElement ? 'MediaElement' : 'WebAudio',
-      responsive: false,
       barWidth: 2,
       barGap: 1,
       barRadius: 1,
-      partialRender: true,
     });
     wavesurferRef.current = ws;
 

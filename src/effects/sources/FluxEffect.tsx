@@ -255,7 +255,7 @@ const FluxEffect: React.FC<FluxEffectProps> = ({
 };
 
 // Add metadata for the effects browser
-FluxEffect.metadata = {
+(FluxEffect as any).metadata = {
   name: 'Flux Effect',
   description: 'Dynamic flowing effect with noise and light leaks',
   category: 'Distortion',

@@ -64,13 +64,13 @@ const ShaderToyEffect: React.FC<ShaderToyEffectProps> = ({
     return createShaderToyMaterial({
       shaderCode: shaderCode || defaultShaderCode,
       uniforms: {
-        intensity: { value: intensity },
-        speed: { value: speed },
-        color1: { value: color1Vec },
-        color2: { value: color2Vec },
-        color3: { value: color3Vec },
-        color4: { value: color4Vec },
-        bpm: { value: bpm }
+        intensity: { value: intensity } as any,
+        speed: { value: speed } as any,
+        color1: { value: color1Vec } as any,
+        color2: { value: color2Vec } as any,
+        color3: { value: color3Vec } as any,
+        color4: { value: color4Vec } as any,
+        bpm: { value: bpm } as any
       }
     });
   }, [shaderCode, intensity, speed, color1Vec, color2Vec, color3Vec, color4Vec, bpm]);

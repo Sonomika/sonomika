@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 export interface ShaderToyUniforms {
+  [uniform: string]: THREE.IUniform<any> | any;
   iTime: { value: number };
   iResolution: { value: THREE.Vector3 };
   iMouse: { value: THREE.Vector4 };

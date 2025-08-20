@@ -23,8 +23,9 @@ export const TransitionSettings: React.FC<Props> = ({ onClose }) => {
   } = useStore() as Store;
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }} title="Transition Settings">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <div className="transition-settings tw-space-y-3">
+          <h3 className="tw-text-base tw-font-semibold">Transition Settings</h3>
           <div>
             <label htmlFor="transition-type">Transition Type</label>
             <div style={{ maxWidth: 220 }}>
