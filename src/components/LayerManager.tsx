@@ -198,6 +198,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       } catch {}
       return;
     }
+    // Timeline-only clip (no mapped scene layer): write back params to the selected timeline clip in the store
+    if (previewContent && previewContent.type === 'timeline' && selectedTimelineClip && (!selectedTimelineClip.layerId || String(layerId).startsWith('timeline-layer-'))) {
+      try {
+        const nextClipData = { ...(selectedTimelineClip.data || {}) } as any;
+        if (options?.params) {
+          nextClipData.params = { ...(nextClipData.params || {}), ...(options.params || {}) };
+        }
+        setSelectedTimelineClip({ ...selectedTimelineClip, data: nextClipData });
+      } catch {}
+      try {
+        setPreviewContent((prev: any) => (prev && prev.type === 'timeline' ? { ...prev } : prev));
+      } catch {}
+      return;
+    }
     if (layerId.startsWith('global-effect-layer-')) {
       if (!currentScene) return;
       if (!selectedGlobalEffectKey) return;
@@ -862,6 +876,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   // Resolve layer from selectedTimelineClip if present
   let effectiveSelectedLayer = selectedLayer;
+  if (selectedTimelineClip) {
+    // When a timeline clip is selected, prefer timeline-driven resolution over prior grid selection
+    effectiveSelectedLayer = null as any;
+  }
   if (selectedTimelineClip && currentSceneId) {
     const scene = scenes.find((s: any) => s.id === currentSceneId);
     if (scene) {
@@ -890,6 +908,36 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         if (effectLayer) effectiveSelectedLayer = effectLayer;
       }
     }
+  }
+
+  // If no real layer resolved but a timeline clip is selected, construct a memoized pseudo layer so Layer Options can render without loops
+  const memoPseudoLayer = React.useMemo(() => {
+    if (!selectedTimelineClip || !selectedTimelineClip.data) return null;
+    const clip: any = selectedTimelineClip.data;
+    const trackNumber = parseInt((selectedTimelineClip.trackId || 'track-1').split('-')[1] || '1', 10);
+    return {
+      id: `timeline-layer-${selectedTimelineClip.id}`,
+      name: clip.name || `Layer ${trackNumber}`,
+      layerNum: trackNumber,
+      type: clip.type === 'effect' ? 'effect' : 'video',
+      asset: clip.asset,
+      opacity: 1,
+      blendMode: 'add',
+      // Keep reference stable to clip.params to avoid triggering effects on each render
+      params: clip.params || {},
+      effects: clip.type === 'effect' ? [clip.asset] : undefined,
+    } as any;
+  }, [
+    selectedTimelineClip?.id,
+    selectedTimelineClip?.trackId,
+    selectedTimelineClip?.data?.name,
+    selectedTimelineClip?.data?.type,
+    selectedTimelineClip?.data?.asset?.id,
+    selectedTimelineClip?.data?.params,
+  ]);
+
+  if (!effectiveSelectedLayer && memoPseudoLayer) {
+    effectiveSelectedLayer = memoPseudoLayer;
   }
 
   // Auto-focus Layer tab and select resolved layer when a timeline clip is chosen
@@ -1075,7 +1123,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 </button>
               </div>
               
-              {/* Global Playback Controls */}
+              {/* Global Playback Controls (hidden in timeline mode) */}
+              {!showTimeline && (
               <div className="tw-flex tw-items-center tw-gap-2 tw-mx-4 tw-p-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-shadow">
                 <span className="tw-text-xs tw-font-semibold tw-text-neutral-400 tw-uppercase tw-tracking-wide">Global:</span>
                 <button
@@ -1101,6 +1150,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <StopIcon className="tw-w-4 tw-h-4" />
                 </button>
               </div>
+              )}
               
               <button 
                  onClick={() => {
@@ -1433,6 +1483,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      ) : (
                        <div className="tw-h-full">
                          <LayerOptions 
+                           key={(effectiveSelectedLayer || selectedLayer)?.id || 'none'}
                            selectedLayer={effectiveSelectedLayer || selectedLayer}
                            onUpdateLayer={handleUpdateSelectedLayer}
                          />
@@ -1487,8 +1538,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                          <div className="lfo-tab">
                            <h3>LFO</h3>
                            <LFOMapper 
-                             selectedLayer={selectedLayer}
-                             onUpdateLayer={handleUpdateLayerWrapper}
+                             selectedLayer={effectiveSelectedLayer || selectedLayer}
+                             onUpdateLayer={handleUpdateSelectedLayer}
                            />
                          </div>
                        </TabsContent>
@@ -1503,7 +1554,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                  </ScrollArea.Root>
                 {/* Keep LFO engine mounted so Random/LFO continue across app tab switches */}
                 <div style={{ display: 'none' }} aria-hidden>
-                  <LFOMapper selectedLayer={effectiveSelectedLayer || selectedLayer} onUpdateLayer={handleUpdateLayerWrapper} />
+                  <LFOMapper selectedLayer={effectiveSelectedLayer || selectedLayer} onUpdateLayer={handleUpdateSelectedLayer} />
                 </div>
                </div>
              </div>

@@ -68,10 +68,11 @@ interface TimelineClip {
   asset: any;
   type: 'video' | 'effect' | 'audio';
   name: string;
+  params?: any;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreviewUpdate }) => {
-  const { currentSceneId, timelineSnapEnabled, setTimelineSnapEnabled, timelineDuration, setTimelineDuration } = useStore() as any;
+  const { currentSceneId, timelineSnapEnabled, setTimelineSnapEnabled, timelineDuration, setTimelineDuration, selectedTimelineClip } = useStore() as any;
   
   // Load saved timeline data from localStorage for current scene
   const loadTimelineData = (): TimelineTrack[] => {
@@ -273,6 +274,53 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Listen for external modulation events (from LFO engine) to update clip params while timeline plays
+  useEffect(() => {
+    const onModulate = (ev: Event) => {
+      const e = ev as CustomEvent<any>;
+      const detail = e.detail || {};
+      const { clipId, paramName, value, isOpacity } = detail;
+      if (!clipId || (paramName == null && !isOpacity)) return;
+      updateTracks(prev => prev.map(tr => ({
+        ...tr,
+        clips: tr.clips.map(c => {
+          if (c.id !== clipId) return c;
+          if (isOpacity) {
+            const existing = c.params || {};
+            const nextParams = { ...existing, opacity: { ...(existing.opacity || {}), value: typeof value === 'number' ? value : (existing.opacity?.value ?? 1) } } as any;
+            return { ...c, params: nextParams } as any;
+          }
+          const existing = c.params || {};
+          const nextParams = { ...existing, [paramName]: { ...(existing[paramName] || {}), value } } as any;
+          return { ...c, params: nextParams } as any;
+        })
+      })));
+    };
+    const onBatch = (ev: Event) => {
+      const e = ev as CustomEvent<any>;
+      const { clipId, params } = e.detail || {};
+      if (!clipId || !params) return;
+      updateTracks(prev => prev.map(tr => ({
+        ...tr,
+        clips: tr.clips.map(c => {
+          if (c.id !== clipId) return c;
+          const existing = c.params || {};
+          const next = { ...existing } as any;
+          Object.entries(params).forEach(([k, v]) => {
+            next[k] = { ...(existing[k] || {}), value: (v as any).value != null ? (v as any).value : v };
+          });
+          return { ...c, params: next } as any;
+        })
+      })));
+    };
+    document.addEventListener('timelineModulate', onModulate as any);
+    document.addEventListener('timelineModulateBatch', onBatch as any);
+    return () => {
+      document.removeEventListener('timelineModulate', onModulate as any);
+      document.removeEventListener('timelineModulateBatch', onBatch as any);
+    };
+  }, [updateTracks]);
 
   // Visible window in seconds with small buffer
   const visibleStartSec = Math.max(0, scrollLeft / Math.max(1, pixelsPerSecond));
@@ -996,6 +1044,21 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     setDraggingClip(null);
   };
 
+  // Sync clip params when Layer Options updates selectedTimelineClip in the store (timeline-only clips)
+  useEffect(() => {
+    try {
+      const sel = selectedTimelineClip;
+      if (!sel || !sel.id || !sel.data || !sel.data.params) return;
+      const clipId = sel.id as string;
+      const newParams = sel.data.params;
+      updateTracks((prev) => prev.map(tr => ({
+        ...tr,
+        clips: tr.clips.map(c => (c.id === clipId ? { ...c, params: { ...(c.params || {}), ...newParams } } : c))
+      })));
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTimelineClip?.id, selectedTimelineClip?.data?.params]);
+
   // Handle click on track to place clip at specific time
   const handleTrackClick = (e: React.MouseEvent, trackId: string) => {
     if (draggedAsset) {
@@ -1197,6 +1260,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           return resetTime;
         }
         console.log('✅ Returning new time:', newTime);
+        // Drive a custom event so engines can react to timeline play
+        try {
+          const evt = new CustomEvent('timelineTick', { detail: { time: newTime, duration } });
+          document.dispatchEvent(evt);
+        } catch {}
         return newTime;
       });
     }, 50); // 50ms = 20fps for smoother movement
@@ -1204,6 +1272,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     console.log('Setting playback interval:', interval);
     setPlaybackInterval(interval);
     setIsPlaying(true); // Ensure playing state is set
+    try { document.dispatchEvent(new Event('timelinePlay')); } catch {}
     console.log('Timeline playback started, isPlaying set to true');
   };
 
@@ -1222,6 +1291,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       lastActiveAudioIdsRef.current.clear();
     } catch {}
     setIsPlaying(false);
+    try { document.dispatchEvent(new Event('timelineStop')); } catch {}
     console.log('Timeline playback stopped, isPlaying set to false');
   };
 
@@ -2321,7 +2391,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                               setSelectedClips(new Set([clip.id]));
                               try {
                                 const state = (useStore as any).getState();
-                                const { scenes, currentSceneId, setSelectedTimelineClip, updateScene } = state;
+                                const { scenes, currentSceneId, setSelectedTimelineClip } = state;
                                 const scene = scenes?.find((s: any) => s.id === currentSceneId);
                                 const columns: any[] = scene?.columns || [];
                                 const allLayers: any[] = columns.flatMap((c: any) => c.layers || []);
@@ -2342,7 +2412,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                                 }
                                 // Do not auto-create a mapped layer from timeline; keep timeline/column separate
                                 if (typeof setSelectedTimelineClip === 'function') {
-                                  setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: null, trackNum });
+                                  setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: resolvedLayer?.id || null, trackNum });
                                 }
                               } catch {}
                               try {

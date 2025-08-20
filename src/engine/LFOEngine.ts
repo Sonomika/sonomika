@@ -77,6 +77,7 @@ class LFOEngineImpl {
   private lastUpdateMs: number = 0;
   private updateThrottleMs: number = 50;
   private randomTimers: Map<string, number> = new Map();
+  private randomTimerMeta: Map<string, string> = new Map();
   private randomHoldCache: Map<string, { step: number; value: number }> = new Map();
   private prevNormByMapping: Map<string, number> = new Map();
 
@@ -93,6 +94,14 @@ class LFOEngineImpl {
     // Clear random timers
     for (const [, t] of this.randomTimers) clearInterval(t);
     this.randomTimers.clear();
+    this.randomTimerMeta.clear();
+  }
+
+  // Expose a safe way to rebuild random timers (e.g., on BPM or division change)
+  resetRandomTimers() {
+    for (const [, t] of this.randomTimers) clearInterval(t);
+    this.randomTimers.clear();
+    this.randomTimerMeta.clear();
   }
 
   onColumnPlay() {
@@ -137,10 +146,16 @@ class LFOEngineImpl {
   };
 
   private getActiveLayers(): LayerLike[] {
-    // Determine active layers from currently playing column (composition mode)
+    // Determine active layers: timeline first (if playing), else currently playing column
     try {
       const state = useStore.getState() as any;
-      const { scenes, currentSceneId, playingColumnId } = state;
+      const { scenes, currentSceneId, playingColumnId, selectedTimelineClip } = state;
+      // If timeline is playing, synthesize active layers from timeline preview
+      const timelineIsPlaying = (window as any).__vj_timeline_is_playing__ === true;
+      const timelineActiveLayers: LayerLike[] | null = (window as any).__vj_timeline_active_layers__ || null;
+      if (timelineIsPlaying && Array.isArray(timelineActiveLayers) && timelineActiveLayers.length > 0) {
+        return timelineActiveLayers;
+      }
       const scene = scenes?.find((s: any) => s.id === currentSceneId);
       if (!scene) return [];
       if (!playingColumnId) return [];
@@ -181,7 +196,17 @@ class LFOEngineImpl {
         }
         // Compute current value
         const timeSec = nowMs * 0.001;
-        const rate = Number(lfo.rate || 1);
+        // Support BPM sync for LFO
+        const bpmMgr = BPMManager.getInstance();
+        const bpm = bpmMgr.getBPM?.() || 120;
+        const timingMode = String((lfo as any).lfoTimingMode || 'hz').toLowerCase();
+        const division = (lfo as any).lfoDivision || '1/4';
+        const periodMs = timingMode === 'sync' ? parseDivisionToMs(bpm, division) : undefined;
+        // Keep rate in sync with lfoHz for downstream users that read it
+        const rate = timingMode === 'sync' ? Math.max(0.01, 1000 / Math.max(1, periodMs || 1000)) : Number((lfo as any).lfoHz || lfo.rate || 1);
+        if (timingMode === 'sync') {
+          try { useLFOStore.getState().setLFOStateForLayer(layer.id, { rate }); } catch {}
+        }
         const phase = Number(lfo.phase || 0);
         const depth = Number(lfo.depth || 100);
         const offset = Number(lfo.offset || 0);
@@ -199,8 +224,18 @@ class LFOEngineImpl {
       } else if (lfo.mode === 'random') {
         // Random mode: ensure per-layer timer exists
         const timerKey = layer.id;
-        if (!this.randomTimers.has(timerKey)) {
-          const timingMode = (lfo.randomTimingMode || 'sync') as 'sync' | 'hz';
+        const timingMode = (lfo.randomTimingMode || 'sync') as 'sync' | 'hz';
+        const signature = timingMode === 'sync'
+          ? `sync:${bpm}:${String(lfo.randomDivision || '1/4')}`
+          : `hz:${Math.max(0.1, Math.min(20, Number(lfo.randomHz || 2)))}`;
+        const prevSig = this.randomTimerMeta.get(timerKey);
+        if (prevSig !== signature) {
+          // Rebuild timer only if signature changed
+          if (this.randomTimers.has(timerKey)) {
+            clearInterval(this.randomTimers.get(timerKey)!);
+            this.randomTimers.delete(timerKey);
+          }
+          this.randomTimerMeta.set(timerKey, signature);
           const createTimer = () => {
             const min = Math.min(Number(lfo.randomMin || -100), Number(lfo.randomMax || 100)) / 100;
             const max = Math.max(Number(lfo.randomMin || -100), Number(lfo.randomMax || 100)) / 100;
@@ -211,6 +246,7 @@ class LFOEngineImpl {
                 const id = this.randomTimers.get(timerKey);
                 if (id) clearInterval(id);
                 this.randomTimers.delete(timerKey);
+                this.randomTimerMeta.delete(timerKey);
                 return;
               }
               const skip = Math.random() * 100 < Number(lfo.skipPercent || 0);
@@ -227,7 +263,7 @@ class LFOEngineImpl {
               const hz = Math.max(0.1, Math.min(20, Number(lfo.randomHz || 2)));
               intervalMs = Math.max(10, Math.round(1000 / hz));
             }
-            const id = window.setInterval(fireRandom, intervalMs);
+            const id = window.setInterval(fireRandom, Math.max(10, Math.floor(intervalMs)));
             return id;
           };
           const id = createTimer();
@@ -333,21 +369,36 @@ class LFOEngineImpl {
       }
 
       // Continuous modulation
+      const isTimelinePlaying = (window as any).__vj_timeline_is_playing__ === true;
+      const dispatchToTimeline = (payload: any) => {
+        try { document.dispatchEvent(new CustomEvent('timelineModulate', { detail: payload })); } catch {}
+      };
       if (actualParamName === 'opacity') {
         const clampedValue = Math.max(0, Math.min(1, modulatedValue / 100));
-        updateLayer(layer.id, { opacity: clampedValue });
+        if (isTimelinePlaying) {
+          // For timeline layers, map layer.id back to original clipId
+          const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
+          dispatchToTimeline({ clipId, isOpacity: true, value: clampedValue });
+        } else {
+          updateLayer(layer.id, { opacity: clampedValue });
+        }
       } else {
         const currentParams = layer.params || {};
         const currentVal = currentParams[actualParamName]?.value;
         if (typeof currentVal !== 'number' || !Number.isFinite(currentVal)) return;
-        const newParams = {
-          ...currentParams,
-          [actualParamName]: {
-            ...currentParams[actualParamName],
-            value: modulatedValue,
-          },
-        };
-        updateLayer(layer.id, { params: newParams });
+        if (isTimelinePlaying) {
+          const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
+          dispatchToTimeline({ clipId, paramName: actualParamName, value: modulatedValue });
+        } else {
+          const newParams = {
+            ...currentParams,
+            [actualParamName]: {
+              ...currentParams[actualParamName],
+              value: modulatedValue,
+            },
+          };
+          updateLayer(layer.id, { params: newParams });
+        }
       }
 
       // Store last modulated info for overlays/debug
@@ -382,6 +433,19 @@ export function attachLFOEngineGlobalListeners() {
   document.addEventListener('globalPlay', onGlobalPlay as any);
   document.addEventListener('globalPause', onGlobalPause as any);
   document.addEventListener('globalStop', onGlobalStop as any);
+
+  // Ensure engine runs during timeline playback and stays in sync
+  const onTimelineTick = () => { if (!(engine as any).running) engine.start(); };
+  const onTimelineStop = () => engine.stop();
+  document.addEventListener('timelineTick', onTimelineTick as any);
+  document.addEventListener('timelineStop', onTimelineStop as any);
+
+  // Rebuild random timers when BPM changes so Sync timing updates immediately
+  try {
+    const bpmMgr = BPMManager.getInstance();
+    const onBpmChange = () => engine.resetRandomTimers();
+    bpmMgr.addCallback(onBpmChange);
+  } catch {}
 
   // Extra safety: subscribe to store state to auto-start/stop on playing state changes
   try {

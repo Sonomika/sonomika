@@ -678,6 +678,20 @@ const TimelineScene: React.FC<{
           appendedFallback = true;
         }
 
+        // Expose active layers for engines (LFO) while timeline is playing
+        try {
+          const layersForEngine = activeClips.map((clip: any) => ({
+            id: `timeline-layer-${clip.id}`,
+            clipId: clip.id,
+            type: clip.type,
+            name: clip.name,
+            opacity: typeof clip.opacity === 'number' ? clip.opacity : 1,
+            params: clip.params || {},
+            asset: clip.asset,
+          }));
+          (window as any).__vj_timeline_is_playing__ = Boolean(isPlaying);
+          (window as any).__vj_timeline_active_layers__ = layersForEngine;
+        } catch {}
         return elements.map((el, i) => React.cloneElement(el, { key: `rendered-element-${i}` }));
       })()}
     </>

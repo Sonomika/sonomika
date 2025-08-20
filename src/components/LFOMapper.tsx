@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { useStore } from '../store/store';
 import { Layer } from '../store/types';
 import { useLFOStore, type LFOMapping } from '../store/lfoStore';
 import { ParamRow, Select, Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
@@ -27,6 +28,36 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   const animationRef = useRef<number>();
   const randomHoldRef = useRef<{ step: number; value: number }>({ step: -1, value: 0 });
   const [activeTab, setActiveTab] = useState<'lfo' | 'random'>('lfo');
+  const { playingColumnId, isGlobalPlaying } = useStore() as any;
+  const [transportPlaying, setTransportPlaying] = useState<boolean>(false);
+
+  // Sync local playing state with column/global/timeline transport
+  useEffect(() => {
+    const compute = () => Boolean((window as any).__vj_timeline_is_playing__ === true || playingColumnId || isGlobalPlaying);
+    setTransportPlaying(compute());
+  }, [playingColumnId, isGlobalPlaying]);
+
+  useEffect(() => {
+    const onPlay = () => setTransportPlaying(true);
+    const onStop = () => setTransportPlaying(false);
+    const onPause = () => setTransportPlaying(false);
+    document.addEventListener('timelinePlay', onPlay as any);
+    document.addEventListener('timelineStop', onStop as any);
+    document.addEventListener('columnPlay', onPlay as any);
+    document.addEventListener('columnStop', onStop as any);
+    document.addEventListener('globalPlay', onPlay as any);
+    document.addEventListener('globalStop', onStop as any);
+    document.addEventListener('globalPause', onPause as any);
+    return () => {
+      document.removeEventListener('timelinePlay', onPlay as any);
+      document.removeEventListener('timelineStop', onStop as any);
+      document.removeEventListener('columnPlay', onPlay as any);
+      document.removeEventListener('columnStop', onStop as any);
+      document.removeEventListener('globalPlay', onPlay as any);
+      document.removeEventListener('globalStop', onStop as any);
+      document.removeEventListener('globalPause', onPause as any);
+    };
+  }, []);
   
   const lfoStateByLayer = useLFOStore((state) => state.lfoStateByLayer);
   const mappingsByLayer = useLFOStore((state) => state.mappingsByLayer);
@@ -313,7 +344,13 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     ctx.lineWidth = 2;
     ctx.beginPath();
     const points = 200;
-    const frequency = Number((lfo as any)?.rate || 1);
+    // Compute effective Hz from timing mode
+    const bpmMgr = BPMManager.getInstance();
+    const bpm = bpmMgr.getBPM?.() || 120;
+    const timingMode = String(((lfo as any)?.lfoTimingMode || 'hz')).toLowerCase();
+    const division = (lfo as any)?.lfoDivision || '1/4';
+    const periodMs = timingMode === 'sync' ? parseDivisionToMs(bpm, division) : undefined;
+    const effectiveHz = timingMode === 'sync' ? Math.max(0.01, 1000 / Math.max(1, periodMs || 1000)) : Number((lfo as any)?.lfoHz || (lfo as any)?.rate || 1);
     const amplitude = (Number((lfo as any)?.depth || 100) / 100) * (height / 2 - 10);
     const offsetY = centerY + (Number((lfo as any)?.offset || 0) / 100) * (height / 2 - 10);
     // Simple hash for deterministic preview noise 0..1
@@ -324,15 +361,15 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
     for (let i = 0; i <= points; i++) {
       const x = (width / points) * i;
-      const t = (i / points) * 4 * Math.PI * frequency + (Number((lfo as any)?.phase || 0) / 100) * 2 * Math.PI;
+      const t = (i / points) * 4 * Math.PI * effectiveHz + (Number((lfo as any)?.phase || 0) / 100) * 2 * Math.PI;
       let y: number;
       const wf = (String((lfo as any)?.waveform || 'sine')).toLowerCase();
       if (wf === 'random') {
-        const segments = Math.max(1, Math.round(8 * frequency));
+        const segments = Math.max(1, Math.round(8 * effectiveHz));
         const step = Math.floor((i / points) * segments);
         y = hash01(step + 1) * 2 - 1;
       } else if (wf === 'randomsmooth') {
-        const segments = Math.max(1, Math.round(8 * frequency));
+        const segments = Math.max(1, Math.round(8 * effectiveHz));
         const pos = (i / points) * segments;
         const i0 = Math.floor(pos);
         const f = pos - i0;
@@ -348,28 +385,37 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     ctx.stroke();
   };
 
-  // LFO animation loop (only when per-layer mode === 'lfo')
+  // LFO animation loop (only when per-layer mode === 'lfo' and transport is playing)
   useEffect(() => {
     const lid = selectedLayerRef.current?.id;
     const lfo = lid ? lfoStateByLayer[lid] : undefined;
-    if (!lfo || lfo.mode !== 'lfo') return;
+    if (!lfo || lfo.mode !== 'lfo' || !transportPlaying) return;
     const animate = () => {
       const time = Date.now() * 0.001;
-      let value = waveValue(time * (lfo.rate || 1) * 2 * Math.PI + (lfo.phase || 0) * 0.01 * 2 * Math.PI, lfo.waveform || 'sine', time, lfo.rate || 1);
+      // Compute effective rate (Hz) based on timing mode
+      const bpmMgr = BPMManager.getInstance();
+      const bpm = bpmMgr.getBPM?.() || 120;
+      const timingMode = String(((lfo as any)?.lfoTimingMode || 'hz')).toLowerCase();
+      const division = (lfo as any)?.lfoDivision || '1/4';
+      const periodMs = timingMode === 'sync' ? parseDivisionToMs(bpm, division as any) : undefined;
+      const effectiveHz = timingMode === 'sync' ? Math.max(0.01, 1000 / Math.max(1, periodMs || 1000)) : Number((lfo as any)?.lfoHz || (lfo as any)?.rate || 1);
+      let value = waveValue(time * effectiveHz * 2 * Math.PI + (lfo.phase || 0) * 0.01 * 2 * Math.PI, lfo.waveform || 'sine', time, effectiveHz);
       value = value * ((lfo.depth || 100) / 100) + ((lfo.offset || 0) / 100);
       value = Math.max(-1, Math.min(1, value));
+      // Apply modulation to the currently selected layer (timeline or column) at ~rAF cadence
+      applyLFOModulation(value);
       drawWaveform();
       animationRef.current = requestAnimationFrame(animate);
     };
     animate();
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
-  }, [lfoStateByLayer, selectedLayer?.id]);
+  }, [lfoStateByLayer, selectedLayer?.id, transportPlaying]);
 
-  // Random generator: BPM-synced trigger with skip probability, per layer
+  // Random generator: BPM/Hz trigger with skip probability, per layer, only while transport playing
   useEffect(() => {
     const lid = selectedLayerRef.current?.id;
     const lfo = lid ? lfoStateByLayer[lid] : undefined;
-    if (!lfo || lfo.mode !== 'random') return;
+    if (!lfo || lfo.mode !== 'random' || !transportPlaying) return;
     const bpmMgr = BPMManager.getInstance();
     let timer: number | null = null;
     const clearTimer = () => { if (timer != null) { clearInterval(timer); timer = null; } };
@@ -466,7 +512,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     const intervalMs = 1000 / hz;
     timer = window.setInterval(fireRandom, intervalMs);
     return () => clearTimer();
-  }, [lfoStateByLayer, selectedLayer?.id]);
+  }, [lfoStateByLayer, selectedLayer?.id, transportPlaying]);
 
   const addMappingHandler = () => {
     const newMapping: LFOMapping = {
