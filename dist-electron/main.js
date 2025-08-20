@@ -1,4 +1,144 @@
-"use strict";const n=require("electron"),u=require("fs"),a=require("path"),p=n.app.requestSingleInstanceLock();p?n.app.on("second-instance",()=>{const t=n.BrowserWindow.getAllWindows();t.length>0&&(t[0].isMinimized()&&t[0].restore(),t[0].focus())}):(console.log("Another instance is already running, quitting..."),n.app.quit());let e=null,i=null;function g(){e=new n.BrowserWindow({width:1200,height:800,frame:!1,titleBarStyle:"hidden",webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:a.join(__dirname,"preload.js")},show:!1});const t=a.join(__dirname,"preload.js");if(console.log("Preload script path:",t),console.log("Preload script exists:",require("fs").existsSync(t)),require("fs").existsSync(t)){const o=require("fs").readFileSync(t,"utf8");console.log("Preload script first 200 chars:",o.substring(0,200))}if(e.webContents.session.webRequest.onHeadersReceived((o,s)=>{console.log("Setting CSP headers for URL:",o.url);const r={...o.responseHeaders,"Content-Security-Policy":[]};console.log("CSP headers disabled for development"),s({responseHeaders:r})}),e.once("ready-to-show",()=>{e.show(),e.webContents.setBackgroundThrottling(!1)}),process.env.NODE_ENV==="development"||!n.app.isPackaged){console.log("Running in development mode");const o=(s,r=0)=>{const d=`http://localhost:${s}`;console.log(`Trying to load: ${d} (attempt ${r+1})`),e.loadURL(d).then(()=>{console.log(`Successfully loaded: ${d}`),e.webContents.openDevTools()}).catch(m=>{if(console.log(`Failed to load ${d}:`,m.message),r<3){const c=Math.min(1e3*Math.pow(2,r),5e3);console.log(`Retrying in ${c}ms...`),setTimeout(()=>o(s,r+1),c)}else s<5180?setTimeout(()=>o(s+1),1e3):(console.log("All ports failed, loading fallback HTML"),e.loadFile(a.join(__dirname,"../index.html")).catch(c=>{console.error("Failed to load fallback HTML:",c),e.loadURL("data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>")}))})};setTimeout(()=>o(5173),500)}else console.log("Running in production mode"),e.loadFile(a.join(__dirname,"../dist/index.html"));e.webContents.on("did-finish-load",()=>{console.log("Window loaded successfully")}),e.webContents.on("did-fail-load",(o,s,r)=>{console.error("Failed to load:",s,r)}),e.on("closed",()=>{e=null})}function h(){if(i&&!i.isDestroyed()){i.focus();return}i=new n.BrowserWindow({width:960,height:540,title:"VJ Mirror Output",webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:a.join(__dirname,"mirror-preload.js")},show:!1,resizable:!0,maximizable:!0,fullscreen:!1,kiosk:!1,alwaysOnTop:!0,skipTaskbar:!0,focusable:!0,movable:!0,frame:!1,titleBarStyle:"hidden",transparent:!1,fullscreenable:!0,autoHideMenuBar:!0,minWidth:480,minHeight:270}),i.loadURL(`data:text/html,${encodeURIComponent(`
+"use strict";
+const electron = require("electron");
+const fs = require("fs");
+const path = require("path");
+const gotTheLock = electron.app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.log("Another instance is already running, quitting...");
+  electron.app.quit();
+} else {
+  electron.app.on("second-instance", () => {
+    const windows = electron.BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      if (windows[0].isMinimized()) windows[0].restore();
+      windows[0].focus();
+    }
+  });
+}
+let mainWindow = null;
+let mirrorWindow = null;
+function createWindow() {
+  mainWindow = new electron.BrowserWindow({
+    width: 1200,
+    height: 800,
+    frame: false,
+    // Remove default window frame
+    titleBarStyle: "hidden",
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, "preload.js")
+    },
+    show: false
+    // Don't show until ready
+  });
+  const preloadPath = path.join(__dirname, "preload.js");
+  console.log("Preload script path:", preloadPath);
+  console.log("Preload script exists:", require("fs").existsSync(preloadPath));
+  if (require("fs").existsSync(preloadPath)) {
+    const preloadContent = require("fs").readFileSync(preloadPath, "utf8");
+    console.log("Preload script first 200 chars:", preloadContent.substring(0, 200));
+  }
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    console.log("Setting CSP headers for URL:", details.url);
+    const responseHeaders = {
+      ...details.responseHeaders,
+      "Content-Security-Policy": []
+    };
+    console.log("CSP headers disabled for development");
+    callback({
+      responseHeaders
+    });
+  });
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
+    mainWindow.webContents.setBackgroundThrottling(false);
+  });
+  const isDev = process.env.NODE_ENV === "development" || !electron.app.isPackaged;
+  if (isDev) {
+    console.log("Running in development mode");
+    const loadDevURL = (port, retryCount = 0) => {
+      const url = `http://localhost:${port}`;
+      console.log(`Trying to load: ${url} (attempt ${retryCount + 1})`);
+      mainWindow.loadURL(url).then(() => {
+        console.log(`Successfully loaded: ${url}`);
+        mainWindow.webContents.openDevTools();
+      }).catch((error) => {
+        console.log(`Failed to load ${url}:`, error.message);
+        if (retryCount < 3) {
+          const delay = Math.min(1e3 * Math.pow(2, retryCount), 5e3);
+          console.log(`Retrying in ${delay}ms...`);
+          setTimeout(() => loadDevURL(port, retryCount + 1), delay);
+        } else if (port < 5180) {
+          setTimeout(() => loadDevURL(port + 1), 1e3);
+        } else {
+          console.log("All ports failed, loading fallback HTML");
+          mainWindow.loadFile(path.join(__dirname, "../index.html")).catch((error2) => {
+            console.error("Failed to load fallback HTML:", error2);
+            mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+          });
+        }
+      });
+    };
+    setTimeout(() => loadDevURL(5173), 500);
+  } else {
+    console.log("Running in production mode");
+    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+  }
+  mainWindow.webContents.on("did-finish-load", () => {
+    console.log("Window loaded successfully");
+  });
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
+    console.error("Failed to load:", errorCode, errorDescription);
+  });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+}
+function createMirrorWindow() {
+  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+    mirrorWindow.focus();
+    return;
+  }
+  mirrorWindow = new electron.BrowserWindow({
+    width: 960,
+    // 50% of 1920
+    height: 540,
+    // 50% of 1080
+    title: "VJ Mirror Output",
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, "mirror-preload.js")
+    },
+    show: false,
+    resizable: true,
+    // Allow resizing
+    maximizable: true,
+    // Allow maximizing
+    fullscreen: false,
+    kiosk: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: true,
+    movable: true,
+    frame: false,
+    // Keep borderless but add custom controls
+    titleBarStyle: "hidden",
+    transparent: false,
+    fullscreenable: true,
+    autoHideMenuBar: true,
+    minWidth: 480,
+    // Minimum size
+    minHeight: 270
+  });
+  const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -124,7 +264,194 @@
       <\/script>
     </body>
     </html>
-  `)}`),i.once("ready-to-show",()=>{i.show(),i.center()}),i.webContents.on("before-input-event",(l,o)=>{o.key==="Escape"&&i.close()})}function w(){i&&!i.isDestroyed()&&(i.close(),i=null)}function f(){const t=[{label:"VJ App",submenu:[{label:"About VJ App",role:"about"},{type:"separator"},{label:"Quit",accelerator:"CmdOrCtrl+Q",click:()=>{n.app.quit()}}]},{label:"View",submenu:[{label:"Toggle Mirror Window",accelerator:"CmdOrCtrl+M",click:()=>{e&&e.webContents.send("toggle-mirror")}},{type:"separator"},{label:"Reload",accelerator:"CmdOrCtrl+R",click:()=>{e&&e.reload()}},{label:"Toggle Developer Tools",accelerator:"F12",click:()=>{e&&e.webContents.toggleDevTools()}}]},{label:"Window",submenu:[{label:"Minimize",accelerator:"CmdOrCtrl+M",role:"minimize"},{label:"Close",accelerator:"CmdOrCtrl+W",role:"close"}]}],l=n.Menu.buildFromTemplate(t);n.Menu.setApplicationMenu(l)}n.app.whenReady().then(()=>{console.log("Electron app is ready"),n.app.commandLine.appendSwitch("disable-background-timer-throttling"),n.app.commandLine.appendSwitch("disable-renderer-backgrounding"),f(),n.protocol.registerFileProtocol("local-file",(t,l)=>{const o=t.url.replace("local-file://","");console.log("Loading local file:",o),console.log("Request URL:",t.url),console.log("File path resolved:",o),l(o)}),n.ipcMain.handle("read-local-file-base64",async(t,l)=>{try{return(await u.promises.readFile(l)).toString("base64")}catch(o){throw console.error("Failed to read local file:",l,o),o}}),n.ipcMain.on("toggle-app-fullscreen",()=>{if(e&&!e.isDestroyed()){const{screen:t}=require("electron");if(e.isKiosk()||e.isFullScreen())e.setKiosk(!1),e.setFullScreen(!1),e.setBounds({width:1200,height:800}),e.center();else{const l=e.getBounds(),o=t.getDisplayMatching(l);e.setBounds({x:o.bounds.x,y:o.bounds.y,width:o.bounds.width,height:o.bounds.height}),e.setMenuBarVisibility(!1),e.setFullScreenable(!0),e.setAlwaysOnTop(!0),e.setKiosk(!0),e.setFullScreen(!0)}}}),n.ipcMain.on("window-minimize",()=>{console.log("Main: window-minimize IPC received"),e?(console.log("Main: calling mainWindow.minimize()"),e.minimize()):console.log("Main: mainWindow is null")}),n.ipcMain.on("window-maximize",()=>{console.log("Main: window-maximize IPC received"),e?e.isMaximized()?(console.log("Main: calling mainWindow.unmaximize()"),e.unmaximize()):(console.log("Main: calling mainWindow.maximize()"),e.maximize()):console.log("Main: mainWindow is null")}),n.ipcMain.on("window-close",()=>{console.log("Main: window-close IPC received"),e?(console.log("Main: calling mainWindow.close()"),e.close()):console.log("Main: mainWindow is null")}),n.ipcMain.on("toggle-mirror",()=>{e&&e.webContents.send("toggle-mirror")}),n.ipcMain.on("open-mirror-window",()=>{h()}),n.ipcMain.on("close-mirror-window",()=>{w()}),n.ipcMain.on("set-mirror-bg",(t,l)=>{if(i&&!i.isDestroyed()){const o=typeof l=="string"?l.replace(/'/g,"\\'"):"#000000";i.webContents.executeJavaScript(`document.body.style.background='${o}'`)}}),n.ipcMain.on("canvas-data",(t,l)=>{if(i&&!i.isDestroyed()){const o=l.replace(/'/g,"\\'");i.webContents.executeJavaScript(`
+  `;
+  mirrorWindow.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
+  mirrorWindow.once("ready-to-show", () => {
+    mirrorWindow.show();
+    mirrorWindow.center();
+  });
+  mirrorWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.key === "Escape") {
+      mirrorWindow.close();
+    }
+  });
+}
+function closeMirrorWindow() {
+  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+    mirrorWindow.close();
+    mirrorWindow = null;
+  }
+}
+function createCustomMenu() {
+  const template = [
+    {
+      label: "VJ App",
+      submenu: [
+        {
+          label: "About VJ App",
+          role: "about"
+        },
+        { type: "separator" },
+        {
+          label: "Quit",
+          accelerator: "CmdOrCtrl+Q",
+          click: () => {
+            electron.app.quit();
+          }
+        }
+      ]
+    },
+    {
+      label: "View",
+      submenu: [
+        {
+          label: "Toggle Mirror Window",
+          accelerator: "CmdOrCtrl+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-mirror");
+            }
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Reload",
+          accelerator: "CmdOrCtrl+R",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.reload();
+            }
+          }
+        },
+        {
+          label: "Toggle Developer Tools",
+          accelerator: "F12",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.toggleDevTools();
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Window",
+      submenu: [
+        {
+          label: "Minimize",
+          accelerator: "CmdOrCtrl+M",
+          role: "minimize"
+        },
+        {
+          label: "Close",
+          accelerator: "CmdOrCtrl+W",
+          role: "close"
+        }
+      ]
+    }
+  ];
+  const menu = electron.Menu.buildFromTemplate(template);
+  electron.Menu.setApplicationMenu(menu);
+}
+electron.app.whenReady().then(() => {
+  console.log("Electron app is ready");
+  electron.app.commandLine.appendSwitch("disable-background-timer-throttling");
+  electron.app.commandLine.appendSwitch("disable-renderer-backgrounding");
+  createCustomMenu();
+  electron.protocol.registerFileProtocol("local-file", (request, callback) => {
+    const filePath = request.url.replace("local-file://", "");
+    console.log("Loading local file:", filePath);
+    console.log("Request URL:", request.url);
+    console.log("File path resolved:", filePath);
+    callback(filePath);
+  });
+  electron.ipcMain.handle("read-local-file-base64", async (event, filePath) => {
+    try {
+      const data = await fs.promises.readFile(filePath);
+      return data.toString("base64");
+    } catch (err) {
+      console.error("Failed to read local file:", filePath, err);
+      throw err;
+    }
+  });
+  electron.ipcMain.on("toggle-app-fullscreen", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const { screen } = require("electron");
+      if (mainWindow.isKiosk() || mainWindow.isFullScreen()) {
+        mainWindow.setKiosk(false);
+        mainWindow.setFullScreen(false);
+        mainWindow.setBounds({ width: 1200, height: 800 });
+        mainWindow.center();
+      } else {
+        const bounds = mainWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mainWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mainWindow.setMenuBarVisibility(false);
+        mainWindow.setFullScreenable(true);
+        mainWindow.setAlwaysOnTop(true);
+        mainWindow.setKiosk(true);
+        mainWindow.setFullScreen(true);
+      }
+    }
+  });
+  electron.ipcMain.on("window-minimize", () => {
+    console.log("Main: window-minimize IPC received");
+    if (mainWindow) {
+      console.log("Main: calling mainWindow.minimize()");
+      mainWindow.minimize();
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("window-maximize", () => {
+    console.log("Main: window-maximize IPC received");
+    if (mainWindow) {
+      if (mainWindow.isMaximized()) {
+        console.log("Main: calling mainWindow.unmaximize()");
+        mainWindow.unmaximize();
+      } else {
+        console.log("Main: calling mainWindow.maximize()");
+        mainWindow.maximize();
+      }
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("window-close", () => {
+    console.log("Main: window-close IPC received");
+    if (mainWindow) {
+      console.log("Main: calling mainWindow.close()");
+      mainWindow.close();
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("toggle-mirror", () => {
+    if (mainWindow) {
+      mainWindow.webContents.send("toggle-mirror");
+    }
+  });
+  electron.ipcMain.on("open-mirror-window", () => {
+    createMirrorWindow();
+  });
+  electron.ipcMain.on("close-mirror-window", () => {
+    closeMirrorWindow();
+  });
+  electron.ipcMain.on("set-mirror-bg", (event, color) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const safe = typeof color === "string" ? color.replace(/'/g, "\\'") : "#000000";
+      mirrorWindow.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+    }
+  });
+  electron.ipcMain.on("canvas-data", (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
+      mirrorWindow.webContents.executeJavaScript(`
         (function() {
           const noStreamDiv = document.getElementById('no-stream');
           const mirrorImage = document.getElementById('mirror-image');
@@ -134,13 +461,19 @@
             noStreamDiv.style.display = 'none';
             
             // Only update if the image source is different to prevent flashing
-            if (mirrorImage.src !== '${o}') {
-              mirrorImage.src = '${o}';
+            if (mirrorImage.src !== '${escapedDataUrl}') {
+              mirrorImage.src = '${escapedDataUrl}';
               mirrorImage.style.display = 'block';
             }
           }
         })();
-      `)}}),n.ipcMain.on("sendCanvasData",(t,l)=>{if(i&&!i.isDestroyed()){const o=l.replace(/'/g,"\\'");i.webContents.executeJavaScript(`
+      `);
+    }
+  });
+  electron.ipcMain.on("sendCanvasData", (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
+      mirrorWindow.webContents.executeJavaScript(`
         (function() {
           const noStreamDiv = document.getElementById('no-stream');
           const mirrorImage = document.getElementById('mirror-image');
@@ -150,10 +483,67 @@
             noStreamDiv.style.display = 'none';
             
             // Only update if the image source is different to prevent flashing
-            if (mirrorImage.src !== '${o}') {
-              mirrorImage.src = '${o}';
+            if (mirrorImage.src !== '${escapedDataUrl}') {
+              mirrorImage.src = '${escapedDataUrl}';
               mirrorImage.style.display = 'block';
             }
           }
         })();
-      `)}}),n.ipcMain.on("toggle-fullscreen",()=>{if(i&&!i.isDestroyed()){const{screen:t}=require("electron");if(i.isKiosk()||i.isFullScreen())i.setKiosk(!1),i.setFullScreen(!1),i.setBounds({x:void 0,y:void 0,width:960,height:540}),i.center();else{const l=i.getBounds(),o=t.getDisplayMatching(l);i.setBounds({x:o.bounds.x,y:o.bounds.y,width:o.bounds.width,height:o.bounds.height}),i.setMenuBarVisibility(!1),i.setFullScreenable(!0),i.setAlwaysOnTop(!0),i.setKiosk(!0),i.setFullScreen(!0)}}}),n.ipcMain.on("resize-mirror-window",(t,l,o)=>{i&&!i.isDestroyed()&&(console.log("Resizing mirror window to:",l,"x",o),i.setSize(l,o),i.center())}),g(),n.app.on("activate",()=>{n.BrowserWindow.getAllWindows().length===0&&g()})});n.app.on("window-all-closed",()=>{process.platform!=="darwin"&&n.app.quit()});process.on("uncaughtException",t=>{console.error("Uncaught Exception:",t)});process.on("unhandledRejection",(t,l)=>{console.error("Unhandled Rejection at:",l,"reason:",t)});
+      `);
+    }
+  });
+  electron.ipcMain.on("toggle-fullscreen", () => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const { screen } = require("electron");
+      if (mirrorWindow.isKiosk() || mirrorWindow.isFullScreen()) {
+        mirrorWindow.setKiosk(false);
+        mirrorWindow.setFullScreen(false);
+        mirrorWindow.setBounds({
+          x: void 0,
+          y: void 0,
+          width: 960,
+          height: 540
+        });
+        mirrorWindow.center();
+      } else {
+        const bounds = mirrorWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mirrorWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mirrorWindow.setMenuBarVisibility(false);
+        mirrorWindow.setFullScreenable(true);
+        mirrorWindow.setAlwaysOnTop(true);
+        mirrorWindow.setKiosk(true);
+        mirrorWindow.setFullScreen(true);
+      }
+    }
+  });
+  electron.ipcMain.on("resize-mirror-window", (event, width, height) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      console.log("Resizing mirror window to:", width, "x", height);
+      mirrorWindow.setSize(width, height);
+      mirrorWindow.center();
+    }
+  });
+  createWindow();
+  electron.app.on("activate", () => {
+    if (electron.BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+electron.app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    electron.app.quit();
+  }
+});
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});

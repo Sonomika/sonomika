@@ -6,8 +6,26 @@ import './tw.css';
 
 // Effects are loaded dynamically - no hardcoded imports needed
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-); 
+const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+
+const mount = async () => {
+  const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
+  if (isElectron) {
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+  } else {
+    const { AuthGate } = await import('./components/AuthGate');
+    root.render(
+      <React.StrictMode>
+        <AuthGate>
+          <App />
+        </AuthGate>
+      </React.StrictMode>
+    );
+  }
+};
+
+mount();

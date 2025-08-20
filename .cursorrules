@@ -9,7 +9,6 @@
 - NEVER reference specific effect files outside effects folder
 - ONLY use dynamic discovery patterns
 - ZERO EXCEPTIONS: Any hardcoded effect reference outside effects/ is a violation
-- ALWAYS open electron app, not website
 - ALWAYS use react fiber to render the composite video
 - NEVER create monolithic long files - break large files into smaller, focused modules
 

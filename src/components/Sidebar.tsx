@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Slider } from './ui';
+import { Slider, Dialog, DialogContent, DialogHeader, DialogTitle, Button } from './ui';
 import { useStore } from '../store/store';
 import { MediaLibrary } from './MediaLibrary';
 import { LayerList } from './LayerList';
 import { LayerManager } from './LayerManager';
+import UploadPanel from './UploadPanel';
 
 export const Sidebar: React.FC = () => {
   const { 
@@ -22,6 +23,7 @@ export const Sidebar: React.FC = () => {
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [showLayerList, setShowLayerList] = useState(false);
   const [showLayerManager, setShowLayerManager] = useState(false);
+  const [showCloudUpload, setShowCloudUpload] = useState(false);
 
   const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
 
@@ -176,6 +178,14 @@ export const Sidebar: React.FC = () => {
             >
               Open Media Library
             </button>
+            <div className="tw-mt-2">
+              <button
+                className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
+                onClick={() => setShowCloudUpload(true)}
+              >
+                Cloud Upload
+              </button>
+            </div>
           </section>
 
           {/* BPM Controls */}
@@ -224,6 +234,31 @@ export const Sidebar: React.FC = () => {
       {showLayerManager && (
         <LayerManager onClose={() => setShowLayerManager(false)} />
       )}
+
+      <Dialog open={showCloudUpload} onOpenChange={setShowCloudUpload}>
+        <DialogContent className="tw-bg-neutral-900 tw-border-neutral-800 tw-text-white tw-max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Cloud Upload</DialogTitle>
+          </DialogHeader>
+          <UploadPanel
+            onUploaded={(publicUrl) => {
+              const asset = {
+                id: `asset-${Date.now()}-${Math.random()}`,
+                name: publicUrl.split('/').pop() || 'uploaded-video.mp4',
+                type: 'video' as const,
+                path: publicUrl,
+                size: 0,
+                date: new Date().toLocaleDateString(),
+              } as any;
+              (useStore.getState() as any).addAsset(asset);
+              setShowCloudUpload(false);
+            }}
+          />
+          <div className="tw-flex tw-justify-end">
+            <Button variant="secondary" onClick={() => setShowCloudUpload(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }; 

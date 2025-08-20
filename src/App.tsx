@@ -501,6 +501,18 @@ function App() {
         onToggleUIDemo={handleToggleUIDemo}
         debugMode={debugMode}
         onToggleDebug={handleToggleDebug}
+        onSignOut={async () => {
+          try {
+            // Only applicable on web where Supabase is configured
+            const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+            if (!isElectron) {
+              const { getSupabase } = await import('./lib/supabaseClient');
+              const supabase = getSupabase();
+              await supabase.auth.signOut();
+              window.location.reload();
+            }
+          } catch {}
+        }}
       />
       
       <div className="tw-bg-black tw-text-white tw-h-screen tw-flex tw-flex-col">

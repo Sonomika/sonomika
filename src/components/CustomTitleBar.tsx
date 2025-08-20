@@ -16,6 +16,7 @@ interface CustomTitleBarProps {
   onStyleGuide?: () => void;
   debugMode?: boolean;
   onToggleDebug?: () => void;
+  onSignOut?: () => void;
 }
 
 export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
@@ -32,7 +33,8 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onToggleUIDemo,
   onStyleGuide,
   debugMode = false,
-  onToggleDebug
+  onToggleDebug,
+  onSignOut
 }) => {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
@@ -147,6 +149,14 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         </div>
       </div>
       
+      {!isElectron && onSignOut && (
+        <div className="tw-flex tw-items-center tw-gap-1 app-no-drag">
+          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border tw-border-neutral-700 hover:tw-bg-neutral-800" onClick={() => onSignOut?.()}>
+            Sign out
+          </button>
+        </div>
+      )}
+
       {isElectron && (
         <div className="tw-flex tw-items-center tw-gap-1 app-no-drag">
           <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
