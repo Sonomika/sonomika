@@ -73,6 +73,8 @@ export class EffectDiscovery {
   private static instance: EffectDiscovery;
   private discoveredEffects: Map<string, ReactSelfContainedEffect> = new Map();
   private effectComponents: Map<string, React.ComponentType<any>> = new Map();
+  // In browser builds, keep a registry from discovered effect file -> import fn (via import.meta.glob)
+  private browserEffectImports: Map<string, () => Promise<any>> = new Map();
 
   private constructor() {}
 
@@ -169,7 +171,7 @@ export class EffectDiscovery {
           console.log('🔍 Attempting to use import.meta.glob for dynamic discovery...');
           
           // This should dynamically discover all .tsx files in the effects directory and subdirectories
-          const effectModules = (import.meta as any).glob('../effects/**/*.tsx', { eager: false });
+          const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../effects/**/*.tsx', { eager: false });
           
           console.log('🔍 Found effect modules:', Object.keys(effectModules));
           
@@ -185,7 +187,10 @@ export class EffectDiscovery {
                 .replace('../effects/', '')
                 .replace('.tsx', '');
               
-              discoveredFiles.push(`${effectName}.tsx`);
+              const fileKey = `${effectName}.tsx`;
+              discoveredFiles.push(fileKey);
+              // Register import function so we can load deterministically later
+              this.browserEffectImports.set(fileKey, importFn);
               console.log(`✅ Discovered effect: ${effectName}`);
             } catch (error) {
               console.log(`❌ Failed to import effect: ${modulePath}`, error);
@@ -254,16 +259,25 @@ export class EffectDiscovery {
     }
     
     try {
-      // Remove .tsx extension for import
-      const importPath = fileName.replace('.tsx', '');
-      console.log(`🔍 Importing from path: "../effects/${importPath}"`);
-      
-      const module = await import(/* @vite-ignore */ `../effects/${importPath}`);
+      // Prefer using the browserEffectImports registry when running in browser
+      let module: any;
+      const isBrowser = typeof window !== 'undefined' && !(window as any).require;
+      if (isBrowser && this.browserEffectImports.has(fileName)) {
+        const importFn = this.browserEffectImports.get(fileName)!;
+        module = await importFn();
+      } else {
+        // Fallback for Electron/Node where direct relative import works during build time
+        const importPath = fileName.replace('.tsx', '');
+        console.log(`🔍 Importing from path (fallback): "../effects/${importPath}"`);
+        module = await import(/* @vite-ignore */ `../effects/${importPath}`);
+      }
       console.log(`✅ Successfully imported module:`, module);
       
       // Try to get metadata from the module
-      const component = module.default || module[`${importPath}Component`];
-      const metadata = module.metadata || component?.metadata || module[`${importPath}Metadata`];
+      // Compute importPath only for logging/derived keys
+      const importPathForKeys = fileName.replace('.tsx', '');
+      const component = module.default || module[`${importPathForKeys}Component`];
+      const metadata = module.metadata || component?.metadata || module[`${importPathForKeys}Metadata`];
       
       console.log(`🔍 Found metadata:`, metadata);
       console.log(`🔍 Found component:`, component ? 'Yes' : 'No');
@@ -274,7 +288,7 @@ export class EffectDiscovery {
       // Generic debugging for all effects
       console.log(`🎯 Effect loading details for ${fileName}:`, {
         fileName,
-        importPath,
+        importPath: importPathForKeys,
         hasDefault: !!module.default,
         defaultType: typeof module.default,
         hasComponent: !!component,
