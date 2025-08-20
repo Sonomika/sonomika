@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
 import { sourceTextureRegistry } from '../../utils/SourceTextureRegistry';
+import { getWebcamManager } from '../../utils/WebcamManager';
 
 interface WebcamSourceProps {
 	deviceId?: string;
@@ -24,56 +25,40 @@ const WebcamSource: React.FC<WebcamSourceProps> = ({
 	const [videoAspect, setVideoAspect] = useState<number>(16 / 9);
 	const streamRef = useRef<MediaStream | null>(null);
 
-	// Start webcam stream
+	// Start webcam stream via global manager (keeps stream alive across unmounts)
 	useEffect(() => {
 		let mounted = true;
-    const start = async () => {
+		const mgr = getWebcamManager();
+		const cfg = { deviceId, width, height, fps } as any;
+		const start = async () => {
 			try {
-				const constraints: MediaStreamConstraints = {
-					video: {
-						deviceId: deviceId ? { exact: deviceId } : undefined,
-						width: { ideal: width },
-						height: { ideal: height },
-						frameRate: { ideal: fps }
-					},
-					audio: false
-				};
-				const stream = await navigator.mediaDevices.getUserMedia(constraints);
+				const entry = await mgr.retain(cfg);
 				if (!mounted) return;
-				streamRef.current = stream;
-        const video = document.createElement('video');
-        video.autoplay = true;
-        video.muted = true;
-        try { video.setAttribute('muted', ''); } catch {}
-        video.playsInline = true;
-        video.srcObject = stream;
+				streamRef.current = entry.stream;
+				const video = entry.video!;
 				videoRef.current = video;
 
-				// Wait for metadata to know dimensions
-				await new Promise<void>((resolve) => {
-					const onLoaded = () => resolve();
-					video.addEventListener('loadedmetadata', onLoaded, { once: true });
-				});
-
-        if (video.videoWidth && video.videoHeight) {
+				if (video.videoWidth && video.videoHeight) {
 					setVideoAspect(video.videoWidth / video.videoHeight);
 				}
 
-				const tex = new THREE.VideoTexture(video);
-				tex.minFilter = THREE.LinearFilter;
-				tex.magFilter = THREE.LinearFilter;
-				tex.format = THREE.RGBAFormat;
-				tex.generateMipmaps = false;
-				try {
-					(tex as any).colorSpace = (THREE as any).SRGBColorSpace || (tex as any).colorSpace;
-					if (!(tex as any).colorSpace && (THREE as any).sRGBEncoding) {
-						(tex as any).encoding = (THREE as any).sRGBEncoding;
-					}
-				} catch {}
-        try { await video.play(); } catch {}
-        setVideoTexture(tex);
-        // Register texture so visual effects can use it as a videoTexture input
-        try { sourceTextureRegistry.setTexture('WebcamSource', tex); } catch {}
+				let tex = mgr.getTexture(cfg) as THREE.VideoTexture | null;
+				if (!tex) {
+					tex = new THREE.VideoTexture(video);
+					tex.minFilter = THREE.LinearFilter;
+					tex.magFilter = THREE.LinearFilter;
+					tex.format = THREE.RGBAFormat;
+					tex.generateMipmaps = false;
+					try {
+						(tex as any).colorSpace = (THREE as any).SRGBColorSpace || (tex as any).colorSpace;
+						if (!(tex as any).colorSpace && (THREE as any).sRGBEncoding) {
+							(tex as any).encoding = (THREE as any).sRGBEncoding;
+						}
+					} catch {}
+					mgr.setTexture(cfg, tex);
+				}
+				setVideoTexture(tex);
+				try { sourceTextureRegistry.setTexture('WebcamSource', tex!); } catch {}
 			} catch (err) {
 				console.error('Failed to start webcam:', err);
 			}
@@ -81,15 +66,9 @@ const WebcamSource: React.FC<WebcamSourceProps> = ({
 		start();
 		return () => {
 			mounted = false;
-			try {
-				if (streamRef.current) {
-					streamRef.current.getTracks().forEach((t) => t.stop());
-					streamRef.current = null;
-				}
-			} catch {}
-      try { videoRef.current && (videoRef.current.srcObject = null); } catch {}
-      try { sourceTextureRegistry.removeTexture('WebcamSource'); } catch {}
+			try { sourceTextureRegistry.removeTexture('WebcamSource'); } catch {}
 			setVideoTexture(null);
+			mgr.release(cfg);
 		};
 	}, [deviceId, width, height, fps]);
 
@@ -113,16 +92,16 @@ const WebcamSource: React.FC<WebcamSourceProps> = ({
 	const planeH = 2 * scaleY;
 
 	return (
-    videoTexture ? (
-      <mesh scale={[mirror ? -1 : 1, 1, 1]}>
-        <planeGeometry args={[planeW, planeH]} />
-        <meshBasicMaterial
-          map={videoTexture}
-          transparent={false}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-    ) : null
+		videoTexture ? (
+			<mesh scale={[mirror ? -1 : 1, 1, 1]}>
+				<planeGeometry args={[planeW, planeH]} />
+				<meshBasicMaterial
+					map={videoTexture}
+					transparent={false}
+					side={THREE.DoubleSide}
+				/>
+			</mesh>
+		) : null
 	);
 };
 

@@ -91,8 +91,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
               {param.type === 'boolean' && (
                 <button
                   type="button"
-                  className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'}`}
-                  style={Boolean(currentValue) ? { backgroundColor: 'var(--accent)' } : undefined}
+                  className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] tw-outline-none focus:tw-outline-none focus:tw-ring-0 focus:tw-shadow-none ${Boolean(currentValue) ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'}`}
                   onClick={() => handleParamChange(param.name, !Boolean(currentValue), param)}
                 >
                   {Boolean(currentValue) ? 'ON' : 'OFF'}

@@ -1,9 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui';
 import { 
-  generateVideoThumbnail, 
-  getCacheStats,
-  removeThumbnailFromCache
+  generateVideoThumbnail
 } from '../utils/ThumbnailCache';
 import { useStore } from '../store/store';
 // Radix ContextMenu wrappers are available in './ui', but this component keeps the existing
@@ -105,8 +103,8 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         
         if (!filePath) {
           // Fallback to other methods
-          if (file.path) {
-            filePath = file.path;
+          if ((file as any).path) {
+            filePath = (file as any).path;
             console.log('Found file path:', filePath);
           } else if (file.webkitRelativePath) {
             filePath = file.webkitRelativePath;
@@ -420,80 +418,6 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     });
   }, [processedAssets, searchTerm, filterType]);
 
-
-
-  // No global context menu listeners needed; Radix manages open/close
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
-
-  const handleRemoveAsset = (assetId: string) => {
-    removeAsset(assetId);
-    console.log('Removed asset:', assetId);
-  };
-
-  // Context menu actions are handled inline per-item
-
-  // Regenerate thumbnail for specific asset
-  const regenerateThumbnail = (asset: any) => {
-    if (asset.type === 'video') {
-      // Remove from cache to force regeneration
-      // We need to get the thumbnail path first to know what to remove from cache
-      getThumbnailPath(asset).then((thumbnailPath) => {
-        if (thumbnailPath) {
-          removeThumbnailFromCache(thumbnailPath, { captureTimeSec: 0.1, width: 160, height: 90 });
-          console.log('Regenerating thumbnail for:', asset.name);
-        } else {
-          console.error('Cannot regenerate thumbnail - no valid path available for:', asset.name);
-        }
-      }).catch((err) => {
-        console.error('Failed to get thumbnail path for regeneration:', asset.name, err);
-      });
-    }
-  };
-
-  // Function to get a valid path for thumbnail generation
-  const getThumbnailPath = async (asset: any): Promise<string> => {
-    // If we have a blob URL stored separately, use it directly
-    if (asset.blobURL && asset.blobURL.startsWith('blob:')) {
-      return asset.blobURL;
-    }
-    
-    // If we have base64 data, convert it to a blob URL
-    if (asset.base64Data) {
-      const mimeType = asset.type === 'video' ? 'video/*' : 
-                      asset.type === 'image' ? 'image/*' : 'application/octet-stream';
-      const blobURL = convertBase64ToBlobURL(asset.base64Data, mimeType);
-      if (blobURL) {
-        return blobURL;
-      }
-    }
-    
-    // If we have a file:// path, try to read the file and create a blob URL
-    if (asset.path && asset.path.startsWith('file://')) {
-      try {
-        // In Electron, we can use the file system API to read the file
-        const fsApi = (window as any).fsApi;
-        if (fsApi && asset.filePath) {
-          console.log('🎬 Reading file for thumbnail generation:', asset.filePath);
-          // This is a placeholder - in a real implementation, you'd read the file
-          // and create a blob URL from the file data
-          return asset.path; // For now, return the file path
-        }
-      } catch (error) {
-        console.error('🎬 Failed to read file for thumbnail:', error);
-      }
-    }
-    
-    // Fallback to the original path
-    return asset.path || '';
-  };
-
   // Lightweight component to render a cached video thumbnail
   const VideoThumb: React.FC<{ asset: any }> = ({ asset }) => {
     const [thumb, setThumb] = useState<string>('');
@@ -612,166 +536,300 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     );
   };
 
+  // Function to get a valid path for thumbnail generation
+  const getThumbnailPath = async (asset: any): Promise<string> => {
+    // If we have a blob URL stored separately, use it directly
+    if (asset.blobURL && asset.blobURL.startsWith('blob:')) {
+      return asset.blobURL;
+    }
+    
+    // If we have base64 data, convert it to a blob URL
+    if (asset.base64Data) {
+      const mimeType = asset.type === 'video' ? 'video/*' : 
+                      asset.type === 'image' ? 'image/*' : 'application/octet-stream';
+      const blobURL = convertBase64ToBlobURL(asset.base64Data, mimeType);
+      if (blobURL) {
+        return blobURL;
+      }
+    }
+    
+    // If we have a file:// path, try to read the file and create a blob URL
+    if (asset.path && asset.path.startsWith('file://')) {
+      try {
+        // In Electron, we can use the file system API to read the file
+        const fsApi = (window as any).fsApi;
+        if (fsApi && asset.filePath) {
+          console.log('🎬 Reading file for thumbnail generation:', asset.filePath);
+          // This is a placeholder - in a real implementation, you'd read the file
+          // and create a blob URL from the file data
+          return asset.path; // For now, return the file path
+        }
+      } catch (error) {
+        console.error('🎬 Failed to read file for thumbnail:', error);
+      }
+    }
+    
+    // Fallback to the original path
+    return asset.path || '';
+  };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
 
-  const renderMediaTab = () => (
-    <>
-      <div className="media-toolbar tw-flex tw-items-center tw-gap-2 tw-p-2">
-        <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search assets..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)
-            }
-            className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
-          />
-        </div>
-        <div className="filter-controls">
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1">
-            <option value="all">All Types</option>
-            <option value="image">Images</option>
-            <option value="video">Videos</option>
-          </select>
-        </div>
+  const handleRemoveAsset = (assetId: string) => {
+    removeAsset(assetId);
+    console.log('Removed asset:', assetId);
+  };
 
-        <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
-        
-
-      </div>
-
-      {duplicateWarning && (
-        <div className="duplicate-warning">
-          ⚠️ {duplicateWarning}
-        </div>
-      )}
-
-      <div
-        className={`tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500 ${isDragOver ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onClick={handleDropZoneClick}
-      >
-        <div className="tw-text-center tw-space-y-1">
-          <div>Drop media files here</div>
-          <div className="tw-text-neutral-400 tw-text-sm">or click to browse</div>
-        </div>
-      </div>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/*,video/*,audio/*"
-        onChange={handleFileInputChange}
-        style={{ display: 'none' }}
-      />
-
-      <div className="tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
-        {filteredAssets.length === 0 ? (
-          <div className="empty-state">
-            <h3>No assets found</h3>
-            <p>Import some media files to get started</p>
-            {assets && assets.length > 0 && (
-              <div className="warning-message">
-                <p>⚠️ Assets were lost after refresh due to storage limits.</p>
-                <p>Please re-import your media files.</p>
+  // Item card component (memoized). Defined once, not inside loops.
+  const AssetItem = React.memo(({ item }: { item: any }) => (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          className={`asset-item ${selectedAsset?.id === item.id ? 'selected' : ''} tw-rounded tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-p-2 tw-cursor-pointer`}
+          onClick={() => setSelectedAsset(item)}
+          draggable
+          onDragStart={(e) => handleDragStart(e, item)}
+        >
+          <div className="asset-preview">
+            {item.type === 'image' ? (
+              <img src={item.path} alt={item.name} draggable={false} />
+            ) : item.type === 'video' ? (
+              <VideoThumb asset={item} />
+            ) : item.type === 'audio' ? (
+              <div className="asset-placeholder audio">
+                <div className="audio-icon">🎵</div>
+                <div className="audio-name">{item.name}</div>
+              </div>
+            ) : (
+              <div className="asset-placeholder">
+                {item.type.toUpperCase()}
               </div>
             )}
+            <div className="asset-type-badge">
+              {item.type.toUpperCase()}
+            </div>
           </div>
-        ) : (
-          <>
-            {/* Performance hint for large asset lists */}
-            {filteredAssets.length > 50 && (
-              <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-300 tw-text-[12px] tw-px-3 tw-py-2 tw-my-2">
-                <strong>Performance Tip:</strong> Large asset lists ({filteredAssets.length} items) are optimized with lazy thumbnail generation. 
-                Only visible items generate thumbnails to improve performance. <strong>Thumbnails are now persistent and won't be lost on refresh!</strong>
+          <div className="asset-info">
+            <div className="asset-name">{item.name}</div>
+            <div className="asset-meta">
+              <span>{formatFileSize(item.size)}</span>
+              <span>{item.date}</span>
+            </div>
+          </div>
+          <div className="asset-actions tw-flex tw-items-center tw-justify-end">
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <button className="delete-button tw-bg-neutral-800 tw-text-neutral-300 hover:tw-bg-neutral-700 tw-px-2 tw-py-1" onClick={(e) => e.stopPropagation()}>⋯</button>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem className="tw-text-red-400" onSelect={() => handleRemoveAsset(item.id)}>Delete Asset</ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem className="tw-text-red-400" onSelect={() => handleRemoveAsset(item.id)}>Delete Asset</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  ));
+
+  // No global context menu listeners needed; Radix manages open/close
+
+  // Context menu actions are handled inline per-item (regenerate removed)
+
+  return (
+    isEmbedded ? (
+      <div className="tw-h-full tw-overflow-auto tw-p-3">
+        {(
+          <> 
+            <div className="media-toolbar tw-flex tw-items-center tw-gap-2 tw-p-2">
+              <div className="search-bar">
+                <input
+                  type="text"
+                  placeholder="Search assets..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)
+                  }
+                  className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                />
+              </div>
+              <div className="filter-controls">
+                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1">
+                  <option value="all">All Types</option>
+                  <option value="image">Images</option>
+                  <option value="video">Videos</option>
+                </select>
+              </div>
+
+              <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
+              
+
+            </div>
+
+            {duplicateWarning && (
+              <div className="duplicate-warning">
+                ⚠️ {duplicateWarning}
               </div>
             )}
-            
-            {filteredAssets.map((asset: any) => {
-              const AssetItem = React.useMemo(() => React.memo(({ item }: { item: any }) => (
-                <div
-                  key={item.id}
-                  className={`asset-item ${selectedAsset?.id === item.id ? 'selected' : ''} tw-rounded tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-p-2 tw-cursor-pointer`}
-                  onClick={() => setSelectedAsset(item)}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, item)}
-                 >
-                  <div className="asset-preview">
-                    {item.type === 'image' ? (
-                      <img src={item.path} alt={item.name} draggable={false} />
-                    ) : item.type === 'video' ? (
-                      <VideoThumb asset={item} />
-                    ) : item.type === 'audio' ? (
-                      <div className="asset-placeholder audio">
-                        <div className="audio-icon">🎵</div>
-                        <div className="audio-name">{item.name}</div>
-                      </div>
-                    ) : (
-                      <div className="asset-placeholder">
-                        {item.type.toUpperCase()}
-                      </div>
-                    )}
-                    <div className="asset-type-badge">
-                      {item.type.toUpperCase()}
-                    </div>
-                  </div>
-                  <div className="asset-info">
-                    <div className="asset-name">{item.name}</div>
-                    <div className="asset-meta">
-                      <span>{formatFileSize(item.size)}</span>
-                      <span>{item.date}</span>
-                    </div>
-                  </div>
-                  <div className="asset-actions tw-flex tw-items-center tw-justify-end">
-                    <ContextMenu>
-                      <ContextMenuTrigger asChild>
-                        <button className="delete-button tw-bg-neutral-800 tw-text-neutral-300 hover:tw-bg-neutral-700 tw-px-2 tw-py-1" onClick={(e) => e.stopPropagation()}>⋯</button>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent>
-                        {item.type === 'video' && (
-                          <ContextMenuItem onSelect={() => regenerateThumbnail(item)}>Regenerate Thumbnail</ContextMenuItem>
-                        )}
-                        <ContextMenuItem className="tw-text-red-400" onSelect={() => handleRemoveAsset(item.id)}>Delete Asset</ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
-                  </div>
-                </div>
-              )), []) as any;
 
-              return (<AssetItem key={asset.id} item={asset} />);
-            })}
+            <div
+              className={`tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500 ${isDragOver ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={handleDropZoneClick}
+            >
+              <div className="tw-text-center tw-space-y-1">
+                <div>Drop media files here</div>
+                <div className="tw-text-neutral-400 tw-text-sm">or click to browse</div>
+              </div>
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,video/*,audio/*"
+              onChange={handleFileInputChange}
+              style={{ display: 'none' }}
+            />
+
+            <div className="tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
+              {filteredAssets.length === 0 ? (
+                <div className="empty-state">
+                  <h3>No assets found</h3>
+                  <p>Import some media files to get started</p>
+                  {assets && assets.length > 0 && (
+                    <div className="warning-message">
+                      <p>⚠️ Assets were lost after refresh due to storage limits.</p>
+                      <p>Please re-import your media files.</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* Performance hint for large asset lists */}
+                  {filteredAssets.length > 50 && (
+                    <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-300 tw-text-[12px] tw-px-3 tw-py-2 tw-my-2">
+                      <strong>Performance Tip:</strong> Large asset lists ({filteredAssets.length} items) are optimized with lazy thumbnail generation. 
+                      Only visible items generate thumbnails to improve performance. <strong>Thumbnails are now persistent and won't be lost on refresh!</strong>
+                    </div>
+                  )}
+                  
+                  {filteredAssets.map((asset: any) => (
+                    <AssetItem key={asset.id} item={asset} />
+                  ))}
+                </>
+              )}
+            </div>
           </>
         )}
       </div>
-    </>
-  );
+    ) : (
+      <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-z-[5000]">
+        <div className="tw-fixed tw-left-1/2 tw-top-1/2 tw--translate-x-1/2 tw--translate-y-1/2 tw-rounded-lg tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-xl tw-w-[900px] tw-max-w-[95vw] tw-max-h-[90vh] tw-flex tw-flex-col">
+          <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+            <h2 className="tw-text-base tw-font-semibold">Media Library</h2>
+            <button onClick={onClose} className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
+          </div>
 
+          {(
+            <> 
+              <div className="media-toolbar tw-flex tw-items-center tw-gap-2 tw-p-2">
+                <div className="search-bar">
+                  <input
+                    type="text"
+                    placeholder="Search assets..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)
+                    }
+                    className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                  />
+                </div>
+                <div className="filter-controls">
+                  <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1">
+                    <option value="all">All Types</option>
+                    <option value="image">Images</option>
+                    <option value="video">Videos</option>
+                  </select>
+                </div>
 
+                <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
+                
 
-  if (isEmbedded) {
-    return (
-      <div className="tw-h-full tw-overflow-auto tw-p-3">
-        {renderMediaTab()}
-      </div>
-    );
-  }
+              </div>
 
-  return (
-    <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-z-[5000]">
-      <div className="tw-fixed tw-left-1/2 tw-top-1/2 tw--translate-x-1/2 tw--translate-y-1/2 tw-rounded-lg tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-xl tw-w-[900px] tw-max-w-[95vw] tw-max-h-[90vh] tw-flex tw-flex-col">
-        <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
-          <h2 className="tw-text-base tw-font-semibold">Media Library</h2>
-          <button onClick={onClose} className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
+              {duplicateWarning && (
+                <div className="duplicate-warning">
+                  ⚠️ {duplicateWarning}
+                </div>
+              )}
+
+              <div
+                className={`tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500 ${isDragOver ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={handleDropZoneClick}
+              >
+                <div className="tw-text-center tw-space-y-1">
+                  <div>Drop media files here</div>
+                  <div className="tw-text-neutral-400 tw-text-sm">or click to browse</div>
+                </div>
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,video/*,audio/*"
+                onChange={handleFileInputChange}
+                style={{ display: 'none' }}
+              />
+
+              <div className="tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
+                {filteredAssets.length === 0 ? (
+                  <div className="empty-state">
+                    <h3>No assets found</h3>
+                    <p>Import some media files to get started</p>
+                    {assets && assets.length > 0 && (
+                      <div className="warning-message">
+                        <p>⚠️ Assets were lost after refresh due to storage limits.</p>
+                        <p>Please re-import your media files.</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* Performance hint for large asset lists */}
+                    {filteredAssets.length > 50 && (
+                      <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-300 tw-text-[12px] tw-px-3 tw-py-2 tw-my-2">
+                        <strong>Performance Tip:</strong> Large asset lists ({filteredAssets.length} items) are optimized with lazy thumbnail generation. 
+                        Only visible items generate thumbnails to improve performance. <strong>Thumbnails are now persistent and won't be lost on refresh!</strong>
+                      </div>
+                    )}
+                    
+                    {filteredAssets.map((asset: any) => (
+                      <AssetItem key={asset.id} item={asset} />
+                    ))}
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
-
-        {renderMediaTab()}
+        
+        {/* Item-level context menus handled via trigger buttons above */}
       </div>
-      
-      {/* Item-level context menus handled via trigger buttons above */}
-    </div>
+    )
   );
 }; 

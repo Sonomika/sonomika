@@ -689,7 +689,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
             <button onClick={handlePreview} className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700">
               Preview
             </button>
-            <button onClick={handleAddToLayer} className="tw-border tw-border-sky-600 tw-bg-sky-600 tw-text-white tw-px-3 tw-py-1.5 hover:tw-bg-sky-500">
+            <button onClick={handleAddToLayer} className="tw-border tw-border-neutral-700 tw-bg-neutral-700 tw-text-white tw-px-3 tw-py-1.5 hover:tw-bg-neutral-600">
               Add to Layer
             </button>
           </div>

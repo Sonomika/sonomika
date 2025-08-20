@@ -9,6 +9,7 @@
     "build:watch": "tsc --watch",
     "build:electron": "tsc -p tsconfig.electron.json",
     "dev": "vite",
+    "dev:web": "vite --config vite.web.config.ts",
     "dev:electron": "npm run build:electron && concurrently \"vite\" \"wait-on tcp:localhost:5173 tcp:localhost:5174 tcp:localhost:5175 && electron .\"",
     "type-check": "tsc --noEmit"
   },

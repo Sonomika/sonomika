@@ -428,8 +428,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                         <div>
                           <button
                             type="button"
-                            className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] ${Boolean(currentValue) ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
-                            style={Boolean(currentValue) ? { backgroundColor: 'var(--accent)' } : undefined}
+                            className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] tw-outline-none focus:tw-outline-none focus:tw-ring-0 focus:tw-shadow-none ${Boolean(currentValue) ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
                             onClick={() => {
                               if (isLocked) return;
                               const newValue = !Boolean(currentValue);
@@ -628,40 +627,35 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           <div>
             <div className="tw-flex tw-flex-wrap tw-gap-2">
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'add' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                style={blendMode === 'add' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'add' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('add')}
                 title="Add - Brightens overlapping areas"
               >
                 Add
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'multiply' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                style={blendMode === 'multiply' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'multiply' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('multiply')}
                 title="Multiply - Darkens overlapping areas"
               >
                 Multiply
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'screen' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                style={blendMode === 'screen' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'screen' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('screen')}
                 title="Screen - Lightens overlapping areas"
               >
                 Screen
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'overlay' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                style={blendMode === 'overlay' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'overlay' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('overlay')}
                 title="Overlay - Combines multiply and screen"
               >
                 Overlay
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'difference' ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                style={blendMode === 'difference' ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'difference' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('difference')}
                 title="Difference - Shows differences between layers"
               >

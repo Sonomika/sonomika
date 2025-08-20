@@ -326,7 +326,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             <h3 className="tw-text-sm tw-font-semibold">{selectedEffect.name}</h3>
             <p className="tw-text-xs tw-text-neutral-300 tw-mt-1">{selectedEffect.description}</p>
             <div className="tw-mt-2 tw-flex tw-gap-2">
-              <button onClick={handleAddToLayer} className="tw-text-white tw-px-3 tw-py-1.5 tw-text-sm" style={{ backgroundColor: 'var(--accent)' }}>Add to Layer</button>
+              <button onClick={handleAddToLayer} className="tw-bg-neutral-700 tw-border tw-border-neutral-700 hover:tw-bg-neutral-600 tw-text-white tw-px-3 tw-py-1.5 tw-text-sm">Add to Layer</button>
               <button onClick={handlePreview} className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-1.5 tw-text-sm">Preview</button>
             </div>
           </div>

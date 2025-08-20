@@ -610,13 +610,13 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                   <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Timing</label>
                   <div className="tw-w-[240px] tw-flex tw-gap-2">
                     <button
-                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.lfoTimingMode as any) || 'hz') === 'sync' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
+                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.lfoTimingMode as any) || 'hz') === 'sync' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
                       onClick={() => lid && setLFOForLayer(lid, { lfoTimingMode: 'sync' })}
                     >
                       Sync
                     </button>
                     <button
-                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.lfoTimingMode as any) || 'hz') === 'hz' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
+                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.lfoTimingMode as any) || 'hz') === 'hz' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
                       onClick={() => lid && setLFOForLayer(lid, { lfoTimingMode: 'hz' })}
                     >
                       Hz
@@ -707,13 +707,13 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                   <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Timing</label>
                   <div className="tw-w-[240px] tw-flex tw-gap-2">
                     <button
-                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.randomTimingMode as any) || 'sync') === 'sync' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
+                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.randomTimingMode as any) || 'sync') === 'sync' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
                       onClick={() => lid && setLFOForLayer(lid, { randomTimingMode: 'sync' })}
                     >
                       Sync
                     </button>
                     <button
-                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.randomTimingMode as any) || 'sync') === 'hz' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
+                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.randomTimingMode as any) || 'sync') === 'hz' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
                       onClick={() => lid && setLFOForLayer(lid, { randomTimingMode: 'hz' })}
                     >
                       Hz
@@ -858,7 +858,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                       </div>
                       <div className="tw-relative tw-flex-1 tw-h-2 tw-rounded tw-bg-neutral-800 tw-overflow-hidden">
                         <div 
-                          className="tw-absolute tw-top-0 tw-bottom-0 tw-bg-[hsla(var(--accent),0.7)]"
+                          className="tw-absolute tw-top-0 tw-bottom-0 tw-bg-neutral-600/70"
                           style={{ 
                             left: `${((Number(mapping.min) / 100) * 100)}%`,
                             width: `${((Number(mapping.max) - Number(mapping.min)) / 100) * 100}%`

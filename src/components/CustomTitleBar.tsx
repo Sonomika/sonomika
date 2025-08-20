@@ -37,6 +37,9 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
 
+  // Detect Electron vs Web
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,9 +76,11 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onMirror}>
             Mirror
           </button>
-          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onToggleAppFullscreen}>
-            Fullscreen
-          </button>
+          {isElectron && (
+            <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onToggleAppFullscreen}>
+              Fullscreen
+            </button>
+          )}
           <button 
             className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
             onClick={onToggleUIDemo}
@@ -142,58 +147,60 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         </div>
       </div>
       
-      <div className="tw-flex tw-items-center tw-gap-1 app-no-drag">
-        <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
-          console.log('=== MINIMIZE BUTTON CLICKED ===');
-          console.log('Event:', e);
-          console.log('onMinimize function:', onMinimize);
-          e.preventDefault(); 
-          e.stopPropagation(); 
-          if (onMinimize) {
-            console.log('Calling onMinimize...');
-            onMinimize();
-          } else {
-            console.log('onMinimize is undefined!');
-          }
-        }}>
-          <span>─</span>
-        </button>
-        <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
-          console.log('=== MAXIMIZE BUTTON CLICKED ===');
-          console.log('Event:', e);
-          console.log('onMaximize function:', onMaximize);
-          e.preventDefault(); 
-          e.stopPropagation(); 
-          if (onMaximize) {
-            console.log('Calling onMaximize...');
-            onMaximize();
-          } else {
-            console.log('onMaximize is undefined!');
-          }
-        }}>
-          <span>□</span>
-        </button>
-        <button 
-          className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-[#e81123] tw-transition-colors tw-relative tw-z-[5001]" 
-          onClick={(e) => {
-            console.log('=== CLOSE BUTTON CLICKED ===');
+      {isElectron && (
+        <div className="tw-flex tw-items-center tw-gap-1 app-no-drag">
+          <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
+            console.log('=== MINIMIZE BUTTON CLICKED ===');
             console.log('Event:', e);
-            console.log('Target:', e.target);
-            console.log('Current target:', e.currentTarget);
-            e.preventDefault();
-            e.stopPropagation();
-            if (onClose) {
-              console.log('Calling onClose function...');
-              onClose();
+            console.log('onMinimize function:', onMinimize);
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            if (onMinimize) {
+              console.log('Calling onMinimize...');
+              onMinimize();
             } else {
-              console.log('onClose function is undefined!');
+              console.log('onMinimize is undefined!');
             }
-          }}
-          title="Close Window"
-        >
-          <span>×</span>
-        </button>
-      </div>
+          }}>
+            <span>─</span>
+          </button>
+          <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
+            console.log('=== MAXIMIZE BUTTON CLICKED ===');
+            console.log('Event:', e);
+            console.log('onMaximize function:', onMaximize);
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            if (onMaximize) {
+              console.log('Calling onMaximize...');
+              onMaximize();
+            } else {
+              console.log('onMaximize is undefined!');
+            }
+          }}>
+            <span>□</span>
+          </button>
+          <button 
+            className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-[#e81123] tw-transition-colors tw-relative tw-z-[5001]" 
+            onClick={(e) => {
+              console.log('=== CLOSE BUTTON CLICKED ===');
+              console.log('Event:', e);
+              console.log('Target:', e.target);
+              console.log('Current target:', e.currentTarget);
+              e.preventDefault();
+              e.stopPropagation();
+              if (onClose) {
+                console.log('Calling onClose function...');
+                onClose();
+              } else {
+                console.log('onClose function is undefined!');
+              }
+            }}
+            title="Close Window"
+          >
+            <span>×</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }; 
