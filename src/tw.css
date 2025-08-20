@@ -50,7 +50,7 @@
 		--input: 0 0% 14.9%; /* #262626 */
 		--ring: 0 0% 83.1%;
 		
-		--radius: 0.5rem;
+		--radius: 0px;
 	}
 
 	.dark {
@@ -82,8 +82,11 @@
 		--input: 0 0% 14.9%; /* #262626 */
 		--ring: 0 0% 83.1%;
 		
-		--radius: 0.5rem;
+		--radius: 0px;
 	}
 }
+
+/* Force-remove any rounded corners globally */
+*, *::before, *::after { border-radius: 0 !important; }
 
 

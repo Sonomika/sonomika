@@ -4,6 +4,17 @@ module.exports = {
   corePlugins: { preflight: false },
   content: ['index.html', 'src/**/*.{ts,tsx}'],
   theme: {
+    borderRadius: {
+      none: '0px',
+      sm: '0px',
+      DEFAULT: '0px',
+      md: '0px',
+      lg: '0px',
+      xl: '0px',
+      '2xl': '0px',
+      '3xl': '0px',
+      full: '0px',
+    },
     extend: {
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'],
@@ -42,11 +53,6 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-      },
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
       },
       fontSize: {
         'xs': ['12px', { lineHeight: '16px' }],

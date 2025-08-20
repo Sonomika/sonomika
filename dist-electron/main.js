@@ -1,144 +1,164 @@
 "use strict";
-const electron = require("electron");
-const fs = require("fs");
-const path = require("path");
-const gotTheLock = electron.app.requestSingleInstanceLock();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const electron_1 = require("electron");
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
+// Prevent multiple instances
+const gotTheLock = electron_1.app.requestSingleInstanceLock();
 if (!gotTheLock) {
-  console.log("Another instance is already running, quitting...");
-  electron.app.quit();
-} else {
-  electron.app.on("second-instance", () => {
-    const windows = electron.BrowserWindow.getAllWindows();
-    if (windows.length > 0) {
-      if (windows[0].isMinimized()) windows[0].restore();
-      windows[0].focus();
-    }
-  });
+    console.log('Another instance is already running, quitting...');
+    electron_1.app.quit();
+}
+else {
+    electron_1.app.on('second-instance', () => {
+        // Someone tried to run a second instance, focus our window instead
+        const windows = electron_1.BrowserWindow.getAllWindows();
+        if (windows.length > 0) {
+            if (windows[0].isMinimized())
+                windows[0].restore();
+            windows[0].focus();
+        }
+    });
 }
 let mainWindow = null;
 let mirrorWindow = null;
 function createWindow() {
-  mainWindow = new electron.BrowserWindow({
-    width: 1200,
-    height: 800,
-    frame: false,
-    // Remove default window frame
-    titleBarStyle: "hidden",
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: false,
-      webSecurity: false,
-      allowRunningInsecureContent: true,
-      preload: path.join(__dirname, "preload.js")
-    },
-    show: false
-    // Don't show until ready
-  });
-  const preloadPath = path.join(__dirname, "preload.js");
-  console.log("Preload script path:", preloadPath);
-  console.log("Preload script exists:", require("fs").existsSync(preloadPath));
-  if (require("fs").existsSync(preloadPath)) {
-    const preloadContent = require("fs").readFileSync(preloadPath, "utf8");
-    console.log("Preload script first 200 chars:", preloadContent.substring(0, 200));
-  }
-  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    console.log("Setting CSP headers for URL:", details.url);
-    const responseHeaders = {
-      ...details.responseHeaders,
-      "Content-Security-Policy": []
-    };
-    console.log("CSP headers disabled for development");
-    callback({
-      responseHeaders
+    // Create the browser window
+    mainWindow = new electron_1.BrowserWindow({
+        width: 1200,
+        height: 800,
+        frame: false, // Remove default window frame
+        titleBarStyle: 'hidden',
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: false,
+            webSecurity: false,
+            allowRunningInsecureContent: true,
+            preload: path_1.default.join(__dirname, 'preload.js')
+        },
+        show: false, // Don't show until ready
     });
-  });
-  mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
-    mainWindow.webContents.setBackgroundThrottling(false);
-  });
-  const isDev = process.env.NODE_ENV === "development" || !electron.app.isPackaged;
-  if (isDev) {
-    console.log("Running in development mode");
-    const loadDevURL = (port, retryCount = 0) => {
-      const url = `http://localhost:${port}`;
-      console.log(`Trying to load: ${url} (attempt ${retryCount + 1})`);
-      mainWindow.loadURL(url).then(() => {
-        console.log(`Successfully loaded: ${url}`);
-        mainWindow.webContents.openDevTools();
-      }).catch((error) => {
-        console.log(`Failed to load ${url}:`, error.message);
-        if (retryCount < 3) {
-          const delay = Math.min(1e3 * Math.pow(2, retryCount), 5e3);
-          console.log(`Retrying in ${delay}ms...`);
-          setTimeout(() => loadDevURL(port, retryCount + 1), delay);
-        } else if (port < 5180) {
-          setTimeout(() => loadDevURL(port + 1), 1e3);
-        } else {
-          console.log("All ports failed, loading fallback HTML");
-          mainWindow.loadFile(path.join(__dirname, "../index.html")).catch((error2) => {
-            console.error("Failed to load fallback HTML:", error2);
-            mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
-          });
-        }
-      });
-    };
-    setTimeout(() => loadDevURL(5173), 500);
-  } else {
-    console.log("Running in production mode");
-    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
-  }
-  mainWindow.webContents.on("did-finish-load", () => {
-    console.log("Window loaded successfully");
-  });
-  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
-    console.error("Failed to load:", errorCode, errorDescription);
-  });
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
+    // Debug preload path
+    const preloadPath = path_1.default.join(__dirname, 'preload.js');
+    console.log('Preload script path:', preloadPath);
+    console.log('Preload script exists:', require('fs').existsSync(preloadPath));
+    // Read and log the first few lines of the preload script
+    if (require('fs').existsSync(preloadPath)) {
+        const preloadContent = require('fs').readFileSync(preloadPath, 'utf8');
+        console.log('Preload script first 200 chars:', preloadContent.substring(0, 200));
+    }
+    // Disable CSP entirely for development
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+        console.log('Setting CSP headers for URL:', details.url);
+        // Remove CSP headers entirely for development
+        const responseHeaders = {
+            ...details.responseHeaders,
+            'Content-Security-Policy': []
+        };
+        console.log('CSP headers disabled for development');
+        callback({
+            responseHeaders
+        });
+    });
+    // Show window when ready
+    mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
+        // Prevent background throttling
+        mainWindow.webContents.setBackgroundThrottling(false);
+    });
+    // Check if we're in development mode
+    const isDev = process.env.NODE_ENV === 'development' || !electron_1.app.isPackaged;
+    if (isDev) {
+        console.log('Running in development mode');
+        // Try to load from dev server with better error handling
+        const loadDevURL = (port, retryCount = 0) => {
+            const url = `http://localhost:${port}`;
+            console.log(`Trying to load: ${url} (attempt ${retryCount + 1})`);
+            mainWindow.loadURL(url).then(() => {
+                console.log(`Successfully loaded: ${url}`);
+                mainWindow.webContents.openDevTools();
+            }).catch((error) => {
+                console.log(`Failed to load ${url}:`, error.message);
+                // Retry logic with exponential backoff
+                if (retryCount < 3) {
+                    const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+                    console.log(`Retrying in ${delay}ms...`);
+                    setTimeout(() => loadDevURL(port, retryCount + 1), delay);
+                }
+                else if (port < 5180) {
+                    // Try next port
+                    setTimeout(() => loadDevURL(port + 1), 1000);
+                }
+                else {
+                    console.log('All ports failed, loading fallback HTML');
+                    mainWindow.loadFile(path_1.default.join(__dirname, '../index.html')).catch((error) => {
+                        console.error('Failed to load fallback HTML:', error);
+                        // Show error page
+                        mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+                    });
+                }
+            });
+        };
+        // Start with port 5173 after a short delay
+        setTimeout(() => loadDevURL(5173), 500);
+    }
+    else {
+        console.log('Running in production mode');
+        mainWindow.loadFile(path_1.default.join(__dirname, '../dist/index.html'));
+    }
+    // Log when the window is ready
+    mainWindow.webContents.on('did-finish-load', () => {
+        console.log('Window loaded successfully');
+    });
+    // Handle window errors
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        console.error('Failed to load:', errorCode, errorDescription);
+    });
+    // Handle window close
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+    });
 }
 function createMirrorWindow() {
-  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-    mirrorWindow.focus();
-    return;
-  }
-  mirrorWindow = new electron.BrowserWindow({
-    width: 960,
-    // 50% of 1920
-    height: 540,
-    // 50% of 1080
-    title: "VJ Mirror Output",
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: false,
-      webSecurity: false,
-      allowRunningInsecureContent: true,
-      preload: path.join(__dirname, "mirror-preload.js")
-    },
-    show: false,
-    resizable: true,
-    // Allow resizing
-    maximizable: true,
-    // Allow maximizing
-    fullscreen: false,
-    kiosk: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    focusable: true,
-    movable: true,
-    frame: false,
-    // Keep borderless but add custom controls
-    titleBarStyle: "hidden",
-    transparent: false,
-    fullscreenable: true,
-    autoHideMenuBar: true,
-    minWidth: 480,
-    // Minimum size
-    minHeight: 270
-  });
-  const htmlContent = `
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+        mirrorWindow.focus();
+        return;
+    }
+    mirrorWindow = new electron_1.BrowserWindow({
+        width: 960, // 50% of 1920
+        height: 540, // 50% of 1080
+        title: 'VJ Mirror Output',
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: false,
+            webSecurity: false,
+            allowRunningInsecureContent: true,
+            preload: path_1.default.join(__dirname, 'mirror-preload.js')
+        },
+        show: false,
+        resizable: true, // Allow resizing
+        maximizable: true, // Allow maximizing
+        fullscreen: false,
+        kiosk: false,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        focusable: true,
+        movable: true,
+        frame: false, // Keep borderless but add custom controls
+        titleBarStyle: 'hidden',
+        transparent: false,
+        fullscreenable: true,
+        autoHideMenuBar: true,
+        minWidth: 480, // Minimum size
+        minHeight: 270
+    });
+    // Create HTML content for the mirror window
+    const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -261,197 +281,211 @@ function createMirrorWindow() {
             }
           }
         }
-      <\/script>
+      </script>
     </body>
     </html>
   `;
-  mirrorWindow.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
-  mirrorWindow.once("ready-to-show", () => {
-    mirrorWindow.show();
-    mirrorWindow.center();
-  });
-  mirrorWindow.webContents.on("before-input-event", (event, input) => {
-    if (input.key === "Escape") {
-      mirrorWindow.close();
-    }
-  });
+    mirrorWindow.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
+    mirrorWindow.once('ready-to-show', () => {
+        mirrorWindow.show();
+        mirrorWindow.center();
+    });
+    // Handle keyboard events for the mirror window
+    mirrorWindow.webContents.on('before-input-event', (event, input) => {
+        if (input.key === 'Escape') {
+            mirrorWindow.close();
+        }
+    });
 }
 function closeMirrorWindow() {
-  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-    mirrorWindow.close();
-    mirrorWindow = null;
-  }
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+        mirrorWindow.close();
+        mirrorWindow = null;
+    }
 }
 function createCustomMenu() {
-  const template = [
-    {
-      label: "VJ App",
-      submenu: [
+    const template = [
         {
-          label: "About VJ App",
-          role: "about"
+            label: 'VJ App',
+            submenu: [
+                {
+                    label: 'About VJ App',
+                    role: 'about'
+                },
+                { type: 'separator' },
+                {
+                    label: 'Quit',
+                    accelerator: 'CmdOrCtrl+Q',
+                    click: () => {
+                        electron_1.app.quit();
+                    }
+                }
+            ]
         },
-        { type: "separator" },
         {
-          label: "Quit",
-          accelerator: "CmdOrCtrl+Q",
-          click: () => {
-            electron.app.quit();
-          }
+            label: 'View',
+            submenu: [
+                {
+                    label: 'Toggle Mirror Window',
+                    accelerator: 'CmdOrCtrl+M',
+                    click: () => {
+                        if (mainWindow) {
+                            mainWindow.webContents.send('toggle-mirror');
+                        }
+                    }
+                },
+                { type: 'separator' },
+                {
+                    label: 'Reload',
+                    accelerator: 'CmdOrCtrl+R',
+                    click: () => {
+                        if (mainWindow) {
+                            mainWindow.reload();
+                        }
+                    }
+                },
+                {
+                    label: 'Toggle Developer Tools',
+                    accelerator: 'F12',
+                    click: () => {
+                        if (mainWindow) {
+                            mainWindow.webContents.toggleDevTools();
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            label: 'Window',
+            submenu: [
+                {
+                    label: 'Minimize',
+                    accelerator: 'CmdOrCtrl+M',
+                    role: 'minimize'
+                },
+                {
+                    label: 'Close',
+                    accelerator: 'CmdOrCtrl+W',
+                    role: 'close'
+                }
+            ]
         }
-      ]
-    },
-    {
-      label: "View",
-      submenu: [
-        {
-          label: "Toggle Mirror Window",
-          accelerator: "CmdOrCtrl+M",
-          click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send("toggle-mirror");
-            }
-          }
-        },
-        { type: "separator" },
-        {
-          label: "Reload",
-          accelerator: "CmdOrCtrl+R",
-          click: () => {
-            if (mainWindow) {
-              mainWindow.reload();
-            }
-          }
-        },
-        {
-          label: "Toggle Developer Tools",
-          accelerator: "F12",
-          click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.toggleDevTools();
-            }
-          }
-        }
-      ]
-    },
-    {
-      label: "Window",
-      submenu: [
-        {
-          label: "Minimize",
-          accelerator: "CmdOrCtrl+M",
-          role: "minimize"
-        },
-        {
-          label: "Close",
-          accelerator: "CmdOrCtrl+W",
-          role: "close"
-        }
-      ]
-    }
-  ];
-  const menu = electron.Menu.buildFromTemplate(template);
-  electron.Menu.setApplicationMenu(menu);
+    ];
+    const menu = electron_1.Menu.buildFromTemplate(template);
+    electron_1.Menu.setApplicationMenu(menu);
 }
-electron.app.whenReady().then(() => {
-  console.log("Electron app is ready");
-  electron.app.commandLine.appendSwitch("disable-background-timer-throttling");
-  electron.app.commandLine.appendSwitch("disable-renderer-backgrounding");
-  createCustomMenu();
-  electron.protocol.registerFileProtocol("local-file", (request, callback) => {
-    const filePath = request.url.replace("local-file://", "");
-    console.log("Loading local file:", filePath);
-    console.log("Request URL:", request.url);
-    console.log("File path resolved:", filePath);
-    callback(filePath);
-  });
-  electron.ipcMain.handle("read-local-file-base64", async (event, filePath) => {
-    try {
-      const data = await fs.promises.readFile(filePath);
-      return data.toString("base64");
-    } catch (err) {
-      console.error("Failed to read local file:", filePath, err);
-      throw err;
-    }
-  });
-  electron.ipcMain.on("toggle-app-fullscreen", () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      const { screen } = require("electron");
-      if (mainWindow.isKiosk() || mainWindow.isFullScreen()) {
-        mainWindow.setKiosk(false);
-        mainWindow.setFullScreen(false);
-        mainWindow.setBounds({ width: 1200, height: 800 });
-        mainWindow.center();
-      } else {
-        const bounds = mainWindow.getBounds();
-        const display = screen.getDisplayMatching(bounds);
-        mainWindow.setBounds({
-          x: display.bounds.x,
-          y: display.bounds.y,
-          width: display.bounds.width,
-          height: display.bounds.height
-        });
-        mainWindow.setMenuBarVisibility(false);
-        mainWindow.setFullScreenable(true);
-        mainWindow.setAlwaysOnTop(true);
-        mainWindow.setKiosk(true);
-        mainWindow.setFullScreen(true);
-      }
-    }
-  });
-  electron.ipcMain.on("window-minimize", () => {
-    console.log("Main: window-minimize IPC received");
-    if (mainWindow) {
-      console.log("Main: calling mainWindow.minimize()");
-      mainWindow.minimize();
-    } else {
-      console.log("Main: mainWindow is null");
-    }
-  });
-  electron.ipcMain.on("window-maximize", () => {
-    console.log("Main: window-maximize IPC received");
-    if (mainWindow) {
-      if (mainWindow.isMaximized()) {
-        console.log("Main: calling mainWindow.unmaximize()");
-        mainWindow.unmaximize();
-      } else {
-        console.log("Main: calling mainWindow.maximize()");
-        mainWindow.maximize();
-      }
-    } else {
-      console.log("Main: mainWindow is null");
-    }
-  });
-  electron.ipcMain.on("window-close", () => {
-    console.log("Main: window-close IPC received");
-    if (mainWindow) {
-      console.log("Main: calling mainWindow.close()");
-      mainWindow.close();
-    } else {
-      console.log("Main: mainWindow is null");
-    }
-  });
-  electron.ipcMain.on("toggle-mirror", () => {
-    if (mainWindow) {
-      mainWindow.webContents.send("toggle-mirror");
-    }
-  });
-  electron.ipcMain.on("open-mirror-window", () => {
-    createMirrorWindow();
-  });
-  electron.ipcMain.on("close-mirror-window", () => {
-    closeMirrorWindow();
-  });
-  electron.ipcMain.on("set-mirror-bg", (event, color) => {
-    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      const safe = typeof color === "string" ? color.replace(/'/g, "\\'") : "#000000";
-      mirrorWindow.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
-    }
-  });
-  electron.ipcMain.on("canvas-data", (event, dataUrl) => {
-    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
-      mirrorWindow.webContents.executeJavaScript(`
+electron_1.app.whenReady().then(() => {
+    console.log('Electron app is ready');
+    // Prevent app from pausing when windows lose focus
+    electron_1.app.commandLine.appendSwitch('disable-background-timer-throttling');
+    electron_1.app.commandLine.appendSwitch('disable-renderer-backgrounding');
+    // Create custom menu
+    createCustomMenu();
+    // Register protocol for local file access
+    electron_1.protocol.registerFileProtocol('local-file', (request, callback) => {
+        const filePath = request.url.replace('local-file://', '');
+        console.log('Loading local file:', filePath);
+        console.log('Request URL:', request.url);
+        console.log('File path resolved:', filePath);
+        callback(filePath);
+    });
+    // Set up IPC handlers
+    electron_1.ipcMain.handle('read-local-file-base64', async (event, filePath) => {
+        try {
+            const data = await fs_1.default.promises.readFile(filePath);
+            return data.toString('base64');
+        }
+        catch (err) {
+            console.error('Failed to read local file:', filePath, err);
+            throw err;
+        }
+    });
+    // App (main window) fullscreen toggle that covers taskbar on Windows
+    electron_1.ipcMain.on('toggle-app-fullscreen', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            const { screen } = require('electron');
+            if (mainWindow.isKiosk() || mainWindow.isFullScreen()) {
+                mainWindow.setKiosk(false);
+                mainWindow.setFullScreen(false);
+                mainWindow.setBounds({ width: 1200, height: 800 });
+                mainWindow.center();
+            }
+            else {
+                const bounds = mainWindow.getBounds();
+                const display = screen.getDisplayMatching(bounds);
+                mainWindow.setBounds({
+                    x: display.bounds.x,
+                    y: display.bounds.y,
+                    width: display.bounds.width,
+                    height: display.bounds.height
+                });
+                mainWindow.setMenuBarVisibility(false);
+                mainWindow.setFullScreenable(true);
+                mainWindow.setAlwaysOnTop(true);
+                mainWindow.setKiosk(true);
+                mainWindow.setFullScreen(true);
+            }
+        }
+    });
+    electron_1.ipcMain.on('window-minimize', () => {
+        console.log('Main: window-minimize IPC received');
+        if (mainWindow) {
+            console.log('Main: calling mainWindow.minimize()');
+            mainWindow.minimize();
+        }
+        else {
+            console.log('Main: mainWindow is null');
+        }
+    });
+    electron_1.ipcMain.on('window-maximize', () => {
+        console.log('Main: window-maximize IPC received');
+        if (mainWindow) {
+            if (mainWindow.isMaximized()) {
+                console.log('Main: calling mainWindow.unmaximize()');
+                mainWindow.unmaximize();
+            }
+            else {
+                console.log('Main: calling mainWindow.maximize()');
+                mainWindow.maximize();
+            }
+        }
+        else {
+            console.log('Main: mainWindow is null');
+        }
+    });
+    electron_1.ipcMain.on('window-close', () => {
+        console.log('Main: window-close IPC received');
+        if (mainWindow) {
+            console.log('Main: calling mainWindow.close()');
+            mainWindow.close();
+        }
+        else {
+            console.log('Main: mainWindow is null');
+        }
+    });
+    electron_1.ipcMain.on('toggle-mirror', () => {
+        if (mainWindow) {
+            mainWindow.webContents.send('toggle-mirror');
+        }
+    });
+    electron_1.ipcMain.on('open-mirror-window', () => {
+        createMirrorWindow();
+    });
+    electron_1.ipcMain.on('close-mirror-window', () => {
+        closeMirrorWindow();
+    });
+    // Allow renderer to set mirror window background to match composition
+    electron_1.ipcMain.on('set-mirror-bg', (event, color) => {
+        if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+            const safe = typeof color === 'string' ? color.replace(/'/g, "\\'") : '#000000';
+            mirrorWindow.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+        }
+    });
+    electron_1.ipcMain.on('canvas-data', (event, dataUrl) => {
+        if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+            // Use a more efficient update mechanism to prevent glitching
+            const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
+            mirrorWindow.webContents.executeJavaScript(`
         (function() {
           const noStreamDiv = document.getElementById('no-stream');
           const mirrorImage = document.getElementById('mirror-image');
@@ -468,12 +502,14 @@ electron.app.whenReady().then(() => {
           }
         })();
       `);
-    }
-  });
-  electron.ipcMain.on("sendCanvasData", (event, dataUrl) => {
-    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
-      mirrorWindow.webContents.executeJavaScript(`
+        }
+    });
+    // Handle sendCanvasData from CanvasStream
+    electron_1.ipcMain.on('sendCanvasData', (event, dataUrl) => {
+        if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+            // Use a more efficient update mechanism to prevent glitching
+            const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
+            mirrorWindow.webContents.executeJavaScript(`
         (function() {
           const noStreamDiv = document.getElementById('no-stream');
           const mirrorImage = document.getElementById('mirror-image');
@@ -490,60 +526,68 @@ electron.app.whenReady().then(() => {
           }
         })();
       `);
-    }
-  });
-  electron.ipcMain.on("toggle-fullscreen", () => {
-    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      const { screen } = require("electron");
-      if (mirrorWindow.isKiosk() || mirrorWindow.isFullScreen()) {
-        mirrorWindow.setKiosk(false);
-        mirrorWindow.setFullScreen(false);
-        mirrorWindow.setBounds({
-          x: void 0,
-          y: void 0,
-          width: 960,
-          height: 540
-        });
-        mirrorWindow.center();
-      } else {
-        const bounds = mirrorWindow.getBounds();
-        const display = screen.getDisplayMatching(bounds);
-        mirrorWindow.setBounds({
-          x: display.bounds.x,
-          y: display.bounds.y,
-          width: display.bounds.width,
-          height: display.bounds.height
-        });
-        mirrorWindow.setMenuBarVisibility(false);
-        mirrorWindow.setFullScreenable(true);
-        mirrorWindow.setAlwaysOnTop(true);
-        mirrorWindow.setKiosk(true);
-        mirrorWindow.setFullScreen(true);
-      }
-    }
-  });
-  electron.ipcMain.on("resize-mirror-window", (event, width, height) => {
-    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      console.log("Resizing mirror window to:", width, "x", height);
-      mirrorWindow.setSize(width, height);
-      mirrorWindow.center();
-    }
-  });
-  createWindow();
-  electron.app.on("activate", () => {
-    if (electron.BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+        }
+    });
+    // Handle fullscreen toggle from mirror window (cover taskbar)
+    electron_1.ipcMain.on('toggle-fullscreen', () => {
+        if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+            const { screen } = require('electron');
+            if (mirrorWindow.isKiosk() || mirrorWindow.isFullScreen()) {
+                // Exit full coverage
+                mirrorWindow.setKiosk(false);
+                mirrorWindow.setFullScreen(false);
+                // Restore reasonable size when exiting
+                mirrorWindow.setBounds({
+                    x: undefined,
+                    y: undefined,
+                    width: 960,
+                    height: 540
+                });
+                mirrorWindow.center();
+            }
+            else {
+                // Ensure we target the display where the mirror window currently is
+                const bounds = mirrorWindow.getBounds();
+                const display = screen.getDisplayMatching(bounds);
+                // Move and size to full display bounds (not workArea) to cover taskbar, then enter kiosk+fullscreen
+                mirrorWindow.setBounds({
+                    x: display.bounds.x,
+                    y: display.bounds.y,
+                    width: display.bounds.width,
+                    height: display.bounds.height
+                });
+                mirrorWindow.setMenuBarVisibility(false);
+                mirrorWindow.setFullScreenable(true);
+                mirrorWindow.setAlwaysOnTop(true);
+                mirrorWindow.setKiosk(true);
+                mirrorWindow.setFullScreen(true);
+            }
+        }
+    });
+    // Handle mirror window resize
+    electron_1.ipcMain.on('resize-mirror-window', (event, width, height) => {
+        if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+            console.log('Resizing mirror window to:', width, 'x', height);
+            mirrorWindow.setSize(width, height);
+            mirrorWindow.center();
+        }
+    });
+    createWindow();
+    electron_1.app.on('activate', () => {
+        if (electron_1.BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
 });
-electron.app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    electron.app.quit();
-  }
+electron_1.app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        electron_1.app.quit();
+    }
 });
-process.on("uncaughtException", (error) => {
-  console.error("Uncaught Exception:", error);
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
 });
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });

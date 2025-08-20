@@ -490,7 +490,7 @@ const BlobDetectionEffect: React.FC<BlobDetectionEffectProps> = ({
               backgroundColor: 'rgba(0,0,0,0.7)',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: '0px',
               cursor: 'pointer'
             }}
           >
