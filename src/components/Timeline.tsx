@@ -34,7 +34,7 @@ const ClipContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete }
   return (
     <div
       ref={menuRef}
-      className="context-menu tw-min-w-[140px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg"
+      className="context-menu tw-min-w-[140px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100"
       style={{ position: 'fixed', left: x, top: y, zIndex: 1000 }}
     >
       <button
@@ -2335,7 +2335,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                   <span>{track.name}</span>
                 </div>
                 <div 
-                  className="tw-relative tw-rounded-md tw-bg-neutral-900 tw-shadow-[inset_0_0_0_1px_#333] tw-mb-1"
+                  className="tw-relative tw-rounded-md tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-mb-1"
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, track.id, currentTime)}
@@ -2481,7 +2481,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           {/* Playhead inside scrollable area */}
           <div 
             ref={playheadRef}
-            className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[2px] tw-bg-red-500 tw-shadow-[0_0_0_1px_rgba(255,82,82,0.25)] tw-[will-change:transform] tw-pointer-events-auto tw-z-40 tw-cursor-ew-resize"
+            className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[2px] tw-bg-red-500 tw-[will-change:transform] tw-pointer-events-auto tw-z-40 tw-cursor-ew-resize"
             style={{ 
               transform: `translate3d(${currentTime * pixelsPerSecond}px, 0, 0)`,
               transition: isPlaying ? 'none' : 'transform 0.1s ease'

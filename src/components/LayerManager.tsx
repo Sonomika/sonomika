@@ -1125,7 +1125,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               
               {/* Global Playback Controls (hidden in timeline mode) */}
               {!showTimeline && (
-              <div className="tw-flex tw-items-center tw-gap-2 tw-mx-4 tw-p-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-shadow">
+              <div className="tw-flex tw-items-center tw-gap-2 tw-mx-4 tw-p-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
                 <span className="tw-text-xs tw-font-semibold tw-text-neutral-400 tw-uppercase tw-tracking-wide">Global:</span>
                 <button
                   onClick={globalPlay}
@@ -1524,19 +1524,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                        </TabsContent>
                        <TabsContent value="effects">
                          <div className="tw-space-y-2">
-                           <h3>Effects</h3>
                            <EffectsBrowser />
                          </div>
                        </TabsContent>
                        <TabsContent value="midi">
                          <div className="midi-tab">
-                           <h3>MIDI</h3>
                            <MIDIMapper />
                          </div>
                        </TabsContent>
                        <TabsContent value="lfo">
                          <div className="lfo-tab">
-                           <h3>LFO</h3>
                            <LFOMapper 
                              selectedLayer={effectiveSelectedLayer || selectedLayer}
                              onUpdateLayer={handleUpdateSelectedLayer}

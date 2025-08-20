@@ -23,7 +23,7 @@
   object-position: center;
 }
 
-:root { --border-color: #333333; --accent: #00bcd4; }
+:root { --border-color: #333333; --accent: 190 90% 45%; }
 
 * { box-sizing: border-box; }
 

@@ -63,7 +63,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   };
 
   return (
-    <div className="tw-fixed tw-top-0 tw-left-0 tw-right-0 tw-h-8 tw-bg-gradient-to-br tw-from-[#1a1a1a] tw-to-[#2a2a2a] tw-flex tw-items-center tw-justify-between tw-px-2 tw-border-b tw-border-neutral-800 tw-z-[5000] tw-select-none tw-cursor-grab app-drag-region">
+    <div className="tw-fixed tw-top-0 tw-left-0 tw-right-0 tw-h-8 tw-bg-neutral-900 tw-flex tw-items-center tw-justify-between tw-px-2 tw-border-b tw-border-neutral-800 tw-z-[5000] tw-select-none tw-cursor-grab app-drag-region">
       <div className="tw-flex tw-items-center tw-flex-none tw-min-w-[120px]">
         <div className="tw-text-white tw-text-[14px] tw-font-bold tw-ml-2 tw-px-3 tw-py-2 tw-rounded tw-transition-colors">VJ App</div>
       </div>

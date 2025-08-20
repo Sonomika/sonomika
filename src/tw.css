@@ -40,7 +40,7 @@
 		--muted: 0 0% 12%; /* #1f1f1f */
 		--muted-foreground: 0 0% 63.9%;
 		
-		--accent: 0 0% 12%; /* #1f1f1f */
+		--accent: 190 90% 45%; /* brand accent */
 		--accent-foreground: 0 0% 98%;
 		
 		--destructive: 0 84.2% 60.2%;
@@ -72,7 +72,7 @@
 		--muted: 0 0% 12%; /* #1f1f1f */
 		--muted-foreground: 0 0% 63.9%;
 		
-		--accent: 0 0% 12%; /* #1f1f1f */
+		--accent: 190 90% 45%; /* brand accent */
 		--accent-foreground: 0 0% 98%;
 		
 		--destructive: 0 84.2% 60.2%;
@@ -86,7 +86,20 @@
 	}
 }
 
-/* Force-remove any rounded corners globally */
-*, *::before, *::after { border-radius: 0 !important; }
+/* Flat design reset: remove rounding and shadows globally */
+*, *::before, *::after { border-radius: 0 !important; box-shadow: none !important; text-shadow: none !important; }
 
+/* Disable Tailwind gradient utilities if present */
+[class*="tw-bg-gradient"] { background-image: none !important; }
+
+/* Do not override Tailwind border utilities; use explicit classes instead */
+
+
+/* Enforce accent underline for active tabs */
+.vj-tab[data-state="active"] {
+	border-bottom-color: hsl(var(--accent)) !important;
+	border-bottom-width: 2px !important;
+	border-bottom-style: solid !important;
+	box-shadow: inset 0 -2px 0 0 hsl(var(--accent)) !important;
+}
 
