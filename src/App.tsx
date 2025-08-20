@@ -11,6 +11,7 @@ import { effectCache } from './utils/EffectCache';
 import { CanvasStreamManager } from './utils/CanvasStream';
 import './index.css';
 import { attachLFOEngineGlobalListeners } from './engine/LFOEngine';
+import { handleRedirectIfPresent } from './lib/dropbox';
 
 // Effects are loaded dynamically - no hardcoded imports needed
 
@@ -100,6 +101,14 @@ function App() {
   });
 
   useEffect(() => {
+    // Handle Dropbox OAuth redirect (web only)
+    try {
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+      if (!isElectron) {
+        handleRedirectIfPresent().catch(() => {});
+      }
+    } catch {}
+
     // Attach global LFO engine listeners (column/global play events)
     try { attachLFOEngineGlobalListeners(); } catch {}
     // Detect Windows taskbar and adjust app height

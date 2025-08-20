@@ -151,11 +151,13 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
               {info && <div className="tw-text-green-400 tw-text-sm">{info}</div>}
               <div className="tw-flex tw-gap-2">
                 <Button onClick={() => handleEmailPassword('signin')} className="tw-flex-1">Sign in</Button>
-                <Button variant="secondary" onClick={() => handleEmailPassword('signup')} className="tw-flex-1">Sign up</Button>
+                <Button variant="default" onClick={() => handleEmailPassword('signup')} className="tw-flex-1">Sign up</Button>
               </div>
               <div className="tw-flex tw-justify-between">
                 <Button variant="ghost" onClick={handleMagicLink}>Send magic link</Button>
-                <Button variant="link" onClick={handleForgotPassword}>Forgot password?</Button>
+                <Button variant="link" asChild>
+                  <a href="#" onClick={(e) => { e.preventDefault(); handleForgotPassword(); }}>Forgot password?</a>
+                </Button>
               </div>
             </>
           )}

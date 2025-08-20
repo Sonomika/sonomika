@@ -1,4 +1,3 @@
-// Supabase client configuration - Environment variables configured for Vercel deployment
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let client: SupabaseClient | null = null;

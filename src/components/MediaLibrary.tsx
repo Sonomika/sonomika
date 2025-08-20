@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui';
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
+import DropboxBrowser from './DropboxBrowser';
 import { 
   generateVideoThumbnail
 } from '../utils/ThumbnailCache';
@@ -22,10 +23,12 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   const [selectedAsset, setSelectedAsset] = useState<any>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string>('');
+  const [showDropbox, setShowDropbox] = useState(false);
   // Radix ContextMenu is used per item; no global contextMenu state needed
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasRestoredRef = useRef(false);
+  const isElectronEnv = typeof window !== 'undefined' && ((window as any).electron || (window as any).require);
 
   // Restore assets from base64Data when component mounts
   useEffect(() => {
@@ -668,7 +671,10 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                 </select>
               </div>
 
-              <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
+              {isElectronEnv && (
+                <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
+              )}
+              <button className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700" onClick={() => setShowDropbox(true)}>Dropbox</button>
               
 
             </div>
@@ -679,28 +685,32 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
               </div>
             )}
 
-            <div
-              className={`tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500 ${isDragOver ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={handleDropZoneClick}
-            >
-              <div className="tw-text-center tw-space-y-1">
-                <div>Drop media files here</div>
-                <div className="tw-text-neutral-400 tw-text-sm">or click to browse</div>
+            {isElectronEnv && (
+              <div
+                className={`tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500 ${isDragOver ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={handleDropZoneClick}
+              >
+                <div className="tw-text-center tw-space-y-1">
+                  <div>Drop media files here</div>
+                  <div className="tw-text-neutral-400 tw-text-sm">or click to browse</div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,video/*,audio/*"
-              onChange={handleFileInputChange}
-              style={{ display: 'none' }}
-            />
+            {isElectronEnv && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,video/*,audio/*"
+                onChange={handleFileInputChange}
+                style={{ display: 'none' }}
+              />
+            )}
 
             <div className="tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
               {filteredAssets.length === 0 ? (
@@ -732,6 +742,14 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
             </div>
           </>
         )}
+        <Dialog open={showDropbox} onOpenChange={setShowDropbox}>
+          <DialogContent className="tw-bg-neutral-900 tw-border-neutral-800 tw-text-white tw-max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Dropbox</DialogTitle>
+            </DialogHeader>
+            <DropboxBrowser onClose={() => setShowDropbox(false)} />
+          </DialogContent>
+        </Dialog>
       </div>
     ) : (
       <div className="tw-fixed tw-inset-0 tw-bg-black/60 tw-z-[5000]">
@@ -762,7 +780,10 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                   </select>
                 </div>
 
-                <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
+                {isElectronEnv && (
+                  <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
+                )}
+                <button className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700" onClick={() => setShowDropbox(true)}>Dropbox</button>
                 
 
               </div>
@@ -773,28 +794,32 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                 </div>
               )}
 
-              <div
-                className={`tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500 ${isDragOver ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={handleDropZoneClick}
-              >
-                <div className="tw-text-center tw-space-y-1">
-                  <div>Drop media files here</div>
-                  <div className="tw-text-neutral-400 tw-text-sm">or click to browse</div>
+              {isElectronEnv && (
+                <div
+                  className={`tw-border-2 tw-border-dashed tw-border-neutral-700 tw-rounded tw-p-6 tw-bg-neutral-900/30 tw-text-neutral-300 hover:tw-border-neutral-500 ${isDragOver ? 'tw-ring-2 tw-ring-purple-600' : ''}`}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onClick={handleDropZoneClick}
+                >
+                  <div className="tw-text-center tw-space-y-1">
+                    <div>Drop media files here</div>
+                    <div className="tw-text-neutral-400 tw-text-sm">or click to browse</div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*,video/*,audio/*"
-                onChange={handleFileInputChange}
-                style={{ display: 'none' }}
-              />
+              {isElectronEnv && (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,audio/*"
+                  onChange={handleFileInputChange}
+                  style={{ display: 'none' }}
+                />
+              )}
 
               <div className="tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
                 {filteredAssets.length === 0 ? (
@@ -827,7 +852,14 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
             </>
           )}
         </div>
-        
+        <Dialog open={showDropbox} onOpenChange={setShowDropbox}>
+          <DialogContent className="tw-bg-neutral-900 tw-border-neutral-800 tw-text-white tw-max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Dropbox</DialogTitle>
+            </DialogHeader>
+            <DropboxBrowser onClose={() => setShowDropbox(false)} />
+          </DialogContent>
+        </Dialog>
         {/* Item-level context menus handled via trigger buttons above */}
       </div>
     )

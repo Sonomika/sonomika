@@ -5,6 +5,7 @@ import { MediaLibrary } from './MediaLibrary';
 import { LayerList } from './LayerList';
 import { LayerManager } from './LayerManager';
 import UploadPanel from './UploadPanel';
+import DropboxBrowser from './DropboxBrowser';
 
 export const Sidebar: React.FC = () => {
   const { 
@@ -24,6 +25,7 @@ export const Sidebar: React.FC = () => {
   const [showLayerList, setShowLayerList] = useState(false);
   const [showLayerManager, setShowLayerManager] = useState(false);
   const [showCloudUpload, setShowCloudUpload] = useState(false);
+  const [showDropbox, setShowDropbox] = useState(false);
 
   const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
 
@@ -185,6 +187,14 @@ export const Sidebar: React.FC = () => {
               >
                 Cloud Upload
               </button>
+              <div className="tw-mt-2">
+                <button
+                  className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700"
+                  onClick={() => setShowDropbox(true)}
+                >
+                  Connect Dropbox
+                </button>
+              </div>
             </div>
           </section>
 
@@ -257,6 +267,15 @@ export const Sidebar: React.FC = () => {
           <div className="tw-flex tw-justify-end">
             <Button variant="secondary" onClick={() => setShowCloudUpload(false)}>Close</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDropbox} onOpenChange={setShowDropbox}>
+        <DialogContent className="tw-bg-neutral-900 tw-border-neutral-800 tw-text-white tw-max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Dropbox</DialogTitle>
+          </DialogHeader>
+          <DropboxBrowser onClose={() => setShowDropbox(false)} />
         </DialogContent>
       </Dialog>
     </>

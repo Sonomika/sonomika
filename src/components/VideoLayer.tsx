@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useStore } from '../store/store';
 import { LOOP_MODES } from '../constants/video';
 import type { VideoLayer as VideoLayerType } from '../types/layer';
+import { getTemporaryLink } from '../lib/dropbox';
 
 interface VideoLayerProps {
 	layer: VideoLayerType;
@@ -23,11 +24,39 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 
 	const { bpm } = useStore() as any;
 
-	useEffect(() => {
-		if (layer.asset?.path) {
-			loadVideo(layer.asset.path);
+	const refreshInFlight = useRef(false);
+	const triedErrorRefresh = useRef(false);
+
+	const maybeRefreshDropboxLink = async (force: boolean = false): Promise<string | null> => {
+		try {
+			const asset: any = (layer as any).asset;
+			if (!asset || !asset.dropboxPath) return null;
+			const expiresAt = asset.dropboxExpiresAt as number | undefined;
+			const now = Date.now();
+			const shouldRefresh = force || (typeof expiresAt === 'number' && expiresAt - now < 5 * 60 * 1000);
+			if (!shouldRefresh || refreshInFlight.current) return null;
+			refreshInFlight.current = true;
+			const { link, expiresAt: newExpires } = await getTemporaryLink(asset.dropboxPath);
+			const updatedAsset = { ...asset, path: link, dropboxExpiresAt: newExpires };
+			onUpdate({ asset: updatedAsset } as any);
+			refreshInFlight.current = false;
+			return link;
+		} catch (e) {
+			refreshInFlight.current = false;
+			return null;
 		}
-	}, [layer.asset?.path]);
+	};
+
+	useEffect(() => {
+		const run = async () => {
+			const asset: any = (layer as any).asset;
+			if (!asset?.path) return;
+			// Proactively refresh if Dropbox link is near expiry
+			const refreshed = await maybeRefreshDropboxLink(false);
+			loadVideo(refreshed || asset.path);
+		};
+		run();
+	}, [layer.asset?.path, (layer as any).asset?.dropboxExpiresAt]);
 
 	useEffect(() => {
 		const video = videoRef.current;
@@ -157,7 +186,18 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 			}
 		};
 
-		video.onerror = () => {
+		video.onerror = async () => {
+			if (!triedErrorRefresh.current) {
+				triedErrorRefresh.current = true;
+				const newLink = await maybeRefreshDropboxLink(true);
+				if (newLink) {
+					video.src = newLink;
+					video.load();
+					setError(null);
+					setIsLoading(false);
+					return;
+				}
+			}
 			setError('Failed to load video');
 			setIsLoading(false);
 		};

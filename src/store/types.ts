@@ -14,6 +14,9 @@ export interface Asset {
   date: string;
   addedAt?: number; // Timestamp when asset was added
   file?: File;
+  // Dropbox metadata for web playback auto-refresh
+  dropboxPath?: string; // path_lower of the Dropbox file within app folder
+  dropboxExpiresAt?: number; // epoch ms for temporary link expiry
 }
 
 export interface LayerParamValue {

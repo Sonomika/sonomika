@@ -28,6 +28,7 @@ export { Switch } from './switch';
 export { Textarea } from './textarea';
 export { Badge, badgeVariants } from './badge';
 export { Progress } from './progress';
+export { ScrollArea } from './scroll-area';
 export { Separator } from './separator';
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip';
 export { Alert, AlertDescription, AlertTitle } from './alert';
