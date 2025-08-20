@@ -536,5 +536,4 @@ function App() {
   );
 }
 
-export default App; / /   T r i g g e r   V e r c e l   r e d e p l o y   -   0 8 / 2 0 / 2 0 2 5   1 6 : 5 6 : 0 9  
- 
+export default App;
