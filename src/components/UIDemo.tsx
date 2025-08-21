@@ -22,8 +22,28 @@ import {
   AlertTitle,
   Input,
   Label,
-  Select
+  Select,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ScrollArea,
+  Slider,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
 } from './ui';
+import { useToast } from '../hooks/use-toast';
 
 interface UIDemoProps {
   onClose?: () => void;
@@ -35,6 +55,10 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
   const [switchValue, setSwitchValue] = useState(false);
   const [textareaValue, setTextareaValue] = useState('');
   const [selectedOption, setSelectedOption] = useState('option1');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [tabValue, setTabValue] = useState('account');
+  const [sliderValue, setSliderValue] = useState<number[]>([25]);
+  const { toast } = useToast();
 
   return (
     <TooltipProvider>
@@ -127,7 +151,7 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
                     { value: 'option1', label: 'Option 1 - Basic Effect' },
                     { value: 'option2', label: 'Option 2 - Advanced Effect' },
                     { value: 'option3', label: 'Option 3 - Custom Effect' },
-                    { value: 'option4', label: 'Option 4 - Preset Effect' }
+                    { value: 'option4', label: 'Option 4 - Set Effect' }
                   ]}
                   placeholder="Choose an option"
                   className="tw-w-[200px]"
@@ -220,6 +244,95 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
                   You can add components and dependencies to your app using the cli.
                 </AlertDescription>
               </Alert>
+              
+              <div className="tw-flex tw-gap-2 tw-flex-wrap">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">Open Popover</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="tw-text-xs">This is a small popover with content.</PopoverContent>
+                </Popover>
+
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    toast({ title: 'Notification', description: 'This is a toast message.' })
+                  }
+                >
+                  Show Toast
+                </Button>
+                
+                <Button variant="ghost" onClick={() => setDialogOpen(true)}>Open Dialog</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dialog Example */}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="tw-text-sm">Example Dialog</DialogTitle>
+                <DialogDescription className="tw-text-xs">This is a simple dialog using shadcn/ui components.</DialogDescription>
+              </DialogHeader>
+              <div className="tw-text-xs">Put dialog content here.</div>
+              <div className="tw-flex tw-justify-end">
+                <Button onClick={() => setDialogOpen(false)}>Close</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Tabs and Slider */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="tw-text-sm">Tabs & Slider</CardTitle>
+              <CardDescription className="tw-text-xs">Navigation with tabs and a value slider</CardDescription>
+            </CardHeader>
+            <CardContent className="tw-space-y-4">
+              <Tabs value={tabValue} onValueChange={setTabValue as any}>
+                <TabsList>
+                  <TabsTrigger value="account">Account</TabsTrigger>
+                  <TabsTrigger value="settings">Settings</TabsTrigger>
+                </TabsList>
+                <TabsContent value="account" className="tw-text-xs">Account content goes here.</TabsContent>
+                <TabsContent value="settings" className="tw-text-xs">Settings content goes here.</TabsContent>
+              </Tabs>
+              <div className="tw-space-y-2">
+                <Label className="tw-text-xs">Intensity ({sliderValue[0]}%)</Label>
+                <Slider value={sliderValue} onValueChange={setSliderValue} max={100} step={1} className="tw-w-[240px]" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Scroll Area & Context Menu */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="tw-text-sm">Scroll Area & Context Menu</CardTitle>
+              <CardDescription className="tw-text-xs">Scrollable content and right-click menu</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
+                <ScrollArea className="tw-h-32 tw-w-full tw-border tw-border-neutral-800 tw-p-2">
+                  <div className="tw-space-y-2 tw-text-xs">
+                    {Array.from({ length: 30 }).map((_, i) => (
+                      <div key={i}>Scrollable line {i + 1}</div>
+                    ))}
+                  </div>
+                </ScrollArea>
+
+                <ContextMenu>
+                  <ContextMenuTrigger>
+                    <div className="tw-h-32 tw-w-full tw-border tw-border-dashed tw-border-neutral-700 tw-flex tw-items-center tw-justify-center tw-text-xs">
+                      Right click here
+                    </div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="tw-text-xs">
+                    <ContextMenuItem>New</ContextMenuItem>
+                    <ContextMenuItem>Copy</ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem>Delete</ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              </div>
             </CardContent>
           </Card>
         </div>

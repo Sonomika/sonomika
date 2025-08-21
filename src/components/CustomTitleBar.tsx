@@ -107,19 +107,19 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-100"
                       onClick={() => handleMenuItemClick(onNewPreset)}
                     >
-                      New Preset
+                      New Set
                     </button>
                     <button 
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-100"
                       onClick={() => handleMenuItemClick(onSavePreset)}
                     >
-                      Save Preset
+                      Save Set
                     </button>
                     <button 
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-100"
                       onClick={() => handleMenuItemClick(onLoadPreset)}
                     >
-                      Load Preset
+                      Load Set
                     </button>
                   </div>
                 </PopoverContent>

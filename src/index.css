@@ -23,7 +23,27 @@
   object-position: center;
 }
 
-:root { --border-color: #333333; --accent: 190 90% 45%; }
+:root {
+	--background: 0 0% 8%;
+	--foreground: 0 0% 100%;
+	--card: 0 0% 10%;
+	--card-foreground: 0 0% 100%;
+	--popover: 0 0% 10%;
+	--popover-foreground: 0 0% 100%;
+	--primary: 0 0% 14%;
+	--primary-foreground: 0 0% 100%;
+	--secondary: 0 0% 16%;
+	--secondary-foreground: 0 0% 100%;
+	--muted: 0 0% 18%;
+	--muted-foreground: 0 0% 70%;
+	--accent: 190 90% 45%;
+	--accent-foreground: 0 0% 100%;
+	--destructive: 0 84% 60%;
+	--destructive-foreground: 0 0% 100%;
+	--border: 0 0% 20%;
+	--input: 0 0% 20%;
+	--ring: 190 90% 45%;
+}
 
 * { box-sizing: border-box; }
 
@@ -47,4 +67,25 @@ body {
 .a11y-off *:focus-within {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* Flat buttons: remove native bevel/shadow/appearance globally */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+[role="button"] {
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	box-shadow: none !important;
+	text-shadow: none !important;
+}
+
+/* Remove any focus/active outlines/borders on buttons in non-a11y mode */
+.a11y-off button,
+.a11y-off [role="button"] {
+	outline: none !important;
+	box-shadow: none !important;
+	border-color: transparent;
 }

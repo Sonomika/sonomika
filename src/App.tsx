@@ -59,7 +59,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
           <p className="tw-mb-4">Error: {this.state.error?.message}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="tw-inline-flex tw-items-center tw-justify-center tw-px-5 tw-py-2.5 tw-bg-white tw-text-black tw-rounded hover:tw-bg-neutral-200 tw-transition-colors"
+            className="tw-inline-flex tw-items-center tw-justify-center tw-px-5 tw-py-2.5 tw-bg-neutral-800 tw-text-neutral-100 tw-rounded tw-border tw-border-neutral-700 hover:tw-bg-neutral-700 tw-transition-colors"
           >
             Reload App
           </button>
@@ -377,8 +377,8 @@ function App() {
     setModalConfig({
       isOpen: true,
       type: 'new',
-      title: 'New Preset',
-      message: 'Are you sure you want to create a new preset? This will reset all current settings to default.',
+      title: 'New Set',
+      message: 'Are you sure you want to create a new set? This will reset all current settings to default.',
       confirmText: 'Yes, Reset',
       cancelText: 'Cancel'
     });
@@ -389,9 +389,9 @@ function App() {
     setModalConfig({
       isOpen: true,
       type: 'save',
-      title: 'Save Preset',
-      message: 'Enter a name for your preset:',
-      placeholder: 'My Awesome Preset',
+      title: 'Save Set',
+      message: 'Enter a name for your set:',
+      placeholder: 'My Awesome Set',
       defaultValue: '',
       confirmText: 'Save',
       cancelText: 'Cancel'
