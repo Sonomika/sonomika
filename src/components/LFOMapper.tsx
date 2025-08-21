@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useStore } from '../store/store';
 import { Layer } from '../store/types';
 import { useLFOStore, type LFOMapping } from '../store/lfoStore';
-import { ParamRow, Select, Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
+import { ParamRow, Select, Tabs, TabsList, TabsTrigger, TabsContent, Checkbox } from './ui';
 import { BPMManager } from '../engine/BPMManager';
 import { getEffect } from '../utils/effectRegistry';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
@@ -27,7 +27,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const randomHoldRef = useRef<{ step: number; value: number }>({ step: -1, value: 0 });
-  const [activeTab, setActiveTab] = useState<'lfo' | 'random'>('lfo');
+  const [activeTab, setActiveTab] = useState<'lfo' | 'random'>('random');
   const { playingColumnId, isGlobalPlaying } = useStore() as any;
   const [transportPlaying, setTransportPlaying] = useState<boolean>(false);
 
@@ -91,6 +91,17 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     mappingsRef.current = lid ? (mappingsByLayer[lid] || []) : [];
   }, [mappingsByLayer, selectedLayer?.id]);
   useEffect(() => { onUpdateLayerRef.current = onUpdateLayer; }, [onUpdateLayer]);
+
+  // Initialize newly selected layers with Random mode defaults so UI opens on Random
+  useEffect(() => {
+    const lid = selectedLayer?.id;
+    if (!lid) return;
+    const existing = lfoStateByLayer[lid];
+    if (!existing) {
+      setLFOForLayer(lid, { mode: 'random', randomTimingMode: 'sync', randomDivision: '1/8', randomDivisionIndex: 2 } as any);
+      setActiveTab('random');
+    }
+  }, [selectedLayer?.id, lfoStateByLayer, setLFOForLayer]);
 
   const lastUpdateTime = useRef(0);
   const updateThrottleMs = 50;
@@ -587,8 +598,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
           <div className="waveform-section">
                 <canvas ref={canvasRef} width={300} height={120} className="waveform-canvas" />
               </div>
-              <div className="lfo-parameters">
-                <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+              <div className="lfo-parameters tw-space-y-3">
+                <div className="tw-flex tw-items-center tw-gap-2">
                   <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Waveform</label>
                   <div className="tw-w-[240px]">
                     <Select
@@ -606,7 +617,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                     />
                   </div>
                 </div>
-                <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+                <div className="tw-flex tw-items-center tw-gap-2">
                   <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Timing</label>
                   <div className="tw-w-[240px] tw-flex tw-gap-2">
                     <button
@@ -702,8 +713,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
         <TabsContent value="random">
           <div className="lfo-content-wrapper">
             <div className="lfo-main">
-              <div className="lfo-parameters">
-                <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+              <div className="lfo-parameters tw-space-y-3">
+                <div className="tw-flex tw-items-center tw-gap-2">
                   <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Timing</label>
                   <div className="tw-w-[240px] tw-flex tw-gap-2">
                     <button
@@ -820,15 +831,15 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                         />
                       </div>
                       <div className="tw-flex tw-items-center tw-gap-2">
-                        <label className="tw-flex tw-items-center tw-gap-1 tw-text-sm tw-text-neutral-300">
-                          <input
-                            type="checkbox"
+                        <label className="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-text-neutral-200">
+                          <Checkbox
                             checked={mapping.enabled}
-                            onChange={(e) => {
+                            onCheckedChange={(checked) => {
                               const lid = selectedLayerRef.current?.id;
-                              if (lid) updateMappingForLayer(lid, mapping.id, { enabled: e.target.checked });
+                              if (lid) updateMappingForLayer(lid, mapping.id, { enabled: Boolean(checked) });
                             }}
-                            className="tw-rounded tw-border tw-border-neutral-700"
+                            className="tw-bg-neutral-800 tw-border tw-border-neutral-500 data-[state=checked]:tw-bg-neutral-200 data-[state=checked]:tw-text-neutral-900"
+                            aria-label="Enable mapping"
                           />
                           Enabled
                         </label>

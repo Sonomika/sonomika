@@ -22,7 +22,7 @@ export class BPMManager {
   }
 
   setBPM(bpm: number): void {
-    this.bpm = Math.max(30, Math.min(300, bpm));
+    this.bpm = Math.max(30, Math.min(999, bpm));
     this.updateBeatInterval();
     this.notifyCallbacks();
   }
@@ -50,7 +50,7 @@ export class BPMManager {
       const newBPM = Math.round(60000 / averageInterval);
       
       // Update BPM if it's within reasonable range
-      if (newBPM >= 30 && newBPM <= 300) {
+      if (newBPM >= 30 && newBPM <= 999) {
         this.setBPM(newBPM);
       }
     }

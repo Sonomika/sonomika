@@ -68,9 +68,9 @@ const DEFAULT_LFO_STATE: LFOState = {
   randomMax: 100,
   skipPercent: 0,
   randomTimingMode: 'sync',
-  randomDivision: '1/4',
+  randomDivision: '1/8',
   randomHz: 2.0,
-  randomDivisionIndex: 1,
+  randomDivisionIndex: 2,
 };
 
 interface LFOStore {

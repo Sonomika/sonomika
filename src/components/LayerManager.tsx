@@ -22,7 +22,6 @@ import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { GlobalEffectsTab } from './GlobalEffectsTab';
 import { PlayIcon, PauseIcon, StopIcon, GridIcon, RowsIcon, TrashIcon, CopyIcon } from '@radix-ui/react-icons';
-import { MixerHorizontalIcon } from '@radix-ui/react-icons';
 
 
 interface LayerManagerProps {
@@ -49,6 +48,26 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     const bpmManager = BPMManager.getInstance();
     bpmManager.setBPM(bpm);
   }, [bpm]);
+
+  // Subscribe to BPM beat ticks to trigger a short pulse animation
+  useEffect(() => {
+    const bpmManager = BPMManager.getInstance();
+    const onBeat = (currentBpm: number) => {
+      setIsBeatPulse(true);
+      if (beatPulseTimeoutRef.current != null) {
+        clearTimeout(beatPulseTimeoutRef.current);
+      }
+      const clamped = Math.max(30, Math.min(300, Number(currentBpm) || 120));
+      const beatMs = (60 / clamped) * 1000;
+      const duration = Math.max(80, Math.min(200, beatMs * 0.15));
+      beatPulseTimeoutRef.current = window.setTimeout(() => setIsBeatPulse(false), duration);
+    };
+    bpmManager.addCallback(onBeat);
+    return () => {
+      bpmManager.removeCallback(onBeat);
+      if (beatPulseTimeoutRef.current != null) clearTimeout(beatPulseTimeoutRef.current);
+    };
+  }, []);
   
   console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
   
@@ -64,6 +83,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [, setRefreshTrigger] = useState(0);
+  const [isBeatPulse, setIsBeatPulse] = useState(false);
+  const beatPulseTimeoutRef = React.useRef<number | null>(null);
 
   const { showTimeline, setShowTimeline } = useStore() as any;
   const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
@@ -1112,14 +1133,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   id="bpm-input"
                   type="number"
                   min="30"
-                  max="300"
+                  max="999"
                   value={bpmInputValue}
                   onChange={(e) => {
                     const value = e.target.value;
                     setBpmInputValue(value);
                     if (value === '') return;
                     const newBpm = parseInt(value);
-                    if (!isNaN(newBpm) && newBpm >= 30 && newBpm <= 300) {
+                    if (!isNaN(newBpm) && newBpm >= 30 && newBpm <= 999) {
                       setBpm(newBpm);
                     }
                   }}
@@ -1133,7 +1154,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     }
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                  className="tw-w-20 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                  className="tw-w-16 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
                   placeholder="120"
                 />
                 <button 
@@ -1143,10 +1164,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     const newBpm = bpmManager.getBPM();
                     setBpm(newBpm);
                   }}
-                  className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-8 hover:tw-bg-neutral-800"
+                  className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-8 tw-rounded-full hover:tw-bg-neutral-800"
                   title="Tap to set BPM"
                 >
-                  <MixerHorizontalIcon className="tw-w-4 tw-h-4" />
+                  <span
+                    className={`tw-block tw-rounded-full tw-w-2 tw-h-2 tw-transition-transform tw-duration-150 tw-ease-out ${isBeatPulse ? 'tw-scale-125' : 'tw-scale-100'}`}
+                    style={{ backgroundColor: 'var(--accent)' }}
+                    aria-hidden="true"
+                  />
                 </button>
               </div>
               
@@ -1202,7 +1227,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 return (
                   <div key={column.id} className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-overflow-hidden">
                     <div 
-                      className={`tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 ${isColumnPlaying ? 'tw-bg-blue-900/30' : 'tw-bg-neutral-800'} ${hasClips ? 'tw-cursor-pointer' : 'tw-cursor-default'} ${!hasClips ? 'tw-opacity-60' : ''}`}
+                      className={`tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 ${isColumnPlaying ? 'tw-bg-[hsl(var(--accent))/0.15]' : 'tw-bg-neutral-800'} ${hasClips ? 'tw-cursor-pointer' : 'tw-cursor-default'} ${!hasClips ? 'tw-opacity-60' : ''}`}
                       onClick={() => {
                         // Only allow play functionality if column has clips
                         if (hasClips) {
