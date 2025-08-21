@@ -79,27 +79,17 @@ export class CanvasStreamManager {
             max-height: 100%;
             object-fit: contain;
           }
-          .mirror-info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: #fff;
-            font-family: monospace;
-            font-size: 12px;
-            background: rgba(0,0,0,0.7);
-            padding: 5px 10px;
-            border-radius: 4px;
-          }
+          /* Hide any UI in mirror window */
+          .mirror-info { display: none; }
         </style>
       </head>
       <body>
-        <div class="mirror-info">VJ Mirror Output</div>
         <canvas id="mirror-canvas"></canvas>
       </body>
       </html>
     `;
 
-    // Write content to the new window
+    // Write content to the new window (stays same-origin for scripting)
     streamWindow.document.write(htmlContent);
     streamWindow.document.close();
 
@@ -108,9 +98,19 @@ export class CanvasStreamManager {
       if (streamWindow.document.readyState === 'complete') {
         resolve(true);
       } else {
-        streamWindow.addEventListener('load', resolve);
+        streamWindow.addEventListener('load', resolve, { once: true });
       }
     });
+
+    // Replace about:blank with a friendlier same-origin path without reloading
+    try {
+      streamWindow.document.title = 'VJ Mirror Output';
+      const desiredPath = '/mirror';
+      const currentUrl = new URL(streamWindow.location.href);
+      if (currentUrl.pathname !== desiredPath) {
+        streamWindow.history.replaceState({}, 'VJ Mirror Output', desiredPath);
+      }
+    } catch {}
 
     // Cache refs for drawing in web environment
     this.browserWindow = streamWindow;
@@ -131,9 +131,26 @@ export class CanvasStreamManager {
 
     resizeMirrorCanvas();
     this.browserWindow.addEventListener('resize', resizeMirrorCanvas);
+    // Resize on fullscreen transitions as well
+    ['fullscreenchange','webkitfullscreenchange','msfullscreenchange'].forEach(evt => {
+      try { this.browserWindow!.document.addEventListener(evt as any, () => setTimeout(resizeMirrorCanvas, 0)); } catch {}
+    });
     this.browserWindow.addEventListener('beforeunload', () => {
       this.closeMirrorWindow();
     });
+
+    // Toggle fullscreen on double-click (enter only; exit via Esc/F11/Chrome UI)
+    try {
+      const docAny: any = this.browserWindow.document;
+      const target: any = this.mirrorCanvas || this.browserWindow.document.documentElement;
+      const requestFs = (target.requestFullscreen || target.webkitRequestFullscreen || target.msRequestFullscreen)?.bind(target);
+      (this.mirrorCanvas || this.browserWindow.document.body).addEventListener('dblclick', () => {
+        try {
+          const isFs = docAny.fullscreenElement || docAny.webkitFullscreenElement || docAny.msFullscreenElement;
+          if (!isFs && requestFs) requestFs();
+        } catch {}
+      });
+    } catch {}
 
     this.isWindowOpen = true;
     // Start streaming frames to the browser window
@@ -159,12 +176,28 @@ export class CanvasStreamManager {
     const frameInterval = 1000 / targetFPS;
     let lastDataUrl = '';
 
+    // Use global rAF for stability across window state changes
+    const raf = requestAnimationFrame;
+    const caf = cancelAnimationFrame;
+
     const captureFrame = () => {
       const now = performance.now();
       
       if ((now - lastFrameTime) >= frameInterval) {
+        // Ensure we have a valid, non-zero canvas reference
+        try {
+          const needsReplacement = !this.canvas || !this.canvas.isConnected || this.canvas.width === 0 || this.canvas.height === 0;
+          if (needsReplacement) {
+            const canvases = Array.from(document.querySelectorAll('canvas')) as HTMLCanvasElement[];
+            const replacement = canvases.find(c => c.id !== 'dummy-mirror-canvas' && c.width > 0 && c.height > 0);
+            if (replacement) {
+              this.canvas = replacement;
+            }
+          }
+        } catch {}
+
         // Check if canvas has content
-        if (this.canvas!.width > 0 && this.canvas!.height > 0) {
+        if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
           try {
             if (window.electron && window.electron.sendCanvasData) {
               // Electron path: composite to 1920x1080 and send as JPEG data URL
@@ -198,17 +231,17 @@ export class CanvasStreamManager {
               this.mirrorCtx.fillStyle = bg;
               this.mirrorCtx.fillRect(0, 0, destW, destH);
 
-              const srcW = this.canvas!.width;
-              const srcH = this.canvas!.height;
+              const srcW = this.canvas.width;
+              const srcH = this.canvas.height;
               const scale = Math.max(destW / srcW, destH / srcH);
               const drawW = Math.floor(srcW * scale);
               const drawH = Math.floor(srcH * scale);
               const dx = Math.floor((destW - drawW) / 2);
               const dy = Math.floor((destH - drawH) / 2);
 
-              this.mirrorCtx.imageSmoothingEnabled = true;
-              this.mirrorCtx.imageSmoothingQuality = 'high';
-              this.mirrorCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
+              // Favor speed to avoid potential throttling during fullscreen transitions
+              this.mirrorCtx.imageSmoothingEnabled = false;
+              this.mirrorCtx.drawImage(this.canvas, dx, dy, drawW, drawH);
               this.mirrorCtx.restore();
             } else {
               // Browser mirror closed: stop streaming
@@ -225,7 +258,7 @@ export class CanvasStreamManager {
         lastFrameTime = now;
       }
       
-      this.animationId = requestAnimationFrame(captureFrame);
+      this.animationId = raf(captureFrame);
     };
 
     captureFrame();
@@ -233,7 +266,16 @@ export class CanvasStreamManager {
 
   closeMirrorWindow(): void {
     if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
+      // Try to cancel on the appropriate window context
+      try {
+        if (this.browserWindow) {
+          this.browserWindow.cancelAnimationFrame(this.animationId);
+        } else {
+          cancelAnimationFrame(this.animationId);
+        }
+      } catch {
+        try { cancelAnimationFrame(this.animationId); } catch {}
+      }
       this.animationId = null;
     }
     

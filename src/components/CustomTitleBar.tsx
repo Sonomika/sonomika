@@ -97,26 +97,25 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                   onClick={handleFileMenuClick}
                 >
                   File
-                  <span className="tw-text-white">▼</span>
                 </button>
               </PopoverTrigger>
               {fileMenuOpen && (
-                <PopoverContent className="tw-min-w-[180px]" >
+                <PopoverContent className="tw-min-w-[180px]" align="start" side="bottom" >
                   <div className="tw-flex tw-flex-col tw-py-1">
                     <button 
-                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-100"
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
                       onClick={() => handleMenuItemClick(onNewPreset)}
                     >
                       New Set
                     </button>
                     <button 
-                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-100"
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
                       onClick={() => handleMenuItemClick(onSavePreset)}
                     >
                       Save Set
                     </button>
                     <button 
-                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 tw-text-neutral-100"
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
                       onClick={() => handleMenuItemClick(onLoadPreset)}
                     >
                       Load Set

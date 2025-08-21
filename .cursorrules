@@ -18,3 +18,8 @@
 - ONLY use icons for essential controls (play, fast-forward, rewind, stop, etc.)
 - NEVER use emoji anywhere in the code or UI
 - Prioritize functionality over decorative elements
+
+## UI Component Governance
+- BEFORE adding any new UI component, FIRST check `src/components/ui` for an existing equivalent (Button, Input, Select, Dialog, etc.) and reuse it.
+- If a required component exists but needs small tweaks, extend via props or minimal wrapper instead of creating a new component.
+- Only introduce a new UI component when no suitable one exists in `src/components/ui`; then add it there with consistent styling and export via `src/components/ui/index.ts`.
