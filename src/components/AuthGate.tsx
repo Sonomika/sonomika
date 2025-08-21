@@ -43,8 +43,10 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
         const { error: e } = await supabase.auth.signUp({ email, password });
         if (e) throw e;
       } else {
-        const { error: e } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error: e } = await supabase.auth.signInWithPassword({ email, password });
         if (e) throw e;
+        // Immediately reflect signed-in state without waiting for the event loop
+        setUser(data.user ?? null);
       }
     } catch (e: any) {
       setError(e?.message || 'Authentication error');
@@ -103,20 +105,22 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
   };
 
   if (loading) return null;
-  if (user && !resetMode) return <>{children}</>;
 
   return (
-    <div className="tw-h-screen tw-w-full tw-flex tw-items-center tw-justify-center tw-bg-black tw-text-white">
-      <Card className="tw-w-[380px] tw-bg-neutral-900 tw-border-neutral-800">
-        <CardHeader>
-          <CardTitle className="tw-text-white">{resetMode ? 'Reset your password' : 'Sign in to continue'}</CardTitle>
-        </CardHeader>
-        <CardContent className="tw-space-y-3">
+    <>
+      {children}
+      {(!user || resetMode) && (
+        <div className="tw-fixed tw-inset-0 tw-flex tw-items-center tw-justify-center tw-z-[7000] tw-text-white tw-bg-black/60 app-no-drag">
+          <Card className="tw-w-[380px] tw-bg-neutral-900 tw-border-neutral-800 app-no-drag">
+            <CardHeader>
+              <CardTitle className="tw-text-white">{resetMode ? 'Reset your password' : 'One-time login'}</CardTitle>
+            </CardHeader>
+            <CardContent className="tw-space-y-3">
           {resetMode ? (
             <>
               <div className="tw-space-y-1">
-                <Label htmlFor="new-password">New password</Label>
-                <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" />
+                <Label htmlFor="new-password" className="tw-text-white">New password</Label>
+                <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" className="tw-text-white tw-placeholder-neutral-400 tw-bg-neutral-900 tw-border-neutral-700" />
               </div>
               {error && <div className="tw-text-red-400 tw-text-sm">{error}</div>}
               {info && <div className="tw-text-green-400 tw-text-sm">{info}</div>}
@@ -127,25 +131,25 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
           ) : resetRequestMode ? (
             <>
               <div className="tw-space-y-1">
-                <Label htmlFor="reset-email">Email</Label>
-                <Input id="reset-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onInput={(e: any) => setEmail(e.target.value)} autoComplete="email" placeholder="you@example.com" />
+                <Label htmlFor="reset-email" className="tw-text-white">Email</Label>
+                <Input id="reset-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onInput={(e: any) => setEmail(e.target.value)} autoComplete="email" placeholder="you@example.com" className="tw-text-white tw-placeholder-neutral-400 tw-bg-neutral-900 tw-border-neutral-700" />
               </div>
               {error && <div className="tw-text-red-400 tw-text-sm">{error}</div>}
               {info && <div className="tw-text-green-400 tw-text-sm">{info}</div>}
               <div className="tw-flex tw-gap-2">
-                <Button onClick={handleForgotPassword} className="tw-flex-1 !tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-none">Send reset email</Button>
                 <Button variant="secondary" className="tw-flex-1 !tw-bg-neutral-700 !tw-text-neutral-100 !tw-border-none" onClick={() => { setResetRequestMode(false); setError(null); setInfo(null); }}>Back</Button>
+                <Button onClick={handleForgotPassword} className="tw-flex-1 !tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-none">Reset Pass</Button>
               </div>
             </>
           ) : (
             <>
               <div className="tw-space-y-1">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onInput={(e: any) => setEmail(e.target.value)} autoComplete="email" placeholder="you@example.com" />
+                <Label htmlFor="email" className="tw-text-white">Email</Label>
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onInput={(e: any) => setEmail(e.target.value)} autoComplete="email" placeholder="you@example.com" className="tw-text-white tw-placeholder-neutral-400 tw-bg-neutral-900 tw-border-neutral-700" />
               </div>
               <div className="tw-space-y-1">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" placeholder="••••••••" />
+                <Label htmlFor="password" className="tw-text-white">Password</Label>
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" placeholder="••••••••" className="tw-text-white tw-placeholder-neutral-400 tw-bg-neutral-900 tw-border-neutral-700" />
               </div>
               {error && <div className="tw-text-red-400 tw-text-sm">{error}</div>}
               {info && <div className="tw-text-green-400 tw-text-sm">{info}</div>}
@@ -153,17 +157,18 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
                 <Button onClick={() => handleEmailPassword('signin')} className="tw-flex-1 !tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-none">Sign in</Button>
                 <Button variant="default" onClick={() => handleEmailPassword('signup')} className="tw-flex-1 !tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-none">Sign up</Button>
               </div>
-              <div className="tw-flex tw-justify-between">
-                <Button variant="ghost" className="!tw-bg-neutral-700 !tw-text-neutral-100 !tw-border-none" onClick={handleMagicLink}>Send magic link</Button>
+              <div className="tw-flex tw-justify-end">
                 <Button variant="link" asChild>
                   <a href="#" onClick={(e) => { e.preventDefault(); handleForgotPassword(); }}>Forgot password?</a>
                 </Button>
               </div>
             </>
           )}
-        </CardContent>
-      </Card>
-    </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </>
   );
 };
 

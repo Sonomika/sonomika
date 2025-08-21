@@ -158,7 +158,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
 
       {isElectron && (
         <div className="tw-flex tw-items-center tw-gap-1 app-no-drag">
-          <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
+          <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-bg-transparent tw-border-0 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
             console.log('=== MINIMIZE BUTTON CLICKED ===');
             console.log('Event:', e);
             console.log('onMinimize function:', onMinimize);
@@ -170,10 +170,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
             } else {
               console.log('onMinimize is undefined!');
             }
-          }}>
-            <span>─</span>
+          }} aria-label="Minimize">
+            <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           </button>
-          <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
+          <button className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-bg-transparent tw-border-0 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
             console.log('=== MAXIMIZE BUTTON CLICKED ===');
             console.log('Event:', e);
             console.log('onMaximize function:', onMaximize);
@@ -185,11 +187,13 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
             } else {
               console.log('onMaximize is undefined!');
             }
-          }}>
-            <span>□</span>
+          }} aria-label="Maximize">
+            <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3.75" y="3.75" width="8.5" height="8.5" rx="0.75" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
           </button>
           <button 
-            className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-[12px] tw-text-neutral-300 hover:tw-text-white hover:tw-bg-[#e81123] tw-transition-colors tw-relative tw-z-[5001]" 
+            className="tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-bg-transparent tw-border-0 hover:tw-text-white hover:tw-bg-[#e81123] tw-transition-colors tw-relative tw-z-[5001]" 
             onClick={(e) => {
               console.log('=== CLOSE BUTTON CLICKED ===');
               console.log('Event:', e);
@@ -205,8 +209,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               }
             }}
             title="Close Window"
+            aria-label="Close"
           >
-            <span>×</span>
+            <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="4.2" y1="4.2" x2="11.8" y2="11.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="11.8" y1="4.2" x2="4.2" y2="11.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
       )}

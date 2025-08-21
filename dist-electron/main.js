@@ -17,6 +17,39 @@ if (!gotTheLock) {
 }
 let mainWindow = null;
 let mirrorWindow = null;
+let encryptedAuthStore = {};
+function getAuthStoreFilePath() {
+  const userData = electron.app.getPath("userData");
+  return path.join(userData, "auth_store.json");
+}
+function loadEncryptedAuthStoreFromDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    if (fs.existsSync(fp)) {
+      const raw = fs.readFileSync(fp, "utf8");
+      const json = JSON.parse(raw);
+      encryptedAuthStore = Object.fromEntries(
+        Object.entries(json).map(([k, base64]) => [k, Buffer.from(base64, "base64")])
+      );
+    }
+  } catch (e) {
+    console.warn("Failed to load encrypted auth store, starting empty:", e);
+    encryptedAuthStore = {};
+  }
+}
+function persistEncryptedAuthStoreToDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    const dir = path.dirname(fp);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const json = Object.fromEntries(
+      Object.entries(encryptedAuthStore).map(([k, buf]) => [k, buf.toString("base64")])
+    );
+    fs.writeFileSync(fp, JSON.stringify(json), "utf8");
+  } catch (e) {
+    console.warn("Failed to persist encrypted auth store:", e);
+  }
+}
 function createWindow() {
   mainWindow = new electron.BrowserWindow({
     width: 1200,
@@ -358,6 +391,7 @@ electron.app.whenReady().then(() => {
   electron.app.commandLine.appendSwitch("disable-background-timer-throttling");
   electron.app.commandLine.appendSwitch("disable-renderer-backgrounding");
   createCustomMenu();
+  loadEncryptedAuthStoreFromDisk();
   electron.protocol.registerFileProtocol("local-file", (request, callback) => {
     const filePath = request.url.replace("local-file://", "");
     console.log("Loading local file:", filePath);
@@ -372,6 +406,143 @@ electron.app.whenReady().then(() => {
     } catch (err) {
       console.error("Failed to read local file:", filePath, err);
       throw err;
+    }
+  });
+  electron.ipcMain.handle("authStorage:isEncryptionAvailable", () => {
+    try {
+      return electron.safeStorage.isEncryptionAvailable();
+    } catch {
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:isEncryptionAvailableSync", (event) => {
+    try {
+      event.returnValue = electron.safeStorage.isEncryptionAvailable();
+    } catch {
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:save", async (event, key, plainText) => {
+    try {
+      if (!key) return false;
+      if (plainText === void 0 || plainText === null || plainText === "") {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        return true;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = electron.safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, "utf8");
+      }
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error("Failed to save auth blob:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:saveSync", (event, key, plainText) => {
+    try {
+      if (!key) {
+        event.returnValue = false;
+        return;
+      }
+      if (plainText === void 0 || plainText === null || plainText === "") {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        event.returnValue = true;
+        return;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = electron.safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, "utf8");
+      }
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error("Failed to save auth blob (sync):", e);
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:load", async (event, key) => {
+    try {
+      if (!key) return null;
+      const buf = encryptedAuthStore[key];
+      if (!buf) return null;
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        return electron.safeStorage.decryptString(buf);
+      }
+      return buf.toString("utf8");
+    } catch (e) {
+      console.error("Failed to load auth blob:", e);
+      return null;
+    }
+  });
+  electron.ipcMain.on("authStorage:loadSync", (event, key) => {
+    try {
+      if (!key) {
+        event.returnValue = null;
+        return;
+      }
+      const buf = encryptedAuthStore[key];
+      if (!buf) {
+        event.returnValue = null;
+        return;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        event.returnValue = electron.safeStorage.decryptString(buf);
+      } else {
+        event.returnValue = buf.toString("utf8");
+      }
+    } catch (e) {
+      console.error("Failed to load auth blob (sync):", e);
+      event.returnValue = null;
+    }
+  });
+  electron.ipcMain.handle("authStorage:remove", async (event, key) => {
+    try {
+      if (!key) return false;
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error("Failed to remove auth blob:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:removeSync", (event, key) => {
+    try {
+      if (!key) {
+        event.returnValue = false;
+        return;
+      }
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error("Failed to remove auth blob (sync):", e);
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:loadAll", async () => {
+    try {
+      const result = {};
+      for (const [k, v] of Object.entries(encryptedAuthStore)) {
+        try {
+          if (electron.safeStorage.isEncryptionAvailable()) {
+            result[k] = electron.safeStorage.decryptString(v);
+          } else {
+            result[k] = v.toString("utf8");
+          }
+        } catch {
+        }
+      }
+      return result;
+    } catch (e) {
+      console.error("Failed to loadAll auth blobs:", e);
+      return {};
     }
   });
   electron.ipcMain.on("toggle-app-fullscreen", () => {

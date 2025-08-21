@@ -127,6 +127,19 @@ try {
       return roots;
     }
   });
+
+  // Auth storage API for secure session persistence
+  contextBridge.exposeInMainWorld('authStorage', {
+    isEncryptionAvailable: async (): Promise<boolean> => ipcRenderer.invoke('authStorage:isEncryptionAvailable'),
+    isEncryptionAvailableSync: (): boolean => ipcRenderer.sendSync('authStorage:isEncryptionAvailableSync'),
+    save: async (key: string, plainText: string): Promise<boolean> => ipcRenderer.invoke('authStorage:save', key, plainText),
+    saveSync: (key: string, plainText: string): boolean => ipcRenderer.sendSync('authStorage:saveSync', key, plainText),
+    load: async (key: string): Promise<string | null> => ipcRenderer.invoke('authStorage:load', key),
+    loadSync: (key: string): string | null => ipcRenderer.sendSync('authStorage:loadSync', key),
+    remove: async (key: string): Promise<boolean> => ipcRenderer.invoke('authStorage:remove', key),
+    removeSync: (key: string): boolean => ipcRenderer.sendSync('authStorage:removeSync', key),
+    loadAll: async (): Promise<Record<string, string>> => ipcRenderer.invoke('authStorage:loadAll'),
+  });
   
   console.log('=== PRELOAD SCRIPT: fsApi exposed successfully ===');
   console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
@@ -153,6 +166,17 @@ declare global {
       resizeMirrorWindow: (width: number, height: number) => void;
       toggleAppFullscreen: () => void;
       readLocalFileAsBase64: (filePath: string) => Promise<string>;
+    };
+    authStorage: {
+      isEncryptionAvailable: () => Promise<boolean>;
+      isEncryptionAvailableSync: () => boolean;
+      save: (key: string, plainText: string) => Promise<boolean>;
+      saveSync: (key: string, plainText: string) => boolean;
+      load: (key: string) => Promise<string | null>;
+      loadSync: (key: string) => string | null;
+      remove: (key: string) => Promise<boolean>;
+      removeSync: (key: string) => boolean;
+      loadAll: () => Promise<Record<string, string>>;
     };
     fsApi: {
       listDirectory: (dirPath: string) => Array<{ name: string; path: string; isDirectory: boolean; size?: number; mtimeMs?: number }>;

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, Menu, ipcMain } from 'electron';
+import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -21,6 +21,42 @@ if (!gotTheLock) {
 
 let mainWindow: BrowserWindow | null = null;
 let mirrorWindow: BrowserWindow | null = null;
+let encryptedAuthStore: Record<string, Buffer> = {};
+
+function getAuthStoreFilePath() {
+  const userData = app.getPath('userData');
+  return path.join(userData, 'auth_store.json');
+}
+
+function loadEncryptedAuthStoreFromDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    if (fs.existsSync(fp)) {
+      const raw = fs.readFileSync(fp, 'utf8');
+      const json = JSON.parse(raw) as Record<string, string>;
+      encryptedAuthStore = Object.fromEntries(
+        Object.entries(json).map(([k, base64]) => [k, Buffer.from(base64, 'base64')])
+      );
+    }
+  } catch (e) {
+    console.warn('Failed to load encrypted auth store, starting empty:', e);
+    encryptedAuthStore = {};
+  }
+}
+
+function persistEncryptedAuthStoreToDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    const dir = path.dirname(fp);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const json: Record<string, string> = Object.fromEntries(
+      Object.entries(encryptedAuthStore).map(([k, buf]) => [k, buf.toString('base64')])
+    );
+    fs.writeFileSync(fp, JSON.stringify(json), 'utf8');
+  } catch (e) {
+    console.warn('Failed to persist encrypted auth store:', e);
+  }
+}
 
 function createWindow() {
   // Create the browser window
@@ -402,6 +438,9 @@ app.whenReady().then(() => {
   
   // Create custom menu
   createCustomMenu();
+
+  // Load persisted auth store
+  loadEncryptedAuthStoreFromDisk();
   
   // Register protocol for local file access
   protocol.registerFileProtocol('local-file', (request, callback) => {
@@ -420,6 +459,141 @@ app.whenReady().then(() => {
     } catch (err: any) {
       console.error('Failed to read local file:', filePath, err);
       throw err;
+    }
+  });
+
+  // Secure auth storage via safeStorage
+  ipcMain.handle('authStorage:isEncryptionAvailable', () => {
+    try {
+      return safeStorage.isEncryptionAvailable();
+    } catch {
+      return false;
+    }
+  });
+
+  // Synchronous variants for storage adapter compatibility
+  ipcMain.on('authStorage:isEncryptionAvailableSync', (event) => {
+    try {
+      event.returnValue = safeStorage.isEncryptionAvailable();
+    } catch {
+      event.returnValue = false;
+    }
+  });
+
+  ipcMain.handle('authStorage:save', async (event, key: string, plainText: string) => {
+    try {
+      if (!key) return false;
+      if (plainText === undefined || plainText === null || plainText === '') {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        return true;
+      }
+      if (safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, 'utf8');
+      }
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error('Failed to save auth blob:', e);
+      return false;
+    }
+  });
+
+  ipcMain.on('authStorage:saveSync', (event, key: string, plainText: string) => {
+    try {
+      if (!key) { event.returnValue = false; return; }
+      if (plainText === undefined || plainText === null || plainText === '') {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        event.returnValue = true;
+        return;
+      }
+      if (safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, 'utf8');
+      }
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error('Failed to save auth blob (sync):', e);
+      event.returnValue = false;
+    }
+  });
+
+  ipcMain.handle('authStorage:load', async (event, key: string) => {
+    try {
+      if (!key) return null;
+      const buf = encryptedAuthStore[key];
+      if (!buf) return null;
+      if (safeStorage.isEncryptionAvailable()) {
+        return safeStorage.decryptString(buf);
+      }
+      return buf.toString('utf8');
+    } catch (e) {
+      console.error('Failed to load auth blob:', e);
+      return null;
+    }
+  });
+
+  ipcMain.on('authStorage:loadSync', (event, key: string) => {
+    try {
+      if (!key) { event.returnValue = null; return; }
+      const buf = encryptedAuthStore[key];
+      if (!buf) { event.returnValue = null; return; }
+      if (safeStorage.isEncryptionAvailable()) {
+        event.returnValue = safeStorage.decryptString(buf);
+      } else {
+        event.returnValue = buf.toString('utf8');
+      }
+    } catch (e) {
+      console.error('Failed to load auth blob (sync):', e);
+      event.returnValue = null;
+    }
+  });
+
+  ipcMain.handle('authStorage:remove', async (event, key: string) => {
+    try {
+      if (!key) return false;
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error('Failed to remove auth blob:', e);
+      return false;
+    }
+  });
+
+  ipcMain.on('authStorage:removeSync', (event, key: string) => {
+    try {
+      if (!key) { event.returnValue = false; return; }
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error('Failed to remove auth blob (sync):', e);
+      event.returnValue = false;
+    }
+  });
+
+  ipcMain.handle('authStorage:loadAll', async () => {
+    try {
+      const result: Record<string, string> = {};
+      for (const [k, v] of Object.entries(encryptedAuthStore)) {
+        try {
+          if (safeStorage.isEncryptionAvailable()) {
+            result[k] = safeStorage.decryptString(v);
+          } else {
+            result[k] = v.toString('utf8');
+          }
+        } catch {}
+      }
+      return result;
+    } catch (e) {
+      console.error('Failed to loadAll auth blobs:', e);
+      return {} as Record<string, string>;
     }
   });
 

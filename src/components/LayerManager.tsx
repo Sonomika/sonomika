@@ -1037,6 +1037,33 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           <div className="tw-flex tw-items-center tw-justify-between tw-min-h-8 tw-px-4 tw-py-1 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <div className="header-left">
               <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
+                {/* Global playback controls moved to the far left (before scenes) */}
+                {!showTimeline && (
+                  <div className="tw-flex tw-items-center tw-gap-2 tw-p-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
+                    <button
+                      onClick={globalPlay}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${isGlobalPlaying ? 'tw-bg-blue-600 tw-text-white tw-border-blue-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-blue-600 hover:tw-text-white`}
+                      title="Play - Resume all videos"
+                    >
+                      <PlayIcon className="tw-w-4 tw-h-4" />
+                    </button>
+                    <button
+                      onClick={globalPause}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${!isGlobalPlaying ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'}`}
+                      style={!isGlobalPlaying ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                      title="Pause - Pause all videos"
+                    >
+                      <PauseIcon className="tw-w-4 tw-h-4" />
+                    </button>
+                    <button
+                      onClick={globalStop}
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-red-600 hover:tw-text-white hover:tw-border-red-600"
+                      title="Stop - Stop all videos"
+                    >
+                      <StopIcon className="tw-w-4 tw-h-4" />
+                    </button>
+                  </div>
+                )}
                 {scenes.map((scene: any, index: number) => (
                   <ContextMenu key={scene.id}>
                     <ContextMenuTrigger asChild>
@@ -1123,34 +1150,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 </button>
               </div>
               
-              {/* Global Playback Controls (hidden in timeline mode) */}
-              {!showTimeline && (
-              <div className="tw-flex tw-items-center tw-gap-2 tw-mx-4 tw-p-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
-                <span className="tw-text-xs tw-font-semibold tw-text-neutral-400 tw-uppercase tw-tracking-wide">Global:</span>
-                <button
-                  onClick={globalPlay}
-                  className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${isGlobalPlaying ? 'tw-bg-blue-600 tw-text-white tw-border-blue-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-blue-600 hover:tw-text-white`}
-                  title="Global Play - Resume all videos"
-                >
-                  <PlayIcon className="tw-w-4 tw-h-4" />
-                </button>
-                <button
-                  onClick={globalPause}
-                  className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${!isGlobalPlaying ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'}`}
-                  style={!isGlobalPlaying ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
-                  title="Global Pause - Pause all videos"
-                >
-                  <PauseIcon className="tw-w-4 tw-h-4" />
-                </button>
-                <button
-                  onClick={globalStop}
-                  className="tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-red-600 hover:tw-text-white hover:tw-border-red-600"
-                  title="Global Stop - Stop all videos"
-                >
-                  <StopIcon className="tw-w-4 tw-h-4" />
-                </button>
-              </div>
-              )}
+              {/* Global Playback Controls moved to left; removed here */}
               
               <button 
                  onClick={() => {
