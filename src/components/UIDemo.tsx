@@ -56,6 +56,8 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
   const [textareaValue, setTextareaValue] = useState('');
   const [selectedOption, setSelectedOption] = useState('option1');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogWithCloseOpen, setDialogWithCloseOpen] = useState(false);
+  const [demoColor, setDemoColor] = useState('#00aaff');
   const [tabValue, setTabValue] = useState('account');
   const [sliderValue, setSliderValue] = useState<number[]>([25]);
   const { toast } = useToast();
@@ -70,7 +72,7 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
               <p className="tw-text-muted-foreground tw-text-sm">Showcasing the new UI components in your VJ app</p>
             </div>
             {onClose && (
-              <Button onClick={onClose} variant="outline">
+              <Button onClick={onClose} variant="outline" className="tw-text-neutral-100">
                 Back to App
               </Button>
             )}
@@ -84,10 +86,10 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
             </CardHeader>
             <CardContent className="tw-space-y-4">
               <div className="tw-flex tw-flex-wrap tw-gap-2">
-                <Button>Default Button</Button>
-                <Button variant="secondary">Secondary</Button>
-                <Button variant="outline">Outline</Button>
-                <Button variant="ghost">Ghost</Button>
+                <Button className="!tw-bg-neutral-700 !tw-text-neutral-100">Default Button</Button>
+                <Button variant="secondary" className="tw-bg-neutral-600 tw-text-neutral-100">Secondary</Button>
+                <Button variant="outline" className="tw-bg-neutral-950 tw-text-neutral-100 tw-border tw-border-neutral-700">Outline</Button>
+                <Button variant="ghost" className="tw-bg-neutral-500 tw-text-neutral-100">Ghost</Button>
               </div>
               
               <div className="tw-space-y-2">
@@ -231,7 +233,7 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
             <CardContent className="tw-space-y-4">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline">Hover me for tooltip</Button>
+                  <Button variant="outline" className="tw-bg-neutral-900 tw-text-neutral-100">Hover me for tooltip</Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="tw-text-xs">This is a helpful tooltip!</p>
@@ -248,7 +250,7 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
               <div className="tw-flex tw-gap-2 tw-flex-wrap">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline">Open Popover</Button>
+                    <Button variant="outline" className="tw-bg-neutral-900 tw-text-neutral-100">Open Popover</Button>
                   </PopoverTrigger>
                   <PopoverContent className="tw-text-xs">This is a small popover with content.</PopoverContent>
                 </Popover>
@@ -280,6 +282,36 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Color Picker & Dialog Close */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="tw-text-sm">Color Picker & Close Icon</CardTitle>
+              <CardDescription className="tw-text-xs">Native color input styled + dialog with close icon</CardDescription>
+            </CardHeader>
+            <CardContent className="tw-space-y-4">
+              <div className="tw-flex tw-items-center tw-gap-3">
+                <label className="tw-text-xs">Pick color:</label>
+                <input
+                  type="color"
+                  value={demoColor}
+                  onChange={(e) => setDemoColor(e.target.value)}
+                  className="tw-w-12 tw-h-8 tw-border tw-border-neutral-700 tw-rounded"
+                />
+                <span className="tw-text-xs tw-text-neutral-400">{demoColor}</span>
+              </div>
+              <Button onClick={() => setDialogWithCloseOpen(true)} className="tw-w-fit">Open dialog with close icon</Button>
+              <Dialog open={dialogWithCloseOpen} onOpenChange={setDialogWithCloseOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="tw-text-sm">Dialog With Close Icon</DialogTitle>
+                    <DialogDescription className="tw-text-xs">Top-right “X” is provided by our Dialog component.</DialogDescription>
+                  </DialogHeader>
+                  <div className="tw-text-xs">This dialog demonstrates the built-in close button.</div>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
 
           {/* Tabs and Slider */}
           <Card>

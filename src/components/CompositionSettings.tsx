@@ -6,13 +6,10 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogFooter,
-  Popover, 
-  PopoverTrigger, 
-  PopoverContent,
   Button,
   Input,
   Label,
-  Textarea
+  Select
 } from './ui';
 
 interface CompositionSettingsProps {
@@ -57,8 +54,7 @@ const FRAME_RATES = [
 export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen, onClose }) => {
   const { compositionSettings, updateCompositionSettings } = useStore();
   const [settings, setSettings] = useState(compositionSettings);
-  const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
-  const [frameRateDropdownOpen, setFrameRateDropdownOpen] = useState(false);
+  // No local dropdown open state when using standard Select
 
   useEffect(() => {
     setSettings(compositionSettings);
@@ -85,12 +81,10 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
         aspectRatio: `${preset.width}:${preset.height}`
       }));
     }
-    setSizeDropdownOpen(false);
   };
 
   const handleFrameRateSelect = (frameRate: typeof FRAME_RATES[0]) => {
     setSettings(prev => ({ ...prev, frameRate: frameRate.value }));
-    setFrameRateDropdownOpen(false);
   };
 
   const getCurrentSizeName = () => {
@@ -125,26 +119,7 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
             </div>
           </div>
 
-          <div className="tw-space-y-2">
-            <Label htmlFor="name">Name:</Label>
-            <Input 
-              id="name"
-              value={settings.name || 'new test'} 
-              onChange={e => setSettings(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Composition name"
-            />
-          </div>
-
-          <div className="tw-space-y-2">
-            <Label htmlFor="description">Description:</Label>
-            <Textarea 
-              id="description"
-              value={settings.description || ''} 
-              onChange={e => setSettings(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Composition description"
-              rows={3}
-            />
-          </div>
+          
 
           <div className="tw-space-y-2">
             <Label>Size:</Label>
@@ -159,7 +134,7 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
                 }))}
                 min="1"
                 max="7680"
-                className="tw-w-20"
+                className="tw-w-20 !tw-text-neutral-100"
               />
               <span className="tw-text-neutral-400">x</span>
               <Input 
@@ -172,71 +147,39 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
                 }))}
                 min="1"
                 max="4320"
-                className="tw-w-20"
+                className="tw-w-20 !tw-text-neutral-100"
               />
-              <Popover open={sizeDropdownOpen} onOpenChange={setSizeDropdownOpen}>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="tw-min-w-[120px] tw-justify-between"
-                    onClick={() => setSizeDropdownOpen(!sizeDropdownOpen)}
-                  >
-                    {getCurrentSizeName()}
-                    <span className="tw-text-neutral-400">▼</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="tw-w-[220px] tw-p-0 tw-bg-neutral-900 tw-border-neutral-700 tw-shadow-lg">
-                  <div className="tw-max-h-60 tw-overflow-y-auto">
-                    {PRESET_SIZES.map((preset, index) => (
-                      <button
-                        key={index}
-                        className={`tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-700 tw-transition-colors ${getCurrentSizeName() === preset.name ? 'tw-bg-neutral-700 tw-text-white' : 'tw-text-neutral-200'}`}
-                        onClick={() => handleSizeSelect(preset)}
-                      >
-                        {preset.name}
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <Select
+                value={getCurrentSizeName()}
+                onChange={(name: string) => {
+                  const preset = PRESET_SIZES.find(p => p.name === name) || PRESET_SIZES[0];
+                  handleSizeSelect(preset);
+                }}
+                options={PRESET_SIZES.map(p => ({ value: p.name, label: p.name }))}
+                className="tw-w-[220px]"
+              />
             </div>
           </div>
 
           <div className="tw-space-y-2">
             <Label>Frame Rate:</Label>
-            <Popover open={frameRateDropdownOpen} onOpenChange={setFrameRateDropdownOpen}>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  className="tw-min-w-[120px] tw-justify-between"
-                  onClick={() => setFrameRateDropdownOpen(!frameRateDropdownOpen)}
-                >
-                  {getCurrentFrameRateName()}
-                  <span className="tw-text-neutral-400">▼</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="tw-w-[120px] tw-p-0 tw-bg-neutral-900 tw-border-neutral-700 tw-shadow-lg">
-                <div className="tw-max-h-60 tw-overflow-y-auto">
-                  {FRAME_RATES.map((frameRate, index) => (
-                    <button
-                      key={index}
-                      className={`tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-700 tw-transition-colors ${getCurrentFrameRateName() === frameRate.name ? 'tw-bg-neutral-700 tw-text-white' : 'tw-text-neutral-200'}`}
-                      onClick={() => handleFrameRateSelect(frameRate)}
-                    >
-                      {frameRate.name}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Select
+              value={getCurrentFrameRateName()}
+              onChange={(name: string) => {
+                const fr = FRAME_RATES.find(f => f.name === name) || FRAME_RATES[0];
+                handleFrameRateSelect(fr);
+              }}
+              options={FRAME_RATES.map(f => ({ value: f.name, label: f.name }))}
+              className="tw-w-[150px]"
+            />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" className="!tw-bg-neutral-900 !tw-text-neutral-100 !tw-border-neutral-700" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
+          <Button className="!tw-bg-neutral-800 !tw-text-neutral-100" onClick={handleSave}>
             Save
           </Button>
         </DialogFooter>

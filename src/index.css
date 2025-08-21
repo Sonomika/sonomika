@@ -82,6 +82,25 @@ input[type="reset"],
 	text-shadow: none !important;
 }
 
+/* Inputs: remove any box-shadows globally */
+input,
+textarea,
+select {
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	box-shadow: none !important;
+}
+
+/* Force no outline/shadow on focused buttons and inputs */
+button:focus, button:focus-visible,
+input:focus, input:focus-visible,
+textarea:focus, textarea:focus-visible,
+select:focus, select:focus-visible {
+	outline: none !important;
+	box-shadow: none !important;
+}
+
 /* Remove any focus/active outlines/borders on buttons in non-a11y mode */
 .a11y-off button,
 .a11y-off [role="button"] {
@@ -89,3 +108,13 @@ input[type="reset"],
 	box-shadow: none !important;
 	border-color: transparent;
 }
+
+/* Fallback: if no explicit tw-bg-* class is present, force dark button */
+button:not([class*="tw-bg-"]),
+[role="button"]:not([class*="tw-bg-"]) {
+	background-color: #1f1f1f;
+	color: #f5f5f5;
+	border: none;
+}
+
+/* Removed global button background override to allow per-button shades */

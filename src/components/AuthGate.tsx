@@ -133,8 +133,8 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
               {error && <div className="tw-text-red-400 tw-text-sm">{error}</div>}
               {info && <div className="tw-text-green-400 tw-text-sm">{info}</div>}
               <div className="tw-flex tw-gap-2">
-                <Button onClick={handleForgotPassword} className="tw-flex-1">Send reset email</Button>
-                <Button variant="secondary" className="tw-flex-1" onClick={() => { setResetRequestMode(false); setError(null); setInfo(null); }}>Back</Button>
+                <Button onClick={handleForgotPassword} className="tw-flex-1 !tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-none">Send reset email</Button>
+                <Button variant="secondary" className="tw-flex-1 !tw-bg-neutral-700 !tw-text-neutral-100 !tw-border-none" onClick={() => { setResetRequestMode(false); setError(null); setInfo(null); }}>Back</Button>
               </div>
             </>
           ) : (
@@ -150,11 +150,11 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
               {error && <div className="tw-text-red-400 tw-text-sm">{error}</div>}
               {info && <div className="tw-text-green-400 tw-text-sm">{info}</div>}
               <div className="tw-flex tw-gap-2">
-                <Button onClick={() => handleEmailPassword('signin')} className="tw-flex-1">Sign in</Button>
-                <Button variant="default" onClick={() => handleEmailPassword('signup')} className="tw-flex-1">Sign up</Button>
+                <Button onClick={() => handleEmailPassword('signin')} className="tw-flex-1 !tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-none">Sign in</Button>
+                <Button variant="default" onClick={() => handleEmailPassword('signup')} className="tw-flex-1 !tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-none">Sign up</Button>
               </div>
               <div className="tw-flex tw-justify-between">
-                <Button variant="ghost" onClick={handleMagicLink}>Send magic link</Button>
+                <Button variant="ghost" className="!tw-bg-neutral-700 !tw-text-neutral-100 !tw-border-none" onClick={handleMagicLink}>Send magic link</Button>
                 <Button variant="link" asChild>
                   <a href="#" onClick={(e) => { e.preventDefault(); handleForgotPassword(); }}>Forgot password?</a>
                 </Button>
