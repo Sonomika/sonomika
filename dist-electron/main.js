@@ -90,6 +90,18 @@ function createWindow() {
     mainWindow.show();
     mainWindow.webContents.setBackgroundThrottling(false);
   });
+  mainWindow.on("maximize", () => {
+    try {
+      mainWindow == null ? void 0 : mainWindow.webContents.send("window-state", { maximized: true });
+    } catch {
+    }
+  });
+  mainWindow.on("unmaximize", () => {
+    try {
+      mainWindow == null ? void 0 : mainWindow.webContents.send("window-state", { maximized: false });
+    } catch {
+    }
+  });
   const isDev = process.env.NODE_ENV === "development" || !electron.app.isPackaged;
   if (isDev) {
     console.log("Running in development mode");
@@ -611,9 +623,17 @@ electron.app.whenReady().then(() => {
       if (mainWindow.isMaximized()) {
         console.log("Main: calling mainWindow.unmaximize()");
         mainWindow.unmaximize();
+        try {
+          mainWindow.webContents.send("window-state", { maximized: false });
+        } catch {
+        }
       } else {
         console.log("Main: calling mainWindow.maximize()");
         mainWindow.maximize();
+        try {
+          mainWindow.webContents.send("window-state", { maximized: true });
+        } catch {
+        }
       }
     } else {
       console.log("Main: mainWindow is null");
