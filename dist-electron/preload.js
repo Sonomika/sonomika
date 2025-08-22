@@ -66,10 +66,20 @@ try {
             console.log('Preload: toggleAppFullscreen called');
             electron_1.ipcRenderer.send('toggle-app-fullscreen');
         },
+        onWindowState: (cb) => {
+            electron_1.ipcRenderer.on('window-state', (_, state) => {
+                try {
+                    cb(state);
+                }
+                catch { }
+            });
+        },
         // Read a local file from disk and return base64 string (renderer-safe)
-        readLocalFileAsBase64: (filePath) => {
-            return electron_1.ipcRenderer.invoke('read-local-file-base64', filePath);
-        }
+        readLocalFileAsBase64: (filePath) => electron_1.ipcRenderer.invoke('read-local-file-base64', filePath),
+        showOpenDialog: (options) => electron_1.ipcRenderer.invoke('show-open-dialog', options),
+        showSaveDialog: (options) => electron_1.ipcRenderer.invoke('show-save-dialog', options),
+        saveFile: (filePath, content) => electron_1.ipcRenderer.invoke('save-file', filePath, content),
+        readFileText: (filePath) => electron_1.ipcRenderer.invoke('read-file-text', filePath)
     });
     console.log('=== PRELOAD SCRIPT: electron API exposed successfully ===');
     // Expose a minimal, safe filesystem API for the renderer (read-only)
@@ -139,6 +149,18 @@ try {
             catch { }
             return roots;
         }
+    });
+    // Auth storage API for secure session persistence
+    electron_1.contextBridge.exposeInMainWorld('authStorage', {
+        isEncryptionAvailable: async () => electron_1.ipcRenderer.invoke('authStorage:isEncryptionAvailable'),
+        isEncryptionAvailableSync: () => electron_1.ipcRenderer.sendSync('authStorage:isEncryptionAvailableSync'),
+        save: async (key, plainText) => electron_1.ipcRenderer.invoke('authStorage:save', key, plainText),
+        saveSync: (key, plainText) => electron_1.ipcRenderer.sendSync('authStorage:saveSync', key, plainText),
+        load: async (key) => electron_1.ipcRenderer.invoke('authStorage:load', key),
+        loadSync: (key) => electron_1.ipcRenderer.sendSync('authStorage:loadSync', key),
+        remove: async (key) => electron_1.ipcRenderer.invoke('authStorage:remove', key),
+        removeSync: (key) => electron_1.ipcRenderer.sendSync('authStorage:removeSync', key),
+        loadAll: async () => electron_1.ipcRenderer.invoke('authStorage:loadAll'),
     });
     console.log('=== PRELOAD SCRIPT: fsApi exposed successfully ===');
     console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
