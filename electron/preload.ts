@@ -64,6 +64,11 @@ try {
       console.log('Preload: toggleAppFullscreen called');
       ipcRenderer.send('toggle-app-fullscreen');
     },
+    onWindowState: (cb: (state: { maximized: boolean }) => void) => {
+      ipcRenderer.on('window-state', (_, state) => {
+        try { cb(state); } catch {}
+      });
+    },
     // Read a local file from disk and return base64 string (renderer-safe)
     readLocalFileAsBase64: (filePath: string): Promise<string> => ipcRenderer.invoke('read-local-file-base64', filePath),
     showOpenDialog: (options: any) => ipcRenderer.invoke('show-open-dialog', options),

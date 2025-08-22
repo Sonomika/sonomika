@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { AudioWaveform } from './AudioWaveform';
 import { useStore } from '../store/store';
 import { Slider } from './ui';
@@ -274,6 +275,33 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Track overflow so scrollbar thumbs appear only when needed
+  const [hasOverflowX, setHasOverflowX] = useState(false);
+  const [hasOverflowY, setHasOverflowY] = useState(false);
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (!el) return;
+    try {
+      setHasOverflowX((el.scrollWidth - el.clientWidth) > 1);
+      setHasOverflowY((el.scrollHeight - el.clientHeight) > 1);
+    } catch {}
+    // Observe size changes of the viewport
+    let ro: ResizeObserver | null = null;
+    try {
+      ro = new ResizeObserver(() => {
+        try {
+          setViewportWidth(el.clientWidth);
+          setHasOverflowX((el.scrollWidth - el.clientWidth) > 1);
+          setHasOverflowY((el.scrollHeight - el.clientHeight) > 1);
+        } catch {}
+      });
+      ro.observe(el);
+    } catch {}
+    return () => {
+      try { ro && ro.disconnect(); } catch {}
+    };
+  }, [timelinePixelWidth, tracks.length, duration, zoom]);
 
   // Listen for external modulation events (from LFO engine) to update clip params while timeline plays
   useEffect(() => {
@@ -2138,15 +2166,16 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       {/* No header; controls are docked in LayerManager */}
 
       <div className="tw-overflow-hidden tw-flex-1 tw-min-h-0">
-        {/* Timeline Tracks */}
-        <div 
-          className="tw-overflow-x-auto tw-overflow-y-scroll tw-h-[350px] tw-min-h-[350px] tw-pb-0.5" 
-          ref={timelineRef} 
-          onScroll={handleScrollThrottled} 
-          onMouseDown={handleTimelineMouseDown}
-          onMouseMove={handleTimelineMouseMove}
-          onMouseUp={handleTimelineMouseUp}
-        >
+        {/* Timeline Tracks - custom scroll (horizontal + vertical) */}
+        <ScrollArea.Root className="tw-h-[350px] tw-min-h-[350px]">
+          <ScrollArea.Viewport
+            className="tw-h-[350px] tw-min-h-[350px] tw-pb-3"
+            ref={timelineRef}
+            onScroll={handleScrollThrottled}
+            onMouseDown={handleTimelineMouseDown}
+            onMouseMove={handleTimelineMouseMove}
+            onMouseUp={handleTimelineMouseUp}
+          >
         <div className="tw-relative tw-pb-2 tw-overflow-visible tw-min-h-[400px] tw-[will-change:transform]" style={{ width: `${timelinePixelWidth}px` }}>
           <div className="tw-sticky tw-top-0 tw-h-6 tw-pointer-events-none tw-z-30">
             {(() => {
@@ -2330,6 +2359,24 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             onMouseUp={handlePlayheadMouseUp}
           />
         </div>
+          </ScrollArea.Viewport>
+          <ScrollArea.Scrollbar
+            orientation="horizontal"
+            className="tw-flex tw-h-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-mt-1"
+          >
+            {hasOverflowX && (
+              <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-w-[28px]" />
+            )}
+          </ScrollArea.Scrollbar>
+          <ScrollArea.Scrollbar
+            orientation="vertical"
+            className="tw-flex tw-w-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out"
+          >
+            {hasOverflowY && (
+              <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-h-[28px]" />
+            )}
+          </ScrollArea.Scrollbar>
+        </ScrollArea.Root>
       </div>
       
       {/* Lasso selection overlay */}
@@ -2346,9 +2393,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         />
       )}
       
-
-        </div>
-
     {/* Context Menu */}
     {contextMenu.visible && (
       <ClipContextMenu

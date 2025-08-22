@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useStore } from '../store/store';
 import { LayerOptions } from './LayerOptions';
 import { CanvasRenderer } from './CanvasRenderer';
@@ -19,7 +19,8 @@ import { LFOMapper } from './LFOMapper';
 // Scenes header now uses ContextMenu for actions
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui/ContextMenu';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
+import { ScrollArea as AppScrollArea } from './ui';
+import { Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
 import { GlobalEffectsTab } from './GlobalEffectsTab';
 import { PlayIcon, PauseIcon, StopIcon, GridIcon, RowsIcon, TrashIcon, CopyIcon } from '@radix-ui/react-icons';
 import TimelineControls from './TimelineControls';
@@ -38,6 +39,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   
   const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId } = useStore() as any;
   const [bpmInputValue, setBpmInputValue] = useState(bpm.toString());
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false);
+  const gridWrapperRef = useRef<HTMLDivElement>(null);
+  const [columnWidth, setColumnWidth] = useState<number>(160);
+  const [gridHasOverflowX, setGridHasOverflowX] = useState<boolean>(false);
+  const [gridHasOverflowY, setGridHasOverflowY] = useState<boolean>(false);
   
   // Sync local BPM input with store BPM
   useEffect(() => {
@@ -68,6 +75,52 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       bpmManager.removeCallback(onBeat);
       if (beatPulseTimeoutRef.current != null) clearTimeout(beatPulseTimeoutRef.current);
     };
+  }, []);
+
+  // Compute fixed per-column width so exactly 20 columns fit the visible area
+  useEffect(() => {
+    const el = gridWrapperRef.current;
+    if (!el) return;
+    const compute = () => {
+      try {
+        const style = window.getComputedStyle(el);
+        const gapStr = style.columnGap || style.gap || '8px';
+        const gap = parseFloat(gapStr) || 8;
+        const totalGap = gap * 19; // gaps between 20 columns
+        const available = el.clientWidth - totalGap;
+        const next = Math.max(80, Math.floor(available / 20));
+        setColumnWidth(next);
+        // Update overflow states
+        try {
+          setGridHasOverflowX(el.scrollWidth - el.clientWidth > 1);
+          setGridHasOverflowY(el.scrollHeight - el.clientHeight > 1);
+        } catch {}
+      } catch {}
+    };
+    compute();
+    const ro = new ResizeObserver(() => compute());
+    ro.observe(el);
+    window.addEventListener('resize', compute);
+    return () => {
+      try { ro.disconnect(); } catch {}
+      window.removeEventListener('resize', compute);
+    };
+  }, []);
+
+  // Track small-screen breakpoint (iPad portrait and below ~ <768px)
+  useEffect(() => {
+    try {
+      const mql = window.matchMedia('(max-width: 767px)');
+      const update = () => setIsSmallScreen(mql.matches);
+      update();
+      if (typeof mql.addEventListener === 'function') {
+        mql.addEventListener('change', update);
+        return () => mql.removeEventListener('change', update);
+      } else if (typeof (mql as any).addListener === 'function') {
+        (mql as any).addListener(update);
+        return () => (mql as any).removeListener(update);
+      }
+    } catch {}
   }, []);
   
   console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
@@ -843,9 +896,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   if (!currentScene) {
     return (
-      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col tw-overflow-hidden tw-pt-4">
-        <div className="tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
-          <div className="tw-flex tw-items-center tw-justify-between tw-min-h-8 tw-px-4 tw-py-1 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
+      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col md:tw-overflow-hidden tw-overflow-auto">
+        <div className="tw-flex tw-flex-col tw-h-full md:tw-overflow-hidden tw-overflow-auto">
+          <div className="tw-flex tw-items-center tw-justify-between tw-h-12 tw-px-4 tw-py-2 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <h2>No Scene Selected</h2>
             <div className="scene-controls">
               <button onClick={addScene} className="add-scene-btn">
@@ -961,10 +1014,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     } catch {}
   }, [selectedTimelineClip, scenes, currentSceneId]);
 
-  // Ensure we have at least 20 columns
+  // Ensure we have at least 30 columns
   const columns = [...currentScene.columns];
   let columnsAdded = 0;
-  while (columns.length < 20) {
+  while (columns.length < 30) {
     const newCol = createColumn();
     newCol.name = `Column ${columns.length + 1}`;
     columns.push(newCol);
@@ -1023,24 +1076,33 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     console.log('LayerManager about to render main content');
     
     return (
-      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col tw-overflow-hidden tw-pt-4">
+      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col md:tw-overflow-hidden tw-overflow-auto">
         <div className="tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
-          <div className="tw-flex tw-items-center tw-justify-between tw-min-h-8 tw-px-4 tw-py-1 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
-            <div className="header-left">
-              <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
+          <div className="tw-flex tw-items-center tw-justify-between tw-h-12 tw-px-4 tw-py-2 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
+            <div className="header-left tw-flex tw-items-center tw-gap-2">
+              {/* Mobile: Hamburger */}
+              <button
+                className="tw-inline-flex md:tw-hidden tw-items-center tw-justify-center tw-w-9 tw-h-10 tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700"
+                aria-label="Open menu"
+                onClick={() => setMobileMenuOpen(true)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+              </button>
+
+              <div className="tw-flex tw-items-center tw-gap-2">
                 {/* Global playback controls moved to the far left (before scenes) */}
                 {!showTimeline && (
-                  <div className="tw-flex tw-items-center tw-gap-2 tw-p-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
+                  <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
                     <button
                       onClick={globalPlay}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${isGlobalPlaying ? 'tw-bg-blue-600 tw-text-white tw-border-blue-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-blue-600 hover:tw-text-white`}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${isGlobalPlaying ? 'tw-bg-blue-600 tw-text-white tw-border-blue-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-blue-600 hover:tw-text-white`}
                       title="Play - Resume all videos"
                     >
                       <PlayIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
                       onClick={globalPause}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm ${!isGlobalPlaying ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'}`}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${!isGlobalPlaying ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'}`}
                       style={!isGlobalPlaying ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
                       title="Pause - Pause all videos"
                     >
@@ -1048,7 +1110,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     </button>
                     <button
                       onClick={globalStop}
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-min-w-9 tw-h-8 tw-border tw-text-sm tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-red-600 hover:tw-text-white hover:tw-border-red-600"
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-red-600 hover:tw-text-white hover:tw-border-red-600"
                       title="Stop - Stop all videos"
                     >
                       <StopIcon className="tw-w-4 tw-h-4" />
@@ -1060,45 +1122,47 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     <TimelineControls />
                   </div>
                 )}
-                {scenes.map((scene: any, index: number) => (
-                  <ContextMenu key={scene.id}>
-                    <ContextMenuTrigger asChild>
-                      <button
-                        className={`tw-text-xs tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-1 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-text-white' : ''}`}
-                        style={scene.id === currentSceneId ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
-                        onClick={() => setCurrentScene(scene.id)}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('application/x-scene-index', String(index));
-                          e.dataTransfer.effectAllowed = 'move';
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                        }}
-                        onDrop={(e) => {
-                          const fromStr = e.dataTransfer.getData('application/x-scene-index');
-                          if (fromStr) {
-                            const from = parseInt(fromStr, 10);
-                            if (!Number.isNaN(from)) reorderScenes(from, index);
-                          }
-                        }}
-                        title={"Right-click to rename, duplicate, or delete"}
-                      >
-                        {scene.name}
-                      </button>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent>
-                      <ContextMenuItem onSelect={() => handleSceneRename(scene, updateScene)}>Rename</ContextMenuItem>
-                      <ContextMenuItem onSelect={() => duplicateScene(scene.id)}>Duplicate</ContextMenuItem>
-                      {scenes.length > 1 && (
-                        <ContextMenuItem className="tw-text-red-400" onSelect={() => removeScene(scene.id)}>Delete</ContextMenuItem>
-                      )}
-                    </ContextMenuContent>
-                  </ContextMenu>
-                ))}
-                <button onClick={addScene} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-7 tw-h-7 hover:tw-bg-neutral-800" title="Add new scene">
-                  +
-                </button>
+                <div className="tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap">
+                  {scenes.map((scene: any, index: number) => (
+                    <ContextMenu key={scene.id}>
+                      <ContextMenuTrigger asChild>
+                        <button
+                          className={`tw-text-xs tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-text-white' : ''}`}
+                          style={scene.id === currentSceneId ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                          onClick={() => setCurrentScene(scene.id)}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('application/x-scene-index', String(index));
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                          }}
+                          onDrop={(e) => {
+                            const fromStr = e.dataTransfer.getData('application/x-scene-index');
+                            if (fromStr) {
+                              const from = parseInt(fromStr, 10);
+                              if (!Number.isNaN(from)) reorderScenes(from, index);
+                            }
+                          }}
+                          title={"Right-click to rename, duplicate, or delete"}
+                        >
+                          {scene.name}
+                        </button>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem onSelect={() => handleSceneRename(scene, updateScene)}>Rename</ContextMenuItem>
+                        <ContextMenuItem onSelect={() => duplicateScene(scene.id)}>Duplicate</ContextMenuItem>
+                        {scenes.length > 1 && (
+                          <ContextMenuItem className="tw-text-red-400" onSelect={() => removeScene(scene.id)}>Delete</ContextMenuItem>
+                        )}
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  ))}
+                  <button onClick={addScene} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 hover:tw-bg-neutral-800" title="Add new scene">
+                    +
+                  </button>
+                </div>
               </div>
             </div>
             <div className="tw-flex tw-items-center tw-gap-4">
@@ -1129,7 +1193,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     }
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                  className="tw-w-16 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                  className="tw-w-16 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
                   placeholder="120"
                 />
                 <button 
@@ -1139,7 +1203,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     const newBpm = bpmManager.getBPM();
                     setBpm(newBpm);
                   }}
-                  className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-8 tw-rounded-full hover:tw-bg-neutral-800"
+                  className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 tw-rounded-full hover:tw-bg-neutral-800"
                   title="Tap to set BPM"
                 >
                   <span
@@ -1161,7 +1225,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      try { setSelectedTimelineClip(null); } catch {}
                    }
                  }}
-                 className={`tw-inline-flex tw-items-center tw-justify-center tw-border tw-text-sm tw-p-2 tw-transition-colors ${
+                 className={`tw-inline-flex tw-items-center tw-justify-center tw-border tw-text-sm tw-px-3 tw-py-2 tw-transition-colors ${
                    showTimeline
                      ? 'tw-bg-sky-600 tw-text-white tw-border-sky-600'
                      : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'
@@ -1192,9 +1256,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               <>
                 {/* Global Effects Row removed - moved into Global tab */}
 
-            {/* Composition Row */}
-            <div className="tw-grid tw-gap-2" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
-              {columns.map((column: any) => {
+            {/* Columns + Layers: fixed column width; custom scroll (horizontal) */}
+            <ScrollArea.Root className="tw-w-full" type="always">
+              <ScrollArea.Viewport className="tw-w-full tw-pr-3 tw-pb-3" ref={gridWrapperRef}>
+              <div className="tw-space-y-2">
+                {/* Composition Row */}
+                <div className="tw-grid tw-gap-2" style={{ gridTemplateColumns: columnWidth ? `repeat(${columns.length}, ${columnWidth}px)` : undefined }}>
+                {columns.map((column: any) => {
                 const isColumnPlaying = playingColumnId === column.id;
                 // Consider column playable if any layer has an asset
                 const hasClips = column.layers.some((layer: any) => Boolean(layer?.asset));
@@ -1233,12 +1301,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   </div>
                 );
               })}
-            </div>
+                </div>
 
-            {/* Layer Rows */}
-             {[3, 2, 1].map((layerNum) => (
-               <div key={layerNum} className="tw-grid tw-gap-2" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
-                 {columns.map((column: any) => {
+                {/* Layer Rows */}
+                {[3, 2, 1].map((layerNum) => (
+                  <div key={layerNum} className="tw-grid tw-gap-2" style={{ gridTemplateColumns: columnWidth ? `repeat(${columns.length}, ${columnWidth}px)` : undefined }}>
+                  {columns.map((column: any) => {
                    // Find layer by layer number or name fallback
                    const layer = column.layers.find((l: any) => l.layerNum === layerNum || l.name === `Layer ${layerNum}`);
                    const displayName = layer?.asset?.name || layer?.asset?.metadata?.name || layer?.asset?.effect?.name || '';
@@ -1426,8 +1494,27 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      </div>
                    );
                  })}
-               </div>
-             ))}
+                 </div>
+               ))}
+              </div>
+              </ScrollArea.Viewport>
+              <ScrollArea.Scrollbar forceMount
+                className="tw-flex tw-h-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-mt-1"
+                orientation="horizontal"
+              >
+                {gridHasOverflowX && (
+                  <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-w-[28px]" />
+                )}
+              </ScrollArea.Scrollbar>
+              <ScrollArea.Scrollbar forceMount
+                className="tw-flex tw-w-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out"
+                orientation="vertical"
+              >
+                {gridHasOverflowY && (
+                  <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-h-[28px]" />
+                )}
+              </ScrollArea.Scrollbar>
+            </ScrollArea.Root>
             </>
             )}
           </div>
@@ -1443,11 +1530,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
           {/* Bottom Section with Preview, Layer Options, and Media Library */}
           <div 
-            className="tw-flex tw-gap-3 tw-px-3 tw-pb-3 tw-pt-0 tw-flex-1"
+            className="tw-flex tw-flex-col md:tw-flex-row tw-gap-3 tw-px-3 tw-pb-3 tw-pt-0 tw-flex-1"
           >
             {/* Preview Window - Bottom Left */}
             <div 
-              className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden tw-basis-[30%] tw-flex-none tw-min-w-[200px]"
+              className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden md:tw-basis-[30%] md:tw-flex-none tw-min-w-[200px] tw-w-full"
             >
               <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
                 <h3>Preview</h3>
@@ -1505,7 +1592,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             </div>
 
             {/* Media Library / MIDI Mapper - Bottom Right */}
-            <div className="tw-w-1/3 tw-min-w-[320px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
+            <div className="md:tw-w-1/3 tw-w-full tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
               {/* Tab Navigation */}
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
                                <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'media')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>

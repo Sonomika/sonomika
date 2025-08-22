@@ -28,6 +28,7 @@ declare global {
       closeMirrorWindow: () => void;
       sendCanvasData: (dataUrl: string) => void;
         toggleAppFullscreen: () => void;
+        onWindowState?: (cb: (state: { maximized: boolean }) => void) => void;
     };
   }
 }
@@ -76,6 +77,7 @@ function App() {
   const [compositionSettingsOpen, setCompositionSettingsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showUIDemo, setShowUIDemo] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   
   const [debugMode, setDebugMode] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
@@ -139,6 +141,15 @@ function App() {
     return () => {
       window.removeEventListener('resize', adjustForTaskbar);
     };
+  }, []);
+
+  // Subscribe to window maximize state changes
+  useEffect(() => {
+    try {
+      if (window.electron && window.electron.onWindowState) {
+        window.electron.onWindowState((state) => setIsMaximized(!!state?.maximized));
+      }
+    } catch {}
   }, []);
 
   // Apply accent color to CSS var on mount and when it changes
@@ -375,10 +386,17 @@ function App() {
 
   const handleNewPreset = () => {
     try {
-      const { resetToDefault } = useStore.getState();
-      resetToDefault();
+      console.log('[New Set] Opening confirmation modal');
+      setModalConfig({
+        isOpen: true,
+        type: 'new',
+        title: 'Create New Set',
+        message: 'You may have unsaved changes. Would you like to save before creating a new set?',
+        confirmText: 'Save and Create New',
+        cancelText: 'Cancel'
+      });
     } catch (e) {
-      console.error('Failed to create new set:', e);
+      console.error('Failed to open new set confirmation:', e);
     }
   };
 
@@ -513,14 +531,69 @@ function App() {
 
   const handleModalConfirm = (value: string) => {
     switch (modalConfig.type) {
-      case 'new':
-        // Reset to default state
-        const { resetToDefault } = useStore.getState();
-        resetToDefault();
-        
-        // Reload the page to ensure clean state
-        window.location.reload();
+      case 'new': {
+        console.log('[New Set] Confirmed save-then-create');
+        try {
+          const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showSaveDialog;
+          if (isElectron) {
+            (async () => {
+              const presetName = `preset-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.vjpreset`;
+              const result = await (window as any).electron.showSaveDialog({
+                title: 'Save Set',
+                defaultPath: presetName,
+                filters: [{ name: 'VJ Preset', extensions: ['vjpreset', 'json'] }]
+              });
+              if (!result.canceled && result.filePath) {
+                const { savePreset } = useStore.getState();
+                const key = savePreset(presetName.replace(/\.(vjpreset|json)$/i, ''));
+                if (key) {
+                  const state = useStore.getState() as any;
+                  const preset = {
+                    name: key,
+                    displayName: key,
+                    timestamp: Date.now(),
+                    version: '1.0.0',
+                    description: `VJ Preset: ${key}`,
+                    data: {
+                      scenes: state.scenes,
+                      currentSceneId: state.currentSceneId,
+                      playingColumnId: state.playingColumnId,
+                      bpm: state.bpm,
+                      sidebarVisible: state.sidebarVisible,
+                      midiMappings: state.midiMappings,
+                      selectedLayerId: state.selectedLayerId,
+                      previewMode: state.previewMode,
+                      transitionType: state.transitionType,
+                      transitionDuration: state.transitionDuration,
+                      compositionSettings: state.compositionSettings,
+                      assets: state.assets,
+                    }
+                  };
+                  await (window as any).electron.saveFile(result.filePath, JSON.stringify(preset, null, 2));
+
+                  const { resetToDefault } = useStore.getState();
+                  console.log('[New Set] Saved. Resetting to default and reloading');
+                  resetToDefault();
+                  window.location.reload();
+                }
+              }
+            })();
+          } else {
+            // Web fallback: save to file then reset
+            const { savePreset, resetToDefault } = useStore.getState();
+            const defaultName = value?.trim() || `preset-${new Date().toISOString().slice(0, 19)}`;
+            const savedName = savePreset(defaultName);
+            if (savedName) {
+              console.log('[New Set] Web saved. Resetting to default and reloading');
+              resetToDefault();
+              window.location.reload();
+            }
+          }
+        } catch (e) {
+          console.error('Save before new set failed:', e);
+        }
         break;
+      }
         
       case 'save':
         // Save preset with custom name
@@ -546,6 +619,7 @@ function App() {
       <CustomTitleBar
         onMinimize={handleWindowMinimize}
         onMaximize={handleWindowMaximize}
+        isMaximized={isMaximized}
         onClose={handleWindowClose}
         onMirror={handleMirrorToggle}
         onToggleAppFullscreen={handleToggleAppFullscreen}
@@ -573,7 +647,7 @@ function App() {
       
       <div className="tw-bg-black tw-text-white tw-h-screen tw-flex tw-flex-col">
 
-        <div className="tw-flex-1 tw-pt-8">
+        <div className="tw-flex-1 tw-pt-16 md:tw-overflow-hidden tw-overflow-y-auto">
           {showUIDemo ? (
             <UIDemo onClose={() => setShowUIDemo(false)} />
           ) : (
@@ -586,12 +660,14 @@ function App() {
         isOpen={modalConfig.isOpen}
         onClose={handleModalClose}
         onConfirm={handleModalConfirm}
+        onSecondary={modalConfig.type === 'new' ? () => { try { const { resetToDefault } = useStore.getState(); resetToDefault(); window.location.reload(); } catch (e) { console.error('Failed to discard and create new set:', e); } } : undefined}
         title={modalConfig.title}
         message={modalConfig.message}
         placeholder={modalConfig.placeholder}
         defaultValue={modalConfig.defaultValue}
         confirmText={modalConfig.confirmText}
         cancelText={modalConfig.cancelText}
+        secondaryText={modalConfig.type === 'new' ? "Don't Save" : undefined}
       />
       
       <CompositionSettings

@@ -111,6 +111,14 @@ function createWindow() {
     mainWindow!.webContents.setBackgroundThrottling(false);
   });
 
+  // Forward window state to renderer
+  mainWindow.on('maximize', () => {
+    try { mainWindow?.webContents.send('window-state', { maximized: true }); } catch {}
+  });
+  mainWindow.on('unmaximize', () => {
+    try { mainWindow?.webContents.send('window-state', { maximized: false }); } catch {}
+  });
+
   // Check if we're in development mode
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
   
@@ -669,9 +677,11 @@ app.whenReady().then(() => {
       if (mainWindow.isMaximized()) {
         console.log('Main: calling mainWindow.unmaximize()');
         mainWindow.unmaximize();
+        try { mainWindow.webContents.send('window-state', { maximized: false }); } catch {}
       } else {
         console.log('Main: calling mainWindow.maximize()');
         mainWindow.maximize();
+        try { mainWindow.webContents.send('window-state', { maximized: true }); } catch {}
       }
     } else {
       console.log('Main: mainWindow is null');
