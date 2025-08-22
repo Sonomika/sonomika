@@ -22,6 +22,7 @@ import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { GlobalEffectsTab } from './GlobalEffectsTab';
 import { PlayIcon, PauseIcon, StopIcon, GridIcon, RowsIcon, TrashIcon, CopyIcon } from '@radix-ui/react-icons';
+import TimelineControls from './TimelineControls';
 
 
 interface LayerManagerProps {
@@ -78,7 +79,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     gridHeight: 50, // percentage of viewport height - start at 50/50
     mediaLibraryHeight: 50 // percentage of viewport height
   });
-  const [isResizing, setIsResizing] = useState(false);
+  // Resizing disabled: bottom panel is fixed to columns; only upward adjustments allowed via future control
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -258,52 +259,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   };
 
   const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
+    // Resizing disabled
   };
 
   const handleResizeMove = (e: MouseEvent) => {
-    if (!isResizing) return;
-    
-    const container = document.querySelector('.layer-manager-main');
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const mouseY = e.clientY - rect.top;
-    const containerHeight = rect.height;
-    const percentage = (mouseY / containerHeight) * 100;
-    
-    // Clamp between 20% and 80%
-    const clampedPercentage = Math.max(20, Math.min(80, percentage));
-    
-    setPaneSizes({
-      gridHeight: clampedPercentage,
-      mediaLibraryHeight: 100 - clampedPercentage
-    });
+    // Resizing disabled
   };
 
   const handleResizeEnd = () => {
-    setIsResizing(false);
+    // Resizing disabled
   };
 
   React.useEffect(() => {
-    if (!isResizing) return;
-
-    // Add a class to body to indicate resizing is active
-    document.body.classList.add('resizing');
-    
-    const handleMouseMove = (e: MouseEvent) => handleResizeMove(e);
-    const handleMouseUp = () => handleResizeEnd();
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.classList.remove('resizing');
-    };
-  }, [isResizing]);
+    // Resizing disabled
+    return () => {};
+  }, []);
 
   // Drag and Drop Handlers
   const handleDragOverWrapper = (e: React.DragEvent, cellId: string) => {
@@ -1085,6 +1055,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     </button>
                   </div>
                 )}
+                {showTimeline && (
+                  <div className="tw-mr-3">
+                    <TimelineControls />
+                  </div>
+                )}
                 {scenes.map((scene: any, index: number) => (
                   <ContextMenu key={scene.id}>
                     <ContextMenuTrigger asChild>
@@ -1207,7 +1182,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
           </div>
 
-          <div className="tw-flex-1" style={{ height: `${paneSizes.gridHeight}%` }}>
+          <div className="tw-w-full">
             {showTimeline ? (
               <Timeline 
                 onClose={() => setShowTimeline(false)} 
@@ -1227,7 +1202,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 return (
                   <div key={column.id} className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-overflow-hidden">
                     <div 
-                      className={`tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 ${isColumnPlaying ? 'tw-bg-[hsl(var(--accent))/0.15]' : 'tw-bg-neutral-800'} ${hasClips ? 'tw-cursor-pointer' : 'tw-cursor-default'} ${!hasClips ? 'tw-opacity-60' : ''}`}
+                      className={`tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 ${isColumnPlaying ? 'tw-bg-[hsl(var(--accent))/0.18]' : 'tw-bg-neutral-800'} ${hasClips ? 'tw-cursor-pointer' : 'tw-cursor-default'} ${!hasClips ? 'tw-opacity-60' : ''}`}
                       onClick={() => {
                         // Only allow play functionality if column has clips
                         if (hasClips) {
@@ -1238,8 +1213,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       }}
                       title={hasClips ? "Click anywhere to play/restart column" : "Column has no clips"}
                     >
-                      <h4 className="tw-text-sm tw-text-white">{columns.findIndex(c => c.id === column.id) + 1}</h4>
-                      <div className="tw-text-neutral-300">
+                      <h4
+                        className={`tw-text-sm ${isColumnPlaying ? 'tw-text-[hsl(var(--accent))]' : 'tw-text-white'}`}
+                        style={isColumnPlaying ? { color: 'hsl(var(--accent))' } : undefined}
+                      >
+                        {columns.findIndex(c => c.id === column.id) + 1}
+                      </h4>
+                      <div
+                        className={isColumnPlaying ? 'tw-text-[hsl(var(--accent))]' : 'tw-text-neutral-300'}
+                        style={isColumnPlaying ? { color: 'hsl(var(--accent))' } : undefined}
+                      >
                         {hasClips ? (
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
                         ) : (
@@ -1455,16 +1438,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
            {/* Resize Handle */}
            <div 
-             className={`${isResizing ? 'tw-bg-cyan-500 tw-border-cyan-500' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700'} tw-h-1.5 tw-border-y tw-border-neutral-700 tw-cursor-ns-resize`}
-             onMouseDown={handleResizeStart}
-           >
-             <div className="tw-text-neutral-400 tw-text-xs tw-text-center">⋮⋮</div>
-           </div>
+             className={`tw-bg-transparent tw-h-2.5`}
+           />
 
           {/* Bottom Section with Preview, Layer Options, and Media Library */}
           <div 
-            className="tw-flex tw-gap-3 tw-p-3 tw-border-t tw-border-neutral-800"
-            style={{ height: `${paneSizes.mediaLibraryHeight}%` }}
+            className="tw-flex tw-gap-3 tw-px-3 tw-pb-3 tw-pt-0 tw-flex-1"
           >
             {/* Preview Window - Bottom Left */}
             <div 

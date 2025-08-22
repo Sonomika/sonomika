@@ -399,6 +399,32 @@ electron.app.whenReady().then(() => {
     console.log("File path resolved:", filePath);
     callback(filePath);
   });
+  electron.ipcMain.handle("show-open-dialog", async (event, options) => {
+    const result = await electron.dialog.showOpenDialog(mainWindow, options);
+    return result;
+  });
+  electron.ipcMain.handle("show-save-dialog", async (event, options) => {
+    const result = await electron.dialog.showSaveDialog(mainWindow, options);
+    return result;
+  });
+  electron.ipcMain.handle("save-file", async (event, filePath, content) => {
+    try {
+      await fs.promises.writeFile(filePath, content, "utf8");
+      return true;
+    } catch (e) {
+      console.error("Failed to save file:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.handle("read-file-text", async (event, filePath) => {
+    try {
+      const data = await fs.promises.readFile(filePath, "utf8");
+      return data;
+    } catch (e) {
+      console.error("Failed to read file:", e);
+      return null;
+    }
+  });
   electron.ipcMain.handle("read-local-file-base64", async (event, filePath) => {
     try {
       const data = await fs.promises.readFile(filePath);

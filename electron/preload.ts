@@ -65,9 +65,11 @@ try {
       ipcRenderer.send('toggle-app-fullscreen');
     },
     // Read a local file from disk and return base64 string (renderer-safe)
-    readLocalFileAsBase64: (filePath: string): Promise<string> => {
-      return ipcRenderer.invoke('read-local-file-base64', filePath);
-    }
+    readLocalFileAsBase64: (filePath: string): Promise<string> => ipcRenderer.invoke('read-local-file-base64', filePath),
+    showOpenDialog: (options: any) => ipcRenderer.invoke('show-open-dialog', options),
+    showSaveDialog: (options: any) => ipcRenderer.invoke('show-save-dialog', options),
+    saveFile: (filePath: string, content: string) => ipcRenderer.invoke('save-file', filePath, content),
+    readFileText: (filePath: string) => ipcRenderer.invoke('read-file-text', filePath)
   });
   
   console.log('=== PRELOAD SCRIPT: electron API exposed successfully ===');
@@ -166,6 +168,10 @@ declare global {
       resizeMirrorWindow: (width: number, height: number) => void;
       toggleAppFullscreen: () => void;
       readLocalFileAsBase64: (filePath: string) => Promise<string>;
+      showOpenDialog: (options: any) => Promise<any>;
+      showSaveDialog: (options: any) => Promise<any>;
+      saveFile: (filePath: string, content: string) => Promise<boolean>;
+      readFileText: (filePath: string) => Promise<string | null>;
     };
     authStorage: {
       isEncryptionAvailable: () => Promise<boolean>;

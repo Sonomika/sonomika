@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage } from 'electron';
+import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -452,6 +452,35 @@ app.whenReady().then(() => {
   });
   
   // Set up IPC handlers
+  ipcMain.handle('show-open-dialog', async (event, options: Electron.OpenDialogOptions) => {
+    const result = await dialog.showOpenDialog(mainWindow!, options);
+    return result;
+  });
+
+  ipcMain.handle('show-save-dialog', async (event, options: Electron.SaveDialogOptions) => {
+    const result = await dialog.showSaveDialog(mainWindow!, options);
+    return result;
+  });
+
+  ipcMain.handle('save-file', async (event, filePath: string, content: string) => {
+    try {
+      await fs.promises.writeFile(filePath, content, 'utf8');
+      return true;
+    } catch (e) {
+      console.error('Failed to save file:', e);
+      return false;
+    }
+  });
+
+  ipcMain.handle('read-file-text', async (event, filePath: string) => {
+    try {
+      const data = await fs.promises.readFile(filePath, 'utf8');
+      return data;
+    } catch (e) {
+      console.error('Failed to read file:', e);
+      return null;
+    }
+  });
   ipcMain.handle('read-local-file-base64', async (event, filePath: string) => {
     try {
       const data = await fs.promises.readFile(filePath);

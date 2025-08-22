@@ -374,64 +374,111 @@ function App() {
 
 
   const handleNewPreset = () => {
-    setModalConfig({
-      isOpen: true,
-      type: 'new',
-      title: 'New Set',
-      message: 'Are you sure you want to create a new set? This will reset all current settings to default.',
-      confirmText: 'Yes, Reset',
-      cancelText: 'Cancel'
-    });
+    try {
+      const { resetToDefault } = useStore.getState();
+      resetToDefault();
+    } catch (e) {
+      console.error('Failed to create new set:', e);
+    }
   };
 
   const handleSavePreset = () => {
-    // Show modal to get custom preset name
-    setModalConfig({
-      isOpen: true,
-      type: 'save',
-      title: 'Save Set',
-      message: 'Enter a name for your set:',
-      placeholder: 'My Awesome Set',
-      defaultValue: '',
-      confirmText: 'Save',
-      cancelText: 'Cancel'
-    });
+    try {
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showSaveDialog;
+      if (isElectron) {
+        (async () => {
+          const presetName = `preset-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.vjpreset`;
+          const result = await (window as any).electron.showSaveDialog({
+            title: 'Save Set',
+            defaultPath: presetName,
+            filters: [{ name: 'VJ Preset', extensions: ['vjpreset', 'json'] }]
+          });
+          if (!result.canceled && result.filePath) {
+            const { savePreset } = useStore.getState();
+            const key = savePreset(presetName.replace(/\.(vjpreset|json)$/i, ''));
+            if (key) {
+              // regenerate content using current store for reliable save
+              const state = useStore.getState() as any;
+              const preset = {
+                name: key,
+                displayName: key,
+                timestamp: Date.now(),
+                version: '1.0.0',
+                description: `VJ Preset: ${key}`,
+                data: {
+                  scenes: state.scenes,
+                  currentSceneId: state.currentSceneId,
+                  playingColumnId: state.playingColumnId,
+                  bpm: state.bpm,
+                  sidebarVisible: state.sidebarVisible,
+                  midiMappings: state.midiMappings,
+                  selectedLayerId: state.selectedLayerId,
+                  previewMode: state.previewMode,
+                  transitionType: state.transitionType,
+                  transitionDuration: state.transitionDuration,
+                  compositionSettings: state.compositionSettings,
+                  assets: state.assets,
+                }
+              };
+              await (window as any).electron.saveFile(result.filePath, JSON.stringify(preset, null, 2));
+            }
+          }
+        })();
+      } else {
+        // Fallback to existing web modal flow
+        setModalConfig({
+          isOpen: true,
+          type: 'save',
+          title: 'Save Set',
+          message: 'Enter a name for your set:',
+          placeholder: 'My Awesome Set',
+          defaultValue: '',
+          confirmText: 'Save',
+          cancelText: 'Cancel'
+        });
+      }
+    } catch (e) {
+      console.error('Save preset failed:', e);
+    }
   };
 
   const handleLoadPreset = () => {
-    // Create a file input element
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.vjpreset,.json';
-    fileInput.style.display = 'none';
-    
-    fileInput.onchange = async (e) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      
-                if (file) {
-            try {
-              const success = await loadPreset(file);
-              if (success) {
-                console.log(`Preset "${file.name}" loaded successfully!`);
-                // Removed alert to reduce popups
-              } else {
-                console.error('Failed to load preset. Please check the file format.');
-                // Removed alert to reduce popups
-              }
-            } catch (error) {
-              console.error('Error loading preset:', error);
-              // Removed alert to reduce popups
+    try {
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
+      if (isElectron) {
+        (async () => {
+          const result = await (window as any).electron.showOpenDialog({
+            title: 'Load Set',
+            properties: ['openFile'],
+            filters: [{ name: 'VJ Preset', extensions: ['vjpreset', 'json'] }]
+          });
+          if (!result.canceled && result.filePaths && result.filePaths[0]) {
+            const content = await (window as any).electron.readFileText(result.filePaths[0]);
+            if (content) {
+              const blob = new Blob([content], { type: 'application/json' });
+              const file = new File([blob], result.filePaths[0]);
+              await loadPreset(file);
             }
           }
-      
-      // Clean up
-      document.body.removeChild(fileInput);
-    };
-    
-    // Trigger file selection
-    document.body.appendChild(fileInput);
-    fileInput.click();
+        })();
+      } else {
+        // Web fallback
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.vjpreset,.json';
+        fileInput.style.display = 'none';
+        fileInput.onchange = async (e) => {
+          const target = e.target as HTMLInputElement;
+          const file = target.files?.[0];
+          if (file) await loadPreset(file);
+          document.body.removeChild(fileInput);
+        };
+        document.body.appendChild(fileInput);
+        fileInput.click();
+      }
+    } catch (e) {
+      console.error('Load preset failed:', e);
+    }
   };
 
   const handleCompositionSettings = () => {
@@ -526,7 +573,7 @@ function App() {
       
       <div className="tw-bg-black tw-text-white tw-h-screen tw-flex tw-flex-col">
 
-        <div className="tw-flex-1 tw-h-[calc(100vh-32px)]">
+        <div className="tw-flex-1 tw-pt-8">
           {showUIDemo ? (
             <UIDemo onClose={() => setShowUIDemo(false)} />
           ) : (
