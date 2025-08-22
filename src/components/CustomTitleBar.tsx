@@ -18,6 +18,7 @@ interface CustomTitleBarProps {
   onToggleDebug?: () => void;
   onSignOut?: () => void;
   isMaximized?: boolean;
+  onAdvancedMirror?: () => void;
 }
 
 export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
@@ -36,12 +37,15 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   debugMode = false,
   onToggleDebug,
   onSignOut,
-  isMaximized = false
+  isMaximized = false,
+  onAdvancedMirror
 }) => {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFileOpen, setMobileFileOpen] = useState(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
+  const [externalMenuOpen, setExternalMenuOpen] = useState(false);
+  const externalMenuRef = useRef<HTMLDivElement>(null);
 
   // Detect Electron vs Web
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
@@ -157,9 +161,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               )}
             </Popover>
           </div>
-          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onMirror}>
-            Mirror
-          </button>
+          
           {isElectron && (
             <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onToggleAppFullscreen}>
               Fullscreen
@@ -174,6 +176,38 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onCompositionSettings}>
             Composition Settings
           </button>
+          {/* External dropdown before Settings */}
+          <div className="menu-item-dropdown app-no-drag" ref={externalMenuRef}>
+            <Popover open={externalMenuOpen} onOpenChange={setExternalMenuOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent`}
+                >
+                  External
+                </button>
+              </PopoverTrigger>
+              {externalMenuOpen && (
+                <PopoverContent className="tw-min-w-[180px] app-no-drag" align="start" side="bottom" >
+                  <div className="tw-flex tw-flex-col tw-py-1">
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => { e.stopPropagation(); onMirror && onMirror(); setExternalMenuOpen(false); }}
+                    >
+                      Mirror
+                    </button>
+                    {isElectron && (
+                      <button 
+                        className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                        onClick={(e) => { e.stopPropagation(); onAdvancedMirror && onAdvancedMirror(); setExternalMenuOpen(false); }}
+                      >
+                        Advanced Mirror
+                      </button>
+                    )}
+                  </div>
+                </PopoverContent>
+              )}
+            </Popover>
+          </div>
           <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onOpenSettings}>
             Settings
           </button>

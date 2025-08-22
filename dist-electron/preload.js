@@ -46,6 +46,9 @@ try {
         onToggleMirror: (callback) => {
             electron_1.ipcRenderer.on('toggle-mirror', callback);
         },
+        onToggleAdvancedMirror: (callback) => {
+            electron_1.ipcRenderer.on('toggle-advanced-mirror', callback);
+        },
         openMirrorWindow: () => electron_1.ipcRenderer.send('open-mirror-window'),
         closeMirrorWindow: () => electron_1.ipcRenderer.send('close-mirror-window'),
         setMirrorBackground: (color) => electron_1.ipcRenderer.send('set-mirror-bg', color),
@@ -81,6 +84,56 @@ try {
         saveFile: (filePath, content) => electron_1.ipcRenderer.invoke('save-file', filePath, content),
         readFileText: (filePath) => electron_1.ipcRenderer.invoke('read-file-text', filePath)
     });
+    // Advanced mirror API
+    electron_1.contextBridge.exposeInMainWorld('advancedMirror', {
+        open: (slices) => {
+            console.log('[preload] advanced-mirror:open', slices?.map?.(s => s?.id));
+            electron_1.ipcRenderer.send('advanced-mirror:open', slices);
+        },
+        closeAll: () => {
+            console.log('[preload] advanced-mirror:closeAll');
+            electron_1.ipcRenderer.send('advanced-mirror:closeAll');
+        },
+        sendSliceData: (id, dataUrl) => {
+            // Avoid flooding console, but log ids
+            // console.log('[preload] advanced-mirror:sendSliceData', id, dataUrl?.length);
+            electron_1.ipcRenderer.send('advanced-mirror:sendSliceData', id, dataUrl);
+        },
+        setSliceBackground: (id, color) => {
+            electron_1.ipcRenderer.send('advanced-mirror:setBg', id, color);
+        },
+        resizeSliceWindow: (id, width, height) => {
+            electron_1.ipcRenderer.send('advanced-mirror:resize', id, width, height);
+        },
+        toggleSliceFullscreen: (id) => {
+            electron_1.ipcRenderer.send('advanced-mirror:toggleFullscreen', id);
+        }
+    });
+    // Also expose advanced mirror helpers under window.electron for broader compatibility
+    try {
+        const existing = globalThis.electron || {};
+        globalThis.electron = {
+            ...existing,
+            advancedMirrorOpen: (slices) => {
+                console.log('[preload] electron.advancedMirrorOpen');
+                electron_1.ipcRenderer.send('advanced-mirror:open', slices);
+            },
+            advancedMirrorCloseAll: () => {
+                console.log('[preload] electron.advancedMirrorCloseAll');
+                electron_1.ipcRenderer.send('advanced-mirror:closeAll');
+            },
+            advancedMirrorSendSliceData: (id, dataUrl) => {
+                electron_1.ipcRenderer.send('advanced-mirror:sendSliceData', id, dataUrl);
+            },
+            advancedMirrorSetBg: (id, color) => {
+                electron_1.ipcRenderer.send('advanced-mirror:setBg', id, color);
+            },
+            advancedMirrorResize: (id, width, height) => {
+                electron_1.ipcRenderer.send('advanced-mirror:resize', id, width, height);
+            }
+        };
+    }
+    catch { }
     console.log('=== PRELOAD SCRIPT: electron API exposed successfully ===');
     // Expose a minimal, safe filesystem API for the renderer (read-only)
     console.log('=== PRELOAD SCRIPT: Starting to expose fsApi ===');

@@ -1,17 +1,18 @@
 import React from 'react';
 import { getEffect } from './effectRegistry';
+const DEBUG_EFFECTS = !!(typeof window !== 'undefined' && (window as any).__DEBUG_EFFECTS);
 
 // Preload all effect modules eagerly once so they self-register synchronously
 try {
   const eagerModules = (import.meta as any).glob('../effects/**/*.tsx', { eager: true });
-  console.log('🧪 Eager-loaded effect modules:', Object.keys(eagerModules));
+  if (DEBUG_EFFECTS) console.log('🧪 Eager-loaded effect modules:', Object.keys(eagerModules));
 } catch (e) {
-  console.warn('⚠️ Eager preload failed; will rely on lazy loading only');
+  if (DEBUG_EFFECTS) console.warn('⚠️ Eager preload failed; will rely on lazy loading only');
 }
 
 // Test what modules are available (lazy map)
 const testModules = (import.meta as any).glob('../effects/**/*.tsx');
-console.log('🧪 Available effect modules (lazy map):', Object.keys(testModules));
+if (DEBUG_EFFECTS) console.log('🧪 Available effect modules (lazy map):', Object.keys(testModules));
 
 /**
  * Loads an effect component dynamically from the effects folder
@@ -19,7 +20,7 @@ console.log('🧪 Available effect modules (lazy map):', Object.keys(testModules
  * @returns A React component or null if loading fails
  */
 export const loadEffectComponent = async (effectId: string): Promise<React.ComponentType<any> | null> => {
-  console.log(`🚀 loadEffectComponent called with effectId: ${effectId}`);
+  if (DEBUG_EFFECTS) console.log(`🚀 loadEffectComponent called with effectId: ${effectId}`);
   
   // Handle undefined or invalid effect IDs
   if (!effectId || effectId === 'unknown' || effectId === 'undefined') {
@@ -34,23 +35,27 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
     // Try the exact filename first
     const exactPath = `../effects/${effectId}.tsx`;
     
-    console.log(`🔍 Loading effect: ${effectId}`);
-    console.log(`🔍 Available modules:`, Object.keys(modules));
-    console.log(`🔍 Trying exact path: ${exactPath} - exists: ${!!modules[exactPath]}`);
+    if (DEBUG_EFFECTS) {
+      console.log(`🔍 Loading effect: ${effectId}`);
+      console.log(`🔍 Available modules:`, Object.keys(modules));
+      console.log(`🔍 Trying exact path: ${exactPath} - exists: ${!!modules[exactPath]}`);
+    }
     
     if (modules[exactPath]) {
-      console.log(`✅ Found effect at: ${exactPath}`);
+      if (DEBUG_EFFECTS) console.log(`✅ Found effect at: ${exactPath}`);
       const mod = await modules[exactPath]();
-      console.log(`✅ Effect module loaded:`, mod);
-      console.log(`🔍 Module keys:`, Object.keys(mod));
-      console.log(`🔍 Module default:`, mod.default);
-      console.log(`🔍 Module default type:`, typeof mod.default);
+      if (DEBUG_EFFECTS) {
+        console.log(`✅ Effect module loaded:`, mod);
+        console.log(`🔍 Module keys:`, Object.keys(mod));
+        console.log(`🔍 Module default:`, mod.default);
+        console.log(`🔍 Module default type:`, typeof mod.default);
+      }
       return mod.default;
     }
 
     // If exact match not found, try to find by partial match
     const availableFiles = Object.keys(modules);
-    console.log(`🔍 Available files:`, availableFiles);
+    if (DEBUG_EFFECTS) console.log(`🔍 Available files:`, availableFiles);
     
     // Try to find a file that matches the effectId (could be kebab-case or original filename)
     const matchingFile = availableFiles.find(file => {
@@ -80,25 +85,27 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
       
       // Fallback: check if either contains the other
       const matches = file.includes(effectId) || effectId.includes(fileName) || fileName.endsWith(`/${camelCaseEffectId}`) || fileName.endsWith(`/${camelCaseEffectId}Effect`);
-      console.log(`🔍 Checking file: ${file} (${fileName}) against ${effectId} - matches: ${matches}`);
+      if (DEBUG_EFFECTS) console.log(`🔍 Checking file: ${file} (${fileName}) against ${effectId} - matches: ${matches}`);
       return matches;
     });
     
     if (matchingFile) {
-      console.log(`✅ Found effect by partial match: ${matchingFile}`);
+      if (DEBUG_EFFECTS) console.log(`✅ Found effect by partial match: ${matchingFile}`);
       const mod = await modules[matchingFile]();
-      console.log(`✅ Effect module loaded:`, mod);
-      console.log(`🔍 Module keys:`, Object.keys(mod));
-      console.log(`🔍 Module default:`, mod.default);
-      console.log(`🔍 Module default type:`, typeof mod.default);
+      if (DEBUG_EFFECTS) {
+        console.log(`✅ Effect module loaded:`, mod);
+        console.log(`🔍 Module keys:`, Object.keys(mod));
+        console.log(`🔍 Module default:`, mod.default);
+        console.log(`🔍 Module default type:`, typeof mod.default);
+      }
       return mod.default;
     }
 
     // If no effect found, return null instead of hardcoding a fallback
-    console.warn(`No effect found for ID: ${effectId}`);
+    if (DEBUG_EFFECTS) console.warn(`No effect found for ID: ${effectId}`);
     return null;
   } catch (error) {
-    console.error(`Error loading effect ${effectId}:`, error);
+    if (DEBUG_EFFECTS) console.error(`Error loading effect ${effectId}:`, error);
     return null;
   }
 };
@@ -109,7 +116,7 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
  * @returns The loaded effect component or null if still loading
  */
 export const useEffectComponent = (effectId: string): React.ComponentType<any> | null => {
-  console.log(`🎯 useEffectComponent called with effectId: ${effectId}`);
+  if (DEBUG_EFFECTS) console.log(`🎯 useEffectComponent called with effectId: ${effectId}`);
   
   // ALWAYS call hooks first - never conditionally!
   const [EffectComponent, setEffectComponent] = React.useState<React.ComponentType<any> | null>(null);
@@ -143,16 +150,16 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
   };
 
   const updatedEffectId = getUpdatedEffectId(effectId);
-  console.log(`🎯 Mapped effectId: ${effectId} -> ${updatedEffectId}`);
+  if (DEBUG_EFFECTS) console.log(`🎯 Mapped effectId: ${effectId} -> ${updatedEffectId}`);
 
   React.useEffect(() => {
-    console.log(`🔄 useEffect triggered for effectId: ${effectId}`);
+    if (DEBUG_EFFECTS) console.log(`🔄 useEffect triggered for effectId: ${effectId}`);
     
     const loadEffect = async () => {
       // Try to get from registry first
       const registeredEffect = getEffect(updatedEffectId);
       if (registeredEffect) {
-        console.log(`✅ Found effect in registry: ${updatedEffectId}`);
+        if (DEBUG_EFFECTS) console.log(`✅ Found effect in registry: ${updatedEffectId}`);
         setEffectComponent(() => registeredEffect);
         return;
       }
@@ -163,14 +170,14 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
         : null;
         
       if (!validEffectId) {
-        console.log(`❌ Invalid effectId: ${effectId}`);
+        if (DEBUG_EFFECTS) console.log(`❌ Invalid effectId: ${effectId}`);
         setEffectComponent(null);
         return;
       }
         
-      console.log(`📞 Calling loadEffectComponent with: ${validEffectId}`);
+      if (DEBUG_EFFECTS) console.log(`📞 Calling loadEffectComponent with: ${validEffectId}`);
       const component = await loadEffectComponent(validEffectId);
-      console.log(`📦 Component loaded:`, component);
+      if (DEBUG_EFFECTS) console.log(`📦 Component loaded:`, component);
       setEffectComponent(() => component);
       // no-op
     };
@@ -188,10 +195,10 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
  * @returns The effect component from registry or null if not found
  */
 export const getEffectComponentSync = (effectId: string): React.ComponentType<any> | null => {
-  console.log(`🎯 getEffectComponentSync called with effectId: ${effectId}`);
+  if (DEBUG_EFFECTS) console.log(`🎯 getEffectComponentSync called with effectId: ${effectId}`);
   
   if (!effectId || effectId.trim() === '' || effectId === 'undefined') {
-    console.log(`❌ Invalid effectId provided: "${effectId}"`);
+    if (DEBUG_EFFECTS) console.log(`❌ Invalid effectId provided: "${effectId}"`);
     return null;
   }
   
@@ -221,7 +228,7 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
   };
 
   const updatedEffectId = getUpdatedEffectId(effectId);
-  console.log(`🎯 Mapped effectId: ${effectId} -> ${updatedEffectId}`);
+  if (DEBUG_EFFECTS) console.log(`🎯 Mapped effectId: ${effectId} -> ${updatedEffectId}`);
   
   // Try to get from registry (synchronous only)
   let registeredEffect = getEffect(updatedEffectId);
@@ -238,11 +245,11 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
     registeredEffect = getEffect(`sources/${effectId}`) || getEffect(`visual-effects/${effectId}`) || null;
   }
   if (registeredEffect) {
-    console.log(`✅ Found effect in registry (sync):`, registeredEffect?.name || updatedEffectId);
+    if (DEBUG_EFFECTS) console.log(`✅ Found effect in registry (sync):`, registeredEffect?.name || updatedEffectId);
     return registeredEffect;
   }
   
   // If not in registry, return null (no async loading in sync version)
-  console.log(`❌ Effect not found in registry: ${updatedEffectId}`);
+  if (DEBUG_EFFECTS) console.log(`❌ Effect not found in registry: ${updatedEffectId}`);
   return null;
 }; 

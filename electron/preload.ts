@@ -44,6 +44,9 @@ try {
     onToggleMirror: (callback: () => void) => {
       ipcRenderer.on('toggle-mirror', callback);
     },
+    onToggleAdvancedMirror: (callback: () => void) => {
+      ipcRenderer.on('toggle-advanced-mirror', callback);
+    },
     openMirrorWindow: () => ipcRenderer.send('open-mirror-window'),
     closeMirrorWindow: () => ipcRenderer.send('close-mirror-window'),
     setMirrorBackground: (color: string) => ipcRenderer.send('set-mirror-bg', color),
@@ -76,6 +79,57 @@ try {
     saveFile: (filePath: string, content: string) => ipcRenderer.invoke('save-file', filePath, content),
     readFileText: (filePath: string) => ipcRenderer.invoke('read-file-text', filePath)
   });
+
+  // Advanced mirror API
+  contextBridge.exposeInMainWorld('advancedMirror', {
+    open: (slices: Array<{ id: string; title?: string; width?: number; height?: number; x?: number; y?: number }>) => {
+      console.log('[preload] advanced-mirror:open', slices?.map?.(s => s?.id));
+      ipcRenderer.send('advanced-mirror:open', slices);
+    },
+    closeAll: () => {
+      console.log('[preload] advanced-mirror:closeAll');
+      ipcRenderer.send('advanced-mirror:closeAll');
+    },
+    sendSliceData: (id: string, dataUrl: string) => {
+      // Avoid flooding console, but log ids
+      // console.log('[preload] advanced-mirror:sendSliceData', id, dataUrl?.length);
+      ipcRenderer.send('advanced-mirror:sendSliceData', id, dataUrl);
+    },
+    setSliceBackground: (id: string, color: string) => {
+      ipcRenderer.send('advanced-mirror:setBg', id, color);
+    },
+    resizeSliceWindow: (id: string, width: number, height: number) => {
+      ipcRenderer.send('advanced-mirror:resize', id, width, height);
+    },
+    toggleSliceFullscreen: (id: string) => {
+      ipcRenderer.send('advanced-mirror:toggleFullscreen', id);
+    }
+  });
+
+  // Also expose advanced mirror helpers under window.electron for broader compatibility
+  try {
+    const existing = (globalThis as any).electron || {};
+    (globalThis as any).electron = {
+      ...existing,
+      advancedMirrorOpen: (slices: Array<{ id: string; title?: string; width?: number; height?: number; x?: number; y?: number }>) => {
+        console.log('[preload] electron.advancedMirrorOpen');
+        ipcRenderer.send('advanced-mirror:open', slices);
+      },
+      advancedMirrorCloseAll: () => {
+        console.log('[preload] electron.advancedMirrorCloseAll');
+        ipcRenderer.send('advanced-mirror:closeAll');
+      },
+      advancedMirrorSendSliceData: (id: string, dataUrl: string) => {
+        ipcRenderer.send('advanced-mirror:sendSliceData', id, dataUrl);
+      },
+      advancedMirrorSetBg: (id: string, color: string) => {
+        ipcRenderer.send('advanced-mirror:setBg', id, color);
+      },
+      advancedMirrorResize: (id: string, width: number, height: number) => {
+        ipcRenderer.send('advanced-mirror:resize', id, width, height);
+      }
+    };
+  } catch {}
   
   console.log('=== PRELOAD SCRIPT: electron API exposed successfully ===');
   
@@ -166,6 +220,7 @@ declare global {
       close: () => void;
       toggleMirror: () => void;
       onToggleMirror: (callback: () => void) => void;
+      onToggleAdvancedMirror: (callback: () => void) => void;
       openMirrorWindow: () => void;
       closeMirrorWindow: () => void;
       sendCanvasData: (dataUrl: string) => void;
@@ -177,6 +232,14 @@ declare global {
       showSaveDialog: (options: any) => Promise<any>;
       saveFile: (filePath: string, content: string) => Promise<boolean>;
       readFileText: (filePath: string) => Promise<string | null>;
+    };
+    advancedMirror: {
+      open: (slices: Array<{ id: string; title?: string; width?: number; height?: number; x?: number; y?: number }>) => void;
+      closeAll: () => void;
+      sendSliceData: (id: string, dataUrl: string) => void;
+      setSliceBackground: (id: string, color: string) => void;
+      resizeSliceWindow: (id: string, width: number, height: number) => void;
+      toggleSliceFullscreen: (id: string) => void;
     };
     authStorage: {
       isEncryptionAvailable: () => Promise<boolean>;

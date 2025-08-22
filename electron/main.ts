@@ -21,6 +21,8 @@ if (!gotTheLock) {
 
 let mainWindow: BrowserWindow | null = null;
 let mirrorWindow: BrowserWindow | null = null;
+// Advanced mirror windows keyed by slice id
+const advancedMirrorWindows: Map<string, BrowserWindow> = new Map();
 let encryptedAuthStore: Record<string, Buffer> = {};
 
 function getAuthStoreFilePath() {
@@ -364,6 +366,123 @@ function closeMirrorWindow() {
   }
 }
 
+function createAdvancedMirrorWindow(id: string, opts?: { width?: number; height?: number; x?: number; y?: number; title?: string }) {
+  // Reuse if exists
+  const existing = advancedMirrorWindows.get(id);
+  if (existing && !existing.isDestroyed()) {
+    try { existing.focus(); } catch {}
+    return existing;
+  }
+
+  // Resolve preload: prefer mirror-preload.js if present, else fall back to preload.js
+  const mirrorPreload = path.join(__dirname, 'mirror-preload.js');
+  const fallbackPreload = path.join(__dirname, 'preload.js');
+  const preloadPath = fs.existsSync(mirrorPreload) ? mirrorPreload : fallbackPreload;
+
+  const win = new BrowserWindow({
+    width: opts?.width ?? 960,
+    height: opts?.height ?? 540,
+    x: opts?.x,
+    y: opts?.y,
+    title: opts?.title ?? `VJ Mirror Slice: ${id}`,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: preloadPath
+    },
+    show: false,
+    resizable: true,
+    maximizable: true,
+    fullscreen: false,
+    kiosk: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    focusable: true,
+    movable: true,
+    frame: false,
+    titleBarStyle: 'hidden',
+    transparent: false,
+    thickFrame: false,
+    hasShadow: false,
+    backgroundColor: '#000000',
+    fullscreenable: true,
+    autoHideMenuBar: true,
+    minWidth: 320,
+    minHeight: 180
+  });
+
+  // Remove all chrome: no menu bar on slice windows
+  try { win.setMenuBarVisibility(false); } catch {}
+  try { win.removeMenu(); } catch {}
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${(opts?.title ?? `VJ Mirror Slice: ${id}`)}</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          background: #000;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          overflow: hidden;
+          font-family: monospace;
+        }
+        /* Make the background draggable */
+        body::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          -webkit-app-region: drag;
+          z-index: 0;
+        }
+        img { width: 100%; height: 100%; object-fit: cover; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; transition: opacity 0.1s ease-in-out; -webkit-app-region: drag; position: relative; z-index: 1; }
+        #mirror-image { opacity: 0; transition: opacity 0.2s ease-in-out; }
+        #mirror-image.loaded { opacity: 1; }
+      </style>
+    </head>
+    <body ondblclick="toggleFullscreen()">
+      <img id="mirror-image" style="display: none;" onload="this.classList.add('loaded');">
+      <script>
+        function toggleFullscreen() {
+          try { window.advancedMirror && window.advancedMirror.toggleSliceFullscreen && window.advancedMirror.toggleSliceFullscreen('${id}'); } catch {}
+        }
+      <\/script>
+    </body>
+    </html>
+  `;
+
+  win.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
+  // Show explicitly to avoid relying on ready-to-show for data URLs
+  try { win.show(); win.center(); } catch {}
+  win.once('ready-to-show', () => {
+    try { if (!win.isVisible()) { win.show(); win.center(); } } catch {}
+  });
+  win.on('closed', () => {
+    advancedMirrorWindows.delete(id);
+  });
+
+  // Handle keyboard events for the advanced mirror window
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'Escape') {
+      win.close();
+    }
+  });
+
+  advancedMirrorWindows.set(id, win);
+  return win;
+}
+
 function createCustomMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
@@ -379,6 +498,29 @@ function createCustomMenu() {
           accelerator: 'CmdOrCtrl+Q',
           click: () => {
             app.quit();
+          }
+        }
+      ]
+    },
+    {
+      label: 'External',
+      submenu: [
+        {
+          label: 'Mirror Window',
+          accelerator: 'CmdOrCtrl+M',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('toggle-mirror');
+            }
+          }
+        },
+        {
+          label: 'Advanced Mirror',
+          accelerator: 'CmdOrCtrl+Shift+M',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('toggle-advanced-mirror');
+            }
           }
         }
       ]
@@ -811,6 +953,92 @@ app.whenReady().then(() => {
       console.log('Resizing mirror window to:', width, 'x', height);
       mirrorWindow.setSize(width, height);
       mirrorWindow.center();
+    }
+  });
+
+  // Advanced mirror IPC
+  ipcMain.on('advanced-mirror:open', (event, slices: Array<{ id: string; title?: string; width?: number; height?: number; x?: number; y?: number }>) => {
+    try {
+      console.log('[main] advanced-mirror:open', Array.isArray(slices) ? slices.map(s => s?.id) : slices);
+      if (Array.isArray(slices)) {
+        for (const s of slices) {
+          console.log('[main] createAdvancedMirrorWindow', s?.id);
+          createAdvancedMirrorWindow(String(s.id), s);
+        }
+      }
+    } catch (e) {
+      console.warn('advanced-mirror:open error', e);
+    }
+  });
+
+  ipcMain.on('advanced-mirror:closeAll', () => {
+    try {
+      advancedMirrorWindows.forEach((win, id) => {
+        try { if (!win.isDestroyed()) win.close(); } catch {}
+        advancedMirrorWindows.delete(id);
+      });
+    } catch (e) {
+      console.warn('advanced-mirror:closeAll error', e);
+    }
+  });
+
+  ipcMain.on('advanced-mirror:sendSliceData', (event, id: string, dataUrl: string) => {
+    // console.log('[main] advanced-mirror:sendSliceData', id, dataUrl?.length);
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const escaped = (typeof dataUrl === 'string' ? dataUrl : '').replace(/'/g, "\\'");
+      win.webContents.executeJavaScript(`
+        (function() {
+          const mirrorImage = document.getElementById('mirror-image');
+          if (mirrorImage) {
+            if (mirrorImage.src !== '${escaped}') {
+              mirrorImage.src = '${escaped}';
+              mirrorImage.style.display = 'block';
+            }
+          }
+        })();
+      `);
+    }
+  });
+
+  ipcMain.on('advanced-mirror:setBg', (event, id: string, color: string) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const safe = typeof color === 'string' ? color.replace(/'/g, "\\'") : '#000000';
+      win.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+    }
+  });
+
+  ipcMain.on('advanced-mirror:resize', (event, id: string, width: number, height: number) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      try { win.setSize(width, height); win.center(); } catch {}
+    }
+  });
+
+  ipcMain.on('advanced-mirror:toggleFullscreen', (event, id: string) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const { screen } = require('electron');
+      if (win.isKiosk() || win.isFullScreen()) {
+        try {
+          win.setKiosk(false);
+          win.setFullScreen(false);
+          win.setBounds({ width: 960, height: 540 });
+          win.center();
+        } catch {}
+      } else {
+        try {
+          const bounds = win.getBounds();
+          const display = screen.getDisplayMatching(bounds);
+          win.setBounds({ x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height });
+          win.setMenuBarVisibility(false);
+          win.setFullScreenable(true);
+          win.setAlwaysOnTop(true);
+          win.setKiosk(true);
+          win.setFullScreen(true);
+        } catch {}
+      }
     }
   });
   

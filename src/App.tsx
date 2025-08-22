@@ -6,9 +6,11 @@ import { CustomTitleBar } from './components/CustomTitleBar';
 import { SettingsDialog } from './components/SettingsDialog';
 import { UIDemo } from './components/ui';
 import { Toaster } from './components/ui';
+import { AdvancedMirrorDialog } from './components/AdvancedMirrorDialog';
 import { useStore } from './store/store';
 import { effectCache } from './utils/EffectCache';
 import { CanvasStreamManager } from './utils/CanvasStream';
+import { AdvancedMirrorStreamManager } from './utils/AdvancedMirrorStream';
 import './index.css';
 import { attachLFOEngineGlobalListeners } from './engine/LFOEngine';
 import { handleRedirectIfPresent } from './lib/dropbox';
@@ -78,9 +80,11 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showUIDemo, setShowUIDemo] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [advMirrorOpen, setAdvMirrorOpen] = useState(false);
   
   const [debugMode, setDebugMode] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
+  const advStreamRef = useRef<AdvancedMirrorStreamManager | null>(null);
   const usingDummyCanvas = useRef<boolean>(false);
   const { savePreset, loadPreset, accessibilityEnabled, accentColor } = useStore() as any;
   const lastSaveRef = useRef<number>(0);
@@ -219,6 +223,9 @@ function App() {
     if (window.electron) {
       window.electron.onToggleMirror(() => {
         handleMirrorToggle();
+      });
+      (window.electron as any).onToggleAdvancedMirror?.(() => {
+        setAdvMirrorOpen(true);
       });
     }
   }, []);
@@ -614,6 +621,26 @@ function App() {
     }
   };
 
+  const handleAdvancedMirror = async (opts?: { count?: number; orientation?: 'horizontal' | 'vertical' }) => {
+    try {
+      let canvas = document.querySelector('canvas') as HTMLCanvasElement;
+      if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.width = 1920;
+        canvas.height = 1080;
+        canvas.style.display = 'none';
+        canvas.id = 'dummy-mirror-canvas';
+        document.body.appendChild(canvas);
+      }
+      advStreamRef.current = new AdvancedMirrorStreamManager(canvas);
+      const count = Math.max(1, opts?.count ?? 1);
+      const orientation = (opts?.orientation ?? 'horizontal');
+      advStreamRef.current.openWithUniformSlices({ count, orientation });
+    } catch (e) {
+      console.error('Advanced mirror error', e);
+    }
+  };
+
   return (
     <ErrorBoundary>
       <CustomTitleBar
@@ -643,6 +670,7 @@ function App() {
             }
           } catch {}
         }}
+        onAdvancedMirror={() => { setAdvMirrorOpen(true); }}
       />
       
       <div className="tw-bg-black tw-text-white tw-h-screen tw-flex tw-flex-col">
@@ -675,6 +703,7 @@ function App() {
         onClose={() => setCompositionSettingsOpen(false)}
       />
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <AdvancedMirrorDialog open={advMirrorOpen} onOpenChange={setAdvMirrorOpen} onStart={(opts) => handleAdvancedMirror(opts)} />
       <Toaster />
     </ErrorBoundary>
   );
