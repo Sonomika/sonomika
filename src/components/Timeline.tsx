@@ -2167,9 +2167,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
       <div className="tw-overflow-hidden tw-flex-1 tw-min-h-0">
         {/* Timeline Tracks - custom scroll (horizontal + vertical) */}
-        <ScrollArea.Root className="tw-h-[350px] tw-min-h-[350px]">
+        <ScrollArea.Root className="vj-scroll-root tw-h-[350px] tw-min-h-[350px]">
           <ScrollArea.Viewport
-            className="tw-h-[350px] tw-min-h-[350px] tw-pb-3"
+            className="vj-scroll-viewport tw-h-[350px] tw-min-h-[350px] tw-pb-3"
             ref={timelineRef}
             onScroll={handleScrollThrottled}
             onMouseDown={handleTimelineMouseDown}
@@ -2361,20 +2361,18 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         </div>
           </ScrollArea.Viewport>
           <ScrollArea.Scrollbar
+            forceMount
             orientation="horizontal"
-            className="tw-flex tw-h-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-mt-1"
+            className="tw-z-10 tw-flex tw-h-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-mt-1"
           >
-            {hasOverflowX && (
-              <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-w-[28px]" />
-            )}
+            <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-w-[28px]" />
           </ScrollArea.Scrollbar>
           <ScrollArea.Scrollbar
+            forceMount
             orientation="vertical"
-            className="tw-flex tw-w-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out"
+            className="tw-z-10 tw-flex tw-w-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out"
           >
-            {hasOverflowY && (
-              <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-h-[28px]" />
-            )}
+            <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-h-[28px]" />
           </ScrollArea.Scrollbar>
         </ScrollArea.Root>
       </div>

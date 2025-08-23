@@ -126,8 +126,8 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
           + Slot
         </button>
       </div>
-      <ScrollArea.Root className="tw-h-full" type="always">
-        <ScrollArea.Viewport className="tw-h-full tw-w-full">
+      <ScrollArea.Root className="vj-scroll-root tw-h-full" type="always">
+        <ScrollArea.Viewport className="vj-scroll-viewport tw-h-full tw-w-full">
           <div className="tw-space-y-2">
             {Array.from({ length: numSlots }).map((_, index) => {
               const slot = effects[index];
@@ -199,7 +199,7 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
             })}
           </div>
         </ScrollArea.Viewport>
-        <ScrollArea.Scrollbar className="tw-flex tw-w-2" orientation="vertical">
+        <ScrollArea.Scrollbar className="tw-z-10 tw-flex tw-w-2" orientation="vertical">
           <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px]" />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>

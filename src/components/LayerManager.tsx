@@ -1077,7 +1077,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     
     return (
       <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col md:tw-overflow-hidden tw-overflow-auto">
-        <div className="tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
+        <div className="tw-flex tw-flex-col tw-h-full md:tw-min-h-0 md:tw-overflow-y-auto md:tw-pb-0">
           <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <div className="header-left tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
 
@@ -1258,8 +1258,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 {/* Global Effects Row removed - moved into Global tab */}
 
             {/* Columns + Layers: fixed column width; custom scroll (horizontal) */}
-            <ScrollArea.Root className="tw-w-full" type="always">
-              <ScrollArea.Viewport className="tw-w-full tw-pr-3 tw-pb-3" ref={gridWrapperRef}>
+            <ScrollArea.Root className="vj-scroll-root tw-w-full" type="always">
+              <ScrollArea.Viewport className="vj-scroll-viewport tw-w-full tw-pr-3 tw-pb-3" ref={gridWrapperRef}>
               <div className="tw-space-y-2">
                 {/* Composition Row */}
                 <div className="tw-grid tw-gap-2" style={{ gridTemplateColumns: columnWidth ? `repeat(${columns.length}, ${columnWidth}px)` : undefined }}>
@@ -1500,20 +1500,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               </div>
               </ScrollArea.Viewport>
               <ScrollArea.Scrollbar forceMount
-                className="tw-flex tw-h-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-mt-1"
+                className="tw-z-10 tw-flex tw-h-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-mt-1"
                 orientation="horizontal"
               >
-                {gridHasOverflowX && (
-                  <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-w-[28px]" />
-                )}
+                <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-w-[28px]" />
               </ScrollArea.Scrollbar>
               <ScrollArea.Scrollbar forceMount
-                className="tw-flex tw-w-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out"
+                className="tw-z-10 tw-flex tw-w-2.5 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out"
                 orientation="vertical"
               >
-                {gridHasOverflowY && (
-                  <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-h-[28px]" />
-                )}
+                <ScrollArea.Thumb className="tw-bg-neutral-600 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-500 tw-min-h-[28px]" />
               </ScrollArea.Scrollbar>
             </ScrollArea.Root>
             </>
@@ -1531,7 +1527,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
           {/* Bottom Section with Preview, Layer Options, and Media Library */}
           <div 
-            className="tw-flex tw-flex-col md:tw-flex-row tw-gap-3 tw-px-3 tw-pb-3 tw-pt-0 tw-flex-1"
+            className="tw-flex tw-flex-col md:tw-flex-row tw-gap-3 tw-px-3 tw-pb-3 tw-pt-0 tw-flex-1 md:tw-sticky md:tw-top-0 md:tw-z-30 md:tw-bg-neutral-900 md:tw-border-t md:tw-border-neutral-800 md:tw-h-[360px]"
           >
             {/* Preview Window - Bottom Left */}
             <div 
@@ -1566,7 +1562,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 </Tabs>
               </div>
                              <div className="tw-flex-1 tw-min-h-0 tw-px-3">
-                 <ScrollArea.Root className="tw-h-full tw-overflow-auto scroll-touch" type="always">
+                 <ScrollArea.Root className="vj-scroll-root tw-h-full scroll-touch" type="always">
                    {(() => {
                      const viewportRef = useRef<HTMLDivElement | null>(null);
                      useEffect(() => {
@@ -1613,13 +1609,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                        };
                      }, []);
                      return (
-                       <ScrollArea.Viewport ref={viewportRef as any} className="tw-h-full tw-w-full tw-overflow-auto scroll-touch drag-scroll tw-pr-[72px] tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
+                       <ScrollArea.Viewport ref={viewportRef as any} className="vj-scroll-viewport tw-h-full tw-w-full tw-overflow-auto scroll-touch drag-scroll tw-pr-[72px] tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
                          {middlePanelTab === 'global' ? (
                            <div className="tw-h-full">
                              <GlobalEffectsTab className="tw-h-full" />
                            </div>
                          ) : (
-                           <div className="tw-h-full tw-min-h-0 tw-overflow-auto scroll-touch">
+                           <div className="tw-h-full tw-min-h-0">
                              <LayerOptions 
                                key={(effectiveSelectedLayer || selectedLayer)?.id || 'none'}
                                selectedLayer={effectiveSelectedLayer || selectedLayer}
@@ -1631,7 +1627,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      );
                    })()}
                    <ScrollArea.Scrollbar
-                     className="tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation:horizontal]:tw-flex-col tw-data-[orientation:horizontal]:tw-h-2.5"
+                     className="tw-z-10 tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation:horizontal]:tw-flex-col tw-data-[orientation:horizontal]:tw-h-2.5"
                      orientation="vertical"
                    >
                      <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
@@ -1656,8 +1652,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                
                              {/* Tab Content */}
                <div className="tw-p-3 tw-flex-1 tw-min-h-0">
-                 <ScrollArea.Root className="tw-h-full" type="always">
-                   <ScrollArea.Viewport className="tw-h-full tw-w-full tw-pr-3 tw-pb-3">
+                 <ScrollArea.Root className="vj-scroll-root tw-h-full" type="always">
+                   <ScrollArea.Viewport className="vj-scroll-viewport tw-h-full tw-w-full tw-pr-3 tw-pb-3">
                      <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'media')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
                        <TabsContent value="media">
                          <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
@@ -1683,7 +1679,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      </Tabs>
                    </ScrollArea.Viewport>
                    <ScrollArea.Scrollbar
-                     className="tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation=horizontal]:tw-flex-col tw-data-[orientation=horizontal]:tw-h-2.5"
+                     className="tw-z-10 tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation:horizontal]:tw-flex-col tw-data-[orientation:horizontal]:tw-h-2.5"
                      orientation="vertical"
                    >
                      <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />

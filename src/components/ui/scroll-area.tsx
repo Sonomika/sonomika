@@ -3,24 +3,45 @@ import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 
 import { cn } from "@/lib/utils"
 
+type ScrollAreaProps = React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> & {
+  native?: boolean
+}
+
 const ScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
->(({ className, children, type, ...props }, ref) => (
-  <ScrollAreaPrimitive.Root
-    ref={ref}
-    type={type ?? "auto"}
-    className={cn("tw-relative tw-overflow-hidden", className)}
-    {...props}
-  >
-    <ScrollAreaPrimitive.Viewport className="tw-h-full tw-w-full tw-rounded-[inherit] tw-pr-3 tw-pb-3">
-      {children}
-    </ScrollAreaPrimitive.Viewport>
-    <ScrollBar orientation="vertical" />
-    <ScrollBar orientation="horizontal" />
-    <ScrollAreaPrimitive.Corner />
-  </ScrollAreaPrimitive.Root>
-))
+  ScrollAreaProps
+>(({ className, children, type, native = false, ...props }, ref) => {
+  if (native) {
+    return (
+      <div
+        // Cast ref because native mode uses a div instead of Radix Root
+        ref={ref as unknown as React.Ref<HTMLDivElement>}
+        className={cn("vj-scroll-root tw-relative", className)}
+        {...(props as Record<string, unknown>)}
+      >
+        <div className="vj-scroll-viewport tw-h-full tw-w-full tw-pr-3 tw-pb-3 tw-overflow-auto">
+          {children}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <ScrollAreaPrimitive.Root
+      ref={ref}
+      type={type ?? "auto"}
+      className={cn("vj-scroll-root tw-relative tw-overflow-hidden", className)}
+      {...props}
+    >
+      <ScrollAreaPrimitive.Viewport className="vj-scroll-viewport tw-h-full tw-w-full tw-rounded-[inherit] tw-pr-3 tw-pb-3">
+        {children}
+      </ScrollAreaPrimitive.Viewport>
+      <ScrollBar orientation="vertical" />
+      <ScrollBar orientation="horizontal" />
+      <ScrollAreaPrimitive.Corner />
+    </ScrollAreaPrimitive.Root>
+  )
+})
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
 const ScrollBar = React.forwardRef<

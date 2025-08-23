@@ -57,7 +57,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
   render() {
     if (this.state.hasError) {
       return (
-        <div className="tw-bg-black tw-text-white tw-h-screen tw-p-5 tw-flex tw-flex-col tw-items-center tw-justify-center">
+        <div className="tw-bg-black tw-text-white tw-min-h-screen tw-p-5 tw-flex tw-flex-col tw-items-center tw-justify-center">
           <h1 className="tw-text-xl tw-font-semibold tw-mb-2">Something went wrong!</h1>
           <p className="tw-mb-4">Error: {this.state.error?.message}</p>
           <button 
@@ -126,13 +126,15 @@ function App() {
       if (taskbarHeight > 0) {
         // Taskbar detected, adjust the app
         document.documentElement.style.setProperty('--taskbar-height', `${taskbarHeight}px`);
-        document.body.style.height = `calc(100vh - ${taskbarHeight}px)`;
-        document.getElementById('root')!.style.height = `calc(100vh - ${taskbarHeight}px)`;
+        document.body.style.minHeight = `calc(100vh - ${taskbarHeight}px)`;
+        const rootEl = document.getElementById('root');
+        if (rootEl) rootEl.style.minHeight = `calc(100vh - ${taskbarHeight}px)`;
       } else {
         // No taskbar detected, use full height
         document.documentElement.style.setProperty('--taskbar-height', '0px');
-        document.body.style.height = '100vh';
-        document.getElementById('root')!.style.height = '100vh';
+        document.body.style.minHeight = '100vh';
+        const rootEl = document.getElementById('root');
+        if (rootEl) rootEl.style.minHeight = '100vh';
       }
     };
 
@@ -673,9 +675,9 @@ function App() {
         onAdvancedMirror={() => { setAdvMirrorOpen(true); }}
       />
       
-      <div className="tw-bg-black tw-text-white tw-h-screen tw-flex tw-flex-col">
+      <div className="tw-bg-black tw-text-white tw-min-h-screen md:tw-h-screen tw-flex tw-flex-col">
 
-        <div className="tw-flex-1 tw-pt-16 tw-overflow-y-auto scroll-touch">
+        <div className="vj-app-content tw-flex-1 tw-pt-16 md:tw-min-h-0 md:tw-overflow-hidden">
           {showUIDemo ? (
             <UIDemo onClose={() => setShowUIDemo(false)} />
           ) : (

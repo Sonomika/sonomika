@@ -47,19 +47,34 @@
 
 * { box-sizing: border-box; }
 
-html { background-color: #141414; }
+html { background-color: #141414; height: auto; min-height: 100%; }
 
 body {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	background-color: #141414;
 	color: #ffffff;
-	height: 100vh;
-	overflow: hidden;
+	height: auto;
+	min-height: 100%;
+	overflow-y: auto;
 	padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-#root { height: 100vh; background-color: #141414; padding-bottom: env(safe-area-inset-bottom, 0px); }
+#root { min-height: 100%; background-color: #141414; padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* ScrollArea helpers */
+.vj-scroll-root { position: relative; }
+.vj-scroll-viewport { scrollbar-gutter: stable; }
+/* Hide native scrollbars in viewport; Radix provides custom bar */
+.vj-scroll-viewport { scrollbar-width: none; }
+.vj-scroll-viewport::-webkit-scrollbar { display: none; }
+
+/* Tablet/Desktop: fix app to viewport height and disable page scroll */
+@media (min-width: 768px) {
+	html, body { height: 100vh; overflow: hidden; }
+	#root { height: 100vh; }
+    .vj-app-content { height: calc(100vh - 64px); }
+}
 
 /* Enable momentum and touch panning for scrollable regions */
 .scroll-touch {
@@ -135,13 +150,13 @@ button:not([class*="tw-bg-"]),
 
 /* Removed global button background override to allow per-button shades */
 
-/* Global scrollbar styles */
-html, body, .scroll-touch, .tw-overflow-auto, .tw-overflow-y-auto, .tw-overflow-x-auto {
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(160,160,160,0.6) transparent; /* thumb track */
-}
+/* Global scrollbar styles (temporarily disabled to test native scrollbars) */
+/* html, body, .scroll-touch, .tw-overflow-auto, .tw-overflow-y-auto, .tw-overflow-x-auto {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(160,160,160,0.6) transparent;
+} */
 
-/* WebKit-based (Chromium/Electron) */
+/* WebKit-based (Chromium/Electron) - temporarily disabled to test native scrollbars
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -155,4 +170,4 @@ html, body, .scroll-touch, .tw-overflow-auto, .tw-overflow-y-auto, .tw-overflow-
 }
 ::-webkit-scrollbar-track {
   background: transparent;
-}
+} */
