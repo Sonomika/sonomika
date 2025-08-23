@@ -22,7 +22,7 @@ import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { ScrollArea as AppScrollArea } from './ui';
 import { Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
 import { GlobalEffectsTab } from './GlobalEffectsTab';
-import { PlayIcon, PauseIcon, StopIcon, TrashIcon, CopyIcon } from '@radix-ui/react-icons';
+import { PlayIcon, PauseIcon, StopIcon } from '@radix-ui/react-icons';
 import TimelineControls from './TimelineControls';
 
 
@@ -437,26 +437,40 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     handleContextMenuClose();
   };
 
-  // Paste column
+  // Paste column: insert to the right of the selected/target column
   const handlePasteColumn = () => {
-    if (clipboard && clipboard.type === 'column' && clipboard.data) {
-      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
-      if (currentScene) {
-        const pastedColumn = {
-          ...clipboard.data,
-          id: `column-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          name: `${clipboard.data.name} (Copy)`,
-          layers: clipboard.data.layers.map((layer: any) => ({
-            ...layer,
-            id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          }))
-        };
-
-        const updatedColumns = [...currentScene.columns, pastedColumn];
-        updateScene(currentSceneId, { columns: updatedColumns });
-        console.log(`Pasted column ${pastedColumn.name} to scene ${currentSceneId}`);
-      }
+    if (!(clipboard && clipboard.type === 'column' && clipboard.data)) {
+      handleContextMenuClose();
+      return;
     }
+
+    const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+    if (!currentScene) {
+      handleContextMenuClose();
+      return;
+    }
+
+    const targetColumnId = contextMenu.columnId;
+    const targetIndex = targetColumnId
+      ? currentScene.columns.findIndex((c: any) => c.id === targetColumnId)
+      : currentScene.columns.length - 1;
+    const insertIndex = targetIndex >= 0 ? targetIndex + 1 : currentScene.columns.length;
+
+    const pastedColumn = {
+      ...clipboard.data,
+      id: `column-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: `${clipboard.data.name} (Copy)`,
+      layers: clipboard.data.layers.map((layer: any) => ({
+        ...layer,
+        id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }))
+    };
+
+    const updatedColumns = [...currentScene.columns];
+    updatedColumns.splice(insertIndex, 0, pastedColumn);
+    updateScene(currentSceneId, { columns: updatedColumns });
+    console.log(`Pasted column ${pastedColumn.name} after column index ${targetIndex}`);
+
     handleContextMenuClose();
   };
 
@@ -1702,30 +1716,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             onClick={(e) => e.stopPropagation()}
           >
             <div className="tw-min-w-[160px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg">
-            {/* Cell-specific options - only show if we have a layer selected (not empty cells) */}
+            {/* Clip options for layers */}
             {contextMenu.layerId && !contextMenu.layerId.startsWith('empty-') && (
               <>
-                <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-gap-2 tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={handleCopyCell}><CopyIcon width={12} height={12} /> Copy Cell</div>
-                
-                <div className={"tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-gap-2 tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 " + ((clipboard && clipboard.type === 'cell') ? '' : 'tw-opacity-50')} onClick={clipboard && clipboard.type === 'cell' ? handlePasteCell : undefined}><CopyIcon width={12} height={12} /> Paste Cell</div>
-
-                {/* Clip options - for actual media/effects */}
-                <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-gap-2 tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={handleCopyClip}><CopyIcon width={12} height={12} /> Copy Clip</div>
-                
-                <div className={"tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-gap-2 tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 " + ((clipboard && clipboard.type === 'clip') ? '' : 'tw-opacity-50')} onClick={clipboard && clipboard.type === 'clip' ? handlePasteClip : undefined}><CopyIcon width={12} height={12} /> Paste Clip</div>
+                <div className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5" onClick={handleCopyClip}>Copy Clip</div>
               </>
             )}
             
-            {/* Cell paste option - show if we have a cell in clipboard (for empty cells) */}
-            {clipboard && clipboard.type === 'cell' && (
-              <div
-                className="context-menu-item tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5"
-                onClick={handlePasteCell}
-              >
-                  Paste Cell
-              </div>
-            )}
-
             {/* Clip paste option - show if we have a clip in clipboard (for empty cells) */}
             {clipboard && clipboard.type === 'clip' && (
               <div
@@ -1737,12 +1734,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             )}
             
             {/* Column options - always show */}
-            <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-gap-2 tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={handleCopyColumn}><CopyIcon width={12} height={12} /> Copy Column</div>
+            <div className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5" onClick={handleCopyColumn}>Copy Column</div>
             
-            <div className={"tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-gap-2 tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800 " + ((clipboard && clipboard.type === 'column') ? '' : 'tw-opacity-50')} onClick={clipboard && clipboard.type === 'column' ? handlePasteColumn : undefined}><CopyIcon width={12} height={12} /> Paste Column</div>
+            <div className={"context-menu-item tw-select-none tw-text-sm tw-font-medium tw-bg-transparent tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5 " + ((clipboard && clipboard.type === 'column') ? 'tw-cursor-pointer tw-text-white hover:tw-bg-neutral-700' : 'tw-cursor-default tw-text-neutral-500 tw-opacity-50')} onClick={clipboard && clipboard.type === 'column' ? handlePasteColumn : undefined}>Paste Column</div>
             
             {/* Delete option - show different text based on context */}
-            <div className="tw-relative tw-flex tw-cursor-default tw-select-none tw-items-center tw-gap-2 tw-px-3 tw-py-1.5 tw-text-sm hover:tw-bg-neutral-800" onClick={handleDeleteLayer}><TrashIcon width={12} height={12} /> {contextMenu.layerId && contextMenu.layerId !== 'unknown' ? 'Delete Layer' : 'Delete Column'}</div>
+            <div className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5" onClick={handleDeleteLayer}>{contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? 'Delete Clip' : 'Delete Column'}</div>
             </div>
           </div>
         )}
@@ -1878,12 +1875,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             </div>
             
             {/* Delete option - show different text based on context */}
-            <div
-              className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5"
-              onClick={handleDeleteLayer}
-            >
-              {contextMenu.layerId && contextMenu.layerId !== 'unknown' ? 'Delete Layer' : 'Delete Column'}
-            </div>
+            <div className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5" onClick={handleDeleteLayer}>{contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? 'Delete Clip' : 'Delete Column'}</div>
           </div>
         )}
       </div>
