@@ -61,6 +61,22 @@ body {
 
 #root { height: 100vh; background-color: #141414; padding-bottom: env(safe-area-inset-bottom, 0px); }
 
+/* Enable momentum and touch panning for scrollable regions */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+/* Desktop drag-to-scroll helper */
+.drag-scroll {
+  cursor: default;
+  user-select: none;
+}
+.drag-scroll.dragging {
+  cursor: grabbing;
+}
+
 /* Accessibility mode off (default): remove extra focus highlights/rings */
 .a11y-off *:focus,
 .a11y-off *:focus-visible,
@@ -118,3 +134,25 @@ button:not([class*="tw-bg-"]),
 }
 
 /* Removed global button background override to allow per-button shades */
+
+/* Global scrollbar styles */
+html, body, .scroll-touch, .tw-overflow-auto, .tw-overflow-y-auto, .tw-overflow-x-auto {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(160,160,160,0.6) transparent; /* thumb track */
+}
+
+/* WebKit-based (Chromium/Electron) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(160,160,160,0.6);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(200,200,200,0.75);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

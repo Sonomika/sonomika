@@ -1565,29 +1565,77 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 </Tabs>
               </div>
                              <div className="tw-flex-1 tw-min-h-0 tw-px-3">
-                 <ScrollArea.Root className="tw-h-full" type="always">
-                   <ScrollArea.Viewport className="tw-h-full tw-w-full tw-pr-[72px] tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
-                     {middlePanelTab === 'global' ? (
-                       <div className="tw-h-full">
-                         <GlobalEffectsTab className="tw-h-full" />
-                       </div>
-                     ) : (
-                       <div className="tw-h-full">
-                         <LayerOptions 
-                           key={(effectiveSelectedLayer || selectedLayer)?.id || 'none'}
-                           selectedLayer={effectiveSelectedLayer || selectedLayer}
-                           onUpdateLayer={handleUpdateSelectedLayer}
-                         />
-                       </div>
-                     )}
-                   </ScrollArea.Viewport>
-                  <ScrollArea.Scrollbar
-                    className="tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation:horizontal]:tw-flex-col tw-data-[orientation:horizontal]:tw-h-2.5"
-                    orientation="vertical"
-                  >
-                    <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
-                  </ScrollArea.Scrollbar>
-                </ScrollArea.Root>
+                 <ScrollArea.Root className="tw-h-full tw-overflow-auto scroll-touch" type="always">
+                   {(() => {
+                     const viewportRef = useRef<HTMLDivElement | null>(null);
+                     useEffect(() => {
+                       const el = viewportRef.current;
+                       if (!el) return;
+
+                       let isDown = false;
+                       let startX = 0;
+                       let startY = 0;
+                       let scrollLeft = 0;
+                       let scrollTop = 0;
+
+                       const onMouseDown = (e: MouseEvent) => {
+                         if (e.button !== 0) return; // left only
+                         isDown = true;
+                         startX = e.pageX - el.offsetLeft;
+                         startY = e.pageY - el.offsetTop;
+                         scrollLeft = el.scrollLeft;
+                         scrollTop = el.scrollTop;
+                         el.classList.add('dragging');
+                       };
+                       const onMouseLeave = () => { isDown = false; el.classList.remove('dragging'); };
+                       const onMouseUp = () => { isDown = false; el.classList.remove('dragging'); };
+                       const onMouseMove = (e: MouseEvent) => {
+                         if (!isDown) return;
+                         e.preventDefault();
+                         const x = e.pageX - el.offsetLeft;
+                         const y = e.pageY - el.offsetTop;
+                         const walkX = (x - startX) * 1; // multiplier for sensitivity
+                         const walkY = (y - startY) * 1;
+                         el.scrollLeft = scrollLeft - walkX;
+                         el.scrollTop = scrollTop - walkY;
+                       };
+
+                       el.addEventListener('mousedown', onMouseDown);
+                       el.addEventListener('mouseleave', onMouseLeave);
+                       el.addEventListener('mouseup', onMouseUp);
+                       el.addEventListener('mousemove', onMouseMove);
+                       return () => {
+                         el.removeEventListener('mousedown', onMouseDown);
+                         el.removeEventListener('mouseleave', onMouseLeave);
+                         el.removeEventListener('mouseup', onMouseUp);
+                         el.removeEventListener('mousemove', onMouseMove);
+                       };
+                     }, []);
+                     return (
+                       <ScrollArea.Viewport ref={viewportRef as any} className="tw-h-full tw-w-full tw-overflow-auto scroll-touch drag-scroll tw-pr-[72px] tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
+                         {middlePanelTab === 'global' ? (
+                           <div className="tw-h-full">
+                             <GlobalEffectsTab className="tw-h-full" />
+                           </div>
+                         ) : (
+                           <div className="tw-h-full tw-min-h-0 tw-overflow-auto scroll-touch">
+                             <LayerOptions 
+                               key={(effectiveSelectedLayer || selectedLayer)?.id || 'none'}
+                               selectedLayer={effectiveSelectedLayer || selectedLayer}
+                               onUpdateLayer={handleUpdateSelectedLayer}
+                             />
+                           </div>
+                         )}
+                       </ScrollArea.Viewport>
+                     );
+                   })()}
+                   <ScrollArea.Scrollbar
+                     className="tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation:horizontal]:tw-flex-col tw-data-[orientation:horizontal]:tw-h-2.5"
+                     orientation="vertical"
+                   >
+                     <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
+                   </ScrollArea.Scrollbar>
+                 </ScrollArea.Root>
               </div>
             </div>
 

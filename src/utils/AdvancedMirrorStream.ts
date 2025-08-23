@@ -69,7 +69,29 @@ export class AdvancedMirrorStreamManager {
         for (const s of slices) {
           const w = window.open('', `mirror_slice_${s.id}`, 'width=640,height=360,resizable=yes');
           if (!w) continue;
-          const html = `<!DOCTYPE html><html><head><title>Slice ${s.id}</title><style>html,body{margin:0;height:100%;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}img{width:100%;height:100%;object-fit:cover}</style></head><body><img id="img"/></body></html>`;
+          const html = `<!DOCTYPE html><html><head><title>Slice ${s.id}</title><meta name="viewport" content="width=device-width, initial-scale=1"/><style>
+            html,body{margin:0;height:100%;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+            body{touch-action:pan-y;-webkit-user-select:none;user-select:none}
+            img{width:100%;height:100%;object-fit:cover}
+            .hint{position:fixed;bottom:8px;right:12px;color:#888;font:12px system-ui, sans-serif;opacity:.6}
+          </style></head>
+          <body>
+            <img id="img"/>
+            <div class="hint">Double-click to fullscreen · Esc to close</div>
+            <script>
+              (function(){
+                var img = document.getElementById('img');
+                var doc = document;
+                function reqFS(){ var el = doc.documentElement; var fn = el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen; if(fn) fn.call(el); }
+                function exitFS(){ var fn = doc.exitFullscreen||doc.webkitExitFullscreen||doc.msExitFullscreen; if(fn) fn.call(doc); }
+                doc.addEventListener('dblclick', function(){
+                  try{ if(!(doc.fullscreenElement||doc.webkitFullscreenElement||doc.msFullscreenElement)) reqFS(); }catch(e){}
+                });
+                doc.addEventListener('keydown', function(e){ if(e.key==='Escape'){ try{ window.close(); }catch(e){} }});
+                window.addEventListener('beforeunload', function(){ try{ exitFS(); }catch(e){} });
+              })();
+            </script>
+          </body></html>`;
           try { w.document.write(html); w.document.close(); } catch {}
           const img = w.document.getElementById('img') as HTMLImageElement | null;
           this.sliceWindows.set(s.id, { win: w, img });

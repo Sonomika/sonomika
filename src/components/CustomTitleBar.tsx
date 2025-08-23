@@ -195,14 +195,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                     >
                       Mirror
                     </button>
-                    {isElectron && (
-                      <button 
-                        className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
-                        onClick={(e) => { e.stopPropagation(); onAdvancedMirror && onAdvancedMirror(); setExternalMenuOpen(false); }}
-                      >
-                        Advanced Mirror
-                      </button>
-                    )}
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => { e.stopPropagation(); onAdvancedMirror && onAdvancedMirror(); setExternalMenuOpen(false); }}
+                    >
+                      Advanced Mirror
+                    </button>
                   </div>
                 </PopoverContent>
               )}

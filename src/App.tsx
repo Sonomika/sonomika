@@ -675,7 +675,7 @@ function App() {
       
       <div className="tw-bg-black tw-text-white tw-h-screen tw-flex tw-flex-col">
 
-        <div className="tw-flex-1 tw-pt-16 md:tw-overflow-hidden tw-overflow-y-auto">
+        <div className="tw-flex-1 tw-pt-16 tw-overflow-y-auto scroll-touch">
           {showUIDemo ? (
             <UIDemo onClose={() => setShowUIDemo(false)} />
           ) : (
