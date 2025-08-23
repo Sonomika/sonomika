@@ -22,7 +22,7 @@ import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { ScrollArea as AppScrollArea } from './ui';
 import { Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
 import { GlobalEffectsTab } from './GlobalEffectsTab';
-import { PlayIcon, PauseIcon, StopIcon, GridIcon, RowsIcon, TrashIcon, CopyIcon } from '@radix-ui/react-icons';
+import { PlayIcon, PauseIcon, StopIcon, TrashIcon, CopyIcon } from '@radix-ui/react-icons';
 import TimelineControls from './TimelineControls';
 
 
@@ -1132,7 +1132,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 
                 {/* Global playback controls */}
                 {!showTimeline && (
-                  <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
+                  <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-my-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
                     <button
                       onClick={globalPlay}
                       className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${isGlobalPlaying ? 'tw-bg-blue-600 tw-text-white tw-border-blue-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-blue-600 hover:tw-text-white`}
@@ -1243,31 +1243,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 </div>
               </div>
             </div>
-            <div className="tw-flex tw-items-center tw-gap-4">
-              <button 
-                 onClick={() => {
-                   const next = !showTimeline;
-                   setShowTimeline(next);
-                   if (!next) {
-                     // Leaving timeline view: clear timeline-specific selection
-                     try { setSelectedTimelineClip(null); } catch {}
-                   }
-                 }}
-                 className={`tw-inline-flex tw-items-center tw-justify-center tw-border tw-text-sm tw-px-3 tw-py-2 tw-transition-colors ${
-                   showTimeline
-                     ? 'tw-bg-sky-600 tw-text-white tw-border-sky-600'
-                     : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'
-                 }`}
-                 title={showTimeline ? 'Switch to Grid View' : 'Switch to Timeline View'}
-               >
-                 {showTimeline ? (
-                   <GridIcon className="tw-w-4 tw-h-4" />
-                 ) : (
-                   <RowsIcon className="tw-w-4 tw-h-4" />
-                 )}
-               </button>
-
-            </div>
+            <div className="tw-flex tw-items-center tw-gap-4"></div>
 
           </div>
 
