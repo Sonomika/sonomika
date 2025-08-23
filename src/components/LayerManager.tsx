@@ -1078,19 +1078,59 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     return (
       <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col md:tw-overflow-hidden tw-overflow-auto">
         <div className="tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
-          <div className="tw-flex tw-items-center tw-justify-between tw-h-12 tw-px-4 tw-py-2 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
-            <div className="header-left tw-flex tw-items-center tw-gap-2">
-              {/* Mobile: Hamburger */}
-              <button
-                className="tw-inline-flex md:tw-hidden tw-items-center tw-justify-center tw-w-9 tw-h-10 tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700"
-                aria-label="Open menu"
-                onClick={() => setMobileMenuOpen(true)}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
-              </button>
+          <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
+            <div className="header-left tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
 
-              <div className="tw-flex tw-items-center tw-gap-2">
-                {/* Global playback controls moved to the far left (before scenes) */}
+              <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap tw-w-full">
+                {/* BPM Controls moved to the far left (before global playback controls) */}
+                <div className="tw-flex tw-items-center tw-gap-2">
+                  <button 
+                    onClick={() => {
+                      const bpmManager = BPMManager.getInstance();
+                      bpmManager.tap();
+                      const newBpm = bpmManager.getBPM();
+                      setBpm(newBpm);
+                    }}
+                    className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 tw-rounded-full hover:tw-bg-neutral-800"
+                    title="Tap to set BPM"
+                  >
+                    <span
+                      className={`tw-block tw-rounded-full tw-w-2 tw-h-2 tw-transition-transform tw-duration-150 tw-ease-out ${isBeatPulse ? 'tw-scale-125' : 'tw-scale-100'}`}
+                      style={{ backgroundColor: 'var(--accent)' }}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  <input
+                    id="bpm-input"
+                    type="number"
+                    min="30"
+                    max="999"
+                    value={bpmInputValue}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setBpmInputValue(value);
+                      if (value === '') return;
+                      const newBpm = parseInt(value);
+                      if (!isNaN(newBpm) && newBpm >= 30 && newBpm <= 999) {
+                        setBpm(newBpm);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || isNaN(parseInt(value))) {
+                        setBpm(120);
+                        setBpmInputValue('120');
+                      } else {
+                        setBpmInputValue(bpm.toString());
+                      }
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                    className="tw-w-16 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
+                    placeholder="120"
+                  />
+                </div>
+                
+                {/* Global playback controls */}
                 {!showTimeline && (
                   <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
                     <button
@@ -1122,7 +1162,32 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     <TimelineControls />
                   </div>
                 )}
-                <div className="tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap">
+                {/* Unified scene navigator: desktop shows list; mobile centers current scene with arrows */}
+                <div className="tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last md:tw-order-none md:tw-basis-auto tw-mt-2 md:tw-mt-0 tw-w-full md:tw-w-auto tw-justify-between md:tw-justify-start">
+                <button
+                  onClick={() => {
+                    const currentIndex = scenes.findIndex((s: any) => s.id === currentSceneId);
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : scenes.length - 1;
+                    setCurrentScene(scenes[prevIndex].id);
+                  }}
+                  disabled={scenes.length <= 1}
+                  className="tw-inline-flex md:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                  title="Previous scene"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+                {/* Mobile: single current scene label centered */}
+                <div className="tw-flex-1 tw-flex tw-justify-center md:tw-hidden">
+                  <button
+                    className={`tw-text-xs tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${'tw-text-white'}`}
+                    style={{ backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' }}
+                    title={currentScene?.name || 'Current scene'}
+                  >
+                    {currentScene?.name || 'Scene'}
+                  </button>
+                </div>
+
+                <div className="tw-hidden md:tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last md:tw-order-none md:tw-basis-auto tw-mt-2 md:tw-mt-0">
                   {scenes.map((scene: any, index: number) => (
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>
@@ -1163,59 +1228,22 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     +
                   </button>
                 </div>
+                <button
+                  onClick={() => {
+                    const currentIndex = scenes.findIndex((s: any) => s.id === currentSceneId);
+                    const nextIndex = currentIndex < scenes.length - 1 ? currentIndex + 1 : 0;
+                    setCurrentScene(scenes[nextIndex].id);
+                  }}
+                  disabled={scenes.length <= 1}
+                  className="tw-inline-flex md:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                  title="Next scene"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+                </button>
+                </div>
               </div>
             </div>
             <div className="tw-flex tw-items-center tw-gap-4">
-              <div className="tw-flex tw-items-center tw-gap-2">
-                <label htmlFor="bpm-input" className="tw-text-sm tw-text-neutral-300">BPM:</label>
-                <input
-                  id="bpm-input"
-                  type="number"
-                  min="30"
-                  max="999"
-                  value={bpmInputValue}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setBpmInputValue(value);
-                    if (value === '') return;
-                    const newBpm = parseInt(value);
-                    if (!isNaN(newBpm) && newBpm >= 30 && newBpm <= 999) {
-                      setBpm(newBpm);
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const value = e.target.value;
-                    if (value === '' || isNaN(parseInt(value))) {
-                      setBpm(120);
-                      setBpmInputValue('120');
-                    } else {
-                      setBpmInputValue(bpm.toString());
-                    }
-                  }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                  className="tw-w-16 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
-                  placeholder="120"
-                />
-                <button 
-                  onClick={() => {
-                    const bpmManager = BPMManager.getInstance();
-                    bpmManager.tap();
-                    const newBpm = bpmManager.getBPM();
-                    setBpm(newBpm);
-                  }}
-                  className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 tw-rounded-full hover:tw-bg-neutral-800"
-                  title="Tap to set BPM"
-                >
-                  <span
-                    className={`tw-block tw-rounded-full tw-w-2 tw-h-2 tw-transition-transform tw-duration-150 tw-ease-out ${isBeatPulse ? 'tw-scale-125' : 'tw-scale-100'}`}
-                    style={{ backgroundColor: 'var(--accent)' }}
-                    aria-hidden="true"
-                  />
-                </button>
-              </div>
-              
-              {/* Global Playback Controls moved to left; removed here */}
-              
               <button 
                  onClick={() => {
                    const next = !showTimeline;
@@ -1240,9 +1268,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                </button>
 
             </div>
-            
-
-            
 
           </div>
 

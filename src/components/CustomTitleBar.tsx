@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Popover, PopoverTrigger, PopoverContent, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
+import { useStore } from '../store/store';
 
 interface CustomTitleBarProps {
   onMinimize?: () => void;
@@ -46,6 +47,9 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const fileMenuRef = useRef<HTMLDivElement>(null);
   const [externalMenuOpen, setExternalMenuOpen] = useState(false);
   const externalMenuRef = useRef<HTMLDivElement>(null);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const modeMenuRef = useRef<HTMLDivElement>(null);
+  const { showTimeline, setShowTimeline } = (useStore() as any) || {};
 
   // Detect Electron vs Web
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
@@ -223,6 +227,43 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               Debug
             </button>
           )}
+
+          {/* Mode menu with tick indicator */}
+          <div className="menu-item-dropdown app-no-drag" ref={modeMenuRef}>
+            <Popover open={modeMenuOpen} onOpenChange={setModeMenuOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent`}
+                >
+                  Mode
+                </button>
+              </PopoverTrigger>
+              {modeMenuOpen && (
+                <PopoverContent className="tw-min-w-[160px] app-no-drag" align="start" side="bottom">
+                  <div className="tw-flex tw-flex-col tw-py-1">
+                    <button 
+                      className="tw-flex tw-items-center tw-justify-between tw-w-full tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => { e.stopPropagation(); setShowTimeline?.(false); setModeMenuOpen(false); }}
+                    >
+                      <span>Column</span>
+                      {!showTimeline && (
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z"/></svg>
+                      )}
+                    </button>
+                    <button 
+                      className="tw-flex tw-items-center tw-justify-between tw-w-full tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => { e.stopPropagation(); setShowTimeline?.(true); setModeMenuOpen(false); }}
+                    >
+                      <span>Timeline</span>
+                      {showTimeline && (
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z"/></svg>
+                      )}
+                    </button>
+                  </div>
+                </PopoverContent>
+              )}
+            </Popover>
+          </div>
         </div>
       </div>
 
