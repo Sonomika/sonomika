@@ -166,6 +166,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [, setRefreshTrigger] = useState(0);
   const [isBeatPulse, setIsBeatPulse] = useState(false);
   const beatPulseTimeoutRef = React.useRef<number | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement | null>(null);
 
   const { showTimeline, setShowTimeline } = useStore() as any;
   const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
@@ -404,6 +405,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     setDragOverCell(null);
     setDraggedLayer(null);
     setDragOverLayer(null);
+  };
+
+  // Toggle preview fullscreen using Fullscreen API
+  const togglePreviewFullscreen = () => {
+    try {
+      const el = previewContainerRef.current;
+      if (!el) return;
+      const anyDoc: any = document;
+      if (!document.fullscreenElement && (el as any).requestFullscreen) {
+        (el as any).requestFullscreen();
+      } else if (anyDoc.exitFullscreen) {
+        anyDoc.exitFullscreen();
+      }
+    } catch {}
   };
 
   // Handle right-click on column cells
@@ -1573,9 +1588,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             {/* Preview Window - Bottom Left */}
             <div 
               className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden md:tw-basis-[30%] md:tw-flex-none tw-min-w-[200px] tw-w-full"
+              ref={previewContainerRef}
             >
               <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
                 <h3>Preview</h3>
+                <button
+                  className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
+                  onClick={togglePreviewFullscreen}
+                  title="Fullscreen Preview"
+                  aria-label="Fullscreen Preview"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M7 3H3v4h2V5h2V3zm12 0h-4v2h2v2h2V3zM5 17H3v4h4v-2H5v-2zm14 0h-2v2h-2v2h4v-4z"/>
+                  </svg>
+                </button>
               </div>
               <div 
                 className="tw-flex tw-items-center tw-justify-center tw-bg-black tw-w-full"
