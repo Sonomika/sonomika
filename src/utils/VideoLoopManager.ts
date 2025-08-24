@@ -71,7 +71,7 @@ export class VideoLoopManager {
     duration: number
   ): void {
     if (currentTime >= duration - VIDEO_CONFIG.LOOP_THRESHOLD) {
-      console.log('🎬 LOOP MODE: Restarting video:', layer.name);
+      // console.log('🎬 LOOP MODE: Restarting video:', layer.name);
       this.cleanupInterval(state);
       video.currentTime = 0;
       video.play().catch((error: any) => {
@@ -91,7 +91,7 @@ export class VideoLoopManager {
     duration: number
   ): void {
     if (currentTime >= duration - VIDEO_CONFIG.LOOP_THRESHOLD) {
-      console.log('🎬 REVERSE MODE: Starting reverse playback:', layer.name);
+      // console.log('🎬 REVERSE MODE: Starting reverse playback:', layer.name);
       state.isReversing = true;
       this.startReversePlayback(video, layer, state);
     }
@@ -108,7 +108,7 @@ export class VideoLoopManager {
     duration: number
   ): void {
     if (!state.isReversing && currentTime >= duration - VIDEO_CONFIG.LOOP_THRESHOLD) {
-      console.log('🎬 PING-PONG MODE: Starting reverse phase:', layer.name);
+      // console.log('🎬 PING-PONG MODE: Starting reverse phase:', layer.name);
       state.isReversing = true;
       this.startReversePlayback(video, layer, state);
     }
@@ -126,7 +126,7 @@ export class VideoLoopManager {
     
     state.frameInterval = setInterval(() => {
       if (video.currentTime <= VIDEO_CONFIG.LOOP_THRESHOLD) {
-        console.log('🎬 REVERSE MODE: Reverse playback complete, switching to forward:', layer.name);
+        // console.log('🎬 REVERSE MODE: Reverse playback complete, switching to forward:', layer.name);
         state.isReversing = false;
         this.cleanupInterval(state);
         video.currentTime = 0;
@@ -176,9 +176,9 @@ export class VideoLoopManager {
     state: LoopState
   ): void {
     if (currentTime >= duration - VIDEO_CONFIG.DEBUG_THRESHOLD || currentTime <= VIDEO_CONFIG.DEBUG_THRESHOLD) {
-      console.log('🎬 NUCLEAR PURE COMPOSITION DEBUG: Video near end/start:', 
-        layer.name, 'Time:', currentTime, 'Duration:', duration, 
-        'Mode:', layer.loopMode, 'Reversing:', state.isReversing);
+      // console.log('🎬 NUCLEAR PURE COMPOSITION DEBUG: Video near end/start:', 
+      //   layer.name, 'Time:', currentTime, 'Duration:', duration, 
+      //   'Mode:', layer.loopMode, 'Reversing:', state.isReversing);
     }
   }
 

@@ -5,14 +5,14 @@ const DEBUG_EFFECTS = !!(typeof window !== 'undefined' && (window as any).__DEBU
 
 export const registerEffect = (id: string, component: React.FC<any>) => {
   if (DEBUG_EFFECTS) {
-    console.log(`🔧 Registering effect: ${id}`);
-    console.log(`🔧 Component type:`, typeof component);
-    console.log(`🔧 Component name:`, component.name);
+    // console.log(`🔧 Registering effect: ${id}`);
+    // console.log(`🔧 Component type:`, typeof component);
+    // console.log(`🔧 Component name:`, component.name);
   }
   registry.set(id, component);
   if (DEBUG_EFFECTS) {
-    console.log(`🔧 Registry size after registration:`, registry.size);
-    console.log(`🔧 Registry keys:`, Array.from(registry.keys()));
+    // console.log(`🔧 Registry size after registration:`, registry.size);
+    // console.log(`🔧 Registry keys:`, Array.from(registry.keys()));
   }
 };
 
@@ -34,12 +34,12 @@ export const getEffect = (id: string): React.FC<any> | null => {
     }
   }
   if (DEBUG_EFFECTS) {
-    console.log(`🔧 Getting effect: ${id} - found: ${!!effect}`);
-    console.log(`🔧 Registry keys:`, Array.from(registry.keys()));
-    console.log(`🔧 Registry size:`, registry.size);
+    // console.log(`🔧 Getting effect: ${id} - found: ${!!effect}`);
+    // console.log(`🔧 Registry keys:`, Array.from(registry.keys()));
+    // console.log(`🔧 Registry size:`, registry.size);
     if (effect) {
-      console.log(`🔧 Effect component name:`, effect.name);
-      console.log(`🔧 Effect component type:`, typeof effect);
+      // console.log(`🔧 Effect component name:`, effect.name);
+      // console.log(`🔧 Effect component type:`, typeof effect);
     }
   }
   return effect || null;
@@ -51,5 +51,7 @@ export const getAllRegisteredEffects = (): string[] => {
 
 export const clearRegistry = () => {
   registry.clear();
-  if (DEBUG_EFFECTS) console.log('🔧 Effect registry cleared');
+  if (DEBUG_EFFECTS) {
+    // console.log('🔧 Effect registry cleared');
+  }
 };

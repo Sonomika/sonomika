@@ -93,7 +93,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   // Build a stable signature for scene structure that ignores param changes
   const sceneSignature = useMemo(() => {
     return items
-      .map((it) => (it.type === 'effect' ? `effect:${(it as any).effectId}` : it.type))
+      .map((it, idx) => (it.type === 'effect' ? `effect:${(it as any).effectId}:${idx}` : `${it.type}:${idx}`))
       .join('|');
   }, [items]);
 
@@ -324,7 +324,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       const params = item.params || {};
       const extras: Record<string, any> = {};
       if (item.type === 'effect') {
-        const stageRT = rtRefs.current[idx];
+        const stageRT = rtRefs.current[idx]!;
         const candidate = inputTextures[idx] || null;
         // Guard against feedback: never sample from the same RT we're writing to
         extras.videoTexture = stageRT && candidate === stageRT.texture ? null : candidate;
@@ -337,7 +337,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       const replacesVideo: boolean = md?.replacesVideo === true;
       const portalsForStage: React.ReactNode[] = [];
       const bgTex = ((): THREE.Texture | null => {
-        const stageRT = rtRefs.current[idx];
+        const stageRT = rtRefs.current[idx]!;
         const candidate = inputTextures[idx] || null;
         if (stageRT && candidate === stageRT.texture) return null;
         return candidate as THREE.Texture | null;
@@ -349,7 +349,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           createPortal(
             React.createElement(
               'mesh',
-              { renderOrder: -1000 },
+              { key: `bg-${idx}-${item.effectId || 'unknown'}`, renderOrder: -1000 },
               React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
               React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
             ),
@@ -359,7 +359,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       }
       portalsForStage.push(
         createPortal(
-          React.createElement(EffectComponent, { ...params, ...extras }),
+          React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}`, ...params, ...extras }),
           offscreenScenes[idx]
         )
       );

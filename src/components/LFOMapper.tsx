@@ -431,7 +431,18 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     let timer: number | null = null;
     const clearTimer = () => { if (timer != null) { clearInterval(timer); timer = null; } };
 
+    const isLayerInActiveColumn = () => {
+      try {
+        const state = (useStore as any).getState();
+        const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+        const col = scene?.columns?.find((c: any) => c.id === state.playingColumnId);
+        return Boolean(col?.layers?.some((ly: any) => ly?.id === lid));
+      } catch { return false; }
+    };
+
     const fireRandom = () => {
+      // Gate: only update if this layer is in the currently playing column
+      if (!isLayerInActiveColumn()) return;
       // Skip based on percentage
       const skip = Math.random() * 100 < (Number(lfo.skipPercent || 0));
       if (skip) return;

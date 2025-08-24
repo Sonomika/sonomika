@@ -10,14 +10,14 @@ export const handleColumnPlay = async (
   setIsPlaying: (playing: boolean) => void,
   playColumn: (columnId: string) => void
 ) => {
-  console.log('🎵 handleColumnPlay called with columnId:', columnId);
+  // console.log('🎵 handleColumnPlay called with columnId:', columnId);
   const column = currentScene?.columns.find((col: any) => col.id === columnId);
-  console.log('🎵 Found column:', column);
+  // console.log('🎵 Found column:', column);
   
   if (!column) return;
   const layersWithContent = column.layers.filter((layer: any) => layer.asset);
-  console.log('🎵 Column layers with content:', layersWithContent);
-  console.log('🎵 Total layers in column:', column.layers.length);
+  // console.log('🎵 Column layers with content:', layersWithContent);
+  // console.log('🎵 Total layers in column:', column.layers.length);
 
   if (layersWithContent.length === 0) {
     console.log('❌ No layers with content in column:', columnId);
@@ -39,7 +39,7 @@ export const handleColumnPlay = async (
     console.warn('Preload failed or timed out, proceeding:', e);
   }
 
-  console.log('✅ Assets preloaded, updating preview');
+  // console.log('✅ Assets preloaded, updating preview');
   setPreviewContent({
     type: 'column',
     columnId,
@@ -76,8 +76,8 @@ export const handleClearLayers = (
   if (currentScene) {
     const confirmed = window.confirm('Are you sure you want to clear all layers? This will remove all assets from all layers.');
     if (confirmed) {
-      console.log('Starting clear layers process for scene:', currentScene.id);
-      console.log('Current scene columns:', currentScene.columns.length);
+      // console.log('Starting clear layers process for scene:', currentScene.id);
+      // console.log('Current scene columns:', currentScene.columns.length);
       
       // Create a deep copy of the current scene
       const updatedScene = JSON.parse(JSON.stringify(currentScene));
@@ -85,12 +85,12 @@ export const handleClearLayers = (
       // Clear all assets from all layers and remove empty layers
       let clearedCount = 0;
       updatedScene.columns.forEach((column: any, columnIndex: number) => {
-        console.log(`Processing column ${columnIndex + 1}:`, column.id);
+        // console.log(`Processing column ${columnIndex + 1}:`, column.id);
         if (column.layers) {
           // Filter out layers that have no assets
           column.layers = column.layers.filter((layer: any) => {
             if (layer.asset) {
-              console.log(`Clearing asset from layer:`, layer.asset.name);
+              // console.log(`Clearing asset from layer:`, layer.asset.name);
               clearedCount++;
               return false; // Remove layers with assets
             }
@@ -99,11 +99,11 @@ export const handleClearLayers = (
         }
       });
       
-      console.log(`Cleared ${clearedCount} assets total`);
+      // console.log(`Cleared ${clearedCount} assets total`);
       
       // Update the scene with the new data
       updateScene(currentScene.id, updatedScene);
-      console.log('Updated scene with cleared layers');
+      // console.log('Updated scene with cleared layers');
       
       // Force multiple refresh mechanisms
       setCurrentScene(currentScene.id);
@@ -115,12 +115,12 @@ export const handleClearLayers = (
       setPreviewContent(null);
       setIsPlaying(false);
       
-      console.log('Forced complete component refresh');
+      // console.log('Forced complete component refresh');
       
       // Additional force refresh after a short delay
       setTimeout(() => {
         setRefreshTrigger(prev => prev + 1);
-        console.log('Additional refresh triggered');
+        // console.log('Additional refresh triggered');
       }, 100);
     }
   }

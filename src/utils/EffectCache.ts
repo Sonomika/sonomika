@@ -32,16 +32,16 @@ export class EffectCache {
    */
   async startPreloading(): Promise<void> {
     if (this.preloadPromise) {
-      console.log('🔄 EffectCache: Preloading already in progress, waiting...');
+      // console.log('🔄 EffectCache: Preloading already in progress, waiting...');
       return this.preloadPromise;
     }
 
     if (this.isPreloaded) {
-      console.log('✅ EffectCache: Effects already preloaded');
+      // console.log('✅ EffectCache: Effects already preloaded');
       return Promise.resolve();
     }
 
-    console.log('🚀 EffectCache: Starting effect preloading...');
+    // console.log('🚀 EffectCache: Starting effect preloading...');
     this.preloadPromise = this.preloadAllEffects();
     return this.preloadPromise;
   }
@@ -72,7 +72,7 @@ export class EffectCache {
    */
   private async preloadAllEffects(): Promise<void> {
     const startTime = performance.now();
-    console.log('🔄 EffectCache: Preloading effects...');
+    // console.log('🔄 EffectCache: Preloading effects...');
 
     // Use the existing EffectDiscovery system instead of reinventing the wheel
     let discoveredEffects: any[] = [];
@@ -81,7 +81,7 @@ export class EffectCache {
       const { EffectDiscovery } = await import('./EffectDiscovery');
       const discovery = EffectDiscovery.getInstance();
       discoveredEffects = await discovery.discoverEffects();
-      console.log('🔍 EffectCache: Using EffectDiscovery, found effects:', discoveredEffects.length);
+      // console.log('🔍 EffectCache: Using EffectDiscovery, found effects:', discoveredEffects.length);
     } catch (e) {
       console.warn('⚠️ EffectCache: EffectDiscovery failed, no effects will be loaded', e);
       discoveredEffects = [];
@@ -102,9 +102,9 @@ export class EffectCache {
     const endTime = performance.now();
     const loadTime = endTime - startTime;
 
-    console.log(`✅ EffectCache: Preloading complete!`);
-    console.log(`📊 Stats: ${succeeded} loaded, ${failed} failed, ${loadTime.toFixed(2)}ms total`);
-    console.log(`🎯 Cache size: ${this.cache.size} effects`);
+    // console.log(`✅ EffectCache: Preloading complete!`);
+    // console.log(`📊 Stats: ${succeeded} loaded, ${failed} failed, ${loadTime.toFixed(2)}ms total`);
+    // console.log(`🎯 Cache size: ${this.cache.size} effects`);
 
     this.isPreloaded = true;
   }
@@ -116,7 +116,7 @@ export class EffectCache {
     const startTime = performance.now();
     
     try {
-      console.log(`🔄 Loading effect from discovery: ${effect.id}`);
+      // console.log(`🔄 Loading effect from discovery: ${effect.id}`);
       
       // Extract metadata from the discovered effect
       const metadata = effect.metadata || {};
@@ -140,7 +140,7 @@ export class EffectCache {
       // Cache the effect
       this.cache.set(id, cachedEffect);
       
-      console.log(`✅ Cached effect: ${id} (${cachedEffect.loadTime.toFixed(2)}ms)`);
+      // console.log(`✅ Cached effect: ${id} (${cachedEffect.loadTime.toFixed(2)}ms)`);
       
     } catch (error) {
       console.warn(`❌ Failed to load effect ${effect.id}:`, error);
@@ -155,11 +155,11 @@ export class EffectCache {
     const startTime = performance.now();
     
     try {
-      console.log(`🔄 Loading effect: ${effectName} from ${modulePath}`);
+      // console.log(`🔄 Loading effect: ${effectName} from ${modulePath}`);
       
       // Dynamic import with @vite-ignore for faster builds
       // Use the full module path for import
-      console.log(`📁 Importing from path: ${modulePath}`);
+      // console.log(`📁 Importing from path: ${modulePath}`);
       
       // Try different import strategies
       let module;
@@ -172,7 +172,7 @@ export class EffectCache {
         // Try with the effect name as a fallback
         try {
           const fallbackPath = `../effects/${effectName}`;
-          console.log(`🔄 Trying fallback path: ${fallbackPath}`);
+          // console.log(`🔄 Trying fallback path: ${fallbackPath}`);
           module = await import(/* @vite-ignore */ fallbackPath);
         } catch (fallbackError) {
           console.error(`❌ Both import methods failed for ${effectName}:`, fallbackError);
@@ -207,7 +207,7 @@ export class EffectCache {
       // Cache the effect
       this.cache.set(id, cachedEffect);
       
-      console.log(`✅ Cached effect: ${id} (${cachedEffect.loadTime.toFixed(2)}ms)`);
+      // console.log(`✅ Cached effect: ${id} (${cachedEffect.loadTime.toFixed(2)}ms)`);
       
     } catch (error) {
       console.warn(`❌ Failed to load effect ${effectName}:`, error);
@@ -254,7 +254,7 @@ export class EffectCache {
     this.cache.clear();
     this.preloadPromise = null;
     this.isPreloaded = false;
-    console.log('🧹 EffectCache: Cache cleared');
+    // console.log('🧹 EffectCache: Cache cleared');
   }
 }
 

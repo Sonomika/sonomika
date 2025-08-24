@@ -13,7 +13,7 @@ import { getAssetPath, createColumn, handleDragOver, handleDragLeave, handleLaye
 import { handleDrop, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
 import { handleColumnPlay, handleUpdateLayer } from '../utils/LayerManagementHandlers';
 import { handleSceneRename } from '../utils/SceneManagementHandlers';
-import { EffectsBrowser } from './EffectsBrowser';
+import EffectsBrowser from './EffectsBrowser';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
 // Scenes header now uses ContextMenu for actions
@@ -31,11 +31,38 @@ interface LayerManagerProps {
   debugMode?: boolean;
 }
 
+// Quiet verbose diagnostic logs emitted from this module
+// Only suppress known noisy prefixes; allow all other console output
+(() => {
+  try {
+    const originalLog = console.log.bind(console);
+    const originalWarn = console.warn.bind(console);
+    const noisyPrefixRegex = /^(🎨|🎭|🎵|🔄|➕|🖱️)/;
+    const alsoNoisySubstrings = ['LayerManager', 'Current scene:'];
+    console.log = (...args: any[]) => {
+      const first = args[0];
+      if (typeof first === 'string') {
+        if (noisyPrefixRegex.test(first) || alsoNoisySubstrings.some((s) => first.includes(s))) return;
+      }
+      return originalLog(...args);
+    };
+    console.warn = (...args: any[]) => {
+      const first = args[0];
+      if (typeof first === 'string') {
+        if (noisyPrefixRegex.test(first) || alsoNoisySubstrings.some((s) => first.includes(s))) return;
+      }
+      return originalWarn(...args);
+    };
+  } catch {
+    // no-op
+  }
+})();
+
 // Memoized at module scope to preserve component identity across renders
 const MemoMediaLibrary = React.memo(MediaLibrary);
 
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
-  console.log('LayerManager component rendering');
+  // console.log('LayerManager component rendering');
   
   const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId } = useStore() as any;
   const [bpmInputValue, setBpmInputValue] = useState(bpm.toString());
@@ -123,7 +150,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     } catch {}
   }, []);
   
-  console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
+  // console.log('LayerManager store state:', { scenes: scenes?.length, currentSceneId, compositionSettings });
   
   const [selectedLayer, setSelectedLayer] = useState<any>(null);
   const [selectedGlobalEffectKey] = useState<string | null>(null);
@@ -1654,57 +1681,57 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="md:tw-w-1/3 tw-w-full tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
               {/* Tab Navigation */}
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
-                               <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'media')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
-                 <TabsList>
-                   <TabsTrigger value="media">Media</TabsTrigger>
-                   <TabsTrigger value="effects">Effects</TabsTrigger>
-                   <TabsTrigger value="midi">MIDI</TabsTrigger>
-                   <TabsTrigger value="lfo">LFO</TabsTrigger>
-                 </TabsList>
-               </Tabs>
+                               <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'effects')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
+                <TabsList>
+                  <TabsTrigger value="effects">Bank</TabsTrigger>
+                  <TabsTrigger value="media">Media</TabsTrigger>
+                  <TabsTrigger value="midi">MIDI</TabsTrigger>
+                  <TabsTrigger value="lfo">LFO</TabsTrigger>
+                </TabsList>
+              </Tabs>
               </div>
                
                              {/* Tab Content */}
-               <div className="tw-p-3 tw-flex-1 tw-min-h-0">
-                 <ScrollArea.Root className="vj-scroll-root tw-h-full" type="always">
-                   <ScrollArea.Viewport className="vj-scroll-viewport tw-h-full tw-w-full tw-pr-3 tw-pb-3">
-                     <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'media')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
-                       <TabsContent value="media">
-                         <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
-                       </TabsContent>
-                       <TabsContent value="effects">
-                         <div className="tw-space-y-2">
-                           <EffectsBrowser />
-                         </div>
-                       </TabsContent>
-                       <TabsContent value="midi">
-                         <div className="midi-tab">
-                           <MIDIMapper />
-                         </div>
-                       </TabsContent>
-                       <TabsContent value="lfo">
-                         <div className="lfo-tab">
-                           <LFOMapper 
-                             selectedLayer={effectiveSelectedLayer || selectedLayer}
-                             onUpdateLayer={handleUpdateSelectedLayer}
-                           />
-                         </div>
-                       </TabsContent>
-                     </Tabs>
-                   </ScrollArea.Viewport>
-                   <ScrollArea.Scrollbar
-                     className="tw-z-10 tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation:horizontal]:tw-flex-col tw-data-[orientation:horizontal]:tw-h-2.5"
-                     orientation="vertical"
-                   >
-                     <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
-                   </ScrollArea.Scrollbar>
-                 </ScrollArea.Root>
+              <div className="tw-p-3 tw-flex-1 tw-min-h-0">
+                <ScrollArea.Root className="vj-scroll-root tw-h-full" type="always">
+                  <ScrollArea.Viewport className="vj-scroll-viewport tw-h-full tw-w-full tw-pr-3 tw-pb-3">
+                    <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'effects')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
+                      <TabsContent value="effects">
+                        <div className="tw-space-y-2">
+                          <EffectsBrowser />
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="media">
+                        <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
+                      </TabsContent>
+                      <TabsContent value="midi">
+                        <div className="midi-tab">
+                          <MIDIMapper />
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="lfo">
+                        <div className="lfo-tab">
+                          <LFOMapper 
+                            selectedLayer={effectiveSelectedLayer || selectedLayer}
+                            onUpdateLayer={handleUpdateSelectedLayer}
+                          />
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </ScrollArea.Viewport>
+                  <ScrollArea.Scrollbar
+                    className="tw-z-10 tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation:horizontal]:tw-flex-col tw-data-[orientation:horizontal]:tw-h-2.5"
+                    orientation="vertical"
+                  >
+                    <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />
+                  </ScrollArea.Scrollbar>
+                </ScrollArea.Root>
                 {/* Keep LFO engine mounted so Random/LFO continue across app tab switches */}
                 <div style={{ display: 'none' }} aria-hidden>
                   <LFOMapper selectedLayer={effectiveSelectedLayer || selectedLayer} onUpdateLayer={handleUpdateSelectedLayer} />
                 </div>
-               </div>
-             </div>
+              </div>
+            </div>
           </div>
         </div>
 

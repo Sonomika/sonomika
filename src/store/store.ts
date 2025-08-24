@@ -30,7 +30,7 @@ const createEmptyScene = (): Scene => ({
 });
 
 const createDefaultScenes = (): Scene[] => {
-  console.log('🔧 Creating default scene');
+  // console.log('🔧 Creating default scene');
   return [{
     id: uuidv4(),
     name: '1',
@@ -127,12 +127,12 @@ export const useStore = create<AppState & {
       setCurrentScene: (sceneId: string) => set({ currentSceneId: sceneId }),
 
       updateScene: (sceneId: string, updates: Partial<Scene>) => {
-        console.log('updateScene called with sceneId:', sceneId, 'updates:', updates);
+        // console.log('updateScene called with sceneId:', sceneId, 'updates:', updates);
         return set((state) => {
           const newScenes = state.scenes.map(scene => 
             scene.id === sceneId ? { ...scene, ...updates } : scene
           );
-          console.log('Updated scenes:', newScenes);
+          // console.log('Updated scenes:', newScenes);
           return { scenes: newScenes };
         });
       },
@@ -358,7 +358,7 @@ export const useStore = create<AppState & {
              clearStorage: () => {
         try {
           localStorage.removeItem('vj-app-storage');
-          console.log('Storage cleared due to quota issues');
+          // console.log('Storage cleared due to quota issues');
         } catch (error) {
           console.warn('Failed to clear storage:', error);
         }
@@ -375,15 +375,15 @@ export const useStore = create<AppState & {
             currentSceneId: initialState.scenes[0].id,
           });
           
-          console.log('✅ Reset to default state completed');
+          // console.log('✅ Reset to default state completed');
         } catch (error) {
           console.warn('Failed to reset to default:', error);
         }
       },
 
       addAsset: (asset: Asset) => set((state) => {
-        console.log('Adding asset to store:', asset.name, asset.id);
-        console.log('Current assets count:', state.assets.length);
+        // console.log('Adding asset to store:', asset.name, asset.id);
+        // console.log('Current assets count:', state.assets.length);
         
         // Ensure the asset has a persistent identifier
         const persistentAsset = {
@@ -394,7 +394,7 @@ export const useStore = create<AppState & {
           addedAt: Date.now(),
         };
         
-        console.log('Persistent asset data:', persistentAsset);
+        // console.log('Persistent asset data:', persistentAsset);
         return {
           assets: [...state.assets, persistentAsset],
         };
@@ -430,19 +430,19 @@ export const useStore = create<AppState & {
       // Debug function to check storage state
       debugStorage: () => {
         const state = get();
-        console.log('🔍 Current Storage State:');
-        console.log('  - Total Assets:', state.assets.length);
-        console.log('  - Video Assets:', state.assets.filter(a => a.type === 'video').length);
-        console.log('  - Assets with paths:', state.assets.filter(a => a.filePath || a.originalPath).length);
-        console.log('  - Video assets with paths:', state.assets.filter(a => a.type === 'video' && (a.filePath || a.originalPath)).length);
+        // console.log('🔍 Current Storage State:');
+        // console.log('  - Total Assets:', state.assets.length);
+        // console.log('  - Video Assets:', state.assets.filter(a => a.type === 'video').length);
+        // console.log('  - Assets with paths:', state.assets.filter(a => a.filePath || a.originalPath).length);
+        // console.log('  - Video assets with paths:', state.assets.filter(a => a.type === 'video' && (a.filePath || a.originalPath)).length);
         
         // Check localStorage
         try {
           const storageData = localStorage.getItem('vj-app-storage');
-          console.log('  - localStorage size:', storageData?.length || 0, 'bytes');
+          // console.log('  - localStorage size:', storageData?.length || 0, 'bytes');
           if (storageData) {
             const parsed = JSON.parse(storageData);
-            console.log('  - Stored assets count:', parsed.assets?.length || 0);
+            // console.log('  - Stored assets count:', parsed.assets?.length || 0);
           }
         } catch (error) {
           console.error('  - Error reading localStorage:', error);
@@ -541,7 +541,7 @@ export const useStore = create<AppState & {
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
           
-          console.log('Preset saved to file:', defaultName);
+          // console.log('Preset saved to file:', defaultName);
           return defaultName;
         } catch (error) {
           console.error('Failed to save preset:', error);
@@ -559,7 +559,7 @@ export const useStore = create<AppState & {
                 const presetData = e.target?.result as string;
                 const preset = JSON.parse(presetData);
                 const presetName = preset.displayName || preset.name || file.name;
-                console.log('Loading preset:', presetName);
+                // console.log('Loading preset:', presetName);
                 
                 // Check if the preset data is too large for localStorage
                 const dataSize = new Blob([presetData]).size;
@@ -574,7 +574,7 @@ export const useStore = create<AppState & {
                                          assets: preset.data.assets?.filter((asset: any) => {
                        // Remove assets with base64Data that are too large
                        if (asset.base64Data && asset.size > 1024 * 1024) { // 1MB
-                         console.log('Removing large asset from preset:', asset.name, 'size:', Math.round(asset.size / 1024), 'KB');
+                         // console.log('Removing large asset from preset:', asset.name, 'size:', Math.round(asset.size / 1024), 'KB');
                          return false;
                        }
                        return true;
@@ -584,7 +584,7 @@ export const useStore = create<AppState & {
                   // Clear localStorage first to make space
                   try {
                     localStorage.removeItem('vj-app-storage');
-                    console.log('Cleared localStorage to make space for preset');
+                    // console.log('Cleared localStorage to make space for preset');
                   } catch (clearError) {
                     console.warn('Failed to clear localStorage:', clearError);
                   }
@@ -620,7 +620,7 @@ export const useStore = create<AppState & {
     {
       name: 'vj-app-storage',
              partialize: (state) => {
-         console.log('Persisting state with assets:', state.assets.length);
+         // console.log('Persisting state with assets:', state.assets.length);
          return {
            // Persist assets with base64Data for small files
            assets: state.assets.map(asset => {
@@ -639,12 +639,12 @@ export const useStore = create<AppState & {
              // Include base64Data for small files (under 500KB to prevent quota issues)
              if (asset.size < 500 * 1024 && asset.base64Data) {
                persistedAsset.base64Data = asset.base64Data;
-               console.log('Including base64Data for asset:', asset.name);
+               // console.log('Including base64Data for asset:', asset.name);
              }
              
              // For video files, ensure we store the file path for persistence
              if (asset.type === 'video' && asset.filePath) {
-               console.log('Persisting video file path:', asset.filePath);
+               // console.log('Persisting video file path:', asset.filePath);
                persistedAsset.videoPath = asset.filePath;
              }
              
@@ -670,27 +670,27 @@ export const useStore = create<AppState & {
          };
        },
              onRehydrateStorage: () => (state) => {
-         console.log('🔄 Store rehydrated successfully!');
-         console.log('📊 Rehydrated data summary:');
-         console.log('  - Assets:', state?.assets?.length || 0, 'items');
-         console.log('  - Scenes:', state?.scenes?.length || 0, 'scenes');
-         console.log('  - Current Scene ID:', state?.currentSceneId || 'none');
-         console.log('  - Playing Column ID:', state?.playingColumnId || 'none');
-         console.log('  - BPM:', state?.bpm || 120);
-         console.log('  - Sidebar Visible:', state?.sidebarVisible);
-         console.log('  - Selected Layer ID:', state?.selectedLayerId || 'none');
-         console.log('  - Preview Mode:', state?.previewMode || 'composition');
-         console.log('  - MIDI Mappings:', state?.midiMappings?.length || 0, 'mappings');
-         console.log('  - Composition Settings:', state?.compositionSettings);
+         // console.log('🔄 Store rehydrated successfully!');
+         // console.log('📊 Rehydrated data summary:');
+         // console.log('  - Assets:', state?.assets?.length || 0, 'items');
+         // console.log('  - Scenes:', state?.scenes?.length || 0, 'scenes');
+         // console.log('  - Current Scene ID:', state?.currentSceneId || 'none');
+         // console.log('  - Playing Column ID:', state?.playingColumnId || 'none');
+         // console.log('  - BPM:', state?.bpm || 120);
+         // console.log('  - Sidebar Visible:', state?.sidebarVisible);
+         // console.log('  - Selected Layer ID:', state?.selectedLayerId || 'none');
+         // console.log('  - Preview Mode:', state?.previewMode || 'composition');
+         // console.log('  - MIDI Mappings:', state?.midiMappings?.length || 0, 'mappings');
+         // console.log('  - Composition Settings:', state?.compositionSettings);
          
          // Debug: Check what's actually in localStorage
          try {
            const storageData = localStorage.getItem('vj-app-storage');
-           console.log('🔍 Raw localStorage data length:', storageData?.length || 0);
+           // console.log('🔍 Raw localStorage data length:', storageData?.length || 0);
            if (storageData) {
              const parsed = JSON.parse(storageData);
-             console.log('🔍 Parsed storage keys:', Object.keys(parsed));
-             console.log('🔍 Storage state:', parsed);
+             // console.log('🔍 Parsed storage keys:', Object.keys(parsed));
+             // console.log('🔍 Storage state:', parsed);
            }
          } catch (error) {
            console.error('❌ Error reading localStorage:', error);
@@ -704,14 +704,14 @@ export const useStore = create<AppState & {
               console.warn('⚠️ Storage size exceeded limit, clearing...');
               localStorage.removeItem('vj-app-storage');
             } else {
-              console.log('💾 Storage size:', Math.round(storageSize / 1024), 'KB');
+              // console.log('💾 Storage size:', Math.round(storageSize / 1024), 'KB');
             }
           } catch (error) {
             console.warn('Failed to check storage size:', error);
             // If we can't check storage size, clear it to be safe
             try {
               localStorage.removeItem('vj-app-storage');
-              console.log('Cleared localStorage due to error checking size');
+              // console.log('Cleared localStorage due to error checking size');
             } catch (clearError) {
               console.warn('Failed to clear localStorage:', clearError);
             }

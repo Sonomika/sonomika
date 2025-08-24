@@ -90,20 +90,20 @@ export class EffectDiscovery {
    * This automatically scans for effect files and loads them
    */
   async discoverEffects(): Promise<ReactSelfContainedEffect[]> {
-    console.log('🚀 EffectDiscovery.discoverEffects() called');
+    // console.log('🚀 EffectDiscovery.discoverEffects() called');
     const effects: ReactSelfContainedEffect[] = [];
 
     // Get all effect files from the effects folder
     const effectFiles = await this.getEffectFiles();
     
-    console.log('🔍 EffectDiscovery: Found effect files:', effectFiles);
+    // console.log('🔍 EffectDiscovery: Found effect files:', effectFiles);
     
     for (const fileName of effectFiles) {
       try {
-        console.log(`🔍 Loading effect from file: ${fileName}`);
+        // console.log(`🔍 Loading effect from file: ${fileName}`);
         const effect = await this.loadEffectFromFile(fileName);
         if (effect) {
-          console.log(`✅ Successfully loaded effect: ${effect.id} (${effect.name})`);
+          // console.log(`✅ Successfully loaded effect: ${effect.id} (${effect.name})`);
           this.discoveredEffects.set(effect.id, effect);
           effects.push(effect);
         } else {
@@ -114,10 +114,78 @@ export class EffectDiscovery {
       }
     }
 
-    console.log(`🎯 EffectDiscovery: Total effects loaded: ${effects.length}`);
-    console.log('✅ Successfully loaded effects:', effects.map(e => e.id));
-    console.log('❌ Failed to load effects:', effects.filter(e => !e.id).map(e => e.name));
+    // console.log(`🎯 EffectDiscovery: Total effects loaded: ${effects.length}`);
+    // console.log('✅ Successfully loaded effects:', effects.map(e => e.id));
+    // console.log('❌ Failed to load effects:', effects.filter(e => !e.id).map(e => e.name));
     return effects;
+  }
+
+  /**
+   * Lightweight listing of available effects without importing modules
+   * Returns quickly with filenames and derived minimal metadata.
+   */
+  async listAvailableEffectsLightweight(): Promise<Array<{
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    icon: string;
+    author: string;
+    version: string;
+    metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean };
+    fileKey: string;
+  }>> {
+    const results: Array<{
+      id: string;
+      name: string;
+      description: string;
+      category: string;
+      icon: string;
+      author: string;
+      version: string;
+      metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean };
+      fileKey: string;
+    }> = [];
+
+    try {
+      // Build map of effect modules without importing them
+      const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../effects/**/*.tsx', { eager: false });
+      for (const [modulePath, importFn] of Object.entries(effectModules)) {
+        // Normalize key to be relative to effects folder
+        const normalized = modulePath.replace('../effects/', '');
+        const folder = this.getFolderCategory(normalized);
+        const baseFileName = normalized.split('/').pop() || normalized;
+        const id = this.generateEffectId(baseFileName);
+        const name = this.generateEffectName(baseFileName);
+        const category = folder === 'sources' ? 'Sources' : 'Effects';
+        const isSource = folder === 'sources';
+
+        // Remember how to import on-demand later
+        this.browserEffectImports.set(`${normalized}`, importFn as any);
+
+        results.push({
+          id,
+          name,
+          description: `${name} effect`,
+          category,
+          icon: '',
+          author: 'VJ System',
+          version: '1.0.0',
+          metadata: {
+            parameters: [],
+            category,
+            type: 'react-component',
+            folder,
+            isSource,
+          },
+          fileKey: normalized,
+        });
+      }
+    } catch (error) {
+      console.warn('Lightweight effect listing failed:', error);
+    }
+
+    return results;
   }
 
   /**
@@ -161,19 +229,19 @@ export class EffectDiscovery {
         
       } else {
         // We're in a browser environment - use dynamic import discovery
-        console.log('🔍 Browser environment detected, using dynamic import discovery...');
+        // console.log('🔍 Browser environment detected, using dynamic import discovery...');
         
         // Use a truly dynamic approach that doesn't rely on hardcoded lists
         const discoveredFiles: string[] = [];
         
         // Try to use Vite's import.meta.glob for dynamic discovery
         try {
-          console.log('🔍 Attempting to use import.meta.glob for dynamic discovery...');
+          // console.log('🔍 Attempting to use import.meta.glob for dynamic discovery...');
           
           // This should dynamically discover all .tsx files in the effects directory and subdirectories
           const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../effects/**/*.tsx', { eager: false });
           
-          console.log('🔍 Found effect modules:', Object.keys(effectModules));
+          // console.log('🔍 Found effect modules:', Object.keys(effectModules));
           
           // Process each discovered module
           for (const [modulePath, importFn] of Object.entries(effectModules)) {
@@ -191,7 +259,7 @@ export class EffectDiscovery {
               discoveredFiles.push(fileKey);
               // Register import function so we can load deterministically later
               this.browserEffectImports.set(fileKey, importFn);
-              console.log(`✅ Discovered effect: ${effectName}`);
+              // console.log(`✅ Discovered effect: ${effectName}`);
             } catch (error) {
               console.log(`❌ Failed to import effect: ${modulePath}`, error);
             }
@@ -201,11 +269,11 @@ export class EffectDiscovery {
           
           // If import.meta.glob fails, we'll return an empty array
           // This ensures we don't fall back to hardcoded patterns
-          console.log('⚠️ Dynamic discovery failed, returning empty array to avoid hardcoded fallbacks');
+          // console.log('⚠️ Dynamic discovery failed, returning empty array to avoid hardcoded fallbacks');
         }
         
-        console.log(`🎯 Discovered ${discoveredFiles.length} effects in browser environment`);
-        console.log('📋 Discovered files:', discoveredFiles);
+        // console.log(`🎯 Discovered ${discoveredFiles.length} effects in browser environment`);
+        // console.log('📋 Discovered files:', discoveredFiles);
         
         return discoveredFiles;
       }
@@ -251,7 +319,7 @@ export class EffectDiscovery {
    * Load an effect from a file
    */
   private async loadEffectFromFile(fileName: string): Promise<ReactSelfContainedEffect | null> {
-    console.log(`🔍 loadEffectFromFile called with fileName: "${fileName}"`);
+    // console.log(`🔍 loadEffectFromFile called with fileName: "${fileName}"`);
     
     if (!fileName || fileName.trim() === '') {
       console.error('❌ loadEffectFromFile received empty or undefined fileName');
@@ -268,10 +336,10 @@ export class EffectDiscovery {
       } else {
         // Fallback for Electron/Node where direct relative import works during build time
         const importPath = fileName.replace('.tsx', '');
-        console.log(`🔍 Importing from path (fallback): "../effects/${importPath}"`);
+        // console.log(`🔍 Importing from path (fallback): "../effects/${importPath}"`);
         module = await import(/* @vite-ignore */ `../effects/${importPath}`);
       }
-      console.log(`✅ Successfully imported module:`, module);
+      // console.log(`✅ Successfully imported module:`, module);
       
       // Try to get metadata from the module
       // Compute importPath only for logging/derived keys
@@ -279,22 +347,22 @@ export class EffectDiscovery {
       const component = module.default || module[`${importPathForKeys}Component`];
       const metadata = module.metadata || component?.metadata || module[`${importPathForKeys}Metadata`];
       
-      console.log(`🔍 Found metadata:`, metadata);
-      console.log(`🔍 Found component:`, component ? 'Yes' : 'No');
-      console.log(`🔍 Module keys:`, Object.keys(module));
-      console.log(`🔍 Module.default:`, module.default);
-      console.log(`🔍 Module.default type:`, typeof module.default);
+      // console.log(`🔍 Found metadata:`, metadata);
+      // console.log(`🔍 Found component:`, component ? 'Yes' : 'No');
+      // console.log(`🔍 Module keys:`, Object.keys(module));
+      // console.log(`🔍 Module.default:`, module.default);
+      // console.log(`🔍 Module.default type:`, typeof module.default);
       
       // Generic debugging for all effects
-      console.log(`🎯 Effect loading details for ${fileName}:`, {
-        fileName,
-        importPath: importPathForKeys,
-        hasDefault: !!module.default,
-        defaultType: typeof module.default,
-        hasComponent: !!component,
-        componentType: typeof component,
-        moduleKeys: Object.keys(module)
-      });
+      // console.log(`🎯 Effect loading details for ${fileName}:`, {
+      //   fileName,
+      //   importPath: importPathForKeys,
+      //   hasDefault: !!module.default,
+      //   defaultType: typeof module.default,
+      //   hasComponent: !!component,
+      //   componentType: typeof component,
+      //   moduleKeys: Object.keys(module)
+      // });
       
       if (!component) {
         console.warn(`❌ No component found in ${fileName}`);
@@ -352,9 +420,9 @@ export class EffectDiscovery {
 
       // Note: Effects are self-registered in their own files, so we don't need to auto-register here
       // This prevents duplicate registrations
-      console.log(`🔧 Effect ${id} is self-registered, skipping auto-registration`);
+      // console.log(`🔧 Effect ${id} is self-registered, skipping auto-registration`);
 
-      console.log(`✅ Created effect object:`, effect);
+      // console.log(`✅ Created effect object:`, effect);
       return effect;
     } catch (error) {
       console.error(`❌ Error loading effect from file ${fileName}:`, error);
@@ -366,7 +434,7 @@ export class EffectDiscovery {
    * Generate effect ID from filename
    */
   private generateEffectId(fileName: string): string {
-    console.log(`🔍 generateEffectId called with fileName: "${fileName}"`);
+    // console.log(`🔍 generateEffectId called with fileName: "${fileName}"`);
     
     if (!fileName || fileName.trim() === '') {
       console.error('❌ generateEffectId received empty or undefined fileName');
@@ -384,7 +452,7 @@ export class EffectDiscovery {
       .replace(/-+$/, '') // Remove trailing hyphens
       .replace(/-+/g, '-'); // Replace multiple hyphens with single
     
-    console.log(`🔍 Generated effect ID: "${id}" from fileName: "${fileName}"`);
+    // console.log(`🔍 Generated effect ID: "${id}" from fileName: "${fileName}"`);
     return id;
   }
 
@@ -462,12 +530,12 @@ export class EffectDiscovery {
    * Get filename from effect ID
    */
   private getFileNameFromId(id: string): string {
-    console.log(`🔍 getFileNameFromId called with id: "${id}"`);
+    // console.log(`🔍 getFileNameFromId called with id: "${id}"`);
     
     // If the ID is already a simple filename (no hyphens), just add .tsx
     if (!id.includes('-')) {
       const fileName = `${id}.tsx`;
-      console.log(`🔍 Simple filename detected, returning: "${fileName}"`);
+      // console.log(`🔍 Simple filename detected, returning: "${fileName}"`);
       return fileName;
     }
     
@@ -477,7 +545,7 @@ export class EffectDiscovery {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join('') + 'Effect.tsx';
     
-    console.log(`🔍 Converted kebab-case to filename: "${fileName}"`);
+    // console.log(`🔍 Converted kebab-case to filename: "${fileName}"`);
     return fileName;
   }
 

@@ -16,8 +16,9 @@ interface ThumbnailRequest {
 const videoThumbnailCache = new Map<string, ThumbnailCacheRecord>();
 const thumbnailQueue: ThumbnailRequest[] = [];
 let isProcessing = false;
-let maxConcurrent = 2; // Limit concurrent thumbnail generation
+let maxConcurrent = 1; // Reduce concurrency while testing performance
 let activeGenerations = 0;
+let playbackActive = false; // Pause work during playback
 
 // Persistent storage keys
 const STORAGE_KEY = 'vj-thumbnail-cache';
@@ -54,7 +55,7 @@ function loadPersistentCache(): void {
         videoThumbnailCache.set(key, record);
       });
       
-      console.log('📸 Loaded', validEntries.length, 'persistent thumbnails, total size:', formatBytes(totalSize));
+      // console.log('📸 Loaded', validEntries.length, 'persistent thumbnails, total size:', formatBytes(totalSize));
     }
   } catch (error) {
     console.warn('📸 Failed to load persistent thumbnail cache:', error);
@@ -104,16 +105,16 @@ function savePersistentCache(): void {
         }
       });
       
-      console.log('📸 Trimmed cache to', validEntries.length, 'entries, size:', formatBytes(currentSize));
+      // console.log('📸 Trimmed cache to', validEntries.length, 'entries, size:', formatBytes(currentSize));
     }
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cacheData));
-    console.log('📸 Saved', Object.keys(cacheData).length, 'thumbnails to persistent storage');
+    // console.log('📸 Saved', Object.keys(cacheData).length, 'thumbnails to persistent storage');
   } catch (error) {
     console.warn('📸 Failed to save persistent thumbnail cache:', error);
     // If localStorage is full, clear it and try again
     if (error instanceof Error && error.name === 'QuotaExceededError') {
-      console.log('📸 localStorage full, clearing old entries...');
+      // console.log('📸 localStorage full, clearing old entries...');
       localStorage.removeItem(STORAGE_KEY);
       // Try to save again with just the most recent entries
       setTimeout(savePersistentCache, 100);
@@ -133,13 +134,25 @@ function formatBytes(bytes: number): string {
 // Initialize persistent cache on module load
 loadPersistentCache();
 
-// Auto-save cache periodically and before page unload
-setInterval(savePersistentCache, 30000); // Save every 30 seconds
-window.addEventListener('beforeunload', savePersistentCache);
+// Optional autosave disabled during performance testing
+const AUTO_SAVE = false;
+if (AUTO_SAVE) {
+  setInterval(savePersistentCache, 30000);
+  window.addEventListener('beforeunload', savePersistentCache);
+}
+
+// Listen for app playback events to pause thumbnail work
+try {
+  window.addEventListener('globalPlay', () => { playbackActive = true; });
+  window.addEventListener('columnPlay', () => { playbackActive = true; });
+  window.addEventListener('globalPause', () => { playbackActive = false; });
+  window.addEventListener('globalStop', () => { playbackActive = false; });
+  window.addEventListener('columnStop', () => { playbackActive = false; });
+} catch {}
 
 // Process queue with throttling
 async function processQueue() {
-  if (isProcessing || thumbnailQueue.length === 0 || activeGenerations >= maxConcurrent) {
+  if (playbackActive || isProcessing || thumbnailQueue.length === 0 || activeGenerations >= maxConcurrent) {
     return;
   }
 
@@ -200,7 +213,7 @@ export async function generateVideoThumbnail(
   const cacheKey = `${src}|${options?.captureTimeSec ?? 0.1}|${options?.width ?? 160}x${options?.height ?? 90}`;
   const cached = videoThumbnailCache.get(cacheKey);
   if (cached) {
-    console.log('📸 Using cached thumbnail for:', src);
+            // console.log('📸 Using cached thumbnail for:', src);
     // Update last accessed time for LRU behavior
     cached.lastAccessed = Date.now();
     videoThumbnailCache.set(cacheKey, cached);
@@ -219,7 +232,7 @@ async function generateVideoThumbnailInternal(
 ): Promise<string> {
   const cacheKey = `${src}|${options?.captureTimeSec ?? 0.1}|${options?.width ?? 160}x${options?.height ?? 90}`;
   
-  console.log('📸 Generating new thumbnail for:', src);
+          // console.log('📸 Generating new thumbnail for:', src);
   const captureTimeSec = options?.captureTimeSec ?? 0.1;
   const targetWidth = options?.width ?? 160;
   const targetHeight = options?.height ?? 90;
@@ -234,7 +247,7 @@ async function generateVideoThumbnailInternal(
   try {
     await new Promise<void>((resolve, reject) => {
       const onLoaded = () => {
-        console.log('📸 Video loaded successfully for thumbnail:', src);
+        // console.log('📸 Video loaded successfully for thumbnail:', src);
         resolve();
       };
       const onError = (error: Event) => {
@@ -248,10 +261,10 @@ async function generateVideoThumbnailInternal(
 
     // Some videos need metadata before seeking
     if (Number.isNaN(video.duration) || video.duration === Infinity) {
-      console.log('📸 Waiting for video metadata:', src);
+              // console.log('📸 Waiting for video metadata:', src);
       await new Promise<void>((resolve) => {
         video.addEventListener('loadedmetadata', () => {
-          console.log('📸 Video metadata loaded:', src, 'duration:', video.duration);
+                      // console.log('📸 Video metadata loaded:', src, 'duration:', video.duration);
           resolve();
         }, { once: true });
       });
@@ -259,11 +272,11 @@ async function generateVideoThumbnailInternal(
 
     // Clamp capture time within duration
     const seekTime = Math.min(Math.max(captureTimeSec, 0), (video.duration || 1) - 0.01);
-    console.log('📸 Seeking to time:', seekTime, 'for video:', src);
+            // console.log('📸 Seeking to time:', seekTime, 'for video:', src);
 
     await new Promise<void>((resolve, reject) => {
       const onSeeked = () => {
-        console.log('📸 Video seeked successfully:', src);
+                    // console.log('📸 Video seeked successfully:', src);
         resolve();
       };
       const onError = (error: Event) => {
@@ -286,7 +299,7 @@ async function generateVideoThumbnailInternal(
     // Compute fitted rect preserving aspect ratio
     const videoW = video.videoWidth || targetWidth;
     const videoH = video.videoHeight || targetHeight;
-    console.log('📸 Video dimensions:', videoW, 'x', videoH, 'for:', src);
+            // console.log('📸 Video dimensions:', videoW, 'x', videoH, 'for:', src);
     
     const scale = Math.min(targetWidth / videoW, targetHeight / videoH);
     const drawW = Math.floor(videoW * scale);
@@ -294,26 +307,27 @@ async function generateVideoThumbnailInternal(
     const offsetX = Math.floor((targetWidth - drawW) / 2);
     const offsetY = Math.floor((targetHeight - drawH) / 2);
 
-    console.log('📸 Drawing video to canvas:', {
-      targetSize: `${targetWidth}x${targetHeight}`,
-      drawSize: `${drawW}x${drawH}`,
-      offset: `${offsetX},${offsetY}`,
-      scale
-    });
+            // console.log('📸 Drawing video to canvas:', {
+            //   targetSize: `${targetWidth}x${targetHeight}`,
+            //   drawSize: `${drawW}x${drawH}`,
+            //   offset: `${offsetX},${offsetY}`,
+            //   scale
+            // });
 
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, targetWidth, targetHeight);
     
     try {
-      ctx.drawImage(video, offsetX, offsetY, drawW, drawH);
-      console.log('📸 Video drawn to canvas successfully:', src);
+      // Use contain (letterbox/pillarbox) to avoid cropping
+      ctx.drawImage(video, 0, 0, videoW, videoH, offsetX, offsetY, drawW, drawH);
+      // console.log('📸 Video drawn to canvas successfully:', src);
     } catch (drawError) {
       console.error('📸 Failed to draw video to canvas:', src, drawError);
       throw new Error(`Failed to draw video to canvas: ${drawError}`);
     }
 
     const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-    console.log('📸 Generated data URL for thumbnail:', src, 'length:', dataUrl.length);
+    // console.log('📸 Generated data URL for thumbnail:', src, 'length:', dataUrl.length);
     
     // Validate the data URL
     if (!dataUrl.startsWith('data:image/jpeg;base64,')) {
@@ -325,7 +339,7 @@ async function generateVideoThumbnailInternal(
     }
 
     videoThumbnailCache.set(cacheKey, { dataUrl, createdAt: Date.now(), lastAccessed: Date.now(), size: dataUrl.length });
-    console.log('📸 Thumbnail cached successfully for:', src);
+    // console.log('📸 Thumbnail cached successfully for:', src);
     return dataUrl;
     
   } catch (error) {
@@ -347,7 +361,7 @@ async function generateVideoThumbnailInternal(
       ctx.fillText('ERROR', targetWidth / 2, targetHeight / 2 + 5);
       
       const fallbackDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-      console.log('📸 Generated fallback thumbnail for:', src);
+      // console.log('📸 Generated fallback thumbnail for:', src);
       return fallbackDataUrl;
     }
     
@@ -366,13 +380,13 @@ export function clearVideoThumbnailCache(): void {
 export function clearPersistentThumbnailCache(): void {
   localStorage.removeItem(STORAGE_KEY);
   videoThumbnailCache.clear();
-  console.log('📸 Cleared all persistent thumbnails from localStorage and memory.');
+  // console.log('📸 Cleared all persistent thumbnails from localStorage and memory.');
 }
 
 // Performance tuning functions
 export function setMaxConcurrentThumbnails(max: number): void {
   maxConcurrent = Math.max(1, Math.min(5, max)); // Limit between 1-5
-  console.log('📸 Set max concurrent thumbnails to:', maxConcurrent);
+  // console.log('📸 Set max concurrent thumbnails to:', maxConcurrent);
 }
 
 export function getQueueStatus(): { queueLength: number; activeGenerations: number; maxConcurrent: number } {
@@ -421,7 +435,7 @@ export function getCacheStats(): {
 
 export function clearThumbnailQueue(): void {
   thumbnailQueue.length = 0;
-  console.log('📸 Cleared thumbnail queue');
+      // console.log('📸 Cleared thumbnail queue');
 }
 
 // Remove specific thumbnail from cache
@@ -429,7 +443,7 @@ export function removeThumbnailFromCache(src: string, options?: { captureTimeSec
   const cacheKey = `${src}|${options?.captureTimeSec ?? 0.1}|${options?.width ?? 160}x${options?.height ?? 90}`;
   const wasRemoved = videoThumbnailCache.delete(cacheKey);
   if (wasRemoved) {
-    console.log('📸 Removed thumbnail from cache:', src);
+    // console.log('📸 Removed thumbnail from cache:', src);
     // Trigger save to update persistent storage
     setTimeout(savePersistentCache, 100);
   }
@@ -440,7 +454,7 @@ export function removeThumbnailFromCache(src: string, options?: { captureTimeSec
 export function clearMemoryThumbnailCache(): void {
   const count = videoThumbnailCache.size;
   videoThumbnailCache.clear();
-  console.log('📸 Cleared', count, 'thumbnails from memory cache (persistent storage preserved)');
+      // console.log('📸 Cleared', count, 'thumbnails from memory cache (persistent storage preserved)');
 }
 
 

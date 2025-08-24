@@ -7,39 +7,60 @@ const electron_1 = require("electron");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
-console.log('=== PRELOAD SCRIPT LOADED ===');
-console.log('contextBridge available:', !!electron_1.contextBridge);
-console.log('ipcRenderer available:', !!electron_1.ipcRenderer);
-console.log('fs available:', !!fs_1.default);
-console.log('path available:', !!path_1.default);
-console.log('os available:', !!os_1.default);
+// Quiet preload verbosity in development
+(() => {
+    try {
+        const log = console.log.bind(console);
+        const warn = console.warn.bind(console);
+        const noisy = /^(Preload:|\[preload\]|=== PRELOAD SCRIPT)/;
+        console.log = (...args) => {
+            const first = args[0];
+            if (typeof first === 'string' && noisy.test(first))
+                return;
+            return log(...args);
+        };
+        console.warn = (...args) => {
+            const first = args[0];
+            if (typeof first === 'string' && noisy.test(first))
+                return;
+            return warn(...args);
+        };
+    }
+    catch { }
+})();
+// console.log('=== PRELOAD SCRIPT LOADED ===');
+// console.log('contextBridge available:', !!contextBridge);
+// console.log('ipcRenderer available:', !!ipcRenderer);
+// console.log('fs available:', !!fs);
+// console.log('path available:', !!path);
+// console.log('os available:', !!os);
 // Simple test to see if we can access Node.js modules
 try {
-    console.log('=== PRELOAD SCRIPT: Testing Node.js access ===');
-    console.log('Current directory:', process.cwd());
-    console.log('Platform:', process.platform);
-    console.log('Node version:', process.version);
+    // console.log('=== PRELOAD SCRIPT: Testing Node.js access ===');
+    // console.log('Current directory:', process.cwd());
+    // console.log('Platform:', process.platform);
+    // console.log('Node version:', process.version);
 }
 catch (e) {
     console.error('Failed to access Node.js globals:', e);
 }
 // Test if we can access the global object
-console.log('=== PRELOAD SCRIPT: Testing global access ===');
+// console.log('=== PRELOAD SCRIPT: Testing global access ===');
 try {
-    console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld starting ===');
+    // console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld starting ===');
     // Expose protected methods that allow the renderer process to use
     // the ipcRenderer without exposing the entire object
     electron_1.contextBridge.exposeInMainWorld('electron', {
         minimize: () => {
-            console.log('Preload: minimize called');
+            // console.log('Preload: minimize called');
             electron_1.ipcRenderer.send('window-minimize');
         },
         maximize: () => {
-            console.log('Preload: maximize called');
+            // console.log('Preload: maximize called');
             electron_1.ipcRenderer.send('window-maximize');
         },
         close: () => {
-            console.log('Preload: close called');
+            // console.log('Preload: close called');
             electron_1.ipcRenderer.send('window-close');
         },
         toggleMirror: () => electron_1.ipcRenderer.send('toggle-mirror'),
@@ -53,20 +74,20 @@ try {
         closeMirrorWindow: () => electron_1.ipcRenderer.send('close-mirror-window'),
         setMirrorBackground: (color) => electron_1.ipcRenderer.send('set-mirror-bg', color),
         sendCanvasData: (dataUrl) => {
-            console.log('Preload: sendCanvasData called');
+            // console.log('Preload: sendCanvasData called');
             // Forward to mirror renderer via dedicated channel
             electron_1.ipcRenderer.send('sendCanvasData', dataUrl);
         },
         toggleFullscreen: () => {
-            console.log('Preload: toggleFullscreen called');
+            // console.log('Preload: toggleFullscreen called');
             electron_1.ipcRenderer.send('toggle-fullscreen');
         },
         resizeMirrorWindow: (width, height) => {
-            console.log('Preload: resizeMirrorWindow called', width, height);
+            // console.log('Preload: resizeMirrorWindow called', width, height);
             electron_1.ipcRenderer.send('resize-mirror-window', width, height);
         },
         toggleAppFullscreen: () => {
-            console.log('Preload: toggleAppFullscreen called');
+            // console.log('Preload: toggleAppFullscreen called');
             electron_1.ipcRenderer.send('toggle-app-fullscreen');
         },
         onWindowState: (cb) => {
@@ -87,11 +108,11 @@ try {
     // Advanced mirror API
     electron_1.contextBridge.exposeInMainWorld('advancedMirror', {
         open: (slices) => {
-            console.log('[preload] advanced-mirror:open', slices?.map?.(s => s?.id));
+            // console.log('[preload] advanced-mirror:open', slices?.map?.(s => s?.id));
             electron_1.ipcRenderer.send('advanced-mirror:open', slices);
         },
         closeAll: () => {
-            console.log('[preload] advanced-mirror:closeAll');
+            // console.log('[preload] advanced-mirror:closeAll');
             electron_1.ipcRenderer.send('advanced-mirror:closeAll');
         },
         sendSliceData: (id, dataUrl) => {
@@ -115,11 +136,11 @@ try {
         globalThis.electron = {
             ...existing,
             advancedMirrorOpen: (slices) => {
-                console.log('[preload] electron.advancedMirrorOpen');
+                // console.log('[preload] electron.advancedMirrorOpen');
                 electron_1.ipcRenderer.send('advanced-mirror:open', slices);
             },
             advancedMirrorCloseAll: () => {
-                console.log('[preload] electron.advancedMirrorCloseAll');
+                // console.log('[preload] electron.advancedMirrorCloseAll');
                 electron_1.ipcRenderer.send('advanced-mirror:closeAll');
             },
             advancedMirrorSendSliceData: (id, dataUrl) => {
@@ -134,15 +155,15 @@ try {
         };
     }
     catch { }
-    console.log('=== PRELOAD SCRIPT: electron API exposed successfully ===');
+    // console.log('=== PRELOAD SCRIPT: electron API exposed successfully ===');
     // Expose a minimal, safe filesystem API for the renderer (read-only)
-    console.log('=== PRELOAD SCRIPT: Starting to expose fsApi ===');
+    // console.log('=== PRELOAD SCRIPT: Starting to expose fsApi ===');
     electron_1.contextBridge.exposeInMainWorld('fsApi', {
         listDirectory: (dirPath) => {
-            console.log('Preload: fsApi.listDirectory called with:', dirPath);
+            // console.log('Preload: fsApi.listDirectory called with:', dirPath);
             try {
                 const entries = fs_1.default.readdirSync(dirPath, { withFileTypes: true });
-                console.log('Preload: fsApi.listDirectory success, found', entries.length, 'entries');
+                // console.log('Preload: fsApi.listDirectory success, found', entries.length, 'entries');
                 return entries.map((entry) => {
                     const full = path_1.default.join(dirPath, entry.name);
                     let size = undefined;
@@ -180,7 +201,7 @@ try {
         homedir: () => os_1.default.homedir(),
         platform: () => process.platform,
         roots: () => {
-            console.log('Preload: fsApi.roots called');
+            // console.log('Preload: fsApi.roots called');
             const roots = [];
             try {
                 if (process.platform === 'win32') {
@@ -197,7 +218,7 @@ try {
                 else {
                     roots.push(path_1.default.sep);
                 }
-                console.log('Preload: fsApi.roots returning:', roots);
+                // console.log('Preload: fsApi.roots returning:', roots);
             }
             catch { }
             return roots;
@@ -215,8 +236,8 @@ try {
         removeSync: (key) => electron_1.ipcRenderer.sendSync('authStorage:removeSync', key),
         loadAll: async () => electron_1.ipcRenderer.invoke('authStorage:loadAll'),
     });
-    console.log('=== PRELOAD SCRIPT: fsApi exposed successfully ===');
-    console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
+    // console.log('=== PRELOAD SCRIPT: fsApi exposed successfully ===');
+    // console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
 }
 catch (error) {
     console.error('=== PRELOAD SCRIPT ERROR ===', error);

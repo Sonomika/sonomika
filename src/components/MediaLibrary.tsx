@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { shallow } from 'zustand/shallow';
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
 import DropboxBrowser from './DropboxBrowser';
 import { 
@@ -16,7 +17,16 @@ interface MediaLibraryProps {
 
 
 export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded = false }) => {
-  const { assets, addAsset, removeAsset, updateAsset } = useStore() as any;
+  // Subscribe ONLY to the slices we need so LFO/store updates don't rerender the list
+  const { assets, addAsset, removeAsset, updateAsset } = useStore(
+    (state: any) => ({
+      assets: state.assets,
+      addAsset: state.addAsset,
+      removeAsset: state.removeAsset,
+      updateAsset: state.updateAsset,
+    }),
+    shallow
+  ) as any;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   // Removed unused viewMode state
@@ -34,13 +44,13 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   useEffect(() => {
     if (hasRestoredRef.current) return; // Already restored
     
-    console.log('MediaLibrary: Checking for assets to restore...');
+    // console.log('MediaLibrary: Checking for assets to restore...');
     let hasRestored = false;
     
     assets.forEach((asset: any) => {
       // If asset has base64Data but no valid path, restore the blob URL
       if (asset.base64Data && (!asset.path || asset.path.startsWith('blob:'))) {
-        console.log('Restoring asset from base64Data:', asset.name);
+        // console.log('Restoring asset from base64Data:', asset.name);
         let mimeType = 'image/*';
         if (asset.type === 'video') mimeType = 'video/*';
         else if (asset.type === 'audio') mimeType = 'audio/*';
@@ -49,52 +59,48 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         if (restoredBlobURL) {
           // Update the asset with the restored blob URL in the store
           updateAsset(asset.id, { path: restoredBlobURL });
-          console.log('Asset restored successfully:', asset.name);
+          // console.log('Asset restored successfully:', asset.name);
           hasRestored = true;
         }
       }
     });
     
     if (hasRestored) {
-      console.log('Asset restoration completed');
+      // console.log('Asset restoration completed');
       hasRestoredRef.current = true;
     }
   }, [assets, updateAsset]);
 
   // Handle drag start for assets
   const handleDragStart = (e: React.DragEvent, asset: any) => {
-    console.log('🎯 Starting drag for asset:', asset);
-    console.log('🎯 Asset type:', asset.type);
-    console.log('🎯 Asset name:', asset.name);
+    // console.log('🎯 Starting drag for asset:', asset);
     
     const assetData = JSON.stringify(asset);
-    console.log('🎯 Setting drag data:', assetData);
+    // console.log('🎯 Setting drag data:', assetData);
     
     e.dataTransfer.setData('application/json', assetData);
     e.dataTransfer.effectAllowed = 'copy';
     
-    console.log('🎯 Drag data set successfully');
-    console.log('🎯 DataTransfer types after set:', e.dataTransfer.types);
-    console.log('🎯 DataTransfer items after set:', e.dataTransfer.items);
+    // console.log('🎯 Drag prepared');
   };
 
 
 
   // Handle file import
   const handleFileImport = async (files: FileList) => {
-    console.log('Importing files:', files.length, 'files');
+    // console.log('Importing files:', files.length, 'files');
     
     // Check if we're in Electron environment
     const isElectron = typeof window !== 'undefined' && (window as any).require;
-    console.log('Is Electron environment:', isElectron);
+    // console.log('Is Electron environment:', isElectron);
     
     for (const file of Array.from(files)) {
-      console.log('Processing file:', file.name, file.type, file.size);
+      // console.log('Processing file:', file.name, file.type, file.size);
       
       // Check if asset already exists
       const existingAsset = assets.find((asset: any) => asset.name === file.name);
       if (existingAsset) {
-        console.log('Asset already exists:', file.name);
+        // console.log('Asset already exists:', file.name);
         setDuplicateWarning(`"${file.name}" already exists in library`);
         setTimeout(() => setDuplicateWarning(''), 3000); // Clear warning after 3 seconds
         continue; // Skip this file
@@ -108,39 +114,38 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           // Fallback to other methods
           if ((file as any).path) {
             filePath = (file as any).path;
-            console.log('Found file path:', filePath);
+            // console.log('Found file path:', filePath);
           } else if (file.webkitRelativePath) {
             filePath = file.webkitRelativePath;
-            console.log('Found webkit path:', filePath);
+            // console.log('Found webkit path:', filePath);
           } else if (isElectron) {
             // In Electron, try to get the path from the file object
-            console.log('File object properties:', Object.keys(file));
-            console.log('File object:', file);
+            // console.log('File object properties:', Object.keys(file));
             
             // Try to access the path property directly
             if ((file as any).path) {
               filePath = (file as any).path;
-              console.log('Found path via direct access:', filePath);
+              // console.log('Found path via direct access:', filePath);
             }
           }
         }
         
         // Create a blob URL for immediate use
         const blobURL = URL.createObjectURL(file);
-        console.log('Created blob URL:', blobURL, 'for file:', file.name);
+        // console.log('Created blob URL:', blobURL, 'for file:', file.name);
         
         // Convert to base64 for persistence (try for all files, but handle large files carefully)
         let base64Data = '';
         try {
           if (file.size < 50 * 1024 * 1024) { // Try for files smaller than 50MB
             base64Data = await fileToBase64(file);
-            console.log('Converted file to base64 for persistence');
+            // console.log('Converted file to base64 for persistence');
           } else {
-            console.log('File too large for base64 conversion, will rely on file path:', file.size);
+            // console.log('File too large for base64 conversion, will rely on file path:', file.size);
           }
         } catch (error) {
           console.error('Failed to convert file to base64:', error);
-          console.log('Will rely on file path for persistence');
+          // console.log('Will rely on file path for persistence');
         }
         
         // For video files, ensure we have both blob URL and file path
@@ -149,15 +154,15 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           // For videos, store the file path for persistence, but use blob URL for immediate use
           if (filePath) {
             finalPath = `file://${filePath}`;
-            console.log('Video file - using file path for persistence:', finalPath);
+            // console.log('Video file - using file path for persistence:', finalPath);
           } else {
             finalPath = blobURL;
-            console.log('Video file - no file path available, using blob URL:', finalPath);
+            // console.log('Video file - no file path available, using blob URL:', finalPath);
           }
         } else if (filePath) {
           // For other files, prefer file path if available
           finalPath = `file://${filePath}`;
-          console.log('Non-video file - using file path:', finalPath);
+          // console.log('Non-video file - using file path:', finalPath);
         }
         
         const asset = {
@@ -175,7 +180,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         };
         
         addAsset(asset);
-        console.log('Imported asset:', asset);
+        // console.log('Imported asset:', asset);
         
       } catch (error) {
         console.error('Error processing file:', file.name, error);
@@ -220,7 +225,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         return null;
       }
       
-      console.log('Successfully created blob URL:', blobURL, 'for type:', type, 'size:', byteArray.length);
+              // console.log('Successfully created blob URL:', blobURL, 'for type:', type, 'size:', byteArray.length);
       return blobURL;
     } catch (error) {
       console.error('Error converting base64 to blob URL:', error);
@@ -230,8 +235,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
   // Function to resolve file path in Electron environment
   const resolveFilePath = (file: File): string => {
-    console.log('Resolving file path for:', file.name);
-    console.log('File object:', file);
+    // console.log('Resolving file path for:', file.name);
     
     // Check if we're in Electron environment
     const isElectron = typeof window !== 'undefined' && (window as any).require;
@@ -244,12 +248,12 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         // Try different ways to get the file path
         if ((file as any).path) {
           const resolvedPath = path.resolve((file as any).path);
-          console.log('Resolved file path (Electron):', resolvedPath);
+          // console.log('Resolved file path (Electron):', resolvedPath);
           return resolvedPath;
         }
         
         // If no path property, try to construct from name (this is a fallback)
-        console.log('No path property found, using fallback');
+        // console.log('No path property found, using fallback');
         return '';
       } catch (error) {
         console.error('Error resolving file path (Electron):', error);
@@ -257,7 +261,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       }
     } else {
       // In browser environment, we can't resolve file paths
-      console.log('Browser environment detected, cannot resolve file paths');
+      // console.log('Browser environment detected, cannot resolve file paths');
       return '';
     }
   };
@@ -277,15 +281,14 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
   // Process assets to ensure they have valid paths - use useMemo to prevent recreation
   const processedAssets = useMemo(() => {
-    console.log('Processing assets:', assets?.length || 0, 'assets');
-    console.log('Raw assets:', assets);
+    // console.log('Processing assets:', assets?.length || 0, 'assets');
     
     const processed = (assets || []).map((asset: any) => {
       // If asset has a File object, create a fresh blob URL for immediate use
       if (asset.file && asset.file instanceof File) {
         try {
           const blobURL = URL.createObjectURL(asset.file);
-          console.log('Created fresh blob URL for asset:', asset.name, blobURL);
+          // console.log('Created fresh blob URL for asset:', asset.name, blobURL);
           return {
             ...asset,
             // Store the file path for persistence, but keep blob URL for immediate use
@@ -300,7 +303,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       
       // If asset has base64Data, ensure we have the file path for persistence
       if (asset.base64Data && asset.filePath) {
-        console.log('Asset has base64Data and filePath, ensuring file path is stored:', asset.name);
+        // console.log('Asset has base64Data and filePath, ensuring file path is stored:', asset.name);
         return {
           ...asset,
           // Store file path for persistence
@@ -311,7 +314,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       
       // If asset has a filePath, ensure it's stored as the main path
       if (asset.filePath && !asset.path.startsWith('file://')) {
-        console.log('Asset has filePath, storing as main path for persistence:', asset.name, asset.filePath);
+        // console.log('Asset has filePath, storing as main path for persistence:', asset.name, asset.filePath);
         return {
           ...asset,
           path: `file://${asset.filePath}`,
@@ -321,7 +324,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       
       // If asset has a blob URL, try to preserve the file path if available
       if (asset.path && asset.path.startsWith('blob:') && asset.filePath) {
-        console.log('Asset has blob URL, but storing file path for persistence:', asset.name);
+        // console.log('Asset has blob URL, but storing file path for persistence:', asset.name);
         return {
           ...asset,
           path: `file://${asset.filePath}`,
@@ -332,7 +335,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       
       // If asset has a file:// path, ensure we have filePath
       if (asset.path && asset.path.startsWith('file://')) {
-        console.log('Asset already has file path:', asset.name, asset.path);
+        // console.log('Asset already has file path:', asset.name, asset.path);
         return {
           ...asset,
           filePath: asset.filePath || asset.path.replace('file://', '')
@@ -357,8 +360,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
     // Cleanup old blob URLs that are no longer needed
     const currentBlobUrls = processed.map((asset: any) => asset.path).filter((path: string) => path.startsWith('blob:'));
-    console.log('Current blob URLs:', currentBlobUrls);
-    console.log('Processed assets:', processed);
+    // console.log('Current blob URLs:', currentBlobUrls);
 
     return processed;
   }, [assets]); // Only recreate when assets change
@@ -369,7 +371,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       .map((asset: any) => asset.path)
       .filter((path: string) => path.startsWith('blob:'));
     
-    console.log('Current blob URLs:', currentBlobUrls);
+            // console.log('Current blob URLs:', currentBlobUrls);
     
     // Return cleanup function
     return () => {
@@ -422,7 +424,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
   }, [processedAssets, searchTerm, filterType]);
 
   // Lightweight component to render a cached video thumbnail
+  const THUMBS_DISABLED = false;
   const VideoThumb: React.FC<{ asset: any }> = ({ asset }) => {
+    if (THUMBS_DISABLED) {
+      return <div className="tw-w-full tw-h-full tw-bg-neutral-900 tw-rounded" />;
+    }
     const [thumb, setThumb] = useState<string>('');
     const [error, setError] = useState<string>('');
     const [isVisible, setIsVisible] = useState(false);
@@ -457,7 +463,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
       if (!isVisible || thumb || error || isGenerating) return;
       
       setIsGenerating(true);
-      console.log('🎬 VideoThumb: Starting thumbnail generation for:', asset.name);
+              // console.log('🎬 VideoThumb: Starting thumbnail generation for:', asset.name);
       
       // Get a valid path for thumbnail generation
       getThumbnailPath(asset).then((thumbnailPath) => {
@@ -467,14 +473,14 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           return;
         }
         
-        console.log('🎬 VideoThumb: Using path for thumbnail generation:', thumbnailPath);
+        // console.log('🎬 VideoThumb: Using path for thumbnail generation:', thumbnailPath);
         
         // Higher priority for visible items
         const priority = 1;
         
         generateVideoThumbnail(thumbnailPath, { captureTimeSec: 0.1, width: 160, height: 90 }, priority)
           .then((url) => { 
-            console.log('🎬 VideoThumb: Thumbnail generated successfully for:', asset.name, 'URL length:', url.length);
+            // console.log('🎬 VideoThumb: Thumbnail generated successfully for:', asset.name, 'URL length:', url.length);
             if (url.startsWith('data:image/jpeg;base64,')) {
               setThumb(url);
               setError('');
@@ -501,41 +507,30 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
     if (error) {
       console.warn('🎬 VideoThumb: Showing error state for:', asset.name, 'error:', error);
       return (
-        <div className="asset-placeholder video error" title={`Error: ${error}`}>
-          <div>VIDEO</div>
-          <div style={{ fontSize: '8px', color: '#ff6b6b' }}>ERROR</div>
-        </div>
+        <div className="tw-w-full tw-h-full tw-bg-neutral-900 tw-rounded" title={`Error: ${error}`} />
       );
     }
     
     if (thumb) {
       return (
-        <img 
-          src={thumb} 
-          alt={asset.name} 
+        <img
+          src={thumb}
+          alt={asset.name}
           draggable={false}
+          className="tw-w-full tw-h-full tw-object-contain"
           onError={() => {
             console.error('🎬 VideoThumb: Image failed to load for:', asset.name, 'src:', thumb.substring(0, 100));
             setError('Image load failed');
           }}
           onLoad={() => {
-            console.log('🎬 VideoThumb: Image loaded successfully for:', asset.name);
+            // console.log('🎬 VideoThumb: Image loaded successfully for:', asset.name);
           }}
         />
       );
     }
     
     return (
-      <div 
-        ref={thumbRef}
-        className="asset-placeholder video loading"
-        title={isGenerating ? 'Generating thumbnail...' : 'Waiting to generate...'}
-      >
-        <div>VIDEO</div>
-        <div style={{ fontSize: '8px', color: '#666' }}>
-          {isGenerating ? 'GENERATING...' : 'WAITING...'}
-        </div>
-      </div>
+      <div ref={thumbRef} className="tw-w-full tw-h-full tw-bg-neutral-900 tw-rounded" />
     );
   };
 
@@ -562,7 +557,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
         // In Electron, we can use the file system API to read the file
         const fsApi = (window as any).fsApi;
         if (fsApi && asset.filePath) {
-          console.log('🎬 Reading file for thumbnail generation:', asset.filePath);
+          // console.log('🎬 Reading file for thumbnail generation:', asset.filePath);
           // This is a placeholder - in a real implementation, you'd read the file
           // and create a blob URL from the file data
           return asset.path; // For now, return the file path
@@ -586,62 +581,33 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
 
   const handleRemoveAsset = (assetId: string) => {
     removeAsset(assetId);
-    console.log('Removed asset:', assetId);
+            // console.log('Removed asset:', assetId);
   };
 
-  // Item card component (memoized). Defined once, not inside loops.
+  // Item row component for list view (Thumb, Name, Size, Length)
   const AssetItem = React.memo(({ item }: { item: any }) => (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          className={`asset-item ${selectedAsset?.id === item.id ? 'selected' : ''} tw-rounded tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-p-2 tw-cursor-pointer`}
-          onClick={() => setSelectedAsset(item)}
-          draggable
-          onDragStart={(e) => handleDragStart(e, item)}
-        >
-          <div className="asset-preview">
-            {item.type === 'image' ? (
-              <img src={item.path} alt={item.name} draggable={false} />
-            ) : item.type === 'video' ? (
-              <VideoThumb asset={item} />
-            ) : item.type === 'audio' ? (
-              <div className="asset-placeholder audio">
-                <div className="audio-icon">🎵</div>
-                <div className="audio-name">{item.name}</div>
-              </div>
-            ) : (
-              <div className="asset-placeholder">
-                {item.type.toUpperCase()}
-              </div>
-            )}
-            <div className="asset-type-badge">
-              {item.type.toUpperCase()}
-            </div>
-          </div>
-          <div className="asset-info">
-            <div className="asset-name">{item.name}</div>
-            <div className="asset-meta">
-              <span>{formatFileSize(item.size)}</span>
-              <span>{item.date}</span>
-            </div>
-          </div>
-          <div className="asset-actions tw-flex tw-items-center tw-justify-end">
-            <ContextMenu>
-              <ContextMenuTrigger asChild>
-                <button className="delete-button tw-bg-neutral-800 tw-text-neutral-300 hover:tw-bg-neutral-700 tw-px-2 tw-py-1" onClick={(e) => e.stopPropagation()}>⋯</button>
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem className="tw-text-red-400" onSelect={() => handleRemoveAsset(item.id)}>Delete Asset</ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          </div>
-        </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem className="tw-text-red-400" onSelect={() => handleRemoveAsset(item.id)}>Delete Asset</ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-  ));
+    <div
+      className={`tw-grid tw-grid-cols-[80px_1fr_auto_auto] tw-items-center tw-gap-3 tw-px-2 tw-py-2 tw-border-b tw-border-neutral-800 ${selectedAsset?.id === item.id ? 'tw-bg-neutral-800/60' : 'tw-bg-transparent'}`}
+      onClick={() => setSelectedAsset(item)}
+      draggable
+      onDragStart={(e) => handleDragStart(e, item)}
+    >
+      <div className="tw-w-[72px] tw-h-[40px] tw-rounded tw-overflow-hidden tw-bg-neutral-900 tw-flex tw-items-center tw-justify-center">
+        {item.type === 'image' && (
+          <img src={item.path} alt={item.name} draggable={false} className="tw-w-full tw-h-full tw-object-contain" />
+        )}
+        {item.type === 'video' && (
+          <div className="tw-w-full tw-h-full"><VideoThumb asset={item} /></div>
+        )}
+        {item.type !== 'image' && item.type !== 'video' && (
+          <div className="asset-placeholder tw-text-[10px] tw-text-neutral-400">{item.type.toUpperCase()}</div>
+        )}
+      </div>
+      <div className="tw-text-neutral-200 tw-truncate">{item.name}</div>
+      <div className="tw-text-neutral-400 tw-text-xs tw-whitespace-nowrap">{formatFileSize(item.size)}</div>
+      <div className="tw-text-neutral-400 tw-text-xs tw-whitespace-nowrap">{(item as any).duration ? `${Math.round((item as any).duration)}s` : '-'}</div>
+    </div>
+  ), (prev: any, next: any) => prev.item.id === next.item.id && prev.item.path === next.item.path && prev.item.size === next.item.size && prev.item.duration === next.item.duration);
 
   // No global context menu listeners needed; Radix manages open/close
 
@@ -712,7 +678,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
               />
             )}
 
-            <div className="tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
+            <div className="tw-flex tw-flex-col tw-divide-y tw-divide-neutral-800 tw-border tw-border-neutral-800 tw-rounded-md">
               {filteredAssets.length === 0 ? (
                 <div className="empty-state">
                   <h3>No assets found</h3>
@@ -734,6 +700,13 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                     </div>
                   )}
                   
+                  {/* Header row */}
+                  <div className="tw-grid tw-grid-cols-[80px_1fr_auto_auto] tw-gap-3 tw-px-2 tw-py-2 tw-bg-neutral-900 tw-sticky tw-top-0 tw-z-10 tw-border-b tw-border-neutral-800">
+                    <div className="tw-text-neutral-400 tw-text-xs">Thumb</div>
+                    <div className="tw-text-neutral-400 tw-text-xs">Video Name</div>
+                    <div className="tw-text-neutral-400 tw-text-xs tw-text-right">Size</div>
+                    <div className="tw-text-neutral-400 tw-text-xs tw-text-right">Length</div>
+                  </div>
                   {filteredAssets.map((asset: any) => (
                     <AssetItem key={asset.id} item={asset} />
                   ))}

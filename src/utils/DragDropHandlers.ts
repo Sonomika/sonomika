@@ -14,25 +14,25 @@ export const handleDrop = (
 ) => {
   e.preventDefault();
   setDragOverCell(null);
-  console.log('🟢 Drop event triggered for column:', columnId, 'layer:', layerNum);
-  console.log('🟢 DataTransfer types:', e.dataTransfer.types);
-  console.log('🟢 DataTransfer items:', e.dataTransfer.items);
+  // console.log('🟢 Drop event triggered for column:', columnId, 'layer:', layerNum);
+  // console.log('🟢 DataTransfer types:', e.dataTransfer.types);
+  // console.log('🟢 DataTransfer items:', e.dataTransfer.items);
   
   // Check if this is a system file drop (from Windows File Explorer)
   if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-    console.log('🟢 System file drop detected:', e.dataTransfer.files.length, 'files');
+    // console.log('🟢 System file drop detected:', e.dataTransfer.files.length, 'files');
     handleSystemFileDrop(e, columnId, layerNum, scenes, currentSceneId, updateScene);
     return;
   }
   
   // Handle regular asset drops (from Media Browser, Effects, etc.)
   const assetData = e.dataTransfer.getData('application/json');
-  console.log('🟢 Asset data from drop:', assetData);
+  // console.log('🟢 Asset data from drop:', assetData);
   
   if (assetData) {
     try {
       const asset = normalizeDroppedAsset(JSON.parse(assetData));
-      console.log('🟢 Dropped asset:', asset, 'onto column:', columnId, 'layer:', layerNum);
+      // console.log('🟢 Dropped asset:', asset, 'onto column:', columnId, 'layer:', layerNum);
       
       // Find the current scene and column
       const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
@@ -58,7 +58,7 @@ export const handleDrop = (
           }
           updatedColumns[colIndex] = newColumn;
           updateScene(currentSceneId, { columns: updatedColumns });
-          console.log('🆕 Auto-created column for drop:', newColumn);
+          // console.log('🆕 Auto-created column for drop:', newColumn);
           // continue with the newly created column
           currentScene.columns = updatedColumns;
         } else {
@@ -67,8 +67,8 @@ export const handleDrop = (
         }
       }
       
-      console.log('🟢 Found column:', column);
-      console.log('🟢 Column layers before:', column.layers);
+      // console.log('🟢 Found column:', column);
+      // console.log('🟢 Column layers before:', column.layers);
       
       // Find or create the layer
       let layer = column.layers.find((l: any) => 
@@ -81,7 +81,7 @@ export const handleDrop = (
         // Create new layer
         layer = createLayer(`Layer ${layerNum}`, layerNum);
         column.layers.push(layer);
-        console.log('🆕 Created new layer:', layer);
+        // console.log('🆕 Created new layer:', layer);
       }
       
       // Update layer with asset
@@ -90,31 +90,31 @@ export const handleDrop = (
       layer.name = `Layer ${layerNum}`;
       layer.layerNum = layerNum;
       
-      console.log('🎯 Layer asset assigned:', {
-        layerName: layer.name,
-        assetType: layer.assetType,
-        asset: layer.asset,
-        assetKeys: Object.keys(layer.asset),
-        isEffect: layer.asset.isEffect,
-        hasEffect: !!layer.asset.effect,
-        isSource: layer.asset.isSource
-      });
+      // console.log('🎯 Layer asset assigned:', {
+      //   layerName: layer.name,
+      //   assetType: layer.assetType,
+      //   asset: layer.asset,
+      //   assetKeys: Object.keys(layer.asset),
+      //   isEffect: layer.asset.isEffect,
+      //   hasEffect: !!layer.asset.effect,
+      //   isSource: layer.asset.isSource
+      // });
       
       // Set default effect parameters if this is an effect
       if (asset.isEffect || asset.type === 'effect') {
-        console.log('🎨 Processing effect drop:', {
-          asset,
-          metadata: asset.metadata,
-          effectMetadata: asset.effect?.metadata,
-          isSource: asset.isSource
-        });
+        // console.log('🎨 Processing effect drop:', {
+        //   asset,
+        //   metadata: asset.metadata,
+        //   effectMetadata: asset.effect?.metadata,
+        //   isSource: asset.isSource
+        // });
         
         // Get parameters from the nested effect object or metadata
         const effectParams = asset.metadata?.parameters || 
                            asset.effect?.metadata?.parameters || 
                            getDefaultEffectParams(asset.id);
         
-        console.log('🎨 Effect parameters resolved:', effectParams);
+        // console.log('🎨 Effect parameters resolved:', effectParams);
         
         layer.effects = [{
           id: asset.id,
@@ -126,13 +126,13 @@ export const handleDrop = (
         // Also set the asset type to indicate this is an effect
         layer.assetType = 'effect';
         
-        console.log('🎨 Layer effects set:', layer.effects);
+        // console.log('🎨 Layer effects set:', layer.effects);
       }
       
       // Update the scene
       updateScene(currentSceneId, { columns: currentScene.columns });
-      console.log('🟢 Layer updated with asset:', layer);
-      console.log('🟢 Column layers after:', column.layers);
+      // console.log('🟢 Layer updated with asset:', layer);
+      // console.log('🟢 Column layers after:', column.layers);
       
     } catch (error) {
       console.error('❌ Error processing asset drop:', error);
@@ -181,7 +181,7 @@ const handleSystemFileDrop = (
   updateScene: (sceneId: string, updates: any) => void
 ) => {
   const files = Array.from(e.dataTransfer.files);
-  console.log('🟢 Processing system files:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
+  // console.log('🟢 Processing system files:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
   
   // Filter for supported media files
   const supportedFiles = files.filter(file => {
@@ -206,7 +206,7 @@ const handleSystemFileDrop = (
     return;
   }
   
-  console.log('🟢 Supported files:', supportedFiles.length);
+  // console.log('🟢 Supported files:', supportedFiles.length);
   
   // Find the current scene and column
   const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
@@ -232,7 +232,7 @@ const handleSystemFileDrop = (
       }
       updatedColumns[colIndex] = newColumn;
       updateScene(currentSceneId, { columns: updatedColumns });
-      console.log('🆕 Auto-created column for system file drop:', newColumn);
+      // console.log('🆕 Auto-created column for system file drop:', newColumn);
       column = newColumn;
     } else {
       console.error('❌ Column not found and not a placeholder:', columnId);
@@ -255,7 +255,7 @@ const handleSystemFileDrop = (
       // Create new layer
       layer = createLayer(`Layer ${targetLayerNum}`, targetLayerNum);
       column.layers.push(layer);
-      console.log('🆕 Created new layer for system file:', layer);
+      // console.log('🆕 Created new layer for system file:', layer);
     }
     
     // Determine file type
@@ -290,12 +290,12 @@ const handleSystemFileDrop = (
     layer.name = `Layer ${targetLayerNum}`;
     layer.layerNum = targetLayerNum;
     
-    console.log('🟢 Layer updated with system file:', layer);
+    // console.log('🟢 Layer updated with system file:', layer);
   });
   
   // Update the scene
   updateScene(currentSceneId, { columns: currentScene.columns });
-  console.log('🟢 Scene updated with system files');
+  // console.log('🟢 Scene updated with system files');
 };
 
 /**
@@ -304,7 +304,7 @@ const handleSystemFileDrop = (
 export const handleLayerDragStart = (e: React.DragEvent, layer: any, columnId: string) => {
   if (!layer.asset) return;
   
-  console.log('🎯 Starting drag from layer:', layer.name, 'asset:', layer.asset.name);
+  // console.log('🎯 Starting drag from layer:', layer.name, 'asset:', layer.asset.name);
   
   // Set drag data for potential reordering (though we'll use it for removal)
   e.dataTransfer.setData('application/json', JSON.stringify({
@@ -325,7 +325,7 @@ export const handleLayerDragStart = (e: React.DragEvent, layer: any, columnId: s
  * Handle layer reorder drag start
  */
 export const handleLayerReorderDragStart = (e: React.DragEvent, layer: any, columnId: string, setDraggedLayer: (layer: any) => void) => {
-  console.log('🔄 Starting layer reorder drag:', layer, 'from column:', columnId);
+  // console.log('🔄 Starting layer reorder drag:', layer, 'from column:', columnId);
   setDraggedLayer({ ...layer, sourceColumnId: columnId });
   e.dataTransfer.setData('application/json', JSON.stringify({
     type: 'layer-reorder',
@@ -369,11 +369,11 @@ export const handleLayerReorderDrop = (
   
   if (!draggedLayer) return;
   
-  console.log('🔄 Dropping layer reorder:', {
-    draggedLayer,
-    targetColumnId,
-    targetLayerNum
-  });
+  // console.log('🔄 Dropping layer reorder:', {
+  //   draggedLayer,
+  //   targetColumnId,
+  //   targetLayerNum
+  // });
 
   try {
     const dragData = e.dataTransfer.getData('application/json');
@@ -385,7 +385,7 @@ export const handleLayerReorderDrop = (
     const { layer: draggedLayerData, sourceColumnId } = data;
     
     // Allow moving layers between columns
-    console.log('🔄 Moving layer between columns:', sourceColumnId, '->', targetColumnId);
+    // console.log('🔄 Moving layer between columns:', sourceColumnId, '->', targetColumnId);
 
     // Find the source column and target column
     const sourceColumn = currentScene.columns.find((col: any) => col.id === sourceColumnId);

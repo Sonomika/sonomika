@@ -80,6 +80,7 @@ class LFOEngineImpl {
   private randomTimerMeta: Map<string, string> = new Map();
   private randomHoldCache: Map<string, { step: number; value: number }> = new Map();
   private prevNormByMapping: Map<string, number> = new Map();
+  private activeLayerIds: Set<string> = new Set();
 
   start() {
     if (this.running) return;
@@ -105,6 +106,8 @@ class LFOEngineImpl {
   }
 
   onColumnPlay() {
+    // When switching columns, tear down any lingering timers immediately
+    this.resetRandomTimers();
     this.start();
   }
 
@@ -170,6 +173,16 @@ class LFOEngineImpl {
   private updateAllActiveLayers(nowMs: number) {
     const layers = this.getActiveLayers();
     if (!layers || layers.length === 0) return;
+    // Track current active ids and stop timers for anything not active
+    const activeIds = new Set(layers.map((l) => l.id));
+    this.activeLayerIds = activeIds;
+    for (const [key, timerId] of this.randomTimers.entries()) {
+      if (!activeIds.has(key)) {
+        clearInterval(timerId);
+        this.randomTimers.delete(key);
+        this.randomTimerMeta.delete(key);
+      }
+    }
     const lfoState = useLFOStore.getState();
     const updateLayer = (useStore.getState() as any).updateLayer as (id: string, updates: Partial<LayerLike>) => void;
     const bpmMgr = BPMManager.getInstance();
@@ -237,6 +250,8 @@ class LFOEngineImpl {
           }
           this.randomTimerMeta.set(timerKey, signature);
           const createTimer = () => {
+            // Only create timers for active layers
+            if (!this.activeLayerIds.has(layer.id)) return undefined;
             const min = Math.min(Number(lfo.randomMin || -100), Number(lfo.randomMax || 100)) / 100;
             const max = Math.max(Number(lfo.randomMin || -100), Number(lfo.randomMax || 100)) / 100;
             const fireRandom = () => {
@@ -249,6 +264,9 @@ class LFOEngineImpl {
                 this.randomTimerMeta.delete(timerKey);
                 return;
               }
+              // Skip if this layer is not in the currently active chain
+              const activeNow = this.activeLayerIds.has(layer.id);
+              if (!activeNow) return;
               const skip = Math.random() * 100 < Number(lfo.skipPercent || 0);
               if (skip) return;
               const rand = min + Math.random() * (max - min);
@@ -267,7 +285,7 @@ class LFOEngineImpl {
             return id;
           };
           const id = createTimer();
-          this.randomTimers.set(timerKey, id);
+          if (id) this.randomTimers.set(timerKey, id);
         }
       }
     }
@@ -281,6 +299,17 @@ class LFOEngineImpl {
     updateLayer: (id: string, updates: Partial<LayerLike>) => void,
     isRandomMode: boolean = false,
   ) {
+    // Hard guard: never modulate a layer that isn't currently active
+    if (!this.activeLayerIds.has(layer.id)) {
+      // If a stray timer called us, clear it
+      const t = this.randomTimers.get(layer.id);
+      if (t) {
+        clearInterval(t);
+        this.randomTimers.delete(layer.id);
+        this.randomTimerMeta.delete(layer.id);
+      }
+      return;
+    }
     if (!mappings || mappings.length === 0) return;
     const normalizedLFO = (currentValue + 1) / 2;
 

@@ -233,12 +233,7 @@ function App() {
   }, []);
 
   // Start effect preloading early for faster effects browser
-  useEffect(() => {
-    console.log('🚀 App: Starting early effect preloading...');
-    effectCache.startPreloading().catch(error => {
-      console.warn('⚠️ Early effect preloading failed:', error);
-    });
-  }, []);
+  // Removed early effect preloading to improve startup responsiveness
 
   // Monitor for real Three.js canvas when using dummy canvas
   useEffect(() => {

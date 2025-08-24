@@ -3,41 +3,60 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-console.log('=== PRELOAD SCRIPT LOADED ===');
-console.log('contextBridge available:', !!contextBridge);
-console.log('ipcRenderer available:', !!ipcRenderer);
-console.log('fs available:', !!fs);
-console.log('path available:', !!path);
-console.log('os available:', !!os);
+// Quiet preload verbosity in development
+(() => {
+  try {
+    const log = console.log.bind(console);
+    const warn = console.warn.bind(console);
+    const noisy = /^(Preload:|\[preload\]|=== PRELOAD SCRIPT)/;
+    console.log = (...args: any[]) => {
+      const first = args[0];
+      if (typeof first === 'string' && noisy.test(first)) return;
+      return log(...args);
+    };
+    console.warn = (...args: any[]) => {
+      const first = args[0];
+      if (typeof first === 'string' && noisy.test(first)) return;
+      return warn(...args);
+    };
+  } catch {}
+})();
+
+// console.log('=== PRELOAD SCRIPT LOADED ===');
+// console.log('contextBridge available:', !!contextBridge);
+// console.log('ipcRenderer available:', !!ipcRenderer);
+// console.log('fs available:', !!fs);
+// console.log('path available:', !!path);
+// console.log('os available:', !!os);
 
 // Simple test to see if we can access Node.js modules
 try {
-  console.log('=== PRELOAD SCRIPT: Testing Node.js access ===');
-  console.log('Current directory:', process.cwd());
-  console.log('Platform:', process.platform);
-  console.log('Node version:', process.version);
+  // console.log('=== PRELOAD SCRIPT: Testing Node.js access ===');
+  // console.log('Current directory:', process.cwd());
+  // console.log('Platform:', process.platform);
+  // console.log('Node version:', process.version);
 } catch (e) {
   console.error('Failed to access Node.js globals:', e);
 }
 
 // Test if we can access the global object
-console.log('=== PRELOAD SCRIPT: Testing global access ===');
+// console.log('=== PRELOAD SCRIPT: Testing global access ===');
 try {
-  console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld starting ===');
+  // console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld starting ===');
   
   // Expose protected methods that allow the renderer process to use
   // the ipcRenderer without exposing the entire object
   contextBridge.exposeInMainWorld('electron', {
     minimize: () => {
-      console.log('Preload: minimize called');
+      // console.log('Preload: minimize called');
       ipcRenderer.send('window-minimize');
     },
     maximize: () => {
-      console.log('Preload: maximize called');
+      // console.log('Preload: maximize called');
       ipcRenderer.send('window-maximize');
     },
     close: () => {
-      console.log('Preload: close called');
+      // console.log('Preload: close called');
       ipcRenderer.send('window-close');
     },
     toggleMirror: () => ipcRenderer.send('toggle-mirror'),
@@ -51,20 +70,20 @@ try {
     closeMirrorWindow: () => ipcRenderer.send('close-mirror-window'),
     setMirrorBackground: (color: string) => ipcRenderer.send('set-mirror-bg', color),
     sendCanvasData: (dataUrl: string) => {
-      console.log('Preload: sendCanvasData called');
+      // console.log('Preload: sendCanvasData called');
       // Forward to mirror renderer via dedicated channel
       ipcRenderer.send('sendCanvasData', dataUrl);
     },
     toggleFullscreen: () => {
-      console.log('Preload: toggleFullscreen called');
+      // console.log('Preload: toggleFullscreen called');
       ipcRenderer.send('toggle-fullscreen');
     },
     resizeMirrorWindow: (width: number, height: number) => {
-      console.log('Preload: resizeMirrorWindow called', width, height);
+      // console.log('Preload: resizeMirrorWindow called', width, height);
       ipcRenderer.send('resize-mirror-window', width, height);
     },
     toggleAppFullscreen: () => {
-      console.log('Preload: toggleAppFullscreen called');
+      // console.log('Preload: toggleAppFullscreen called');
       ipcRenderer.send('toggle-app-fullscreen');
     },
     onWindowState: (cb: (state: { maximized: boolean }) => void) => {
@@ -83,11 +102,11 @@ try {
   // Advanced mirror API
   contextBridge.exposeInMainWorld('advancedMirror', {
     open: (slices: Array<{ id: string; title?: string; width?: number; height?: number; x?: number; y?: number }>) => {
-      console.log('[preload] advanced-mirror:open', slices?.map?.(s => s?.id));
+      // console.log('[preload] advanced-mirror:open', slices?.map?.(s => s?.id));
       ipcRenderer.send('advanced-mirror:open', slices);
     },
     closeAll: () => {
-      console.log('[preload] advanced-mirror:closeAll');
+      // console.log('[preload] advanced-mirror:closeAll');
       ipcRenderer.send('advanced-mirror:closeAll');
     },
     sendSliceData: (id: string, dataUrl: string) => {
@@ -112,11 +131,11 @@ try {
     (globalThis as any).electron = {
       ...existing,
       advancedMirrorOpen: (slices: Array<{ id: string; title?: string; width?: number; height?: number; x?: number; y?: number }>) => {
-        console.log('[preload] electron.advancedMirrorOpen');
+        // console.log('[preload] electron.advancedMirrorOpen');
         ipcRenderer.send('advanced-mirror:open', slices);
       },
       advancedMirrorCloseAll: () => {
-        console.log('[preload] electron.advancedMirrorCloseAll');
+        // console.log('[preload] electron.advancedMirrorCloseAll');
         ipcRenderer.send('advanced-mirror:closeAll');
       },
       advancedMirrorSendSliceData: (id: string, dataUrl: string) => {
@@ -131,16 +150,16 @@ try {
     };
   } catch {}
   
-  console.log('=== PRELOAD SCRIPT: electron API exposed successfully ===');
+  // console.log('=== PRELOAD SCRIPT: electron API exposed successfully ===');
   
   // Expose a minimal, safe filesystem API for the renderer (read-only)
-  console.log('=== PRELOAD SCRIPT: Starting to expose fsApi ===');
+  // console.log('=== PRELOAD SCRIPT: Starting to expose fsApi ===');
   contextBridge.exposeInMainWorld('fsApi', {
     listDirectory: (dirPath: string) => {
-      console.log('Preload: fsApi.listDirectory called with:', dirPath);
+      // console.log('Preload: fsApi.listDirectory called with:', dirPath);
       try {
         const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-        console.log('Preload: fsApi.listDirectory success, found', entries.length, 'entries');
+        // console.log('Preload: fsApi.listDirectory success, found', entries.length, 'entries');
         return entries.map((entry) => {
           const full = path.join(dirPath, entry.name);
           let size: number | undefined = undefined;
@@ -171,7 +190,7 @@ try {
     homedir: () => os.homedir(),
     platform: () => process.platform,
     roots: () => {
-      console.log('Preload: fsApi.roots called');
+      // console.log('Preload: fsApi.roots called');
       const roots: string[] = [];
       try {
         if (process.platform === 'win32') {
@@ -183,7 +202,7 @@ try {
         } else {
           roots.push(path.sep);
         }
-        console.log('Preload: fsApi.roots returning:', roots);
+        // console.log('Preload: fsApi.roots returning:', roots);
       } catch {}
       return roots;
     }
@@ -202,8 +221,8 @@ try {
     loadAll: async (): Promise<Record<string, string>> => ipcRenderer.invoke('authStorage:loadAll'),
   });
   
-  console.log('=== PRELOAD SCRIPT: fsApi exposed successfully ===');
-  console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
+  // console.log('=== PRELOAD SCRIPT: fsApi exposed successfully ===');
+  // console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
 } catch (error) {
   console.error('=== PRELOAD SCRIPT ERROR ===', error);
   if (error instanceof Error) {
