@@ -916,15 +916,32 @@ const ColumnScene: React.FC<{
               continue;
             }
             if (current.length > 0) finalize(); // enforce: video must be bottom-most in its stack
-            current.push({ type: 'video', video, assetId: layer.asset.id, opacity: layer.opacity, blendMode: layer.blendMode });
+            current.push({ 
+              type: 'video', 
+              video, 
+              assetId: layer.asset.id, 
+              opacity: layer.opacity, 
+              blendMode: layer.blendMode,
+              __uniqueKey: `video-${layer.id}-${Date.now()}-${Math.random()}`
+            });
           } else if (kind === 'source') {
             const effectId = resolveEffectId(layer.asset);
             if (!effectId) continue;
-            current.push({ type: 'source', effectId, params: normalizeParams(layer) });
+            current.push({ 
+              type: 'source', 
+              effectId, 
+              params: { ...normalizeParams(layer) }, // Clone params
+              __uniqueKey: `source-${layer.id}-${Date.now()}-${Math.random()}`
+            });
           } else if (kind === 'effect') {
             const effectId = resolveEffectId(layer.asset);
             if (!effectId) continue;
-            current.push({ type: 'effect', effectId, params: normalizeParams(layer) });
+            current.push({ 
+              type: 'effect', 
+              effectId, 
+              params: { ...normalizeParams(layer) }, // Clone params
+              __uniqueKey: `effect-${layer.id}-${Date.now()}-${Math.random()}`
+            });
               } else {
             // Unknown layer: break chain
             finalize();
@@ -939,7 +956,7 @@ const ColumnScene: React.FC<{
           ? globalEffects.filter((ge: any) => ge && ge.enabled)
           : [];
 
-        chains.forEach((chain) => {
+        chains.forEach((chain, chainIndex) => {
           const chainKey = chain.map((it) => {
             if (it.type === 'video') {
               const v: any = (it as any).video;
@@ -951,12 +968,16 @@ const ColumnScene: React.FC<{
           }).join('|');
           // Append enabled global effects at the end of each chain so they run as part of the chain
           const chainWithGlobals: ChainItem[] = enabledGlobalEffects.length > 0
-            ? ([...chain, ...enabledGlobalEffects.map((ge: any) => ({
+            ? ([...chain, ...enabledGlobalEffects.map((ge: any, globalIndex) => ({
                 type: 'effect',
                 effectId: ge.effectId,
-                params: ge.params || {}
+                params: { ...ge.params }, // Clone params to avoid reference issues
+                // Add a unique identifier for React keys without changing the effectId
+                __uniqueKey: `global-${chainIndex}-${globalIndex}`
               }))] as ChainItem[])
             : chain;
+            
+
 
           if (chainWithGlobals.length === 1 && chainWithGlobals[0].type === 'video') {
             const v = chainWithGlobals[0] as Extract<ChainItem, { type: 'video' }>;

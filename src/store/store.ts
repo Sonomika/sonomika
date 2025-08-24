@@ -621,6 +621,23 @@ export const useStore = create<AppState & {
       name: 'vj-app-storage',
              partialize: (state) => {
          // console.log('Persisting state with assets:', state.assets.length);
+         const sanitizedScenes = state.scenes.map((scene) => ({
+           ...scene,
+           columns: scene.columns.map((col) => ({
+             ...col,
+             layers: col.layers.map((layer: any) => {
+               const nextLayer: any = { ...layer };
+               if (nextLayer.asset) {
+                 const a = nextLayer.asset as any;
+                 // Drop heavy non-serializable refs
+                 if (a.originalFile) delete a.originalFile;
+                 if (a.base64Data && a.size > 500 * 1024) delete a.base64Data;
+               }
+               return nextLayer;
+             })
+           }))
+         }));
+
          return {
            // Persist assets with base64Data for small files
            assets: state.assets.map(asset => {
@@ -650,8 +667,8 @@ export const useStore = create<AppState & {
              
              return persistedAsset;
            }),
-           // Persist all critical application state
-           scenes: state.scenes,
+           // Persist all critical application state (sanitized)
+           scenes: sanitizedScenes,
            currentSceneId: state.currentSceneId,
            playingColumnId: state.playingColumnId,
            bpm: state.bpm,

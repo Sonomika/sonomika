@@ -5,9 +5,9 @@ import { getEffectComponentSync } from '../utils/EffectLoader';
 import { getCachedVideoCanvas } from '../utils/AssetPreloader';
 
 export type ChainItem =
-  | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string }
-  | { type: 'source'; effectId: string; params?: Record<string, any> }
-  | { type: 'effect'; effectId: string; params?: Record<string, any> };
+  | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; __uniqueKey?: string }
+  | { type: 'source'; effectId: string; params?: Record<string, any>; __uniqueKey?: string }
+  | { type: 'effect'; effectId: string; params?: Record<string, any>; __uniqueKey?: string };
 
 interface EffectChainProps {
   items: ChainItem[];
@@ -93,7 +93,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   // Build a stable signature for scene structure that ignores param changes
   const sceneSignature = useMemo(() => {
     return items
-      .map((it, idx) => (it.type === 'effect' ? `effect:${(it as any).effectId}:${idx}` : `${it.type}:${idx}`))
+      .map((it, idx) => (it.type === 'effect' ? `effect:${(it as any).effectId}:${idx}:${(it as any).__uniqueKey || ''}` : `${it.type}:${idx}`))
       .join('|');
   }, [items]);
 
@@ -349,7 +349,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           createPortal(
             React.createElement(
               'mesh',
-              { key: `bg-${idx}-${item.effectId || 'unknown'}`, renderOrder: -1000 },
+                             { key: `bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, renderOrder: -1000 },
               React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
               React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
             ),
@@ -359,7 +359,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       }
       portalsForStage.push(
         createPortal(
-          React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}`, ...params, ...extras }),
+                     React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras }),
           offscreenScenes[idx]
         )
       );
