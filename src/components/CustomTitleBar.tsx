@@ -44,6 +44,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFileOpen, setMobileFileOpen] = useState(false);
+  const [mobileModeOpen, setMobileModeOpen] = useState(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
   const [externalMenuOpen, setExternalMenuOpen] = useState(false);
   const externalMenuRef = useRef<HTMLDivElement>(null);
@@ -296,6 +297,35 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onNewPreset?.(); setMobileMenuOpen(false); }}>New Set</button>
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onSavePreset?.(); setMobileMenuOpen(false); }}>Save Set</button>
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onLoadPreset?.(); setMobileMenuOpen(false); }}>Load Set</button>
+                </div>
+              )}
+
+              {/* Mode group */}
+              <button
+                className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100"
+                onClick={() => setMobileModeOpen(!mobileModeOpen)}
+              >
+                <span>Mode</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={`tw-transition-transform ${mobileModeOpen ? 'tw-rotate-90' : ''}`}><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+              </button>
+              {mobileModeOpen && (
+                <div className="tw-ml-2 tw-space-y-1">
+                  <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { setShowTimeline?.(false); setMobileMenuOpen(false); }}>
+                    <div className="tw-flex tw-items-center tw-justify-between tw-w-full">
+                      <span>Column</span>
+                      {!showTimeline && (
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z"/></svg>
+                      )}
+                    </div>
+                  </button>
+                  <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { setShowTimeline?.(true); setMobileMenuOpen(false); }}>
+                    <div className="tw-flex tw-items-center tw-justify-between tw-w-full">
+                      <span>Timeline</span>
+                      {showTimeline && (
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z"/></svg>
+                      )}
+                    </div>
+                  </button>
                 </div>
               )}
 
