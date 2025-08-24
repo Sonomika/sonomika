@@ -47,11 +47,20 @@ export class CanvasStreamManager {
 
   private async openBrowserWindow(): Promise<void> {
     // Fallback for browser environment
-    const streamWindow = window.open(
-      '',
-      'mirror_window',
-      'width=1280,height=720,resizable=yes,scrollbars=no,status=no,location=no'
-    );
+    const comp = (useStore.getState() as any).compositionSettings || {};
+    const compW = Math.max(1, Number(comp.width) || 1920);
+    const compH = Math.max(1, Number(comp.height) || 1080);
+    const aspect = compW / compH;
+    const maxW = Math.floor((window.screen?.availWidth || window.innerWidth) * 0.9);
+    const maxH = Math.floor((window.screen?.availHeight || window.innerHeight) * 0.9);
+    let winW = Math.min(maxW, compW);
+    let winH = Math.floor(winW / aspect);
+    if (winH > maxH) {
+      winH = maxH;
+      winW = Math.floor(winH * aspect);
+    }
+    const features = `width=${winW},height=${winH},resizable=yes,scrollbars=no,status=no,location=no`;
+    const streamWindow = window.open('', 'mirror_window', features);
 
     if (!streamWindow) {
       throw new Error('Failed to open mirror window');
@@ -200,9 +209,10 @@ export class CanvasStreamManager {
         if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
           try {
             if (window.electron && window.electron.sendCanvasData) {
-              // Electron path: composite to 1920x1080 and send as JPEG data URL
-              const targetWidth = 1920;
-              const targetHeight = 1080;
+              // Electron path: composite to composition canvas size and send as JPEG data URL
+              const comp = (useStore.getState() as any).compositionSettings || {};
+              const targetWidth = Math.max(1, Number(comp.width) || 1920);
+              const targetHeight = Math.max(1, Number(comp.height) || 1080);
               const tempCanvas = document.createElement('canvas');
               tempCanvas.width = targetWidth;
               tempCanvas.height = targetHeight;
@@ -212,8 +222,16 @@ export class CanvasStreamManager {
                 // Fill background
                 tempCtx.fillStyle = bg;
                 tempCtx.fillRect(0, 0, targetWidth, targetHeight);
-                // Draw original canvas scaled to target
-                tempCtx.drawImage(this.canvas!, 0, 0, targetWidth, targetHeight);
+                // Draw original canvas preserving aspect ratio (contain)
+                const srcW = this.canvas!.width;
+                const srcH = this.canvas!.height;
+                const scale = Math.min(targetWidth / srcW, targetHeight / srcH);
+                const drawW = Math.floor(srcW * scale);
+                const drawH = Math.floor(srcH * scale);
+                const dx = Math.floor((targetWidth - drawW) / 2);
+                const dy = Math.floor((targetHeight - drawH) / 2);
+                tempCtx.imageSmoothingEnabled = false;
+                tempCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
                 const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
                 if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
                   window.electron.sendCanvasData(dataUrl);

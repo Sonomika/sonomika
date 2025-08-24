@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { CanvasStreamManager } from '../utils/CanvasStream';
 import { useStore } from '../store/store';
 import { LayerOptions } from './LayerOptions';
 import { CanvasRenderer } from './CanvasRenderer';
@@ -167,6 +168,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [isBeatPulse, setIsBeatPulse] = useState(false);
   const beatPulseTimeoutRef = React.useRef<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const previewHeaderRef = useRef<HTMLDivElement | null>(null);
+  const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const mirrorStreamRef = useRef<CanvasStreamManager | null>(null);
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [fsFallbackActive, setFsFallbackActive] = useState(false);
 
@@ -454,6 +458,45 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       document.removeEventListener('webkitfullscreenchange' as any, handler as any);
     };
   }, []);
+
+  // Compute preview size to fit available height (shrink-to-fit) while respecting composition aspect
+  useEffect(() => {
+    const compute = () => {
+      try {
+        const container = previewContainerRef.current;
+        if (!container) return;
+        const headerEl = previewHeaderRef.current;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        const headerHeight = headerEl ? headerEl.offsetHeight : 0;
+        const availableHeight = Math.max(0, containerHeight - headerHeight);
+
+        if (isPreviewFullscreen || fsFallbackActive) {
+          setPreviewSize({ width: window.innerWidth, height: window.innerHeight });
+          return;
+        }
+
+        const aspect = (compositionSettings?.width || 1920) / (compositionSettings?.height || 1080);
+        // Prefer fitting height, then clamp if width would overflow
+        let height = availableHeight;
+        let width = Math.floor(height * aspect);
+        if (width > containerWidth) {
+          width = containerWidth;
+          height = Math.floor(width / aspect);
+        }
+        setPreviewSize({ width, height });
+      } catch {}
+    };
+
+    compute();
+    const ro = new ResizeObserver(() => compute());
+    try { if (previewContainerRef.current) ro.observe(previewContainerRef.current); } catch {}
+    window.addEventListener('resize', compute);
+    return () => {
+      try { ro.disconnect(); } catch {}
+      window.removeEventListener('resize', compute);
+    };
+  }, [compositionSettings?.width, compositionSettings?.height, isPreviewFullscreen, fsFallbackActive]);
 
   // Handle right-click on column cells
   const handleCellRightClick = (e: React.MouseEvent, layer: any, columnId: string) => {
@@ -744,8 +787,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       return (
         <div className="tw-w-full tw-h-full tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-text-sm tw-py-4">
           <div className="tw-text-center">
-            <div>No preview available</div>
-            <div className="tw-text-xs tw-text-neutral-500">Select a layer to see preview</div>
+            <div></div>
+            <div className="tw-text-xs tw-text-neutral-500"></div>
           </div>
         </div>
       );
@@ -1625,29 +1668,80 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               ref={previewContainerRef}
               style={fsFallbackActive ? { position: 'fixed', inset: 0, zIndex: 9999, width: '100vw', height: '100dvh' as any } : undefined}
             >
-              <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+              <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800" ref={previewHeaderRef}
+              >
                 <h3>Preview</h3>
-                <button
-                  className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
-                  onClick={togglePreviewFullscreen}
-                  title="Fullscreen Preview"
-                  aria-label="Fullscreen Preview"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M7 3H3v4h2V5h2V3zm12 0h-4v2h2v2h2V3zM5 17H3v4h4v-2H5v-2zm14 0h-2v2h-2v2h4v-4z"/>
-                  </svg>
-                </button>
+                <div className="tw-flex tw-items-center tw-gap-2">
+                  <button
+                    className="tw-inline-flex tw-items-center tw-justify-center tw-h-7 tw-rounded tw-text-xs tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-px-2"
+                    onClick={() => {
+                      try {
+                        // Find an existing render canvas or create a temporary one
+                        let canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+                        if (!canvas) {
+                          canvas = document.createElement('canvas');
+                          canvas.width = compositionSettings?.width || 1920;
+                          canvas.height = compositionSettings?.height || 1080;
+                          canvas.style.display = 'none';
+                          canvas.id = 'dummy-mirror-canvas';
+                          const ctx = canvas.getContext('2d');
+                          if (ctx) {
+                            const bg = (compositionSettings as any)?.backgroundColor || '#000000';
+                            ctx.fillStyle = bg;
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                          }
+                          document.body.appendChild(canvas);
+                        }
+
+                        if (!mirrorStreamRef.current) {
+                          mirrorStreamRef.current = new CanvasStreamManager(canvas);
+                        } else {
+                          mirrorStreamRef.current.updateCanvas(canvas);
+                        }
+                        // Open mirror window if needed and start streaming
+                        mirrorStreamRef.current.openMirrorWindow().then(() => {
+                          try { (window as any).electron?.setMirrorBackground?.((compositionSettings as any)?.backgroundColor || '#000000'); } catch {}
+                          const w = Math.max(1, Number(compositionSettings?.width) || 1920);
+                          const h = Math.max(1, Number(compositionSettings?.height) || 1080);
+                          // Resize the Electron mirror window to exact composition size; for very large sizes, Electron will scale window but keep ratio
+                          try { (window as any).electron?.resizeMirrorWindow?.(w, h); } catch {}
+                        }).catch(() => {});
+                      } catch {}
+                    }}
+                    title="Mirror (Canvas Size)"
+                    aria-label="Mirror (Canvas Size)"
+                  >
+                    Mirror
+                  </button>
+                  <button
+                    className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
+                    onClick={togglePreviewFullscreen}
+                    title="Fullscreen Preview"
+                    aria-label="Fullscreen Preview"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M7 3H3v4h2V5h2V3zm12 0h-4v2h2v2h2V3zM5 17H3v4h4v-2H5v-2zm14 0h-2v2h-2v2h4v-4z"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div 
-                className="tw-flex tw-items-center tw-justify-center tw-bg-black tw-w-full"
-                style={isPreviewFullscreen || fsFallbackActive ? ({ width: '100vw', height: '100dvh' } as any) : ({ aspectRatio: `${compositionSettings.width}/${compositionSettings.height}` })}
+                className="tw-flex tw-items-center tw-justify-center tw-bg-black tw-w-full tw-flex-1"
               >
-                {(() => {
-                  console.log('🎭 Rendering preview content in preview window');
-                  const content = renderPreviewContent();
-                  console.log('🎭 Preview content rendered:', content);
-                  return content;
-                })()}
+                <div
+                  style={
+                    (isPreviewFullscreen || fsFallbackActive)
+                      ? ({ width: '100vw', height: '100dvh' } as any)
+                      : ({ width: previewSize.width || undefined, height: previewSize.height || undefined } as any)
+                  }
+                >
+                  {(() => {
+                    console.log('🎭 Rendering preview content in preview window');
+                    const content = renderPreviewContent();
+                    console.log('🎭 Preview content rendered:', content);
+                    return content;
+                  })()}
+                </div>
               </div>
             </div>
 
