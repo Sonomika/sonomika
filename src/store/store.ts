@@ -111,13 +111,20 @@ export const useStore = create<AppState & {
   moveBetweenColumns: (sourceColumnId: string, destinationColumnId: string, sourceIndex: number, destinationIndex: number) => void;
   savePreset: (presetName?: string) => string | null;
   loadPreset: (file: File) => Promise<boolean>;
+  // Cloud presets (web via Supabase)
+  listCloudPresets: () => Promise<Array<{ name: string; updated_at?: string }>>;
+  loadPresetCloud: (name: string) => Promise<boolean>;
+  deletePresetCloud: (name: string) => Promise<boolean>;
   setTimelineSnapEnabled: (enabled: boolean) => void;
   setTimelineDuration: (duration: number) => void;
   setTimelineZoom: (zoom: number) => void;
+  setCurrentPresetName?: (name: string | null) => void;
 }>()(
   persist(
     (set, get) => ({
       ...initialState,
+      currentPresetName: null as any,
+      setCurrentPresetName: (name: string | null) => set({ currentPresetName: name } as any),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();
@@ -508,8 +515,10 @@ export const useStore = create<AppState & {
             return assetWithoutBase64;
           });
           
+          let finalName = defaultName;
+
           const preset = {
-            name: defaultName,
+            name: finalName,
             displayName: defaultName, // Human-readable name
             timestamp: Date.now(),
             version: '1.0.0',
@@ -530,19 +539,55 @@ export const useStore = create<AppState & {
             }
           };
           
-          // Create a blob and download the preset file
-          const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${defaultName}.vjpreset`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          
-          // console.log('Preset saved to file:', defaultName);
-          return defaultName;
+          // Web: Save to database (Supabase). Electron: name only; file save handled in App.
+          try {
+            const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+            if (!isElectron) {
+              (async () => {
+                try {
+                  const { getSupabase } = await import('../lib/supabaseClient');
+                  const supabase = getSupabase();
+                  const { data: userRes } = await supabase.auth.getUser();
+                  const userId = userRes?.user?.id || null;
+                  // Check for existing preset by case-insensitive name
+                  try {
+                    const { data: existing } = await supabase
+                      .from('presets')
+                      .select('name')
+                      .eq('user_id', userId)
+                      .ilike('name', defaultName);
+                    if (existing && existing.length > 0 && existing[0]?.name) {
+                      finalName = existing[0].name as string;
+                    }
+                  } catch {}
+                  await supabase.from('presets').upsert(
+                    {
+                      user_id: userId,
+                      name: finalName,
+                      content: preset,
+                      updated_at: new Date().toISOString()
+                    },
+                    { onConflict: 'user_id,name', ignoreDuplicates: false } as any
+                  );
+                } catch (cloudErr) {
+                  try {
+                    // Fallback to download file if cloud save fails
+                    const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${finalName}.vjpreset`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch {}
+                }
+              })();
+            }
+          } catch {}
+          try { set({ currentPresetName: finalName } as any); } catch {}
+          return finalName;
         } catch (error) {
           console.error('Failed to save preset:', error);
           return null;
@@ -590,11 +635,11 @@ export const useStore = create<AppState & {
                   }
                   
                   // Apply the cleaned preset data
-                  set(cleanedData);
+                  set({ ...cleanedData, currentPresetName: presetName } as any);
                   resolve(true);
                 } else {
                   // Apply the preset data to the store
-                  set(preset.data);
+                  set({ ...preset.data, currentPresetName: presetName } as any);
                   resolve(true);
                 }
               } catch (error) {
@@ -612,6 +657,74 @@ export const useStore = create<AppState & {
             resolve(false);
           }
         });
+      },
+      
+      // Cloud preset management (web only)
+      listCloudPresets: async () => {
+        try {
+          const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+          if (isElectron) return [];
+          const { getSupabase } = await import('../lib/supabaseClient');
+          const supabase = getSupabase();
+          const { data: userRes } = await supabase.auth.getUser();
+          const userId = userRes?.user?.id || null;
+          const { data, error } = await supabase
+            .from('presets')
+            .select('name, updated_at')
+            .eq('user_id', userId)
+            .order('updated_at', { ascending: false });
+          if (error) throw error;
+          return (data || []).map((r: any) => ({ name: r.name, updated_at: r.updated_at }));
+        } catch {
+          return [];
+        }
+      },
+      
+      loadPresetCloud: async (name: string) => {
+        try {
+          const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+          if (isElectron) return false;
+          const { getSupabase } = await import('../lib/supabaseClient');
+          const supabase = getSupabase();
+          const { data: userRes } = await supabase.auth.getUser();
+          const userId = userRes?.user?.id || null;
+          const { data, error } = await supabase
+            .from('presets')
+            .select('content,name')
+            .eq('user_id', userId)
+            .ilike('name', name)
+            .maybeSingle();
+          if (error) throw error;
+          const preset = data?.content;
+          if (!preset?.data) return false;
+          // Apply data to store
+          set({ ...preset.data, currentPresetName: (data as any)?.name || name } as any);
+          return true;
+        } catch (e) {
+          console.error('Failed to load cloud preset:', e);
+          return false;
+        }
+      },
+      
+      deletePresetCloud: async (name: string) => {
+        try {
+          const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+          if (isElectron) return false;
+          const { getSupabase } = await import('../lib/supabaseClient');
+          const supabase = getSupabase();
+          const { data: userRes } = await supabase.auth.getUser();
+          const userId = userRes?.user?.id || null;
+          const { error } = await supabase
+            .from('presets')
+            .delete()
+            .eq('user_id', userId)
+            .ilike('name', name);
+          if (error) throw error;
+          return true;
+        } catch (e) {
+          console.error('Failed to delete cloud preset:', e);
+          return false;
+        }
       },
       setTimelineSnapEnabled: (enabled: boolean) => set({ timelineSnapEnabled: enabled }),
       setTimelineDuration: (duration: number) => set({ timelineDuration: duration }),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from './ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui';
 
 interface PresetModalProps {
   isOpen: boolean;
@@ -57,9 +57,11 @@ export const PresetModal: React.FC<PresetModalProps> = ({
       }}
    >
       <DialogContent>
-        <div className="tw-space-y-3">
-          <h3 className="tw-text-base tw-font-semibold">{title}</h3>
-          <p className="tw-text-neutral-300">{message}</p>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{message}</DialogDescription>
+        </DialogHeader>
+        <div className="tw-space-y-3 tw-mt-2">
           {placeholder && (
             <input
               type="text"

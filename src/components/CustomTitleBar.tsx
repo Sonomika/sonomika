@@ -49,7 +49,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const externalMenuRef = useRef<HTMLDivElement>(null);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
-  const { showTimeline, setShowTimeline } = (useStore() as any) || {};
+  const { showTimeline, setShowTimeline, currentPresetName } = (useStore() as any) || {};
 
   // Detect Electron vs Web
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
@@ -70,6 +70,14 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
       <div className="tw-h-8 tw-flex tw-items-center tw-justify-between tw-px-2 tw-cursor-grab app-drag-region" style={{ backgroundColor: '#111' }}>
         <div className="tw-flex tw-items-center tw-flex-none tw-min-w-[120px]">
           <div className="tw-text-white tw-text-[14px] tw-font-bold tw-ml-2 tw-px-3 tw-py-2 tw-rounded tw-transition-colors app-no-drag">sonomika</div>
+          {currentPresetName && (
+            <>
+              <div className="tw-text-neutral-500 tw-px-2 app-no-drag">/</div>
+              <div className="tw-text-xs tw-text-neutral-300 app-no-drag tw-truncate tw-max-w-[40vw]">
+                {currentPresetName}
+              </div>
+            </>
+          )}
         </div>
         {isElectron && (
           <div className="tw-flex tw-items-center tw-gap-1 app-no-drag">

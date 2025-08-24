@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LayerManager } from './components/LayerManager';
 import { CompositionSettings } from './components/CompositionSettings';
+import CloudPresetBrowser from './components/CloudPresetBrowser';
 import { PresetModal } from './components/PresetModal';
 import { CustomTitleBar } from './components/CustomTitleBar';
 import { SettingsDialog } from './components/SettingsDialog';
@@ -81,6 +82,7 @@ function App() {
   const [showUIDemo, setShowUIDemo] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [advMirrorOpen, setAdvMirrorOpen] = useState(false);
+  const [cloudBrowserOpen, setCloudBrowserOpen] = useState(false);
   
   const [debugMode, setDebugMode] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
@@ -448,13 +450,14 @@ function App() {
         })();
       } else {
         // Fallback to existing web modal flow
+        const { currentPresetName } = useStore.getState() as any;
         setModalConfig({
           isOpen: true,
           type: 'save',
           title: 'Save Set',
           message: 'Enter a name for your set:',
-          placeholder: 'My Awesome Set',
-          defaultValue: '',
+          placeholder: 'My Set',
+          defaultValue: currentPresetName || '',
           confirmText: 'Save',
           cancelText: 'Cancel'
         });
@@ -484,19 +487,8 @@ function App() {
           }
         })();
       } else {
-        // Web fallback
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.vjpreset,.json';
-        fileInput.style.display = 'none';
-        fileInput.onchange = async (e) => {
-          const target = e.target as HTMLInputElement;
-          const file = target.files?.[0];
-          if (file) await loadPreset(file);
-          document.body.removeChild(fileInput);
-        };
-        document.body.appendChild(fileInput);
-        fileInput.click();
+        // Web: open cloud preset browser
+        setCloudBrowserOpen(true);
       }
     } catch (e) {
       console.error('Load preset failed:', e);
@@ -583,15 +575,25 @@ function App() {
               }
             })();
           } else {
-            // Web fallback: save to file then reset
-            const { savePreset, resetToDefault } = useStore.getState();
+            // Web: warn if duplicate name, then save to cloud and reset
+            const { listCloudPresets, savePreset, resetToDefault } = useStore.getState() as any;
             const defaultName = value?.trim() || `preset-${new Date().toISOString().slice(0, 19)}`;
-            const savedName = savePreset(defaultName);
-            if (savedName) {
-              console.log('[New Set] Web saved. Resetting to default and reloading');
-              resetToDefault();
-              window.location.reload();
-            }
+            (async () => {
+              try {
+                const items = await listCloudPresets();
+                const exists = (items || []).some((it: any) => (it?.name || '').toLowerCase() === defaultName.toLowerCase());
+                if (exists) {
+                  const ok = window.confirm(`A preset named "${defaultName}" already exists. Overwrite?`);
+                  if (!ok) return;
+                }
+              } catch {}
+              const savedName = savePreset(defaultName);
+              if (savedName) {
+                console.log('[New Set] Web saved. Resetting to default and reloading');
+                resetToDefault();
+                window.location.reload();
+              }
+            })();
           }
         } catch (e) {
           console.error('Save before new set failed:', e);
@@ -599,19 +601,38 @@ function App() {
         break;
       }
         
-      case 'save':
-        // Save preset with custom name
-        const { savePreset } = useStore.getState();
+      case 'save': {
+        // Save preset with custom name, warn about duplicates (web)
+        const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+        const { savePreset, listCloudPresets } = useStore.getState() as any;
         const presetName = value.trim() || `preset-${new Date().toISOString().slice(0, 19)}`;
+        if (!isElectron) {
+          (async () => {
+            try {
+              const items = await listCloudPresets();
+              const exists = (items || []).some((it: any) => (it?.name || '').toLowerCase() === presetName.toLowerCase());
+              if (exists) {
+                const ok = window.confirm(`A preset named "${presetName}" already exists. Overwrite?`);
+                if (!ok) return;
+              }
+            } catch {}
+            const savedNameAsync = savePreset(presetName);
+            if (savedNameAsync) {
+              console.log('Preset saved:', savedNameAsync);
+            } else {
+              console.error('Failed to save preset');
+            }
+          })();
+          break;
+        }
         const savedName = savePreset(presetName);
-        
         if (savedName) {
           console.log('Preset saved:', savedName);
-          // The file will be downloaded automatically by the savePreset function
         } else {
           console.error('Failed to save preset');
         }
         break;
+      }
         
       default:
         break;
@@ -702,6 +723,7 @@ function App() {
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <AdvancedMirrorDialog open={advMirrorOpen} onOpenChange={setAdvMirrorOpen} onStart={(opts) => handleAdvancedMirror(opts)} />
       <Toaster />
+      <CloudPresetBrowser open={cloudBrowserOpen} onOpenChange={setCloudBrowserOpen} />
     </ErrorBoundary>
   );
 }
