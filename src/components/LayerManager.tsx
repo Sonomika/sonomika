@@ -167,6 +167,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [isBeatPulse, setIsBeatPulse] = useState(false);
   const beatPulseTimeoutRef = React.useRef<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
+  const [fsFallbackActive, setFsFallbackActive] = useState(false);
 
   const { showTimeline, setShowTimeline } = useStore() as any;
   const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
@@ -408,18 +410,50 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   };
 
   // Toggle preview fullscreen using Fullscreen API
+  const fsElement = () => (document as any).fullscreenElement || (document as any).webkitFullscreenElement || null;
+  const requestFS = (el: HTMLElement) => {
+    const req: any = (el as any).requestFullscreen || (el as any).webkitRequestFullscreen || (el as any).webkitEnterFullscreen;
+    if (typeof req === 'function') req.call(el);
+  };
+  const exitFS = () => {
+    const docAny: any = document;
+    const exit = docAny.exitFullscreen || docAny.webkitExitFullscreen;
+    if (typeof exit === 'function') exit.call(document);
+  };
+
   const togglePreviewFullscreen = () => {
     try {
       const el = previewContainerRef.current;
       if (!el) return;
-      const anyDoc: any = document;
-      if (!document.fullscreenElement && (el as any).requestFullscreen) {
-        (el as any).requestFullscreen();
-      } else if (anyDoc.exitFullscreen) {
-        anyDoc.exitFullscreen();
+      const supportsFS = (el as any).requestFullscreen || (el as any).webkitRequestFullscreen || (el as any).webkitEnterFullscreen;
+      if (supportsFS) {
+        if (!fsElement()) {
+          requestFS(el);
+        } else {
+          exitFS();
+        }
+      } else {
+        // Fallback: fixed to viewport
+        setFsFallbackActive((v) => !v);
       }
     } catch {}
   };
+
+  // Track fullscreen changes (desktop/mobile including iOS webkit)
+  useEffect(() => {
+    const handler = () => {
+      try {
+        const nowFS = !!fsElement();
+        setIsPreviewFullscreen(nowFS);
+      } catch {}
+    };
+    document.addEventListener('fullscreenchange', handler);
+    document.addEventListener('webkitfullscreenchange' as any, handler as any);
+    return () => {
+      document.removeEventListener('fullscreenchange', handler);
+      document.removeEventListener('webkitfullscreenchange' as any, handler as any);
+    };
+  }, []);
 
   // Handle right-click on column cells
   const handleCellRightClick = (e: React.MouseEvent, layer: any, columnId: string) => {
@@ -1589,6 +1623,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div 
               className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden md:tw-basis-[30%] md:tw-flex-none tw-min-w-[200px] tw-w-full"
               ref={previewContainerRef}
+              style={fsFallbackActive ? { position: 'fixed', inset: 0, zIndex: 9999, width: '100vw', height: '100dvh' as any } : undefined}
             >
               <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
                 <h3>Preview</h3>
@@ -1605,9 +1640,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               </div>
               <div 
                 className="tw-flex tw-items-center tw-justify-center tw-bg-black tw-w-full"
-                style={{
-                  aspectRatio: `${compositionSettings.width}/${compositionSettings.height}`,
-                }}
+                style={isPreviewFullscreen || fsFallbackActive ? ({ width: '100vw', height: '100dvh' } as any) : ({ aspectRatio: `${compositionSettings.width}/${compositionSettings.height}` })}
               >
                 {(() => {
                   console.log('🎭 Rendering preview content in preview window');
