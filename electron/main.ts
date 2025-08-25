@@ -21,6 +21,7 @@ if (!gotTheLock) {
 
 let mainWindow: BrowserWindow | null = null;
 let mirrorWindow: BrowserWindow | null = null;
+let mirrorAspectRatio: number | null = null;
 // Advanced mirror windows keyed by slice id
 const advancedMirrorWindows: Map<string, BrowserWindow> = new Map();
 let encryptedAuthStore: Record<string, Buffer> = {};
@@ -186,8 +187,8 @@ function createMirrorWindow() {
   }
 
   mirrorWindow = new BrowserWindow({
-    width: 960, // 50% of 1920
-    height: 540, // 50% of 1080
+    width: 960, // default; renderer will resize to comp size
+    height: 540, // default; renderer will resize to comp size
     title: 'VJ Mirror Output',
     webPreferences: {
       nodeIntegration: false,
@@ -250,6 +251,7 @@ function createMirrorWindow() {
           object-fit: cover;
           image-rendering: -webkit-optimize-contrast;
           image-rendering: crisp-edges;
+          image-rendering: pixelated; /* Prefer crisp scaling */
           transition: opacity 0.1s ease-in-out;
           -webkit-app-region: drag; /* Make image draggable */
           position: relative;
@@ -349,6 +351,8 @@ function createMirrorWindow() {
   mirrorWindow.once('ready-to-show', () => {
     mirrorWindow!.show();
     mirrorWindow!.center();
+    // Apply a safe default aspect ratio until renderer provides composition ratio
+    try { mirrorWindow!.setAspectRatio(mirrorAspectRatio || (1920 / 1080)); } catch {}
   });
 
   // Handle keyboard events for the mirror window
@@ -950,9 +954,29 @@ app.whenReady().then(() => {
   // Handle mirror window resize
   ipcMain.on('resize-mirror-window', (event, width: number, height: number) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      console.log('Resizing mirror window to:', width, 'x', height);
-      mirrorWindow.setSize(width, height);
+      try {
+        let targetW = Math.max(1, Number(width) || 1);
+        let targetH = Math.max(1, Number(height) || 1);
+        if (mirrorAspectRatio && isFinite(mirrorAspectRatio) && mirrorAspectRatio > 0) {
+          // Enforce aspect on programmatic resizes (prefer width as source of truth)
+          targetH = Math.max(1, Math.round(targetW / mirrorAspectRatio));
+        }
+        console.log('Resizing mirror window to:', targetW, 'x', targetH, '(aspect locked:', !!mirrorAspectRatio, ')');
+        mirrorWindow.setSize(targetW, targetH);
+      } catch {}
       mirrorWindow.center();
+    }
+  });
+
+  // Allow renderer to enforce a fixed aspect ratio on the mirror window
+  ipcMain.on('set-mirror-aspect', (event, width: number, height: number) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      try {
+        const w = Math.max(1, Number(width) || 1);
+        const h = Math.max(1, Number(height) || 1);
+        mirrorAspectRatio = w / h;
+        mirrorWindow.setAspectRatio(mirrorAspectRatio);
+      } catch {}
     }
   });
 

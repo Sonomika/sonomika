@@ -5,7 +5,7 @@ import { getEffectComponentSync } from '../utils/EffectLoader';
 import { getCachedVideoCanvas } from '../utils/AssetPreloader';
 
 export type ChainItem =
-  | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; __uniqueKey?: string }
+  | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; fitMode?: 'cover' | 'contain' | 'stretch' | 'none'; backgroundSizeMode?: 'cover' | 'contain' | 'auto' | 'custom'; backgroundRepeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'; backgroundSizeCustom?: string; __uniqueKey?: string }
   | { type: 'source'; effectId: string; params?: Record<string, any>; __uniqueKey?: string }
   | { type: 'effect'; effectId: string; params?: Record<string, any>; __uniqueKey?: string };
 
@@ -27,6 +27,9 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   const { gl, camera } = useThree();
 
   const [videoTexture, setVideoTexture] = useState<THREE.VideoTexture | null>(null);
+  const videoRtRef = useRef<THREE.WebGLRenderTarget | null>(null);
+  const videoSceneRef = useRef<THREE.Scene | null>(null);
+  const videoMeshRef = useRef<THREE.Mesh | null>(null);
   const [seedTexture, setSeedTexture] = useState<THREE.CanvasTexture | null>(null);
 
   // Per-stage render targets to keep texture identity stable
@@ -104,7 +107,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       (s as any).background = null;
       return s;
     });
-  }, [sceneSignature]);
+  }, [sceneSignature, compositionWidth, compositionHeight]);
 
   // Keep per-index input textures to pass into effect components
   const [inputTextures, setInputTextures] = useState<Array<THREE.Texture | null>>(
@@ -151,6 +154,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   }, [items]);
   const baseVideoEl = firstVideoItem?.video || null;
   const baseVideoAssetId = (firstVideoItem?.assetId as any) || baseAssetId || null;
+  const baseVideoFit: 'cover' | 'contain' | 'stretch' | 'none' | undefined = (firstVideoItem as any)?.fitMode;
 
   // Seed a texture from preloader's first-frame canvas (for initial frame before videoTexture is ready)
   React.useEffect(() => {
@@ -213,6 +217,19 @@ export const EffectChain: React.FC<EffectChainProps> = ({
     };
   }, [baseVideoEl]);
 
+  // When composition dimensions change, update the video plane geometry to match new aspect
+  React.useEffect(() => {
+    try {
+      const m = videoMeshRef.current as THREE.Mesh | null;
+      if (!m) return;
+      const aspect = compositionWidth / compositionHeight;
+      const newGeom = new THREE.PlaneGeometry(aspect * 2, 2);
+      const oldGeom = m.geometry as THREE.BufferGeometry | undefined;
+      m.geometry = newGeom;
+      try { oldGeom?.dispose(); } catch {}
+    } catch {}
+  }, [compositionWidth, compositionHeight]);
+
   // Render chain per frame
   const finalTextureRef = useRef<THREE.Texture | null>(null);
 
@@ -226,7 +243,189 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       if (item.type === 'video') {
         if (videoTexture) {
           videoTexture.needsUpdate = true;
-          currentTexture = videoTexture;
+          // lazily create scene/mesh/rt for scaling modes
+          if (!videoSceneRef.current) {
+            const s = new THREE.Scene();
+            (s as any).background = null;
+            const aspect = compositionWidth / compositionHeight;
+            const geom = new THREE.PlaneGeometry(aspect * 2, 2);
+            const mat = new THREE.MeshBasicMaterial({ map: videoTexture, transparent: true, toneMapped: false, depthTest: false, depthWrite: false });
+            const m = new THREE.Mesh(geom, mat);
+            s.add(m);
+            videoSceneRef.current = s;
+            videoMeshRef.current = m;
+          } else {
+            const m = videoMeshRef.current as THREE.Mesh;
+            const mat = m.material as THREE.MeshBasicMaterial;
+            if (mat.map !== videoTexture) { mat.map = videoTexture; mat.needsUpdate = true; }
+          }
+          // ensure RT size
+          const w = Math.max(2, Math.floor(compositionWidth));
+          const h = Math.max(2, Math.floor(compositionHeight));
+          if (!videoRtRef.current || videoRtRef.current.width !== w || videoRtRef.current.height !== h) {
+            videoRtRef.current?.dispose();
+            videoRtRef.current = new THREE.WebGLRenderTarget(w, h, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false });
+          }
+          // apply fit mode scaling on mesh
+          const m = videoMeshRef.current as THREE.Mesh;
+          const compAspect = compositionWidth / compositionHeight;
+          const vid = (videoTexture.image as any) as HTMLVideoElement | HTMLImageElement;
+          const va = (vid && (vid as any).videoWidth && (vid as any).videoHeight) ? (vid as any).videoWidth / (vid as any).videoHeight : compAspect;
+          const mode = (item as any).fitMode || baseVideoFit || 'stretch';
+          const repeatMode = (item as any).backgroundRepeat as ('no-repeat'|'repeat'|'repeat-x'|'repeat-y') || 'no-repeat';
+          let sizeMode = (item as any).backgroundSizeMode as ('cover'|'contain'|'auto'|'custom') | undefined;
+          // If no explicit background size mode, derive from fitMode so UI controls work
+          if (!sizeMode) {
+            if (mode === 'cover') sizeMode = 'cover';
+            else if (mode === 'contain') sizeMode = 'contain';
+            else if (mode === 'stretch') sizeMode = 'auto';
+          }
+          const sizeCustom = (item as any).backgroundSizeCustom as string | undefined;
+          let scaleX = 1;
+          let scaleY = 1;
+          // When repeating, keep mesh at full plane size and control tiling purely via texture repeat
+          if (mode === 'tile') {
+            // Force repeat tiling to fill space
+            const mat = (m.material as THREE.MeshBasicMaterial);
+            const map = videoTexture;
+            if (map) {
+              map.wrapS = THREE.RepeatWrapping;
+              map.wrapT = THREE.RepeatWrapping;
+              const compAspect = compositionWidth / compositionHeight;
+              const texAspect = va;
+              // Choose tile size that preserves source aspect; set repeats to fill plane
+              const planeW = compAspect * 2;
+              const planeH = 2;
+              const tileH = planeH; // one tile height = plane height
+              const tileW = tileH * texAspect;
+              const repX = Math.max(1, Math.ceil(planeW / tileW));
+              const repY = 1;
+              map.repeat.set(repX, repY);
+              map.offset.set(0, 0);
+              map.needsUpdate = true;
+            }
+            // Keep plane at composition size
+            m.scale.set(1, 1, 1);
+          } else if (repeatMode === 'no-repeat') {
+            if (mode === 'cover') {
+              // Keep plane at composition size; cropping handled via texture repeat/offset below
+              scaleX = 1;
+              scaleY = 1;
+            } else if (mode === 'contain') {
+              if (va > compAspect) {
+                scaleY = compAspect / va;
+              } else {
+                scaleX = va / compAspect;
+              }
+            } else if (mode === 'cover' || mode === 'fill') {
+              // Covered by texture cropping path above; leave scale 1
+              scaleX = 1; scaleY = 1;
+            } else if (mode === 'none') {
+              scaleX = (vid as any)?.videoWidth ? ((vid as any).videoWidth / compositionWidth) : 1;
+              scaleY = (vid as any)?.videoHeight ? ((vid as any).videoHeight / compositionHeight) : 1;
+            } else {
+              // stretch: leave scale 1,1
+            }
+          }
+          m.scale.set(scaleX, scaleY, 1);
+          // Handle background-repeat by tiling via texture repeat/wrap
+          const mat = (m.material as THREE.MeshBasicMaterial);
+          const map = videoTexture;
+          if (map) {
+            map.wrapS = (repeatMode === 'repeat' || repeatMode === 'repeat-x') ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+            map.wrapT = (repeatMode === 'repeat' || repeatMode === 'repeat-y') ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+            // Compute repeat to preserve aspect and match CSS-like size modes
+            let repX = 1, repY = 1;
+            let offX = 0, offY = 0;
+            const planeW = compAspect * 2;
+            const planeH = 2;
+            const texAspect = va; // w/h
+            if (repeatMode !== 'no-repeat') {
+              let tileW = planeW;
+              let tileH = planeH;
+              const setFromWH = (w: number, h: number) => {
+                tileW = Math.max(0.0001, w);
+                tileH = Math.max(0.0001, h);
+              };
+              if (sizeMode === 'contain' || !sizeMode) {
+                // Fit one tile fully inside plane
+                const wFit = planeH * texAspect;
+                if (wFit <= planeW) setFromWH(wFit, planeH);
+                else setFromWH(planeW, planeW / texAspect);
+              } else if (sizeMode === 'cover') {
+                // One tile covers plane
+                const wCover = planeH * texAspect;
+                if (wCover >= planeW) setFromWH(wCover, planeH);
+                else setFromWH(planeW, planeW / texAspect);
+              } else if (sizeMode === 'auto') {
+                // Height matches plane, width by aspect
+                setFromWH(planeH * texAspect, planeH);
+              } else if (sizeMode === 'custom' && sizeCustom) {
+                const parts = sizeCustom.trim().split(/\s+/);
+                const parseUnit = (v: string, total: number) => {
+                  if (!v || v === 'auto') return NaN;
+                  if (v.endsWith('%')) return (parseFloat(v) / 100) * total;
+                  if (v.endsWith('px')) return parseFloat(v) / (window.devicePixelRatio || 1) / 100; // rough px->plane scaling
+                  const n = parseFloat(v);
+                  return isNaN(n) ? NaN : n;
+                };
+                let w = parseUnit(parts[0] || '', planeW);
+                let h = parseUnit(parts[1] || '', planeH);
+                if (isNaN(w) && isNaN(h)) {
+                  // fallback to auto
+                  w = planeH * texAspect; h = planeH;
+                } else if (isNaN(w)) {
+                  w = h * texAspect;
+                } else if (isNaN(h)) {
+                  h = w / texAspect;
+                }
+                setFromWH(w, h);
+              }
+              // Convert tile size to repeats
+              repX = Math.max(0.0001, planeW / tileW);
+              repY = Math.max(0.0001, planeH / tileH);
+              if (repeatMode === 'repeat-x') repY = 1;
+              if (repeatMode === 'repeat-y') repX = 1;
+            } else {
+              // no-repeat: emulate CSS background-size cover/contain using repeat+offset cropping
+              map.wrapS = THREE.ClampToEdgeWrapping;
+              map.wrapT = THREE.ClampToEdgeWrapping;
+              if (sizeMode === 'cover') {
+                if (texAspect > compAspect) {
+                  // crop sides
+                  repX = Math.max(0.0001, compAspect / texAspect);
+                  repY = 1;
+                  offX = (1 - repX) / 2;
+                } else if (texAspect < compAspect) {
+                  repX = 1;
+                  repY = Math.max(0.0001, texAspect / compAspect);
+                  offY = (1 - repY) / 2;
+                } else {
+                  repX = 1; repY = 1;
+                }
+              } else if (sizeMode === 'contain') {
+                repX = 1; repY = 1; // full frame; bars come from background
+              } else if (sizeMode === 'auto') {
+                // Height-fit: same as contain here; final plane is composition sized
+                repX = 1; repY = 1;
+              }
+            }
+            map.repeat.set(repX, repY);
+            map.offset.set(offX, offY);
+            map.needsUpdate = true;
+          }
+          // render to RT that is sized to the composition; then final display plane will match composition, so video 'cover' will fill fully
+          const currentRT = gl.getRenderTarget();
+          const prevClear = new THREE.Color();
+          gl.getClearColor(prevClear);
+          const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+          gl.setClearColor(0x000000, 0);
+          gl.setRenderTarget(videoRtRef.current!);
+          gl.clear(true, true, true);
+          gl.render(videoSceneRef.current!, camera);
+          gl.setRenderTarget(currentRT);
+          gl.setClearColor(prevClear, prevAlpha);
+          currentTexture = videoRtRef.current!.texture;
         }
         nextInputTextures[idx] = currentTexture;
       } else if (item.type === 'source') {
@@ -368,17 +567,9 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   }, [items, offscreenScenes, inputTextures]);
 
   // Display final texture
-  const displayAspect = useMemo(() => {
-    // Try to derive from the base video texture
-    const vt = videoTexture as any;
-    const img = vt?.image as HTMLVideoElement | HTMLImageElement | undefined;
-    if (img && (img as any).videoWidth && (img as any).videoHeight) {
-      const w = (img as any).videoWidth || (img as any).width;
-      const h = (img as any).videoHeight || (img as any).height;
-      if (w > 0 && h > 0) return w / h;
-    }
-    return compositionWidth / compositionHeight;
-  }, [compositionWidth, compositionHeight, videoTexture]);
+  // Always render the final texture on a plane matching the composition aspect
+  // The content was already laid out into the RT sized to composition.
+  const displayAspect = useMemo(() => compositionWidth / compositionHeight, [compositionWidth, compositionHeight]);
 
   return (
     <>

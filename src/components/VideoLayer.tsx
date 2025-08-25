@@ -227,24 +227,63 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 
 		switch (fitMode) {
 			case 'cover':
+				// Fill the entire canvas while preserving aspect ratio (may crop)
 				if (videoAspect > canvasAspect) {
-					drawHeight = width / videoAspect;
-					drawY = (height - drawHeight) * position.y;
-				} else {
+					// Video is wider than canvas: match height, overflow width
+					drawHeight = height;
 					drawWidth = height * videoAspect;
 					drawX = (width - drawWidth) * position.x;
+					drawY = 0;
+				} else {
+					// Video is taller than canvas: match width, overflow height
+					drawWidth = width;
+					drawHeight = width / videoAspect;
+					drawX = 0;
+					drawY = (height - drawHeight) * position.y;
 				}
 				break;
+			case 'tile':
+				// Fill the canvas with repeated tiles preserving aspect of one tile
+				// We'll draw repeated tiles manually since 2D canvas has no background-repeat for drawImage
+				{
+					const tileW = height * videoAspect; // tile height matches canvas height
+					const tileH = height;
+					for (let x = 0; x < width + tileW; x += tileW) {
+						for (let y = 0; y < height + tileH; y += tileH) {
+							ctx.drawImage(video, x, y, tileW, tileH);
+						}
+					}
+					return; // already drawn
+				}
 			case 'contain':
+				// Fit entire video inside canvas while preserving aspect (may letterbox/pillarbox)
 				if (videoAspect > canvasAspect) {
+					// Video is wider: match width
+					drawWidth = width;
+					drawHeight = width / videoAspect;
+					drawX = 0;
+					drawY = (height - drawHeight) * position.y;
+				} else {
+					// Video is taller: match height
+					drawHeight = height;
 					drawWidth = height * videoAspect;
 					drawX = (width - drawWidth) * position.x;
-				} else {
-					drawHeight = width / videoAspect;
-					drawY = (height - drawHeight) * position.y;
+					drawY = 0;
 				}
 				break;
 			case 'stretch':
+				// Fill canvas ignoring aspect
+				drawWidth = width;
+				drawHeight = height;
+				drawX = 0;
+				drawY = 0;
+				break;
+			case 'none':
+				// Original: draw at native pixel size; crop if exceeds canvas; black bars if smaller
+				drawWidth = video.videoWidth || width;
+				drawHeight = video.videoHeight || height;
+				drawX = (width - drawWidth) * position.x;
+				drawY = (height - drawHeight) * position.y;
 				break;
 		}
 

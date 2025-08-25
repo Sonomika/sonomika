@@ -30,6 +30,17 @@ export class CanvasStreamManager {
         window.electron.openMirrorWindow();
         this.isWindowOpen = true;
         
+        // Immediately set the mirror window aspect ratio and size to match the composition
+        try {
+          const comp = (useStore.getState() as any).compositionSettings || {};
+          const w = Math.max(1, Number(comp.width) || 1920);
+          const h = Math.max(1, Number(comp.height) || 1080);
+          // Lock aspect ratio
+          (window as any).electron?.setMirrorAspectRatio?.(w, h);
+          // Resize window to exact comp size
+          (window as any).electron?.resizeMirrorWindow?.(w, h);
+        } catch {}
+
         // Reduced wait time for faster opening - start streaming immediately
         setTimeout(() => {
           this.startCanvasCapture();
@@ -209,10 +220,16 @@ export class CanvasStreamManager {
         if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
           try {
             if (window.electron && window.electron.sendCanvasData) {
-              // Electron path: composite to composition canvas size and send as JPEG data URL
+              // Electron path: composite to (at least) a supersampled size and send as JPEG data URL
               const comp = (useStore.getState() as any).compositionSettings || {};
-              const targetWidth = Math.max(1, Number(comp.width) || 1920);
-              const targetHeight = Math.max(1, Number(comp.height) || 1080);
+              const compW = Math.max(1, Number(comp.width) || 1920);
+              const compH = Math.max(1, Number(comp.height) || 1080);
+              // Ensure high resolution even for small compositions by upscaling to a minimum longest edge
+              const minLongestEdge = 1080; // baseline quality target
+              const longest = Math.max(compW, compH);
+              const upscale = longest < minLongestEdge ? (minLongestEdge / longest) : 1;
+              const targetWidth = Math.max(1, Math.round(compW * upscale));
+              const targetHeight = Math.max(1, Math.round(compH * upscale));
               const tempCanvas = document.createElement('canvas');
               tempCanvas.width = targetWidth;
               tempCanvas.height = targetHeight;
@@ -232,7 +249,8 @@ export class CanvasStreamManager {
                 const dy = Math.floor((targetHeight - drawH) / 2);
                 tempCtx.imageSmoothingEnabled = false;
                 tempCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
-                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
+                // Use a slightly higher quality for fewer artifacts at scale
+                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.95);
                 if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
                   window.electron.sendCanvasData(dataUrl);
                   lastDataUrl = dataUrl;

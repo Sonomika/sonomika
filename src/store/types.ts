@@ -107,4 +107,6 @@ export interface AppState {
   timelineSnapEnabled: boolean; // Magnet/Snap toggle
   timelineDuration: number; // Timeline duration in seconds
   timelineZoom: number; // Timeline zoom level
+  // Default sizing mode for video/image/webcam sources
+  defaultVideoFitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
 } 

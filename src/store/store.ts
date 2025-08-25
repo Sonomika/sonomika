@@ -66,6 +66,7 @@ const initialState: AppState = {
   timelineSnapEnabled: true,
   timelineDuration: 60, // 1 minute default
   timelineZoom: 2, // Default zoom level
+  defaultVideoFitMode: 'cover',
 };
 
 initialState.currentSceneId = initialState.scenes[0].id;
@@ -119,10 +120,12 @@ export const useStore = create<AppState & {
   setTimelineDuration: (duration: number) => void;
   setTimelineZoom: (zoom: number) => void;
   setCurrentPresetName?: (name: string | null) => void;
+  setDefaultVideoFitMode: (mode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile') => void,
 }>()(
   persist(
     (set, get) => ({
       ...initialState,
+      setDefaultVideoFitMode: (mode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile') => set({ defaultVideoFitMode: mode }),
       currentPresetName: null as any,
       setCurrentPresetName: (name: string | null) => set({ currentPresetName: name } as any),
 

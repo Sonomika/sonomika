@@ -32,7 +32,7 @@ export interface VideoLayer extends BaseLayer {
   pingPongEnabled?: boolean;
   autoplay?: boolean;
   bpmSync?: boolean;
-  fitMode?: 'cover' | 'contain' | 'stretch';
+  fitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
   position?: { x: number; y: number };
   scale?: number;
   rotation?: number;

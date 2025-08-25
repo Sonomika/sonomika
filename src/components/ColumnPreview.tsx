@@ -926,7 +926,7 @@ const ColumnScene: React.FC<{
               backgroundSizeMode: (layer as any)?.backgroundSizeMode,
               backgroundRepeat: (layer as any)?.backgroundRepeat,
               backgroundSizeCustom: (layer as any)?.backgroundSizeCustom,
-              __uniqueKey: `video-${layer.id}-${Date.now()}-${Math.random()}`
+              __uniqueKey: `video-${layer.id}`
             });
           } else if (kind === 'source') {
             const effectId = resolveEffectId(layer.asset);
@@ -935,7 +935,7 @@ const ColumnScene: React.FC<{
               type: 'source', 
               effectId, 
               params: { ...normalizeParams(layer) }, // Clone params
-              __uniqueKey: `source-${layer.id}-${Date.now()}-${Math.random()}`
+              __uniqueKey: `source-${layer.id}`
             });
           } else if (kind === 'effect') {
             const effectId = resolveEffectId(layer.asset);
@@ -944,7 +944,7 @@ const ColumnScene: React.FC<{
               type: 'effect', 
               effectId, 
               params: { ...normalizeParams(layer) }, // Clone params
-              __uniqueKey: `effect-${layer.id}-${Date.now()}-${Math.random()}`
+              __uniqueKey: `effect-${layer.id}`
             });
               } else {
             // Unknown layer: break chain

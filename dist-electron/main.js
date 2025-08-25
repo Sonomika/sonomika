@@ -17,6 +17,7 @@ if (!gotTheLock) {
 }
 let mainWindow = null;
 let mirrorWindow = null;
+let mirrorAspectRatio = null;
 const advancedMirrorWindows = /* @__PURE__ */ new Map();
 let encryptedAuthStore = {};
 function getAuthStoreFilePath() {
@@ -151,9 +152,9 @@ function createMirrorWindow() {
   }
   mirrorWindow = new electron.BrowserWindow({
     width: 960,
-    // 50% of 1920
+    // default; renderer will resize to comp size
     height: 540,
-    // 50% of 1080
+    // default; renderer will resize to comp size
     title: "VJ Mirror Output",
     webPreferences: {
       nodeIntegration: false,
@@ -218,6 +219,7 @@ function createMirrorWindow() {
           object-fit: cover;
           image-rendering: -webkit-optimize-contrast;
           image-rendering: crisp-edges;
+          image-rendering: pixelated; /* Prefer crisp scaling */
           transition: opacity 0.1s ease-in-out;
           -webkit-app-region: drag; /* Make image draggable */
           position: relative;
@@ -315,6 +317,10 @@ function createMirrorWindow() {
   mirrorWindow.once("ready-to-show", () => {
     mirrorWindow.show();
     mirrorWindow.center();
+    try {
+      mirrorWindow.setAspectRatio(mirrorAspectRatio || 1920 / 1080);
+    } catch {
+    }
   });
   mirrorWindow.webContents.on("before-input-event", (event, input) => {
     if (input.key === "Escape") {
@@ -888,9 +894,28 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.on("resize-mirror-window", (event, width, height) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      console.log("Resizing mirror window to:", width, "x", height);
-      mirrorWindow.setSize(width, height);
+      try {
+        let targetW = Math.max(1, Number(width) || 1);
+        let targetH = Math.max(1, Number(height) || 1);
+        if (mirrorAspectRatio && isFinite(mirrorAspectRatio) && mirrorAspectRatio > 0) {
+          targetH = Math.max(1, Math.round(targetW / mirrorAspectRatio));
+        }
+        console.log("Resizing mirror window to:", targetW, "x", targetH, "(aspect locked:", !!mirrorAspectRatio, ")");
+        mirrorWindow.setSize(targetW, targetH);
+      } catch {
+      }
       mirrorWindow.center();
+    }
+  });
+  electron.ipcMain.on("set-mirror-aspect", (event, width, height) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      try {
+        const w = Math.max(1, Number(width) || 1);
+        const h = Math.max(1, Number(height) || 1);
+        mirrorAspectRatio = w / h;
+        mirrorWindow.setAspectRatio(mirrorAspectRatio);
+      } catch {
+      }
     }
   });
   electron.ipcMain.on("advanced-mirror:open", (event, slices) => {

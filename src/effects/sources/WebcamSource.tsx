@@ -11,6 +11,7 @@ interface WebcamSourceProps {
 	height?: number;
 	fps?: number;
 	mirror?: boolean;
+	fitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
 }
 
 const WebcamSource: React.FC<WebcamSourceProps> = ({
@@ -18,7 +19,8 @@ const WebcamSource: React.FC<WebcamSourceProps> = ({
 	width = 1280,
 	height = 720,
 	fps = 30,
-	mirror = true
+	mirror = true,
+	fitMode = 'cover'
 }) => {
 	const videoRef = useRef<HTMLVideoElement | null>(null);
 	const [videoTexture, setVideoTexture] = useState<THREE.VideoTexture | null>(null);
@@ -83,17 +85,107 @@ const WebcamSource: React.FC<WebcamSourceProps> = ({
 		}
 	});
 
-	// Geometry sized to cover composition (2 world units height)
+	// Geometry sized to composition (2 world units height)
 	const { size } = useThree();
 	const compositionAspect = size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9; // fallback
-	const scaleX = Math.max(compositionAspect / videoAspect, 1);
-	const scaleY = Math.max(videoAspect / compositionAspect, 1);
-	const planeW = compositionAspect * 2 * scaleX;
-	const planeH = 2 * scaleY;
+	const planeW = compositionAspect * 2;
+	const planeH = 2;
+
+	// Resolve effective fit mode from global settings if not provided
+	let effectiveFitMode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile' = fitMode as any;
+	try {
+		const storeModule: any = require('../../store/store');
+		const useStore = (storeModule && (storeModule.useStore || storeModule.default?.useStore)) || storeModule.useStore;
+		const globalDefault = useStore?.getState?.().defaultVideoFitMode;
+		if (!fitMode && globalDefault) effectiveFitMode = globalDefault;
+	} catch {}
+
+	// Compute mesh scale based on fitMode
+	let scaleX = 1;
+	let scaleY = 1;
+	if (effectiveFitMode === 'contain') {
+		if (videoAspect > compositionAspect) {
+			scaleY = compositionAspect / videoAspect;
+		} else {
+			scaleX = videoAspect / compositionAspect;
+		}
+	} else if (effectiveFitMode === 'cover') {
+		// Keep scale at 1; cover will be achieved via texture cropping below
+		scaleX = 1;
+		scaleY = 1;
+	} else if (effectiveFitMode === 'stretch') {
+		scaleX = 1;
+		scaleY = 1;
+	} else if (effectiveFitMode === 'none') {
+		// Original pixel size relative to current composition preview size
+		const compWpx = size.width || 1;
+		const compHpx = size.height || 1;
+		const vW = (videoRef.current?.videoWidth || width);
+		const vH = (videoRef.current?.videoHeight || height);
+		scaleX = Math.max(0.0001, vW / compWpx);
+		scaleY = Math.max(0.0001, vH / compHpx);
+	} else if (effectiveFitMode === 'tile') {
+		// Use full plane and let tiling handle repeat
+		scaleX = 1;
+		scaleY = 1;
+	}
+
+	// Apply repeat/cropping based on fitMode
+	useEffect(() => {
+		if (!videoTexture) return;
+		const tex = videoTexture;
+		if (effectiveFitMode === 'cover') {
+			tex.wrapS = THREE.ClampToEdgeWrapping;
+			tex.wrapT = THREE.ClampToEdgeWrapping;
+			let repX = 1, repY = 1, offX = 0, offY = 0;
+			// Crop the longer dimension while keeping content centered
+			if (videoAspect > compositionAspect) {
+				// Video wider than canvas: crop horizontally
+				repX = Math.max(0.0001, compositionAspect / videoAspect);
+				repY = 1;
+				offX = (1 - repX) / 2;
+				offY = 0;
+			} else if (videoAspect < compositionAspect) {
+				// Video taller (narrower) than canvas: crop vertically
+				repX = 1;
+				repY = Math.max(0.0001, videoAspect / compositionAspect);
+				offX = 0;
+				offY = (1 - repY) / 2;
+			} else {
+				repX = 1; repY = 1; offX = 0; offY = 0;
+			}
+			tex.repeat.set(repX, repY);
+			tex.offset.set(offX, offY);
+			tex.needsUpdate = true;
+			return;
+		}
+		if (effectiveFitMode === 'tile') {
+			tex.wrapS = THREE.RepeatWrapping;
+			tex.wrapT = THREE.RepeatWrapping;
+			// Determine tile size using contain semantics per tile
+			let tileW = planeW;
+			let tileH = planeH;
+			const wFit = planeH * videoAspect;
+			if (wFit <= planeW) { tileW = wFit; tileH = planeH; }
+			else { tileW = planeW; tileH = planeW / videoAspect; }
+			let repX = Math.max(0.0001, planeW / tileW);
+			let repY = Math.max(0.0001, planeH / tileH);
+			tex.repeat.set(repX, repY);
+			tex.offset.set(0, 0);
+			tex.needsUpdate = true;
+			return;
+		}
+		// contain, stretch, none: no crop, no repeat
+		tex.wrapS = THREE.ClampToEdgeWrapping;
+		tex.wrapT = THREE.ClampToEdgeWrapping;
+		tex.repeat.set(1, 1);
+		tex.offset.set(0, 0);
+		tex.needsUpdate = true;
+	}, [videoTexture, effectiveFitMode, planeW, planeH, videoAspect, compositionAspect]);
 
 	return (
 		videoTexture ? (
-			<mesh scale={[mirror ? -1 : 1, 1, 1]}>
+			<mesh scale={[ (mirror ? -1 : 1) * scaleX, scaleY, 1 ]}>
 				<planeGeometry args={[planeW, planeH]} />
 				<meshBasicMaterial
 					map={videoTexture}
@@ -117,10 +209,14 @@ const WebcamSource: React.FC<WebcamSourceProps> = ({
 	isSource: true,
 	parameters: [
 		{ name: 'deviceId', type: 'select', value: '', description: 'Camera device', options: [{ value: '', label: 'Default Camera' }], lockDefault: true },
-		{ name: 'width', type: 'number', value: 1280, min: 160, max: 3840, step: 1, description: 'Requested width' },
-		{ name: 'height', type: 'number', value: 720, min: 120, max: 2160, step: 1, description: 'Requested height' },
-		{ name: 'fps', type: 'number', value: 30, min: 1, max: 60, step: 1, description: 'Requested frame rate' },
-		{ name: 'mirror', type: 'boolean', value: true, description: 'Mirror horizontally' }
+		{ name: 'mirror', type: 'boolean', value: true, description: 'Mirror horizontally' },
+		{ name: 'fitMode', type: 'select', value: 'cover', description: 'Video Size', options: [
+			{ value: 'none', label: 'Original' },
+			{ value: 'contain', label: 'Fit' },
+			{ value: 'cover', label: 'Fill' },
+			{ value: 'stretch', label: 'Stretch' },
+			{ value: 'tile', label: 'Tile' }
+		] }
 	]
 };
 

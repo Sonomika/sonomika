@@ -343,6 +343,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     }
     // Fallback to regular layer update
     handleUpdateLayerWrapper(layerId, options);
+    // If the preview is showing a column, mirror the update into the previewContent object
+    try {
+      setPreviewContent((prev: any) => {
+        if (!prev || prev.type !== 'column') return prev;
+        const updateLayer = (l: any) => (l && l.id === layerId) ? { ...l, ...options } : l;
+        const nextColumn = prev.column ? { ...prev.column, layers: (prev.column.layers || []).map(updateLayer) } : prev.column;
+        const nextLayers = Array.isArray(prev.layers) ? prev.layers.map(updateLayer) : prev.layers;
+        return { ...prev, column: nextColumn, layers: nextLayers };
+      });
+    } catch {}
+    // Keep local selectedLayer in sync so UI reflects new values immediately
+    try {
+      setSelectedLayer((prev: any) => (prev && prev.id === layerId) ? { ...prev, ...options } : prev);
+    } catch {}
   };
 
   const handleResizeStart = (e: React.MouseEvent) => {
@@ -1668,65 +1682,66 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               ref={previewContainerRef}
               style={fsFallbackActive ? { position: 'fixed', inset: 0, zIndex: 9999, width: '100vw', height: '100dvh' as any } : undefined}
             >
-              <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800" ref={previewHeaderRef}
-              >
-                <h3>Preview</h3>
-                <div className="tw-flex tw-items-center tw-gap-2">
-                  <button
-                    className="tw-inline-flex tw-items-center tw-justify-center tw-h-7 tw-rounded tw-text-xs tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-px-2"
-                    onClick={() => {
-                      try {
-                        // Find an existing render canvas or create a temporary one
-                        let canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-                        if (!canvas) {
-                          canvas = document.createElement('canvas');
-                          canvas.width = compositionSettings?.width || 1920;
-                          canvas.height = compositionSettings?.height || 1080;
-                          canvas.style.display = 'none';
-                          canvas.id = 'dummy-mirror-canvas';
-                          const ctx = canvas.getContext('2d');
-                          if (ctx) {
-                            const bg = (compositionSettings as any)?.backgroundColor || '#000000';
-                            ctx.fillStyle = bg;
-                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+              {!(isPreviewFullscreen || fsFallbackActive) && (
+                <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800" ref={previewHeaderRef}>
+                  <h3>Preview</h3>
+                  <div className="tw-flex tw-items-center tw-gap-2">
+                    <button
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-h-7 tw-rounded tw-text-xs tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-px-2"
+                      onClick={() => {
+                        try {
+                          // Find an existing render canvas or create a temporary one
+                          let canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+                          if (!canvas) {
+                            canvas = document.createElement('canvas');
+                            canvas.width = compositionSettings?.width || 1920;
+                            canvas.height = compositionSettings?.height || 1080;
+                            canvas.style.display = 'none';
+                            canvas.id = 'dummy-mirror-canvas';
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) {
+                              const bg = (compositionSettings as any)?.backgroundColor || '#000000';
+                              ctx.fillStyle = bg;
+                              ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            }
+                            document.body.appendChild(canvas);
                           }
-                          document.body.appendChild(canvas);
-                        }
 
-                        if (!mirrorStreamRef.current) {
-                          mirrorStreamRef.current = new CanvasStreamManager(canvas);
-                        } else {
-                          mirrorStreamRef.current.updateCanvas(canvas);
-                        }
-                        // Open mirror window if needed and start streaming
-                        mirrorStreamRef.current.openMirrorWindow().then(() => {
-                          try { (window as any).electron?.setMirrorBackground?.((compositionSettings as any)?.backgroundColor || '#000000'); } catch {}
-                          const w = Math.max(1, Number(compositionSettings?.width) || 1920);
-                          const h = Math.max(1, Number(compositionSettings?.height) || 1080);
-                          // Resize the Electron mirror window to exact composition size; for very large sizes, Electron will scale window but keep ratio
-                          try { (window as any).electron?.resizeMirrorWindow?.(w, h); } catch {}
-                        }).catch(() => {});
-                      } catch {}
-                    }}
-                    title="Mirror (Canvas Size)"
-                    aria-label="Mirror (Canvas Size)"
-                  >
-                    Mirror
-                  </button>
-                  <button
-                    className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
-                    onClick={togglePreviewFullscreen}
-                    title="Fullscreen Preview"
-                    aria-label="Fullscreen Preview"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M7 3H3v4h2V5h2V3zm12 0h-4v2h2v2h2V3zM5 17H3v4h4v-2H5v-2zm14 0h-2v2h-2v2h4v-4z"/>
-                    </svg>
-                  </button>
+                          if (!mirrorStreamRef.current) {
+                            mirrorStreamRef.current = new CanvasStreamManager(canvas);
+                          } else {
+                            mirrorStreamRef.current.updateCanvas(canvas);
+                          }
+                          // Open mirror window if needed and start streaming
+                          mirrorStreamRef.current.openMirrorWindow().then(() => {
+                            try { (window as any).electron?.setMirrorBackground?.((compositionSettings as any)?.backgroundColor || '#000000'); } catch {}
+                            const w = Math.max(1, Number(compositionSettings?.width) || 1920);
+                            const h = Math.max(1, Number(compositionSettings?.height) || 1080);
+                            // Resize the Electron mirror window to exact composition size; for very large sizes, Electron will scale window but keep ratio
+                            try { (window as any).electron?.resizeMirrorWindow?.(w, h); } catch {}
+                          }).catch(() => {});
+                        } catch {}
+                      }}
+                      title="Mirror (Canvas Size)"
+                      aria-label="Mirror (Canvas Size)"
+                    >
+                      Mirror
+                    </button>
+                    <button
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
+                      onClick={togglePreviewFullscreen}
+                      title="Fullscreen Preview"
+                      aria-label="Fullscreen Preview"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M7 3H3v4h2V5h2V3zm12 0h-4v2h2v2h2V3zM5 17H3v4h4v-2H5v-2zm14 0h-2v2h-2v2h4v-4z"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
               <div 
-                className="tw-flex tw-items-center tw-justify-center tw-bg-black tw-w-full tw-flex-1"
+                className="tw-flex tw-items-center tw-justify-center tw-bg-neutral-900 tw-w-full tw-flex-1"
               >
                 <div
                   style={

@@ -83,6 +83,17 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   
   const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
 
+  const handleFitModeChange = (mode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile') => {
+    if (!selectedLayer) return;
+    // Clear old background sizing props so fitMode drives rendering
+    onUpdateLayer(selectedLayer.id, {
+      fitMode: mode,
+      backgroundSizeMode: mode === 'tile' ? 'contain' : undefined,
+      backgroundRepeat: mode === 'tile' ? 'repeat' as any : 'no-repeat' as any,
+      backgroundSizeCustom: undefined
+    } as any);
+  };
+
   const toggleLock = (name: string) => {
     setLockedParams(prev => {
       const next = { ...prev, [name]: !prev[name] };
@@ -548,6 +559,25 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           return isVideoLayer ? (
             <div className="tw-space-y-2">
               <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Video Options</h4>
+              <div className="tw-grid tw-grid-cols-2 tw-gap-3 tw-items-end">
+                {/* Video Size (Original, Fit, Fill, Stretch) */}
+                <div className="tw-col-span-2">
+                  <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Video Size</label>
+                  <ButtonGroup
+                    options={[
+                      { value: 'none', label: 'Original' },
+                      { value: 'contain', label: 'Fit' },
+                      { value: 'cover', label: 'Fill' },
+                      { value: 'stretch', label: 'Stretch' },
+                      { value: 'tile', label: 'Tile' },
+                    ]}
+                    value={(selectedLayer as any)?.fitMode || 'cover'}
+                    onChange={(v) => handleFitModeChange(v as 'cover' | 'contain' | 'stretch' | 'none' | 'tile')}
+                    columns={5}
+                    size="small"
+                  />
+                </div>
+              </div>
               <div>
                 <div className="tw-flex tw-flex-wrap tw-gap-2">
                   <button

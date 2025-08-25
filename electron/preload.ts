@@ -82,6 +82,9 @@ try {
       // console.log('Preload: resizeMirrorWindow called', width, height);
       ipcRenderer.send('resize-mirror-window', width, height);
     },
+    setMirrorAspectRatio: (width: number, height: number) => {
+      ipcRenderer.send('set-mirror-aspect', width, height);
+    },
     toggleAppFullscreen: () => {
       // console.log('Preload: toggleAppFullscreen called');
       ipcRenderer.send('toggle-app-fullscreen');
@@ -251,6 +254,7 @@ declare global {
       showSaveDialog: (options: any) => Promise<any>;
       saveFile: (filePath: string, content: string) => Promise<boolean>;
       readFileText: (filePath: string) => Promise<string | null>;
+      setMirrorAspectRatio: (width: number, height: number) => void;
     };
     advancedMirror: {
       open: (slices: Array<{ id: string; title?: string; width?: number; height?: number; x?: number; y?: number }>) => void;
