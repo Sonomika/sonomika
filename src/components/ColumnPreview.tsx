@@ -922,6 +922,10 @@ const ColumnScene: React.FC<{
               assetId: layer.asset.id, 
               opacity: layer.opacity, 
               blendMode: layer.blendMode,
+              fitMode: (layer as any)?.fitMode,
+              backgroundSizeMode: (layer as any)?.backgroundSizeMode,
+              backgroundRepeat: (layer as any)?.backgroundRepeat,
+              backgroundSizeCustom: (layer as any)?.backgroundSizeCustom,
               __uniqueKey: `video-${layer.id}-${Date.now()}-${Math.random()}`
             });
           } else if (kind === 'source') {
@@ -960,9 +964,11 @@ const ColumnScene: React.FC<{
           const chainKey = chain.map((it) => {
             if (it.type === 'video') {
               const v: any = (it as any).video;
-              // Use a stable key from the layer map instead of DOM attribute
               const lid = (v && (v as any)["__layerKey"]) || 'vid';
-              return `video:${lid}`;
+              const fm = (it as any).fitMode || 'stretch';
+              const br = (it as any).backgroundRepeat || 'no-repeat';
+              const bsm = (it as any).backgroundSizeMode || 'auto';
+              return `video:${lid}:${fm}:${br}:${bsm}`;
             }
             return `${it.type}:${(it as any).effectId || 'eff'}`;
           }).join('|');
@@ -979,29 +985,14 @@ const ColumnScene: React.FC<{
             
 
 
-          if (chainWithGlobals.length === 1 && chainWithGlobals[0].type === 'video') {
-            const v = chainWithGlobals[0] as Extract<ChainItem, { type: 'video' }>;
-            elements.push(
-              <VideoTexture
-                key={`video-only-${chainKey}`}
-                video={v.video}
-                opacity={typeof v.opacity === 'number' ? v.opacity : 1}
-                effects={undefined}
-                compositionWidth={compositionWidth}
-                compositionHeight={compositionHeight}
-                cacheKey={`video-only-${chainKey}`}
-              />
-            );
-            } else {
-            elements.push(
-              <EffectChain
-                key={`chain-${chainKey}`}
-                items={chainWithGlobals}
-                    compositionWidth={compositionWidth}
-                    compositionHeight={compositionHeight}
-              />
-            );
-          }
+          elements.push(
+            <EffectChain
+              key={`chain-${chainKey}-${compositionWidth}x${compositionHeight}`}
+              items={chainWithGlobals}
+              compositionWidth={compositionWidth}
+              compositionHeight={compositionHeight}
+            />
+          );
         });
 
         return elements;
@@ -1207,6 +1198,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               }}
             >
               <ColumnScene 
+                key={`scene-${width}x${height}`}
                 column={column} 
                 isPlaying={isPlaying} 
                 globalEffects={globalEffects}
