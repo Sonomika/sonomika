@@ -138,12 +138,14 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
                 <div
                   key={slot?.id || `empty-${index}`}
                   className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900"
-                  draggable={Boolean(slot)}
-                  onDragStart={(e) => onDragStart(e, index)}
                   onDragOver={onDragOver}
                   onDrop={(e) => onDropReorder(e, index)}
                 >
-                  <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
+                  <div
+                    className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800"
+                    draggable={Boolean(slot)}
+                    onDragStart={(e) => onDragStart(e, index)}
+                  >
                     <button
                       className="tw-flex tw-items-center tw-gap-2 tw-text-left"
                       onClick={() => slot?.id && setOpenMap((prev) => ({ ...prev, [slot.id]: !Boolean(prev[slot.id]) }))}
@@ -166,7 +168,20 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
                     )}
                   </div>
                   {isOpen && (
-                    <div className="tw-p-3">
+                    <div
+                      className="tw-p-3"
+                      onDragOver={(e) => {
+                        // Prevent parameter interactions from initiating drag reordering
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = 'none';
+                      }}
+                      onDrop={(e) => {
+                        // Block drops inside the parameter area to avoid mis-reorder
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
                       {slot && slot.effectId ? (
                         <EffectParamsEditor
                           effectId={slot.effectId}

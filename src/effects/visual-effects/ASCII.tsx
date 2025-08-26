@@ -27,6 +27,10 @@ export const ASCII: React.FC<ASCIIProps> = ({
   preserveColors = false,
   isGlobal = false
 }) => {
+  // Ensure at least one character to avoid invalid shader indexing when editing string to empty
+  const effectiveChars = useMemo(() => {
+    return typeof characters === 'string' && characters.length > 0 ? characters : ' .';
+  }, [characters]);
   // Normalize various color input types to a hex string like '#rrggbb'
   const normalizeColorToHex = (input: any): string => {
     try {
@@ -129,8 +133,8 @@ export const ASCII: React.FC<ASCIIProps> = ({
   };
 
   const asciiTexture = useMemo(() => {
-    return createCharactersTexture(characters, fontSize);
-  }, [characters, fontSize]);
+    return createCharactersTexture(effectiveChars, fontSize);
+  }, [effectiveChars, fontSize]);
 
   useEffect(() => {
     return () => {
@@ -150,10 +154,10 @@ export const ASCII: React.FC<ASCIIProps> = ({
   // Update material when asciiTexture changes (without recreating the material)
   useEffect(() => {
     if (materialRef.current) {
-      // Update character count when characters change
-      materialRef.current.uniforms.uCharactersCount.value = characters.length;
+      // Update character count when characters change (clamped to >= 1)
+      materialRef.current.uniforms.uCharactersCount.value = Math.max(1, effectiveChars.length);
     }
-  }, [characters.length]); // Only update when characters string changes
+  }, [effectiveChars.length]); // Only update when characters string changes
 
   // For global effects, we need to capture the current render target
   const renderTarget = useMemo(() => {
@@ -236,7 +240,7 @@ void main() {
         inputBuffer: { value: blackTexture },
         uCharacters: { value: asciiTexture },
         uCellSize: { value: cellSize },
-        uCharactersCount: { value: characters.length },
+        uCharactersCount: { value: Math.max(1, effectiveChars.length) },
         uColor: { value: new THREE.Color(normalizeColorToHex(color)) },
         uInvert: { value: invert },
         uOpacity: { value: opacity },
@@ -286,8 +290,9 @@ void main() {
       if (materialRef.current.uniforms.uCellSize.value !== cellSize) {
         materialRef.current.uniforms.uCellSize.value = cellSize;
       }
-      if (materialRef.current.uniforms.uCharactersCount.value !== characters.length) {
-        materialRef.current.uniforms.uCharactersCount.value = characters.length;
+      const desiredCount = Math.max(1, effectiveChars.length);
+      if (materialRef.current.uniforms.uCharactersCount.value !== desiredCount) {
+        materialRef.current.uniforms.uCharactersCount.value = desiredCount;
       }
       const normalizedColor = normalizeColorToHex(color);
       const currentHex = materialRef.current.uniforms.uColor.value.getHexString();

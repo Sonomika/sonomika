@@ -975,13 +975,22 @@ const ColumnScene: React.FC<{
           }).join('|');
           // Append enabled global effects at the end of each chain so they run as part of the chain
           const chainWithGlobals: ChainItem[] = enabledGlobalEffects.length > 0
-            ? ([...chain, ...enabledGlobalEffects.map((ge: any, globalIndex) => ({
-                type: 'effect',
-                effectId: ge.effectId,
-                params: { ...ge.params }, // Clone params to avoid reference issues
-                // Add a unique identifier for React keys without changing the effectId
-                __uniqueKey: `global-${chainIndex}-${globalIndex}`
-              }))] as ChainItem[])
+            ? ([...chain, ...enabledGlobalEffects.map((ge: any, globalIndex) => {
+                // Normalize global params: unwrap { value } objects to raw values like layer params
+                const normalizedParams: Record<string, any> = {};
+                if (ge && ge.params) {
+                  Object.keys(ge.params).forEach((k) => {
+                    const v = ge.params[k];
+                    normalizedParams[k] = (v && typeof v === 'object' && 'value' in v) ? v.value : v;
+                  });
+                }
+                return {
+                  type: 'effect' as const,
+                  effectId: ge.effectId,
+                  params: normalizedParams,
+                  __uniqueKey: `global-${chainIndex}-${globalIndex}`
+                };
+              })] as ChainItem[])
             : chain;
             
 

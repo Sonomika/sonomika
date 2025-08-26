@@ -125,19 +125,22 @@ export const createColumn = () => {
  * Get default effect parameters
  */
 export const getDefaultEffectParams = (effectId: string) => {
-  console.log('🟢 Getting layer effect params for:', effectId);
+  // Attempt to derive defaults from effect metadata when available
+  try {
+    const { getEffect } = require('../utils/effectRegistry');
+    const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`);
+    const metadata = effectComponent ? (effectComponent as any).metadata : null;
+    if (metadata && Array.isArray(metadata.parameters)) {
+      const params: Record<string, any> = {};
+      for (const p of metadata.parameters as any[]) {
+        params[p.name] = { value: p.value, ...(p.min !== undefined ? { min: p.min } : {}), ...(p.max !== undefined ? { max: p.max } : {}), ...(p.step !== undefined ? { step: p.step } : {}) };
+      }
+      return params;
+    }
+  } catch {}
 
-  // Use generic parameters instead of hardcoded effect-specific ones
-  // Effects should define their own parameters in their metadata
-  const defaultParams = {
-    intensity: { value: 1.0, min: 0, max: 2, step: 0.1 },
-    speed: { value: 1.0, min: 0.1, max: 5, step: 0.1 },
-    color: { value: '#00ff00' },
-    size: { value: 1.0, min: 0.1, max: 2, step: 0.1 }
-  };
-
-  console.log('🟢 Default params for', effectId, ':', defaultParams);
-  return defaultParams;
+  // Fallback minimal structure if no metadata found
+  return {} as Record<string, any>;
 };
 
 /**
