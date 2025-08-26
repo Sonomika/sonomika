@@ -1,6 +1,6 @@
 # Effects Directory Structure
 
-This directory contains all the visual effects and generative sources for the VJ application, organized in a Resolume-style workflow.
+This directory contains all the visual effects and generative sources for the VJ application, organized in a professional VJ workflow.
 
 ## Folder Organization
 
@@ -81,4 +81,4 @@ The system automatically scans both folders and categorizes effects based on:
 - Effect name patterns
 - Category information
 
-No manual registration or hardcoded imports are needed - just drop your effects into the appropriate folder! 
+No manual hardcoded imports are needed. Effects register themselves and are dynamically discovered. See the top‑level `EFFECTS_GUIDE.md` for global rules (React Fiber rendering, global effect pattern, metadata, performance) and an AI authoring template to generate new effects and sources.

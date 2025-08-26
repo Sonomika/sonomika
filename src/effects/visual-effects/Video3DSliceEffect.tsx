@@ -1,5 +1,5 @@
-import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import React, { useRef, useMemo, useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
 
@@ -12,6 +12,7 @@ interface Video3DSliceEffectProps {
   depthSpread?: number;
   animationSpeed?: number;
   chaosLevel?: number;
+  isGlobal?: boolean;
 }
 
 export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
@@ -22,17 +23,48 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
   rotationIntensity = 1,
   depthSpread = 2,
   animationSpeed = 1,
-  chaosLevel = 0.5
+  chaosLevel = 0.5,
+  isGlobal = false
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const timeRef = useRef(0);
+  const { gl, scene, camera, size } = useThree();
 
-  console.log('🎨 Video3DSliceEffect rendering with videoTexture:', !!videoTexture);
+  // Fallback 1x1 black texture
+  const blackTexture = useMemo(() => {
+    const tex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
+
+  // Global capture render target
+  const renderTarget = useMemo(() => {
+    if (isGlobal) {
+      const rt = new THREE.WebGLRenderTarget(
+        Math.max(1, size.width),
+        Math.max(1, size.height),
+        {
+          format: THREE.RGBAFormat,
+          type: THREE.UnsignedByteType,
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter
+        }
+      );
+      return rt;
+    }
+    return null;
+  }, [isGlobal, size.width, size.height]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        renderTarget?.dispose?.();
+      } catch {}
+    };
+  }, [renderTarget]);
 
   // Create 3D slices of the video
   const slices = useMemo(() => {
-    if (!videoTexture) return [];
-
     const sliceArray: {
       geometry: THREE.PlaneGeometry;
       material: THREE.ShaderMaterial;
@@ -68,7 +100,7 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
       // Create shader material for each slice
       const material = new THREE.ShaderMaterial({
         uniforms: {
-          tDiffuse: { value: videoTexture },
+          tDiffuse: { value: blackTexture },
           uTime: { value: 0 },
           uSliceIndex: { value: i },
           uSliceCount: { value: sliceCount },
@@ -205,12 +237,26 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
     }
 
     return sliceArray;
-  }, [videoTexture, sliceCount, separationDistance, rotationIntensity, depthSpread, animationSpeed, chaosLevel, opacity]);
+  }, [sliceCount, separationDistance, rotationIntensity, depthSpread, animationSpeed, chaosLevel, opacity, blackTexture]);
 
   // Animation loop for 3D slice movement
   useFrame((state, delta) => {
     timeRef.current += delta;
     
+    // Global capture: render scene to RT, hide this effect to avoid recursion
+    if (isGlobal && renderTarget) {
+      const currentRenderTarget = gl.getRenderTarget();
+      const wasVisible = groupRef.current ? groupRef.current.visible : undefined;
+      if (groupRef.current) groupRef.current.visible = false;
+      try {
+        gl.setRenderTarget(renderTarget);
+        gl.render(scene, camera);
+      } finally {
+        gl.setRenderTarget(currentRenderTarget);
+        if (groupRef.current && wasVisible !== undefined) groupRef.current.visible = wasVisible;
+      }
+    }
+
     if (groupRef.current) {
       // Rotate entire group for additional motion
       groupRef.current.rotation.y += delta * animationSpeed * 0.1;
@@ -232,8 +278,11 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
           const material = mesh.material as THREE.ShaderMaterial;
           if (material.uniforms) {
             material.uniforms.uTime.value = timeRef.current;
-            // Texture binding is handled in useMemo and only changes when the source changes
-            // No need to constantly update tDiffuse during playback - this was causing the conflict
+            // Route input texture based on mode
+            const inputTex = isGlobal ? (renderTarget ? renderTarget.texture : null) : (videoTexture || null);
+            if (inputTex && material.uniforms.tDiffuse.value !== inputTex) {
+              material.uniforms.tDiffuse.value = inputTex;
+            }
             material.uniforms.uSeparationDistance.value = separationDistance;
             material.uniforms.uRotationIntensity.value = rotationIntensity;
             material.uniforms.uDepthSpread.value = depthSpread;
@@ -246,14 +295,20 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
     }
   });
 
-  // Don't render if no video texture
-  if (!videoTexture) {
-    console.log('🚫 No video texture provided to Video3DSliceEffect');
-    return null;
-  }
+  // Keep render target in sync with canvas size
+  useEffect(() => {
+    if (isGlobal && renderTarget) {
+      renderTarget.setSize(Math.max(1, size.width), Math.max(1, size.height));
+    }
+  }, [size, isGlobal, renderTarget]);
+
+  // Aspect-based scaling to fill composition
+  const compositionAspect = useMemo(() => {
+    return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9;
+  }, [size]);
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} scale={[compositionAspect, 1, 1]}>
       {/* Render 3D slices - no background blocker needed since effect replaces video */}
       {slices.map((slice, index) => (
         <mesh
@@ -277,6 +332,7 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
   author: 'VJ System',
   version: '1.0.0',
   replacesVideo: true, // This effect completely replaces the video instead of overlaying
+  canBeGlobal: true,
   parameters: [
     { name: 'sliceCount', type: 'number', value: 10, min: 3, max: 30, step: 1 },
     { name: 'separationDistance', type: 'number', value: 0.5, min: 0, max: 2, step: 0.1 },
@@ -290,5 +346,8 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
 
 // Register the effect (single registration)
 registerEffect('video-3d-slice-effect', Video3DSliceEffect);
+registerEffect('video-3d-slices', Video3DSliceEffect);
+registerEffect('visual-effects/Video3DSliceEffect', Video3DSliceEffect);
+registerEffect('Video3DSliceEffect', Video3DSliceEffect);
 
 export default Video3DSliceEffect;

@@ -25,27 +25,35 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const lastTextureRef = useRef<THREE.Texture | null>(null);
   const { bpm } = useStore();
-  const { gl, scene, camera } = useThree(); // Destructure gl, scene, camera
-  const [aspect, setAspect] = React.useState<number>(16 / 9);
+  const { gl, scene, camera, size } = useThree();
   const { updateUniforms } = useOptimizedUniforms();
-
-  console.log('🎨 VideoWarpEffect component rendered with props:', { intensity, frequency, speed, waveType, isGlobal });
 
   // For global effects, we need to capture the current render target
   const renderTarget = useMemo(() => {
-    if (isGlobal || !videoTexture) {
-      const rt = new THREE.WebGLRenderTarget(1920, 1080, {
-        format: THREE.RGBAFormat,
-        type: THREE.UnsignedByteType,
-        minFilter: THREE.LinearFilter,
-        magFilter: THREE.LinearFilter
-      });
+    if (isGlobal) {
+      const rt = new THREE.WebGLRenderTarget(
+        Math.max(1, size.width),
+        Math.max(1, size.height),
+        {
+          format: THREE.RGBAFormat,
+          type: THREE.UnsignedByteType,
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter
+        }
+      );
       return rt;
     }
     return null;
-  }, [isGlobal, videoTexture]);
+  }, [isGlobal, size.width, size.height]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        renderTarget?.dispose?.();
+      } catch {}
+    };
+  }, [renderTarget]);
 
   // Canvas buffer to persist the last good frame (prevents black and background bleed)
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -74,16 +82,6 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
 
   // Create shader material that warps the video texture
   const shaderMaterial = useMemo(() => {
-    const initialTexture: THREE.Texture = (lastTextureRef.current as THREE.Texture)
-      || ((videoTexture && !isGlobal) ? (videoTexture as THREE.Texture) : (renderTarget ? renderTarget.texture : bufferTexture));
-
-    if (!lastTextureRef.current) {
-      lastTextureRef.current = initialTexture;
-    }
-
-    // Always render from live videoTexture if provided, otherwise from our persistent canvas buffer
-    const inputTexture: THREE.Texture = initialTexture;
-
     return new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0.0 },
@@ -92,7 +90,7 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
         speed: { value: speed },
         bpm: { value: bpm },
         waveType: { value: waveType === 'sine' ? 0 : waveType === 'cosine' ? 1 : 2 },
-        tDiffuse: { value: inputTexture } // Initial safe value
+        tDiffuse: { value: bufferTexture }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -165,32 +163,25 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
       depthTest: false,
       depthWrite: false
     });
-  }, [bufferTexture, videoTexture, isGlobal, renderTarget]); // Remove parameter dependencies to prevent re-creation
-
-  // Keep aspect stable and update when valid video dims are available
-  useFrame(() => {
-    const tex = (!isGlobal && (videoTexture as THREE.Texture)) || lastTextureRef.current || (renderTarget ? renderTarget.texture : null);
-    const img: any = (tex as any)?.image;
-    if (img && img.videoWidth && img.videoHeight && img.videoWidth > 0 && img.videoHeight > 0) {
-      const next = img.videoWidth / img.videoHeight;
-      if (Math.abs(next - aspect) > 0.001) setAspect(next);
-    }
-  });
+  }, [isGlobal]);
 
   useFrame((state) => {
     // For global effects, capture the current scene and apply warp effect
     if (isGlobal && renderTarget && shaderMaterial) {
-      // Capture current scene to render target
+      // Capture current scene to render target, hide this mesh to avoid recursion
       const currentRenderTarget = gl.getRenderTarget();
-      gl.setRenderTarget(renderTarget);
-      gl.render(scene, camera);
-      gl.setRenderTarget(currentRenderTarget);
+      const wasVisible = meshRef.current ? meshRef.current.visible : undefined;
+      if (meshRef.current) meshRef.current.visible = false;
+      try {
+        gl.setRenderTarget(renderTarget);
+        gl.render(scene, camera);
+      } finally {
+        gl.setRenderTarget(currentRenderTarget);
+        if (meshRef.current && wasVisible !== undefined) meshRef.current.visible = wasVisible;
+      }
 
-      // Update the input buffer to use the captured scene
-      if (materialRef.current) {
-        if (materialRef.current.uniforms.tDiffuse.value !== renderTarget.texture) {
-          materialRef.current.uniforms.tDiffuse.value = renderTarget.texture;
-        }
+      if (materialRef.current && materialRef.current.uniforms.tDiffuse.value !== renderTarget.texture) {
+        materialRef.current.uniforms.tDiffuse.value = renderTarget.texture;
       }
     }
 
@@ -207,38 +198,35 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
         speed,
         waveType: waveTypeIndex
       });
+
+      // Update input texture in layer mode
+      if (!isGlobal && videoTexture && materialRef.current.uniforms.tDiffuse.value !== videoTexture) {
+        materialRef.current.uniforms.tDiffuse.value = videoTexture;
+      }
     }
   });
 
-  // Calculate aspect ratio from video texture if available
-  const aspectRatio = useMemo(() => {
-    if (videoTexture && videoTexture.image && !isGlobal) { // Added !isGlobal
-      try {
-        const { width, height } = videoTexture.image;
-        if (width && height && width > 0 && height > 0) {
-          return width / height;
-        }
-      } catch (error) {
-        console.warn('Error calculating aspect ratio from video texture:', error);
-      }
+  // Update render target size on canvas resize
+  useEffect(() => {
+    if (isGlobal && renderTarget) {
+      renderTarget.setSize(Math.max(1, size.width), Math.max(1, size.height));
     }
-    return 16/9; // Default aspect ratio
-  }, [videoTexture, isGlobal]); // Added isGlobal
+  }, [size, isGlobal, renderTarget]);
+
+  // Calculate aspect ratio from video texture if available
+  const compositionAspect = useMemo(() => {
+    return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9;
+  }, [size]);
 
   // Don't render if missing dependencies
   if (!shaderMaterial) {
-    console.log('🚫 Missing dependencies for VideoWarpEffect:', {
-      videoTexture: !!videoTexture,
-      shaderMaterial: !!shaderMaterial,
-      isGlobal
-    });
     return null;
   }
 
   return (
     <mesh ref={meshRef} position={[0, 0, 0.1]}>
-      <planeGeometry args={[aspect * 2, 2]} />
-      <primitive object={shaderMaterial} ref={materialRef} />
+      <planeGeometry args={[compositionAspect * 2, 2]} />
+      <primitive object={shaderMaterial} ref={materialRef} attach="material" />
     </mesh>
   );
 });
@@ -296,8 +284,9 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
 };
 
 // Self-register the effect
-console.log('🔧 Registering VideoWarpEffect...');
+registerEffect('video-warp', VideoWarpEffect);
+registerEffect('video-warp-effect', VideoWarpEffect);
 registerEffect('VideoWarpEffect', VideoWarpEffect);
-console.log('✅ VideoWarpEffect registered successfully');
+registerEffect('visual-effects/VideoWarpEffect', VideoWarpEffect);
 
 export default VideoWarpEffect;
