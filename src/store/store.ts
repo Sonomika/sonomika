@@ -3,6 +3,27 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { AppState, Scene, Column, Layer, MIDIMapping, Asset, CompositionSettings, TransitionType } from './types';
 
+// Synchronously read persisted composition settings for initial render (before hydration)
+const getPersistedCompositionSettings = (): CompositionSettings | null => {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    const raw = localStorage.getItem('vj-app-storage');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const saved = (parsed && (parsed.state?.compositionSettings || parsed.compositionSettings)) || null;
+    if (!saved) return null;
+    const width = Number(saved.width);
+    const height = Number(saved.height);
+    const aspect = saved.aspectRatio || (width && height ? `${width}:${height}` : '16:9');
+    const frameRate = Number(saved.frameRate) || 30;
+    const backgroundColor = typeof saved.backgroundColor === 'string' ? saved.backgroundColor : '#000000';
+    if (!width || !height) return null;
+    return { width, height, aspectRatio: aspect, frameRate, backgroundColor } as CompositionSettings;
+  } catch {
+    return null;
+  }
+};
+
 const createEmptyLayer = (type: Layer['type'] = 'p5'): Layer => ({
   id: uuidv4(),
   type,
@@ -56,7 +77,7 @@ const initialState: AppState = {
   transitionType: 'fade',
   transitionDuration: 500,
   assets: [],
-  compositionSettings: {
+  compositionSettings: getPersistedCompositionSettings() || {
     width: 1920,
     height: 1080,
     aspectRatio: '16:9',

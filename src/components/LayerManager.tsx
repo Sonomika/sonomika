@@ -800,7 +800,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     if (!previewContent) {
       console.log('🎨 No preview content, showing placeholder');
       return (
-        <div className="tw-w-full tw-h-full tw-flex tw-items-center tw-justify-center tw-p-2">
+        <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden tw-w-full">
           {(() => {
             const w = Math.max(1, Number(compositionSettings?.width) || 1920);
             const h = Math.max(1, Number(compositionSettings?.height) || 1080);
@@ -808,12 +808,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             const bg = (compositionSettings as any)?.backgroundColor || '#000000';
             return (
               <div
-                className="tw-relative tw-w-full tw-max-w-full tw-rounded-md tw-border tw-border-neutral-800"
+                className="tw-relative tw-w-full"
                 data-aspect-ratio={`${w}:${h}`}
-                style={{ aspectRatio, backgroundColor: bg }}
-                aria-label="Composition placeholder"
-                title="Composition"
-              />
+                style={{ aspectRatio }}
+              >
+                <div className="tw-absolute tw-inset-0" style={{ backgroundColor: bg }} aria-label="Composition placeholder" title="Composition" />
+              </div>
             );
           })()}
         </div>
@@ -1908,7 +1908,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
                       </TabsContent>
                       <TabsContent value="files">
-                        <div className="tw-space-y-2">
+                        <div className="tw-h-full">
                           <FileBrowser />
                         </div>
                       </TabsContent>
@@ -1928,7 +1928,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     </Tabs>
                   </ScrollArea.Viewport>
                   <ScrollArea.Scrollbar
-                    className="tw-z-10 tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation:horizontal]:tw-flex-col tw-data-[orientation:horizontal]:tw-h-2.5"
+                    className="tw-z-10 tw-flex tw-w-2 tw-touch-none tw-select-none tw-transition-colors tw-duration-150 ease-out tw-data-[orientation=vertical]:tw-w-2.5 tw-data-[orientation=horizontal]:tw-flex-col tw-data-[orientation=horizontal]:tw-h-2.5"
                     orientation="vertical"
                   >
                     <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px] tw-relative tw-cursor-pointer hover:tw-bg-neutral-400" />

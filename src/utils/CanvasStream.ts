@@ -111,9 +111,7 @@ export class CanvasStreamManager {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            image-rendering: pixelated;
+            image-rendering: auto;
           }
           /* Hide any UI in mirror window */
           .mirror-info { display: none; }
@@ -263,7 +261,8 @@ export class CanvasStreamManager {
                 const drawH = Math.floor(srcH * scale);
                 const dx = Math.floor((targetWidth - drawW) / 2);
                 const dy = Math.floor((targetHeight - drawH) / 2);
-                tempCtx.imageSmoothingEnabled = false;
+                tempCtx.imageSmoothingEnabled = true;
+                tempCtx.imageSmoothingQuality = 'high' as any;
                 tempCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
                 // Use a slightly higher quality for fewer artifacts at scale
                 const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.95);
@@ -293,7 +292,8 @@ export class CanvasStreamManager {
               const dy = Math.floor((destH - drawH) / 2);
 
               // Favor speed to avoid potential throttling during fullscreen transitions
-              this.mirrorCtx.imageSmoothingEnabled = false;
+              this.mirrorCtx.imageSmoothingEnabled = true;
+              try { (this.mirrorCtx as any).imageSmoothingQuality = 'high'; } catch {}
               this.mirrorCtx.drawImage(this.canvas, dx, dy, drawW, drawH);
               this.mirrorCtx.restore();
             } else {

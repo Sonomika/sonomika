@@ -1137,31 +1137,21 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 const container = gl.domElement.parentElement;
                 if (container) {
                   try {
-                    // Get the composition settings from the store
-                    const compositionSettings = useStore.getState().compositionSettings;
-                    const targetAspectRatio = compositionSettings.width / compositionSettings.height;
-                    
-                    // Calculate container dimensions based on target aspect ratio
-                    const containerRect = container.getBoundingClientRect();
-                    const containerWidth = containerRect.width;
-                    const containerHeight = containerWidth / targetAspectRatio;
-                    
-                    // Update camera aspect ratio to match target
+                    // Use the rendered box as-is; its parent already enforces the composition aspect ratio
+                    const rect = container.getBoundingClientRect();
+                    const widthPx = Math.max(1, rect.width);
+                    const heightPx = Math.max(1, rect.height);
+
+                    // Update camera aspect to current box ratio
                     if (camera && 'aspect' in camera) {
-                      (camera as THREE.PerspectiveCamera).aspect = targetAspectRatio;
+                      (camera as THREE.PerspectiveCamera).aspect = widthPx / heightPx;
                       camera.updateProjectionMatrix();
                     }
-                    
-                    // Set renderer size to match calculated dimensions
-                    gl.setSize(containerWidth, containerHeight, false);
-                    
-                    // Force canvas element to match calculated dimensions
-                     gl.domElement.style.width = `${containerWidth}px`;
-                     gl.domElement.style.height = `${containerHeight}px`;
-                     // Avoid forcing canvas backing-store resize every tick; let R3F manage
-                    
-                    // Update container height to match aspect ratio
-                    container.style.height = `${containerHeight}px`;
+
+                    // Size renderer to the container box without changing the container's CSS size
+                    gl.setSize(widthPx, heightPx, false);
+                    gl.domElement.style.width = '100%';
+                    gl.domElement.style.height = '100%';
                   } catch (error) {
                     console.error('Error in canvas setup:', error);
                   }
@@ -1174,23 +1164,18 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 const resizeObserver = new ResizeObserver(() => {
                   if (container) {
                     try {
-                      const compositionSettings = useStore.getState().compositionSettings;
-                      const targetAspectRatio = compositionSettings.width / compositionSettings.height;
-                      
-                      const containerRect = container.getBoundingClientRect();
-                      const containerWidth = containerRect.width;
-                      const containerHeight = containerWidth / targetAspectRatio;
-                      
+                      const rect = container.getBoundingClientRect();
+                      const widthPx = Math.max(1, rect.width);
+                      const heightPx = Math.max(1, rect.height);
+
                       if (camera && 'aspect' in camera) {
-                        (camera as THREE.PerspectiveCamera).aspect = targetAspectRatio;
+                        (camera as THREE.PerspectiveCamera).aspect = widthPx / heightPx;
                         camera.updateProjectionMatrix();
                       }
-                      
-                       gl.setSize(containerWidth, containerHeight, false);
-                       gl.domElement.style.width = `${containerWidth}px`;
-                       gl.domElement.style.height = `${containerHeight}px`;
-                      
-                      container.style.height = `${containerHeight}px`;
+
+                      gl.setSize(widthPx, heightPx, false);
+                      gl.domElement.style.width = '100%';
+                      gl.domElement.style.height = '100%';
                     } catch (error) {
                       console.error('Error in resize observer:', error);
                     }

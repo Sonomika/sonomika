@@ -163,7 +163,8 @@ export class AdvancedMirrorStreamManager {
             const dx = Math.floor((targetWidth - dw) / 2);
             const dy = Math.floor((targetHeight - dh) / 2);
             // Use 9-arg drawImage to crop source region
-            tempCtx.imageSmoothingEnabled = false;
+            tempCtx.imageSmoothingEnabled = true;
+            try { (tempCtx as any).imageSmoothingQuality = 'high'; } catch {}
             // Draw via offscreen canvas to avoid reallocating temp canvas per slice
             try {
               let off: HTMLCanvasElement | null = (tempCanvas as any).__offCanvas || null;
@@ -174,7 +175,8 @@ export class AdvancedMirrorStreamManager {
               if (off.width !== sw || off.height !== sh) { off.width = sw; off.height = sh; }
               const offCtx = off.getContext('2d');
               if (offCtx) {
-                offCtx.imageSmoothingEnabled = false;
+                offCtx.imageSmoothingEnabled = true;
+                try { (offCtx as any).imageSmoothingQuality = 'high'; } catch {}
                 offCtx.clearRect(0, 0, sw, sh);
                 offCtx.drawImage(this.canvas, sx, sy, sw, sh, 0, 0, sw, sh);
                 tempCtx.drawImage(off, 0, 0, sw, sh, dx, dy, dw, dh);

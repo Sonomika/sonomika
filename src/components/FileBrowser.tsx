@@ -46,6 +46,7 @@ const FileBrowser: React.FC = () => {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [filter, setFilter] = useState<string>('');
   const [favLabel, setFavLabel] = useState<string>('');
+  const [fileMetadata, setFileMetadata] = useState<Map<string, { duration?: string; dimensions?: string }>>();
 
   const loadDirectory = (dir: string) => {
     try {
@@ -59,9 +60,32 @@ const FileBrowser: React.FC = () => {
       setCurrentPath(dir);
       setPathInput(dir);
       try { localStorage.setItem(LAST_PATH_KEY, dir); } catch {}
+      
+      // Load metadata for media files
+      loadMetadataForFiles(items);
     } catch (e) {
       console.warn('FileBrowser: failed to load directory', dir, e);
     }
+  };
+
+  const loadMetadataForFiles = async (files: FileEntry[]) => {
+    const newMetadata = new Map<string, { duration?: string; dimensions?: string }>();
+    
+    for (const file of files) {
+      if (!file.isDirectory) {
+        const type = classifyType(file.name);
+        if (type !== 'other') {
+          try {
+            const metadata = await extractMediaMetadata(file.path, type);
+            newMetadata.set(file.path, metadata);
+          } catch (error) {
+            console.warn('Failed to load metadata for:', file.path, error);
+          }
+        }
+      }
+    }
+    
+    setFileMetadata(newMetadata);
   };
 
   const pathJoin = (...parts: string[]) => (fsApi?.join ? fsApi.join(...parts) : parts.join('/'));
@@ -222,30 +246,30 @@ const FileBrowser: React.FC = () => {
         });
     }, [isVisible, normalized, thumb, error, isGenerating]);
     
-    if (error) {
-      return (
-        <div className="tw-w-[160px] tw-h-[90px] tw-bg-neutral-900 tw-rounded-[2px]" title={`Error: ${error}`} />
-      );
-    }
-    
-    if (thumb) {
-      return (
-        <img
-          src={thumb}
-          alt="thumbnail"
-          draggable={false}
-          className="tw-w-[160px] tw-h-[90px] tw-object-cover tw-rounded-[2px]"
-          onError={() => {
-            console.error('VideoThumb: Image failed to load for:', path, 'src:', thumb.substring(0, 100));
-            setError('Image load failed');
-          }}
-        />
-      );
-    }
-    
-    return (
-      <div ref={thumbRef} className="tw-w-[160px] tw-h-[90px] tw-bg-neutral-900 tw-rounded-[2px]" />
-    );
+         if (error) {
+       return (
+         <div className="tw-w-12 tw-h-9 tw-bg-neutral-900 tw-rounded-[2px]" title={`Error: ${error}`} />
+       );
+     }
+     
+     if (thumb) {
+       return (
+         <img
+           src={thumb}
+           alt="thumbnail"
+           draggable={false}
+           className="tw-w-12 tw-h-9 tw-object-cover tw-rounded-[2px]"
+           onError={() => {
+             console.error('VideoThumb: Image failed to load for:', path, 'src:', thumb.substring(0, 100));
+             setError('Image load failed');
+           }}
+         />
+       );
+     }
+     
+     return (
+       <div ref={thumbRef} className="tw-w-12 tw-h-9 tw-bg-neutral-900 tw-rounded-[2px]" />
+     );
   };
 
   const MemoInlineThumb = React.memo(InlineThumb);
@@ -253,7 +277,7 @@ const FileBrowser: React.FC = () => {
   const ImageThumb: React.FC<{ path: string; name: string }> = ({ path, name }) => {
     const [loaded, setLoaded] = React.useState(false);
     return (
-      <div className="tw-relative tw-w-[160px] tw-h-[90px]">
+      <div className="tw-relative tw-w-12 tw-h-9">
         <div className="tw-absolute tw-inset-0 tw-bg-[#111] tw-border tw-border-[#222]" />
         <img
           src={path}
@@ -269,6 +293,64 @@ const FileBrowser: React.FC = () => {
   };
 
   const MemoImageThumb = React.memo(ImageThumb);
+
+  const formatFileSize = (bytes: number, decimalPoint = 2) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimalPoint < 0 ? 0 : decimalPoint;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const extractMediaMetadata = async (filePath: string, type: string) => {
+    try {
+      if (type === 'image') {
+        // For images, we can get dimensions from the img element
+        return new Promise<{ dimensions?: string }>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            resolve({ dimensions: `${img.width}×${img.height}` });
+          };
+          img.onerror = () => resolve({});
+          img.src = filePath.startsWith('local-file://') ? filePath : `local-file://${filePath}`;
+        });
+      } else if (type === 'video') {
+        // For videos, we can get duration and dimensions from video element
+        return new Promise<{ duration?: string; dimensions?: string }>((resolve) => {
+          const video = document.createElement('video');
+          video.onloadedmetadata = () => {
+            const duration = video.duration ? formatDuration(video.duration) : undefined;
+            const dimensions = video.videoWidth && video.videoHeight ? `${video.videoWidth}×${video.videoHeight}` : undefined;
+            resolve({ duration, dimensions });
+          };
+          video.onerror = () => resolve({});
+          video.src = filePath.startsWith('local-file://') ? filePath : `local-file://${filePath}`;
+        });
+      } else if (type === 'audio') {
+        // For audio, we can get duration from audio element
+        return new Promise<{ duration?: string }>((resolve) => {
+          const audio = document.createElement('audio');
+          audio.onloadedmetadata = () => {
+            const duration = audio.duration ? formatDuration(audio.duration) : undefined;
+            resolve({ duration });
+          };
+          audio.onerror = () => resolve({});
+          audio.src = filePath.startsWith('local-file://') ? filePath : `local-file://${filePath}`;
+        });
+      }
+      return {};
+    } catch (error) {
+      console.warn('Failed to extract metadata for:', filePath, error);
+      return {};
+    }
+  };
 
   return (
     <div className="tw-flex tw-flex-col tw-h-full tw-text-white">
@@ -370,7 +452,7 @@ const FileBrowser: React.FC = () => {
         </div>
       </div>
 
-      <div className="tw-flex-1 tw-min-h-0 tw-overflow-auto tw-space-y-3">
+             <div className="tw-flex-1 tw-min-h-0 tw-space-y-3">
         {/* Folders for navigation */}
         <div>
           {filteredEntries.filter(e => e.isDirectory).map((it) => (
@@ -387,31 +469,63 @@ const FileBrowser: React.FC = () => {
           ))}
         </div>
 
-        {/* Media grid: only videos, images, audio */}
-        <div className="tw-grid md:tw-grid-cols-3 xl:tw-grid-cols-4 tw-gap-2">
+        {/* Media list: only videos, images, audio */}
+        <div className="tw-space-y-1">
+          {/* Column headers */}
+          <div className="tw-grid tw-grid-cols-[48px_1fr_80px_80px_100px] tw-gap-3 tw-px-3 tw-py-2 tw-text-xs tw-font-medium tw-text-neutral-400 tw-border-b tw-border-neutral-700">
+            <div>Preview</div>
+            <div>Name</div>
+            <div>Size</div>
+            <div>Duration</div>
+            <div>Dimensions</div>
+          </div>
+          
+          {/* File rows */}
           {filteredEntries.filter(e => !e.isDirectory && classifyType(e.name) !== 'other').map((it) => {
             const type = classifyType(it.name);
             const localSrc = it.path.startsWith('local-file://') ? it.path : `local-file://${it.path}`;
+            const metadata = fileMetadata?.get(it.path) || {};
             return (
-              <div
-                key={it.path}
-                className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-space-y-2 hover:tw-bg-neutral-800 tw-cursor-pointer"
-                draggable
-                onDragStart={(e) => handleFileDrag(e, it)}
-                title={it.path}
-              >
-                <div className="tw-flex tw-items-center tw-justify-center">
+                             <div
+                 key={it.path}
+                 className="tw-grid tw-grid-cols-[48px_1fr_80px_80px_100px] tw-gap-3 tw-items-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer tw-transition-colors"
+                 draggable
+                 onDragStart={(e) => handleFileDrag(e, it)}
+                 title={it.path}
+               >
+                 {/* Preview thumbnail */}
+                 <div className="tw-flex-shrink-0 tw-w-12 tw-h-9">
                   {type === 'video' && <MemoInlineThumb path={it.path} />}
                   {type === 'image' && (
                     <MemoImageThumb path={localSrc} name={it.name} />
                   )}
-                  {type === 'audio' && (
-                    <div className="tw-w-[160px] tw-h-[90px] tw-bg-[#111] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-[10px] tw-text-[#999]">
-                      AUDIO
-                    </div>
-                  )}
+                                     {type === 'audio' && (
+                     <div className="tw-w-12 tw-h-9 tw-bg-[#111] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-[6px] tw-text-[#999] tw-rounded-[2px]">
+                       AUDIO
+                     </div>
+                   )}
                 </div>
-                <div className="tw-text-xs tw-truncate tw-text-neutral-200" title={it.name}>{it.name}</div>
+                
+                {/* File name and type */}
+                <div className="tw-min-w-0">
+                  <div className="tw-text-sm tw-font-medium tw-text-neutral-200 tw-truncate" title={it.name}>{it.name}</div>
+                  <div className="tw-text-xs tw-text-neutral-400 tw-mt-1">{type.toUpperCase()}</div>
+                </div>
+                
+                {/* File size */}
+                <div className="tw-text-xs tw-text-neutral-300 tw-truncate">
+                  {it.size ? formatFileSize(it.size) : '-'}
+                </div>
+                
+                {/* Duration */}
+                <div className="tw-text-xs tw-text-neutral-300 tw-truncate">
+                  {metadata.duration || '-'}
+                </div>
+                
+                {/* Dimensions */}
+                <div className="tw-text-xs tw-text-neutral-300 tw-truncate">
+                  {metadata.dimensions || '-'}
+                </div>
               </div>
             );
           })}
