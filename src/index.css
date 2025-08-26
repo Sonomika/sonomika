@@ -121,6 +121,24 @@ select {
 	-webkit-appearance: none;
 	-moz-appearance: none;
 	box-shadow: none !important;
+	color: #ffffff !important;
+}
+
+/* Force white text on all inputs */
+input,
+textarea,
+select {
+	color: #ffffff !important;
+	-webkit-text-fill-color: #ffffff !important;
+}
+
+/* Fix Chrome autofill text color */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+	-webkit-text-fill-color: #ffffff !important;
+	color: #ffffff !important;
 }
 
 /* Force no outline/shadow on focused buttons and inputs */

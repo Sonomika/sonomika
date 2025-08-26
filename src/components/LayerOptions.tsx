@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Select } from './ui';
+import { Select, Input } from './ui';
 import { LOOP_MODES, type LoopMode } from '../constants/video';
 import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
@@ -421,6 +421,19 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                           className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
                           disabled={isLocked}
                         />
+                      )}
+                      {param.type === 'string' && (
+                        <div className="tw-flex-1 tw-min-w-0">
+                          <Input
+                            value={String(uiValue ?? '')}
+                            onChange={(e) => {
+                              if (isLocked) return;
+                              const v = e.target.value;
+                              setLocalParamValues(prev => ({ ...prev, [param.name]: v }));
+                              handleEffectParamChange(param.name, v);
+                            }}
+                          />
+                        </div>
                       )}
                       {param.type === 'select' && (
                         <div className="tw-w-[240px]">

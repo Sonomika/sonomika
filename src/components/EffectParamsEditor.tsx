@@ -1,5 +1,5 @@
 import React from 'react';
-import { Select, Slider, ParamRow } from './ui';
+import { Select, Slider, ParamRow, Input } from './ui';
 import { getEffect } from '../utils/effectRegistry';
 
 interface EffectParamsEditorProps {
@@ -110,6 +110,14 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                   onDecrement={() => handleParamChange(param.name, Math.max(param.min || 0, Number(currentValue) - (param.step || 0.1)), param)}
                   showLabel={false}
                 />
+              )}
+              {param.type === 'string' && (
+                <div className="tw-flex-1 tw-min-w-0">
+                  <Input
+                    value={String(currentValue ?? '')}
+                    onChange={(e) => handleParamChange(param.name, e.target.value, param)}
+                  />
+                </div>
               )}
             </div>
           </div>
