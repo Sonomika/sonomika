@@ -25,6 +25,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, Dialog
 import { GlobalEffectsTab } from './GlobalEffectsTab';
 import { PlayIcon, PauseIcon, StopIcon } from '@radix-ui/react-icons';
 import TimelineControls from './TimelineControls';
+import FileBrowser from './FileBrowser';
 
 
 interface LayerManagerProps {
@@ -1886,6 +1887,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 <TabsList>
                   <TabsTrigger value="effects">Bank</TabsTrigger>
                   <TabsTrigger value="media">Media</TabsTrigger>
+                  <TabsTrigger value="files">Files</TabsTrigger>
                   <TabsTrigger value="midi">MIDI</TabsTrigger>
                   <TabsTrigger value="lfo">LFO</TabsTrigger>
                 </TabsList>
@@ -1904,6 +1906,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       </TabsContent>
                       <TabsContent value="media">
                         <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
+                      </TabsContent>
+                      <TabsContent value="files">
+                        <div className="tw-space-y-2">
+                          <FileBrowser />
+                        </div>
                       </TabsContent>
                       <TabsContent value="midi">
                         <div className="midi-tab">
