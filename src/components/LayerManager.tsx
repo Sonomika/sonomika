@@ -799,11 +799,22 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     if (!previewContent) {
       console.log('🎨 No preview content, showing placeholder');
       return (
-        <div className="tw-w-full tw-h-full tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-text-sm tw-py-4">
-          <div className="tw-text-center">
-            <div></div>
-            <div className="tw-text-xs tw-text-neutral-500"></div>
-          </div>
+        <div className="tw-w-full tw-h-full tw-flex tw-items-center tw-justify-center tw-p-2">
+          {(() => {
+            const w = Math.max(1, Number(compositionSettings?.width) || 1920);
+            const h = Math.max(1, Number(compositionSettings?.height) || 1080);
+            const aspectRatio = w / h;
+            const bg = (compositionSettings as any)?.backgroundColor || '#000000';
+            return (
+              <div
+                className="tw-relative tw-w-full tw-max-w-full tw-rounded-md tw-border tw-border-neutral-800"
+                data-aspect-ratio={`${w}:${h}`}
+                style={{ aspectRatio, backgroundColor: bg }}
+                aria-label="Composition placeholder"
+                title="Composition"
+              />
+            );
+          })()}
         </div>
       );
     }
@@ -1707,7 +1718,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <h3>Preview</h3>
                   <div className="tw-flex tw-items-center tw-gap-2">
                     <button
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-h-7 tw-rounded tw-text-xs tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-px-2"
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-h-7 tw-rounded tw-text-xs tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-px-2"
                       onClick={() => {
                         try {
                           // Find an existing render canvas or create a temporary one
@@ -1737,6 +1748,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                             try { (window as any).electron?.setMirrorBackground?.((compositionSettings as any)?.backgroundColor || '#000000'); } catch {}
                             const w = Math.max(1, Number(compositionSettings?.width) || 1920);
                             const h = Math.max(1, Number(compositionSettings?.height) || 1080);
+                            // Set the mirror aspect ratio first, then resize to canvas dimensions
+                            try { (window as any).electron?.setMirrorAspectRatio?.(w, h); } catch {}
                             // Resize the Electron mirror window to exact composition size; for very large sizes, Electron will scale window but keep ratio
                             try { (window as any).electron?.resizeMirrorWindow?.(w, h); } catch {}
                           }).catch(() => {});
@@ -1748,7 +1761,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       Mirror
                     </button>
                     <button
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
                       onClick={togglePreviewFullscreen}
                       title="Fullscreen Preview"
                       aria-label="Fullscreen Preview"

@@ -62,14 +62,27 @@ export class CanvasStreamManager {
     const compW = Math.max(1, Number(comp.width) || 1920);
     const compH = Math.max(1, Number(comp.height) || 1080);
     const aspect = compW / compH;
+    
+    // Start with canvas dimensions, then scale down if needed to fit screen
+    let winW = compW;
+    let winH = compH;
+    
+    // Get screen dimensions and scale down if window is too large
     const maxW = Math.floor((window.screen?.availWidth || window.innerWidth) * 0.9);
     const maxH = Math.floor((window.screen?.availHeight || window.innerHeight) * 0.9);
-    let winW = Math.min(maxW, compW);
-    let winH = Math.floor(winW / aspect);
-    if (winH > maxH) {
-      winH = maxH;
-      winW = Math.floor(winH * aspect);
+    
+    if (winW > maxW || winH > maxH) {
+      const scaleW = maxW / winW;
+      const scaleH = maxH / winH;
+      const scale = Math.min(scaleW, scaleH);
+      winW = Math.floor(winW * scale);
+      winH = Math.floor(winH * scale);
     }
+    
+    // Ensure minimum size
+    winW = Math.max(480, winW);
+    winH = Math.max(270, winH);
+    
     const features = `width=${winW},height=${winH},resizable=yes,scrollbars=no,status=no,location=no`;
     const streamWindow = window.open('', 'mirror_window', features);
 
@@ -82,7 +95,7 @@ export class CanvasStreamManager {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>VJ Mirror Output</title>
+        <title>sonomika</title>
         <style>
           body {
             margin: 0;
@@ -95,9 +108,12 @@ export class CanvasStreamManager {
             overflow: hidden;
           }
           canvas {
-            max-width: 100%;
-            max-height: 100%;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
           }
           /* Hide any UI in mirror window */
           .mirror-info { display: none; }
@@ -124,11 +140,11 @@ export class CanvasStreamManager {
 
     // Replace about:blank with a friendlier same-origin path without reloading
     try {
-      streamWindow.document.title = 'VJ Mirror Output';
+      streamWindow.document.title = 'sonomika';
       const desiredPath = '/mirror';
       const currentUrl = new URL(streamWindow.location.href);
       if (currentUrl.pathname !== desiredPath) {
-        streamWindow.history.replaceState({}, 'VJ Mirror Output', desiredPath);
+        streamWindow.history.replaceState({}, 'sonomika', desiredPath);
       }
     } catch {}
 
@@ -257,7 +273,7 @@ export class CanvasStreamManager {
                 }
               }
             } else if (this.browserWindow && !this.browserWindow.closed && this.mirrorCtx && this.mirrorCanvas) {
-              // Web path: draw directly to the mirror window canvas, preserving aspect ratio (cover)
+              // Web path: draw directly to the mirror window canvas, preserving aspect ratio (contain)
               const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
               const destW = this.mirrorCanvas.width;
               const destH = this.mirrorCanvas.height;
@@ -269,7 +285,8 @@ export class CanvasStreamManager {
 
               const srcW = this.canvas.width;
               const srcH = this.canvas.height;
-              const scale = Math.max(destW / srcW, destH / srcH);
+              // Use contain scaling to fit entire canvas within window while maintaining aspect ratio
+              const scale = Math.min(destW / srcW, destH / srcH);
               const drawW = Math.floor(srcW * scale);
               const drawH = Math.floor(srcH * scale);
               const dx = Math.floor((destW - drawW) / 2);

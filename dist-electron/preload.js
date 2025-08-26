@@ -86,6 +86,9 @@ try {
             // console.log('Preload: resizeMirrorWindow called', width, height);
             electron_1.ipcRenderer.send('resize-mirror-window', width, height);
         },
+        setMirrorAspectRatio: (width, height) => {
+            electron_1.ipcRenderer.send('set-mirror-aspect', width, height);
+        },
         toggleAppFullscreen: () => {
             // console.log('Preload: toggleAppFullscreen called');
             electron_1.ipcRenderer.send('toggle-app-fullscreen');

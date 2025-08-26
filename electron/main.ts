@@ -185,11 +185,14 @@ function createMirrorWindow() {
     mirrorWindow.focus();
     return;
   }
+  
+  // Note: Window will be resized to canvas dimensions by the renderer
+  // via resize-mirror-window IPC call
 
   mirrorWindow = new BrowserWindow({
-    width: 960, // default; renderer will resize to comp size
-    height: 540, // default; renderer will resize to comp size
-    title: 'VJ Mirror Output',
+    width: 1920, // Start with standard HD size; will be resized to canvas dimensions
+    height: 1080, // Start with standard HD size; will be resized to canvas dimensions
+    title: 'sonomika',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -221,7 +224,7 @@ function createMirrorWindow() {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>VJ Mirror Output</title>
+      <title>sonomika</title>
       <style>
         body {
           margin: 0;
@@ -248,7 +251,7 @@ function createMirrorWindow() {
         img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain; /* Changed from cover to contain to show full canvas */
           image-rendering: -webkit-optimize-contrast;
           image-rendering: crisp-edges;
           image-rendering: pixelated; /* Prefer crisp scaling */
@@ -328,11 +331,12 @@ function createMirrorWindow() {
           // Prevent dragging when double-clicking on the image
           event.stopPropagation();
           
-          // Toggle between 50% and full size
+          // Toggle between canvas size and full size
           if (window.mirrorAPI && window.mirrorAPI.resizeMirrorWindow) {
             if (isFullSize) {
-              // Switch back to 50% size
-              window.mirrorAPI.resizeMirrorWindow(960, 540);
+              // Switch back to canvas size (will be sent by renderer)
+              // For now, use a reasonable default that will be updated
+              window.mirrorAPI.resizeMirrorWindow(1920, 1080);
               isFullSize = false;
             } else {
               // Switch to full size
@@ -352,6 +356,7 @@ function createMirrorWindow() {
     mirrorWindow!.show();
     mirrorWindow!.center();
     // Apply a safe default aspect ratio until renderer provides composition ratio
+    // The renderer will send the actual canvas dimensions via set-mirror-aspect
     try { mirrorWindow!.setAspectRatio(mirrorAspectRatio || (1920 / 1080)); } catch {}
   });
 
@@ -923,12 +928,13 @@ app.whenReady().then(() => {
         // Exit full coverage
         mirrorWindow.setKiosk(false);
         mirrorWindow.setFullScreen(false);
-        // Restore reasonable size when exiting
+        // Restore to canvas dimensions when exiting fullscreen
+        // The renderer will send the actual canvas size via resize-mirror-window
         mirrorWindow.setBounds({
           x: undefined as unknown as number,
           y: undefined as unknown as number,
-          width: 960,
-          height: 540
+          width: 1920, // Will be updated by renderer
+          height: 1080 // Will be updated by renderer
         });
         mirrorWindow.center();
       } else {
@@ -957,10 +963,35 @@ app.whenReady().then(() => {
       try {
         let targetW = Math.max(1, Number(width) || 1);
         let targetH = Math.max(1, Number(height) || 1);
+        
+        // Get screen dimensions to ensure window fits
+        const { screen } = require('electron');
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const workArea = primaryDisplay.workArea;
+        const maxW = Math.floor(workArea.width * 0.9); // 90% of work area width
+        const maxH = Math.floor(workArea.height * 0.9); // 90% of work area height
+        
+        // Calculate aspect ratio
+        const aspectRatio = targetW / targetH;
+        
+        // Scale down if window is too large while maintaining aspect ratio
+        if (targetW > maxW || targetH > maxH) {
+          const scaleW = maxW / targetW;
+          const scaleH = maxH / targetH;
+          const scale = Math.min(scaleW, scaleH);
+          targetW = Math.floor(targetW * scale);
+          targetH = Math.floor(targetH * scale);
+        }
+        
+        // Ensure minimum size
+        targetW = Math.max(480, targetW);
+        targetH = Math.max(270, targetH);
+        
         if (mirrorAspectRatio && isFinite(mirrorAspectRatio) && mirrorAspectRatio > 0) {
           // Enforce aspect on programmatic resizes (prefer width as source of truth)
           targetH = Math.max(1, Math.round(targetW / mirrorAspectRatio));
         }
+        
         console.log('Resizing mirror window to:', targetW, 'x', targetH, '(aspect locked:', !!mirrorAspectRatio, ')');
         mirrorWindow.setSize(targetW, targetH);
       } catch {}

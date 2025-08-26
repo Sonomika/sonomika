@@ -151,11 +151,11 @@ function createMirrorWindow() {
     return;
   }
   mirrorWindow = new electron.BrowserWindow({
-    width: 960,
-    // default; renderer will resize to comp size
-    height: 540,
-    // default; renderer will resize to comp size
-    title: "VJ Mirror Output",
+    width: 1920,
+    // Start with standard HD size; will be resized to canvas dimensions
+    height: 1080,
+    // Start with standard HD size; will be resized to canvas dimensions
+    title: "sonomika",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -189,7 +189,7 @@ function createMirrorWindow() {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>VJ Mirror Output</title>
+      <title>sonomika</title>
       <style>
         body {
           margin: 0;
@@ -216,7 +216,7 @@ function createMirrorWindow() {
         img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain; /* Changed from cover to contain to show full canvas */
           image-rendering: -webkit-optimize-contrast;
           image-rendering: crisp-edges;
           image-rendering: pixelated; /* Prefer crisp scaling */
@@ -296,11 +296,12 @@ function createMirrorWindow() {
           // Prevent dragging when double-clicking on the image
           event.stopPropagation();
           
-          // Toggle between 50% and full size
+          // Toggle between canvas size and full size
           if (window.mirrorAPI && window.mirrorAPI.resizeMirrorWindow) {
             if (isFullSize) {
-              // Switch back to 50% size
-              window.mirrorAPI.resizeMirrorWindow(960, 540);
+              // Switch back to canvas size (will be sent by renderer)
+              // For now, use a reasonable default that will be updated
+              window.mirrorAPI.resizeMirrorWindow(1920, 1080);
               isFullSize = false;
             } else {
               // Switch to full size
@@ -871,8 +872,10 @@ electron.app.whenReady().then(() => {
         mirrorWindow.setBounds({
           x: void 0,
           y: void 0,
-          width: 960,
-          height: 540
+          width: 1920,
+          // Will be updated by renderer
+          height: 1080
+          // Will be updated by renderer
         });
         mirrorWindow.center();
       } else {
@@ -897,6 +900,21 @@ electron.app.whenReady().then(() => {
       try {
         let targetW = Math.max(1, Number(width) || 1);
         let targetH = Math.max(1, Number(height) || 1);
+        const { screen } = require("electron");
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const workArea = primaryDisplay.workArea;
+        const maxW = Math.floor(workArea.width * 0.9);
+        const maxH = Math.floor(workArea.height * 0.9);
+        const aspectRatio = targetW / targetH;
+        if (targetW > maxW || targetH > maxH) {
+          const scaleW = maxW / targetW;
+          const scaleH = maxH / targetH;
+          const scale = Math.min(scaleW, scaleH);
+          targetW = Math.floor(targetW * scale);
+          targetH = Math.floor(targetH * scale);
+        }
+        targetW = Math.max(480, targetW);
+        targetH = Math.max(270, targetH);
         if (mirrorAspectRatio && isFinite(mirrorAspectRatio) && mirrorAspectRatio > 0) {
           targetH = Math.max(1, Math.round(targetW / mirrorAspectRatio));
         }
