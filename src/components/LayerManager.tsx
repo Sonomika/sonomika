@@ -832,6 +832,25 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         }
         // Timeline clips should remain separate from column view; prefer clip params
         const resolvedParams = clip.params || matchedLayer?.params || {};
+        // Resolve effective fit mode: use matched layer if present, else global default
+        let effectiveFitMode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile' | undefined = undefined;
+        try {
+          if (clip.type !== 'effect') {
+            effectiveFitMode = (matchedLayer as any)?.fitMode;
+            if (!effectiveFitMode) {
+              const storeModule: any = require('../store/store');
+              const useStore = (storeModule && (storeModule.useStore || storeModule.default?.useStore)) || storeModule.useStore;
+              effectiveFitMode = useStore?.getState?.().defaultVideoFitMode || 'cover';
+            }
+          }
+        } catch {}
+        // Tile needs repeat hints to EffectChain
+        const backgroundProps = (() => {
+          if (effectiveFitMode === 'tile') {
+            return { backgroundRepeat: 'repeat' as const, backgroundSizeMode: 'contain' as const };
+          }
+          return {} as any;
+        })();
         return {
           id: `timeline-layer-${clip.id}`,
           name: `Layer ${trackNumber}`,
@@ -842,6 +861,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           blendMode: 'add',
           params: resolvedParams,
           effects: clip.type === 'effect' ? [clip.asset] : undefined,
+          ...(clip.type !== 'effect' ? { fitMode: effectiveFitMode, ...backgroundProps } : {})
         };
       });
 

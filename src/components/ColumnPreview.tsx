@@ -965,7 +965,8 @@ const ColumnScene: React.FC<{
             if (it.type === 'video') {
               const v: any = (it as any).video;
               const lid = (v && (v as any)["__layerKey"]) || 'vid';
-              const fm = (it as any).fitMode || 'stretch';
+              // Include effective fit mode; fall back to global default if unspecified
+              const fm = (it as any).fitMode || 'cover';
               const br = (it as any).backgroundRepeat || 'no-repeat';
               const bsm = (it as any).backgroundSizeMode || 'auto';
               return `video:${lid}:${fm}:${br}:${bsm}`;

@@ -11,7 +11,7 @@ interface SettingsDialogProps {
 }
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
-  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoFitMode, setDefaultVideoFitMode } = useStore() as any;
+  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor } = useStore() as any;
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -73,24 +73,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
               />
             </div>
           </div>
-          <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
-          <div className="tw-flex tw-items-center tw-justify-between">
-            <div>
-              <div className="tw-text-sm tw-text-neutral-200">Default Video Size</div>
-              <div className="tw-text-xs tw-text-neutral-400">Applied to new video/image/webcam layers</div>
-            </div>
-            <select
-              value={defaultVideoFitMode || 'cover'}
-              onChange={(e) => setDefaultVideoFitMode(e.target.value as any)}
-              className="tw-w-40 tw-px-3 tw-py-2 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-rounded-md tw-text-sm"
-            >
-              <option value="none">Original</option>
-              <option value="contain">Fit</option>
-              <option value="cover">Fill</option>
-              <option value="stretch">Stretch</option>
-              <option value="tile">Tile</option>
-            </select>
-          </div>
+          
           <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
           <div className="tw-flex tw-items-center tw-justify-between">
             <div>

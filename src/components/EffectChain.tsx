@@ -3,9 +3,10 @@ import * as THREE from 'three';
 import { createPortal, useFrame, useThree } from '@react-three/fiber';
 import { getEffectComponentSync } from '../utils/EffectLoader';
 import { getCachedVideoCanvas } from '../utils/AssetPreloader';
+import { useStore } from '../store/store';
 
 export type ChainItem =
-  | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; fitMode?: 'cover' | 'contain' | 'stretch' | 'none'; backgroundSizeMode?: 'cover' | 'contain' | 'auto' | 'custom'; backgroundRepeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'; backgroundSizeCustom?: string; __uniqueKey?: string }
+  | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; fitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile'; backgroundSizeMode?: 'cover' | 'contain' | 'auto' | 'custom'; backgroundRepeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'; backgroundSizeCustom?: string; __uniqueKey?: string }
   | { type: 'source'; effectId: string; params?: Record<string, any>; __uniqueKey?: string }
   | { type: 'effect'; effectId: string; params?: Record<string, any>; __uniqueKey?: string };
 
@@ -154,7 +155,10 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   }, [items]);
   const baseVideoEl = firstVideoItem?.video || null;
   const baseVideoAssetId = (firstVideoItem?.assetId as any) || baseAssetId || null;
-  const baseVideoFit: 'cover' | 'contain' | 'stretch' | 'none' | undefined = (firstVideoItem as any)?.fitMode;
+  const baseVideoFit: 'cover' | 'contain' | 'stretch' | 'none' | 'tile' | undefined = (firstVideoItem as any)?.fitMode;
+
+  // Snapshot the global default once per mount so new items use it, but it won't retroactively change
+  const defaultFitSnapshot: 'cover' | 'contain' | 'stretch' | 'none' | 'tile' = 'cover';
 
   // Seed a texture from preloader's first-frame canvas (for initial frame before videoTexture is ready)
   React.useEffect(() => {
@@ -271,7 +275,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           const compAspect = compositionWidth / compositionHeight;
           const vid = (videoTexture.image as any) as HTMLVideoElement | HTMLImageElement;
           const va = (vid && (vid as any).videoWidth && (vid as any).videoHeight) ? (vid as any).videoWidth / (vid as any).videoHeight : compAspect;
-          const mode = (item as any).fitMode || baseVideoFit || 'stretch';
+          const mode = (item as any).fitMode || baseVideoFit || defaultFitSnapshot || 'cover';
           const repeatMode = (item as any).backgroundRepeat as ('no-repeat'|'repeat'|'repeat-x'|'repeat-y') || 'no-repeat';
           let sizeMode = (item as any).backgroundSizeMode as ('cover'|'contain'|'auto'|'custom') | undefined;
           // If no explicit background size mode, derive from fitMode so UI controls work

@@ -215,7 +215,11 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 		ctx.clearRect(0, 0, width, height);
 
 		// Calculate video position and size based on fit mode
-		const { fitMode = 'cover', position = { x: 0.5, y: 0.5 } } = layer;
+		let { fitMode = undefined, position = { x: 0.5, y: 0.5 } } = layer as any;
+		if (!fitMode) {
+			// Do not retroactively apply global default; use stable fallback
+			fitMode = 'cover';
+		}
 		
 		let drawWidth = width;
 		let drawHeight = height;

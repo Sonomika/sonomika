@@ -90,6 +90,12 @@ export const handleDrop = (
       layer.name = `Layer ${layerNum}`;
       layer.layerNum = layerNum;
       
+      // Apply default video size to new video/image layers if not explicitly set
+      // Default sizing: Fill
+      if ((asset.type === 'video' || asset.type === 'image') && (layer as any).fitMode == null) {
+        (layer as any).fitMode = 'cover';
+      }
+      
       // console.log('🎯 Layer asset assigned:', {
       //   layerName: layer.name,
       //   assetType: layer.assetType,
@@ -289,6 +295,10 @@ const handleSystemFileDrop = (
     layer.assetType = assetType;
     layer.name = `Layer ${targetLayerNum}`;
     layer.layerNum = targetLayerNum;
+    // Apply default video size to new video/image layers if not explicitly set
+    if ((assetType === 'video' || assetType === 'image') && (layer as any).fitMode == null) {
+      (layer as any).fitMode = 'cover';
+    }
     
     // console.log('🟢 Layer updated with system file:', layer);
   });
