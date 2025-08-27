@@ -20,6 +20,11 @@ interface CustomTitleBarProps {
   onSignOut?: () => void;
   isMaximized?: boolean;
   onAdvancedMirror?: () => void;
+  onRecord?: () => void;
+  onRecordSettings?: () => void;
+  isRecording?: boolean;
+  recordUntilStop?: boolean;
+  onToggleRecordUntilStop?: () => void;
 }
 
 export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
@@ -39,7 +44,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onToggleDebug,
   onSignOut,
   isMaximized = false,
-  onAdvancedMirror
+  onAdvancedMirror,
+  onRecord,
+  onRecordSettings,
+  isRecording,
+  recordUntilStop,
+  onToggleRecordUntilStop
 }) => {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -219,6 +229,50 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               )}
             </Popover>
           </div>
+
+          {/* Record dropdown */}
+          <div className="menu-item-dropdown app-no-drag">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button 
+                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent`}
+                >
+                  <span className="tw-inline-flex tw-items-center tw-gap-1">
+                    Record
+                    {isRecording && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z"/></svg>
+                    )}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="tw-min-w-[180px] app-no-drag" align="start" side="bottom" >
+                <div className="tw-flex tw-flex-col tw-py-1">
+                  <button 
+                    className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                    onClick={(e) => { e.stopPropagation(); onRecord && onRecord(); }}
+                  >
+                    {isRecording ? 'Stop Recording' : 'Record'}
+                  </button>
+                  <button
+                    className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                    onClick={(e) => { e.stopPropagation(); onToggleRecordUntilStop && onToggleRecordUntilStop(); }}
+                    aria-pressed={!!recordUntilStop}
+                  >
+                    <span>Record until Stop</span>
+                    {recordUntilStop && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z"/></svg>
+                    )}
+                  </button>
+                  <button 
+                    className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                    onClick={(e) => { e.stopPropagation(); onRecordSettings && onRecordSettings(); }}
+                  >
+                    Record Settings
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
           <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onOpenSettings}>
             Settings
           </button>
@@ -330,6 +384,19 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               )}
 
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onMirror?.(); setMobileMenuOpen(false); }}>Mirror</button>
+              {/* Record group */}
+              <button
+                className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800"
+                onClick={() => { onRecord?.(); setMobileMenuOpen(false); }}
+              >
+                Record
+              </button>
+              <button
+                className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800"
+                onClick={() => { onRecordSettings?.(); setMobileMenuOpen(false); }}
+              >
+                Record Settings
+              </button>
               {isElectron && (
                 <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onToggleAppFullscreen?.(); setMobileMenuOpen(false); }}>Fullscreen</button>
               )}

@@ -82,6 +82,18 @@ try {
             // console.log('Preload: toggleFullscreen called');
             electron_1.ipcRenderer.send('toggle-fullscreen');
         },
+        onRecordStart: (cb) => {
+            electron_1.ipcRenderer.on('record:start', () => { try {
+                cb();
+            }
+            catch { } });
+        },
+        onRecordSettings: (cb) => {
+            electron_1.ipcRenderer.on('record:settings', () => { try {
+                cb();
+            }
+            catch { } });
+        },
         resizeMirrorWindow: (width, height) => {
             // console.log('Preload: resizeMirrorWindow called', width, height);
             electron_1.ipcRenderer.send('resize-mirror-window', width, height);
@@ -106,6 +118,7 @@ try {
         showOpenDialog: (options) => electron_1.ipcRenderer.invoke('show-open-dialog', options),
         showSaveDialog: (options) => electron_1.ipcRenderer.invoke('show-save-dialog', options),
         saveFile: (filePath, content) => electron_1.ipcRenderer.invoke('save-file', filePath, content),
+        saveBinaryFile: (filePath, data) => electron_1.ipcRenderer.invoke('save-binary-file', filePath, data),
         readFileText: (filePath) => electron_1.ipcRenderer.invoke('read-file-text', filePath)
     });
     // Advanced mirror API

@@ -91,6 +91,22 @@ const initialState: AppState = {
 
 initialState.currentSceneId = initialState.scenes[0].id;
 
+export type RecordSettings = {
+  durationSec: number;
+  fps: number;
+  codec: 'vp8' | 'vp9';
+  quality: 'low' | 'medium' | 'high';
+  untilStop?: boolean;
+};
+
+const initialRecordSettings: RecordSettings = {
+  durationSec: 5,
+  fps: 30,
+  codec: 'vp8',
+  quality: 'medium',
+  untilStop: false
+};
+
 export const useStore = create<AppState & {
   addScene: () => void;
   setCurrentScene: (sceneId: string) => void;
@@ -140,12 +156,16 @@ export const useStore = create<AppState & {
   setTimelineDuration: (duration: number) => void;
   setTimelineZoom: (zoom: number) => void;
   setCurrentPresetName?: (name: string | null) => void;
+  recordSettings: RecordSettings;
+  setRecordSettings: (rs: Partial<RecordSettings>) => void;
 }>()(
   persist(
     (set, get) => ({
       ...initialState,
       currentPresetName: null as any,
       setCurrentPresetName: (name: string | null) => set({ currentPresetName: name } as any),
+      recordSettings: initialRecordSettings,
+      setRecordSettings: (rs) => set({ recordSettings: { ...get().recordSettings, ...rs } }),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();
@@ -819,6 +839,7 @@ export const useStore = create<AppState & {
            timelineSnapEnabled: state.timelineSnapEnabled,
            timelineDuration: state.timelineDuration,
            timelineZoom: state.timelineZoom,
+           recordSettings: state.recordSettings,
          };
        },
              onRehydrateStorage: () => (state) => {

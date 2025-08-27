@@ -8,6 +8,7 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { UIDemo } from './components/ui';
 import { Toaster } from './components/ui';
 import { AdvancedMirrorDialog } from './components/AdvancedMirrorDialog';
+import { RecordSettingsDialog } from './components/RecordSettingsDialog';
 import { useStore } from './store/store';
 import { effectCache } from './utils/EffectCache';
 import { CanvasStreamManager } from './utils/CanvasStream';
@@ -15,6 +16,7 @@ import { AdvancedMirrorStreamManager } from './utils/AdvancedMirrorStream';
 import './index.css';
 import { attachLFOEngineGlobalListeners } from './engine/LFOEngine';
 import { handleRedirectIfPresent } from './lib/dropbox';
+import { useToast } from './hooks/use-toast';
 
 // Effects are loaded dynamically - no hardcoded imports needed
 
@@ -32,6 +34,8 @@ declare global {
       sendCanvasData: (dataUrl: string) => void;
         toggleAppFullscreen: () => void;
         onWindowState?: (cb: (state: { maximized: boolean }) => void) => void;
+        onRecordStart?: (handler: () => void) => void;
+        onRecordSettings?: (handler: () => void) => void;
     };
   }
 }
@@ -83,6 +87,9 @@ function App() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [advMirrorOpen, setAdvMirrorOpen] = useState(false);
   const [cloudBrowserOpen, setCloudBrowserOpen] = useState(false);
+  const [recordSettingsOpen, setRecordSettingsOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
   
   const [debugMode, setDebugMode] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
@@ -107,6 +114,9 @@ function App() {
     title: '',
     message: '',
   });
+
+  const { toast } = useToast();
+  const { recordSettings, setRecordSettings } = useStore() as any;
 
   useEffect(() => {
     // Mark Electron environment for CSS targeting (e.g., scrollbar styling)
@@ -667,6 +677,45 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    const startHandler = async () => {
+      try {
+        const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+        if (!canvas || !(canvas as any).captureStream) return;
+        const stream: MediaStream = (canvas as any).captureStream(30);
+        const supportsVP9 = (window as any).MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
+        const mime = supportsVP9 ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp8';
+        const recorder = new MediaRecorder(stream, { mimeType: mime });
+        const chunks: BlobPart[] = [];
+        recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+        recorder.onstop = async () => {
+          const blob = new Blob(chunks, { type: mime });
+          const buffer = new Uint8Array(await blob.arrayBuffer());
+          const { filePath } = await (window as any).electron.showSaveDialog({
+            title: 'Save Recording',
+            defaultPath: 'recording.webm',
+            filters: [{ name: 'WebM', extensions: ['webm'] }]
+          });
+          if (filePath) {
+            const ok = await (window as any).electron.saveBinaryFile(filePath, buffer);
+            if (ok) toast({ description: 'Recording saved.' });
+          }
+        };
+        recorder.start();
+        toast({ description: 'Recording started (5s)...' });
+        setTimeout(() => { try { recorder.stop(); } catch {} }, 5000);
+      } catch {}
+    };
+    const settingsHandler = () => {
+      toast({ description: 'Record Settings coming soon.' });
+    };
+    try { (window as any).electron?.onRecordStart?.(startHandler); } catch {}
+    try { (window as any).electron?.onRecordSettings?.(settingsHandler); } catch {}
+    return () => {
+      // no-op: listeners are process-wide; safe to leave in dev
+    };
+  }, [toast]);
+
   return (
     <ErrorBoundary>
       <CustomTitleBar
@@ -697,6 +746,54 @@ function App() {
           } catch {}
         }}
         onAdvancedMirror={() => { setAdvMirrorOpen(true); }}
+        isRecording={isRecording}
+        recordUntilStop={!!recordSettings?.untilStop}
+        onToggleRecordUntilStop={() => setRecordSettings({ untilStop: !recordSettings?.untilStop })}
+        onRecord={() => {
+          // Reuse the same startHandler logic inline
+          (async () => {
+            try {
+              if (isRecording && recorderRef.current) { try { recorderRef.current.stop(); } catch {} return; }
+              const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+              if (!canvas || !(canvas as any).captureStream) return;
+              const fps = Math.max(1, Number(recordSettings?.fps) || 30);
+              const stream: MediaStream = (canvas as any).captureStream(fps);
+              const useVp9 = (recordSettings?.codec === 'vp9');
+              const supportsVP9 = (window as any).MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
+              const mime = (useVp9 && supportsVP9) ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp8';
+              // Bitrate by quality (rough defaults). Users can refine later.
+              const quality = (recordSettings?.quality || 'medium') as 'low' | 'medium' | 'high';
+              const bits = quality === 'high' ? 12_000_000 : quality === 'medium' ? 6_000_000 : 3_000_000;
+              const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bits, audioBitsPerSecond: 128_000 });
+              const chunks: BlobPart[] = [];
+              recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+              recorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: mime });
+                const buffer = new Uint8Array(await blob.arrayBuffer());
+                const { filePath } = await (window as any).electron.showSaveDialog({
+                  title: 'Save Recording',
+                  defaultPath: 'recording.webm',
+                  filters: [{ name: 'WebM', extensions: ['webm'] }]
+                });
+                if (filePath) {
+                  const ok = await (window as any).electron.saveBinaryFile(filePath, buffer);
+                  if (ok) toast({ description: 'Recording saved.' });
+                }
+                setIsRecording(false);
+                recorderRef.current = null;
+              };
+              recorder.start();
+              recorderRef.current = recorder;
+              const duration = Math.max(1, Number(recordSettings?.durationSec) || 5);
+              toast({ description: `Recording started (${duration}s @ ${fps}fps, ${quality})...` });
+              setIsRecording(true);
+              if (!recordSettings?.untilStop) {
+                setTimeout(() => { try { recorder.stop(); } catch {} }, duration * 1000);
+              }
+            } catch {}
+          })();
+        }}
+        onRecordSettings={() => { setRecordSettingsOpen(true); }}
       />
       
       <div className="tw-bg-black tw-text-white tw-min-h-screen lg:tw-h-screen tw-flex tw-flex-col">
@@ -729,6 +826,7 @@ function App() {
         onClose={() => setCompositionSettingsOpen(false)}
       />
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <RecordSettingsDialog open={recordSettingsOpen} onOpenChange={setRecordSettingsOpen} />
       <AdvancedMirrorDialog open={advMirrorOpen} onOpenChange={setAdvMirrorOpen} onStart={(opts) => handleAdvancedMirror(opts)} />
       <Toaster />
       <CloudPresetBrowser open={cloudBrowserOpen} onOpenChange={setCloudBrowserOpen} />

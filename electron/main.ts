@@ -535,6 +535,28 @@ function createCustomMenu() {
       ]
     },
     {
+      label: 'Record',
+      submenu: [
+        {
+          label: 'Record',
+          accelerator: 'CmdOrCtrl+Shift+R',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('record:start');
+            }
+          }
+        },
+        {
+          label: 'Record Settings',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('record:settings');
+            }
+          }
+        }
+      ]
+    },
+    {
       label: 'View',
       submenu: [
         {
@@ -627,6 +649,16 @@ app.whenReady().then(() => {
       return true;
     } catch (e) {
       console.error('Failed to save file:', e);
+      return false;
+    }
+  });
+
+  ipcMain.handle('save-binary-file', async (event, filePath: string, data: Uint8Array) => {
+    try {
+      await fs.promises.writeFile(filePath, Buffer.from(data));
+      return true;
+    } catch (e) {
+      console.error('Failed to save binary file:', e);
       return false;
     }
   });

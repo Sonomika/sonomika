@@ -78,6 +78,12 @@ try {
       // console.log('Preload: toggleFullscreen called');
       ipcRenderer.send('toggle-fullscreen');
     },
+    onRecordStart: (cb: () => void) => {
+      ipcRenderer.on('record:start', () => { try { cb(); } catch {} });
+    },
+    onRecordSettings: (cb: () => void) => {
+      ipcRenderer.on('record:settings', () => { try { cb(); } catch {} });
+    },
     resizeMirrorWindow: (width: number, height: number) => {
       // console.log('Preload: resizeMirrorWindow called', width, height);
       ipcRenderer.send('resize-mirror-window', width, height);
@@ -99,6 +105,7 @@ try {
     showOpenDialog: (options: any) => ipcRenderer.invoke('show-open-dialog', options),
     showSaveDialog: (options: any) => ipcRenderer.invoke('show-save-dialog', options),
     saveFile: (filePath: string, content: string) => ipcRenderer.invoke('save-file', filePath, content),
+    saveBinaryFile: (filePath: string, data: Uint8Array) => ipcRenderer.invoke('save-binary-file', filePath, data),
     readFileText: (filePath: string) => ipcRenderer.invoke('read-file-text', filePath)
   });
 
@@ -247,12 +254,15 @@ declare global {
       closeMirrorWindow: () => void;
       sendCanvasData: (dataUrl: string) => void;
       toggleFullscreen: () => void;
+      onRecordStart: (cb: () => void) => void;
+      onRecordSettings: (cb: () => void) => void;
       resizeMirrorWindow: (width: number, height: number) => void;
       toggleAppFullscreen: () => void;
       readLocalFileAsBase64: (filePath: string) => Promise<string>;
       showOpenDialog: (options: any) => Promise<any>;
       showSaveDialog: (options: any) => Promise<any>;
       saveFile: (filePath: string, content: string) => Promise<boolean>;
+      saveBinaryFile: (filePath: string, data: Uint8Array) => Promise<boolean>;
       readFileText: (filePath: string) => Promise<string | null>;
       setMirrorAspectRatio: (width: number, height: number) => void;
     };

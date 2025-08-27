@@ -1719,47 +1719,26 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <h3>Preview</h3>
                   <div className="tw-flex tw-items-center tw-gap-2">
                     <button
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-h-7 tw-rounded tw-text-xs tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-px-2"
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
                       onClick={() => {
                         try {
-                          // Find an existing render canvas or create a temporary one
-                          let canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-                          if (!canvas) {
-                            canvas = document.createElement('canvas');
-                            canvas.width = compositionSettings?.width || 1920;
-                            canvas.height = compositionSettings?.height || 1080;
-                            canvas.style.display = 'none';
-                            canvas.id = 'dummy-mirror-canvas';
-                            const ctx = canvas.getContext('2d');
-                            if (ctx) {
-                              const bg = (compositionSettings as any)?.backgroundColor || '#000000';
-                              ctx.fillStyle = bg;
-                              ctx.fillRect(0, 0, canvas.width, canvas.height);
-                            }
-                            document.body.appendChild(canvas);
-                          }
-
+                          // Start or show mirror window
+                          const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+                          if (!canvas) return;
                           if (!mirrorStreamRef.current) {
                             mirrorStreamRef.current = new CanvasStreamManager(canvas);
                           } else {
                             mirrorStreamRef.current.updateCanvas(canvas);
                           }
-                          // Open mirror window if needed and start streaming
-                          mirrorStreamRef.current.openMirrorWindow().then(() => {
-                            try { (window as any).electron?.setMirrorBackground?.((compositionSettings as any)?.backgroundColor || '#000000'); } catch {}
-                            const w = Math.max(1, Number(compositionSettings?.width) || 1920);
-                            const h = Math.max(1, Number(compositionSettings?.height) || 1080);
-                            // Set the mirror aspect ratio first, then resize to canvas dimensions
-                            try { (window as any).electron?.setMirrorAspectRatio?.(w, h); } catch {}
-                            // Resize the Electron mirror window to exact composition size; for very large sizes, Electron will scale window but keep ratio
-                            try { (window as any).electron?.resizeMirrorWindow?.(w, h); } catch {}
-                          }).catch(() => {});
+                          mirrorStreamRef.current.openMirrorWindow().catch(() => {});
                         } catch {}
                       }}
-                      title="Mirror (Canvas Size)"
-                      aria-label="Mirror (Canvas Size)"
+                      title="Mirror"
+                      aria-label="Mirror"
                     >
-                      Mirror
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M4 6h8v2H4V6zm0 4h8v2H4v-2zm0 4h8v2H4v-2zm10-8h6v2h-6V6zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z"/>
+                      </svg>
                     </button>
                     <button
                       className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
