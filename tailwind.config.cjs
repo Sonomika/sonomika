@@ -4,16 +4,17 @@ module.exports = {
   corePlugins: { preflight: false },
   content: ['index.html', 'src/**/*.{ts,tsx}'],
   theme: {
+    // Use Tailwind's default border radius scale so shadcn components are rounded
     borderRadius: {
       none: '0px',
-      sm: '0px',
-      DEFAULT: '0px',
-      md: '0px',
-      lg: '0px',
-      xl: '0px',
-      '2xl': '0px',
-      '3xl': '0px',
-      full: '0px',
+      sm: '0.125rem',
+      DEFAULT: '0.25rem',
+      md: '0.375rem',
+      lg: '0.5rem',
+      xl: '0.75rem',
+      '2xl': '1rem',
+      '3xl': '1.5rem',
+      full: '9999px',
     },
     extend: {
       fontFamily: {

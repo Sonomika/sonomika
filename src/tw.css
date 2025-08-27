@@ -17,8 +17,7 @@
 
 @layer base {
 	html, body, #root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
-	/* Default form controls: rectangular (no rounding) */
-	button, input, select, textarea { border-radius: 0; }
+
 	
 	/* shadcn/ui CSS Variables */
 	:root {
@@ -50,7 +49,7 @@
 		--input: 0 0% 14.9%; /* #262626 */
 		--ring: 0 0% 83.1%;
 		
-		--radius: 0px;
+		--radius: 0.5rem;
 	}
 
 	.dark {
@@ -82,12 +81,10 @@
 		--input: 0 0% 14.9%; /* #262626 */
 		--ring: 0 0% 83.1%;
 		
-		--radius: 0px;
+		--radius: 0.5rem;
 	}
 }
 
-/* Flat design reset: remove rounding and shadows globally */
-*, *::before, *::after { border-radius: 0 !important; box-shadow: none !important; text-shadow: none !important; }
 
 /* Disable Tailwind gradient utilities if present */
 [class*="tw-bg-gradient"] { background-image: none !important; }
@@ -102,4 +99,5 @@
 	border-bottom-style: solid !important;
 	box-shadow: inset 0 -2px 0 0 hsl(var(--accent)) !important;
 }
+
 
