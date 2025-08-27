@@ -1623,11 +1623,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                             >
                              {displayNameClean || 'Empty'}
                            </div>
-                           {layer.blendMode && layer.blendMode !== 'add' && (
-                             <div className="tw-text-[10px] tw-text-neutral-400">
-                               {layer.blendMode}
-                             </div>
-                           )}
+                           {/* Blend mode label removed per UI cleanup */}
                          </div>
                        ) : (
                          <div 

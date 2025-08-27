@@ -52,6 +52,17 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const opacityPendingRef = useRef<number>(selectedLayer?.opacity || 1.0);
   const [localParamValues, setLocalParamValues] = useState<Record<string, any>>({});
   const [lockedParams, setLockedParams] = useState<Record<string, boolean>>({});
+  // Global randomization smoothing
+  const [randSmoothing, setRandSmoothing] = useState<number>(0.1);
+  const randAnimRafRef = useRef<number | null>(null);
+
+  // Expose smoothing globally so mapper/random triggers can respect it
+  React.useEffect(() => {
+    try {
+      const v = Math.max(0, Math.min(1, Number(randSmoothing)));
+      (window as any).__vj_rand_smoothing = Number.isFinite(v) ? v : 0.1;
+    } catch {}
+  }, [randSmoothing]);
 
   // Check if the layer has an effect
   const hasEffect = selectedLayer?.type === 'effect' || (selectedLayer as any)?.asset?.type === 'effect' || (selectedLayer as any)?.asset?.isEffect;
@@ -122,17 +133,97 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
 
     const prevParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
     const updatedParams = { ...prevParams } as Record<string, any>;
-    Object.entries(randomized).forEach(([name, obj]) => {
-      updatedParams[name] = { ...(prevParams[name] || {}), value: (obj as any).value };
+
+    // Tween when smoothing > 0; instant when 0
+    const smoothing = Math.max(0, Math.min(1, randSmoothing));
+    if (smoothing > 0) {
+      // Build targets and immediate non-numeric params
+      const targets: Record<string, number> = {};
+      const starts: Record<string, number> = {};
+      const immediateNonNumeric: Record<string, any> = {};
+      (unlockedDefs as any[]).forEach((def: any) => {
+        const name = def.name;
+        const randomizedObj = (randomized as any)[name];
+        const randomTarget = randomizedObj ? randomizedObj.value : (prevParams[name]?.value ?? def.value);
+        if (def.type === 'number') {
+          const metaMin = typeof def.min === 'number' ? def.min : 0;
+          const metaMax = typeof def.max === 'number' ? def.max : 1;
+          const currentVal: number = Number(prevParams[name]?.value ?? def.value);
+          const target = Math.max(metaMin, Math.min(metaMax, Number(randomTarget)));
+          targets[name] = target;
+          starts[name] = currentVal;
+        } else {
+          // Non-numeric: store immediate value to always apply
+          immediateNonNumeric[name] = { ...(prevParams[name] || {}), value: randomTarget };
+        }
+      });
+
+      // Cancel any running animation
+      if (randAnimRafRef.current != null) {
+        cancelAnimationFrame(randAnimRafRef.current);
+        randAnimRafRef.current = null;
+      }
+
+      // Duration scales with smoothing (0..1 → 0..2000ms)
+      const baseDuration = 2000; // ms at max smoothing
+      const duration = baseDuration * smoothing;
+      const easeInOut = (x: number) => {
+        // cubic easeInOut
+        return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+      };
+
+      let startTime: number | null = null;
+      const step = (ts: number) => {
+        if (startTime == null) startTime = ts;
+        // Start from previous params and merge immediate non-numeric updates
+        const frameParams = { ...prevParams, ...immediateNonNumeric } as Record<string, any>;
+        Object.keys(targets).forEach((name) => {
+          const from = starts[name];
+          const to = targets[name];
+          const elapsed = ts - startTime!;
+          const pLin = Math.max(0, Math.min(1, duration > 0 ? elapsed / duration : 1));
+          const p = easeInOut(pLin);
+          const v = from + (to - from) * p;
+          frameParams[name] = { ...(prevParams[name] || {}), value: v };
+        });
+        onUpdateLayer(selectedLayer.id, { params: frameParams });
+        setLocalParamValues((prev) => {
+          const next = { ...prev } as Record<string, any>;
+          Object.keys(targets).forEach((name) => { next[name] = frameParams[name].value; });
+          return next;
+        });
+        const allDone = (ts - startTime!) >= duration;
+        if (!allDone) {
+          randAnimRafRef.current = requestAnimationFrame(step);
+        } else {
+          randAnimRafRef.current = null;
+        }
+      };
+      randAnimRafRef.current = requestAnimationFrame(step);
+      return;
+    }
+
+    // Otherwise apply instant step (no ease)
+    (unlockedDefs as any[]).forEach((def: any) => {
+      const name = def.name;
+      const metaMin = typeof def.min === 'number' ? def.min : 0;
+      const metaMax = typeof def.max === 'number' ? def.max : 1;
+      const currentVal: any = prevParams[name]?.value ?? def.value;
+      const randomizedObj = (randomized as any)[name];
+      const randomTarget = randomizedObj ? randomizedObj.value : currentVal;
+      if (def.type === 'number') {
+        const target = Math.max(metaMin, Math.min(metaMax, Number(randomTarget)));
+        updatedParams[name] = { ...(prevParams[name] || {}), value: target };
+      } else {
+        updatedParams[name] = { ...(prevParams[name] || {}), value: randomTarget };
+      }
     });
 
     onUpdateLayer(selectedLayer.id, { params: updatedParams });
 
     setLocalParamValues((prev) => {
       const next = { ...prev } as Record<string, any>;
-      Object.entries(randomized).forEach(([name, obj]) => {
-        (next as any)[name] = (obj as any).value;
-      });
+      (unlockedDefs as any[]).forEach((def: any) => { next[def.name] = updatedParams[def.name]?.value; });
       return next;
     });
   };
@@ -320,7 +411,20 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300 xl:tw-col-span-2 tw-min-w-0 tw-pr-2 tw-truncate">
                 Effect Parameters{effectId ? ` · ${String(effectId)}` : ''}
               </h4>
-              <div className="tw-flex tw-justify-end tw-items-center tw-gap-1 tw-mt-1 xl:tw-mt-0">
+              <div className="tw-flex tw-justify-end tw-items-center tw-gap-2 tw-mt-1 xl:tw-mt-0">
+                {/* Smoothing (0..1) */}
+                <div className="tw-flex tw-items-center tw-gap-1" title="Smoothing (0 = instant, 1 = full tween)">
+                  <span className="tw-text-[10px] tw-text-neutral-400">Smooth</span>
+                  <input
+                    type="number"
+                    step={0.1}
+                    min={0}
+                    max={1}
+                    value={Number(randSmoothing).toFixed(1)}
+                    onChange={(e) => setRandSmoothing(Math.max(0, Math.min(1, parseFloat(e.target.value) || 0)))}
+                    className="tw-w-[52px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-1 tw-py-0.5"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={randomizeEffectParams}

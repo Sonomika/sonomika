@@ -62,6 +62,9 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
 
   const [lockedParams, setLockedParams] = React.useState<Record<string, boolean>>({});
   const [localParamValues, setLocalParamValues] = React.useState<Record<string, any>>({});
+  // Controls for randomization shaping
+  const [randSmoothing, setRandSmoothing] = React.useState<number>(0.1);
+  const randAnimRafRef = React.useRef<number | null>(null);
 
   // Initialize defaults, locks, and local values when metadata/params change
   React.useEffect(() => {
@@ -118,18 +121,98 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
     if (unlockedDefs.length === 0) return;
     const randomized = globalRandomize(unlockedDefs, currentParams);
     if (!randomized || Object.keys(randomized).length === 0) return;
-    const updated = { ...currentParams } as Record<string, any>;
-    Object.entries(randomized).forEach(([name, obj]) => {
-      updated[name] = { ...(updated[name] || {}), value: (obj as any).value };
-    });
-    onChange(updated);
-    setLocalParamValues((prev) => {
-      const next = { ...prev } as Record<string, any>;
-      Object.entries(randomized).forEach(([name, obj]) => {
-        (next as any)[name] = (obj as any).value;
+    const smoothing = Math.max(0, Math.min(1, randSmoothing));
+
+    const applyImmediate = () => {
+      const updated = { ...currentParams } as Record<string, any>;
+      (unlockedDefs as any[]).forEach((def: any) => {
+        const name = def.name;
+        const currentVal: any = (currentParams as any)?.[name]?.value ?? def.value;
+        const randomizedObj = (randomized as any)[name];
+        const randomTarget = randomizedObj ? randomizedObj.value : currentVal;
+        if (def.type === 'number') {
+          const metaMin = typeof def.min === 'number' ? def.min : 0;
+          const metaMax = typeof def.max === 'number' ? def.max : 1;
+          const target = Math.max(metaMin, Math.min(metaMax, Number(randomTarget)));
+          updated[name] = { ...(updated[name] || {}), value: target };
+        } else {
+          updated[name] = { ...(updated[name] || {}), value: randomTarget };
+        }
       });
-      return next;
-    });
+      onChange(updated);
+      setLocalParamValues((prev) => {
+        const next = { ...prev } as Record<string, any>;
+        (unlockedDefs as any[]).forEach((def: any) => {
+          const name = def.name;
+          (next as any)[name] = (updated as any)[name]?.value;
+        });
+        return next;
+      });
+    };
+
+    if (smoothing > 0) {
+      // Animate numeric params; non-numeric always apply immediately
+      const targets: Record<string, number> = {};
+      const starts: Record<string, number> = {};
+      const immediateNonNumeric: Record<string, any> = {};
+      (unlockedDefs as any[]).forEach((def: any) => {
+        const name = def.name;
+        const currentVal: number = Number((currentParams as any)?.[name]?.value ?? def.value);
+        const randomizedObj = (randomized as any)[name];
+        const rawTarget = Number(randomizedObj ? randomizedObj.value : currentVal);
+        if (def.type === 'number') {
+          const metaMin = typeof def.min === 'number' ? def.min : 0;
+          const metaMax = typeof def.max === 'number' ? def.max : 1;
+          targets[name] = Math.max(metaMin, Math.min(metaMax, rawTarget));
+          starts[name] = currentVal;
+        } else {
+          immediateNonNumeric[name] = { ...((currentParams as any)[name] || {}), value: (randomized as any)[name]?.value };
+        }
+      });
+
+      if (randAnimRafRef.current != null) {
+        cancelAnimationFrame(randAnimRafRef.current);
+        randAnimRafRef.current = null;
+      }
+
+      // Duration scales with smoothing (0..1 → 0..2000ms)
+      const baseDuration = 2000;
+      const duration = baseDuration * smoothing;
+      const easeInOut = (x: number) => {
+        // cubic easeInOut
+        return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+      };
+
+      let startTime: number | null = null;
+      const step = (ts: number) => {
+        if (startTime == null) startTime = ts;
+        const updated = { ...currentParams, ...immediateNonNumeric } as Record<string, any>;
+        Object.keys(targets).forEach((name) => {
+          const from = starts[name];
+          const to = targets[name];
+          const elapsed = ts - startTime!;
+          const pLin = Math.max(0, Math.min(1, duration > 0 ? elapsed / duration : 1));
+          const p = easeInOut(pLin);
+          const v = from + (to - from) * p;
+          updated[name] = { ...(updated[name] || {}), value: v };
+        });
+        onChange(updated);
+        setLocalParamValues((prev) => {
+          const next = { ...prev } as Record<string, any>;
+          Object.keys(targets).forEach((name) => { (next as any)[name] = (updated as any)[name]?.value; });
+          return next;
+        });
+        const allDone = (ts - startTime!) >= duration;
+        if (!allDone) {
+          randAnimRafRef.current = requestAnimationFrame(step);
+        } else {
+          randAnimRafRef.current = null;
+        }
+      };
+      randAnimRafRef.current = requestAnimationFrame(step);
+    } else {
+      applyImmediate();
+    }
   };
 
   const randomizeSingle = (paramDef: any) => {
@@ -209,7 +292,20 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
   return (
     <div className="tw-space-y-3">
       {/* Toolbar: Randomize all unlocked + Lock/Unlock all */}
-      <div className="tw-flex tw-flex-wrap tw-justify-end tw-items-center tw-gap-1">
+      <div className="tw-flex tw-flex-wrap tw-justify-end tw-items-center tw-gap-2">
+        {/* Smoothing (0..1) */}
+        <div className="tw-flex tw-items-center tw-gap-1" title="Smoothing (0 = instant, 1 = full tween)">
+          <span className="tw-text-[10px] tw-text-neutral-400">Smooth</span>
+          <input
+            type="number"
+            step={0.1}
+            min={0}
+            max={1}
+            value={Number(randSmoothing).toFixed(1)}
+            onChange={(e) => setRandSmoothing(Math.max(0, Math.min(1, parseFloat(e.target.value) || 0)))}
+            className="tw-w-[52px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-1 tw-py-0.5"
+          />
+        </div>
         <button
           type="button"
           onClick={randomizeAll}

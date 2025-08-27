@@ -232,11 +232,57 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
               const unlockedDefs = (metadata.parameters as any[]).filter((p: any) => !(currentSelectedLayer.params as any)?.[p.name]?.locked);
               const randomized = globalRandomize(unlockedDefs, currentSelectedLayer.params);
               if (randomized && Object.keys(randomized).length > 0) {
-                const updatedParams = { ...(currentSelectedLayer.params || {}) } as Record<string, any>;
-                Object.entries(randomized).forEach(([n, obj]) => {
-                  updatedParams[n] = { ...(updatedParams[n] || {}), value: (obj as any).value };
-                });
-                currentOnUpdateLayer(currentSelectedLayer.id, { params: updatedParams });
+                // Respect global smoothing with safe default 0.1 when unset
+                const gs: any = (window as any).__vj_rand_smoothing;
+                const smoothing = Math.max(0, Math.min(1, typeof gs === 'number' && Number.isFinite(gs) ? gs : 0.1));
+                if (smoothing > 0) {
+                  const targets: Record<string, number> = {};
+                  const starts: Record<string, number> = {};
+                  const immediateNonNumeric: Record<string, any> = {};
+                  (unlockedDefs as any[]).forEach((def: any) => {
+                    const name = def.name;
+                    const randomizedObj = (randomized as any)[name];
+                    const randomTarget = randomizedObj ? randomizedObj.value : (currentSelectedLayer.params as any)?.[name]?.value ?? def.value;
+                    if (def.type === 'number') {
+                      const metaMin = typeof def.min === 'number' ? def.min : 0;
+                      const metaMax = typeof def.max === 'number' ? def.max : 1;
+                      const currentVal: number = Number((currentSelectedLayer.params as any)?.[name]?.value ?? def.value);
+                      targets[name] = Math.max(metaMin, Math.min(metaMax, Number(randomTarget)));
+                      starts[name] = currentVal;
+                    } else {
+                      immediateNonNumeric[name] = { ...((currentSelectedLayer.params as any)[name] || {}), value: randomTarget };
+                    }
+                  });
+                  const baseDuration = 2000;
+                  const duration = baseDuration * smoothing;
+                  const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+                  let startTime: number | null = null;
+                  const step = (ts: number) => {
+                    if (startTime == null) startTime = ts;
+                    const frameParams = { ...(currentSelectedLayer.params || {}), ...immediateNonNumeric } as Record<string, any>;
+                    Object.keys(targets).forEach((name) => {
+                      const from = starts[name];
+                      const to = targets[name];
+                      const elapsed = ts - startTime!;
+                      const pLin = Math.max(0, Math.min(1, duration > 0 ? elapsed / duration : 1));
+                      const p = easeInOut(pLin);
+                      frameParams[name] = { ...(frameParams[name] || {}), value: from + (to - from) * p };
+                    });
+                    currentOnUpdateLayer(currentSelectedLayer.id, { params: frameParams });
+                    if ((ts - startTime!) < duration) {
+                      requestAnimationFrame(step);
+                    }
+                  };
+                  requestAnimationFrame(step);
+                } else {
+                  const updatedParams = { ...(currentSelectedLayer.params || {}) } as Record<string, any>;
+                  Object.entries(randomized).forEach(([n, obj]) => {
+                    const def = (unlockedDefs as any[]).find((d: any) => d.name === n);
+                    if (def && def.type === 'number') updatedParams[n] = { ...(updatedParams[n] || {}), value: (obj as any).value };
+                    else updatedParams[n] = { ...(updatedParams[n] || {}), value: (obj as any).value };
+                  });
+                  currentOnUpdateLayer(currentSelectedLayer.id, { params: updatedParams });
+                }
               }
             }
           }
@@ -422,16 +468,14 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
   }, [lfoStateByLayer, selectedLayer?.id, transportPlaying]);
 
-  // Random generator: BPM/Hz trigger with skip probability, per layer, only while transport playing
+  // Random generators: run for all layers in random mode, independent of selection
   useEffect(() => {
-    const lid = selectedLayerRef.current?.id;
-    const lfo = lid ? lfoStateByLayer[lid] : undefined;
-    if (!lfo || lfo.mode !== 'random' || !transportPlaying) return;
+    if (!transportPlaying) return;
     const bpmMgr = BPMManager.getInstance();
-    let timer: number | null = null;
-    const clearTimer = () => { if (timer != null) { clearInterval(timer); timer = null; } };
+    const timers: Record<string, number> = {};
+    const bpmUnsubs: Array<() => void> = [];
 
-    const isLayerInActiveColumn = () => {
+    const isLayerInActiveColumn = (lid: string) => {
       try {
         const state = (useStore as any).getState();
         const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
@@ -440,31 +484,49 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       } catch { return false; }
     };
 
-    const fireRandom = () => {
+    const fireRandomForLayer = (layerId: string, lfoState: any) => {
       // Gate: only update if this layer is in the currently playing column
-      if (!isLayerInActiveColumn()) return;
+      if (!isLayerInActiveColumn(layerId)) return;
+
       // Skip based on percentage
-      const skip = Math.random() * 100 < (Number(lfo.skipPercent || 0));
+      const skip = Math.random() * 100 < (Number(lfoState.skipPercent || 0));
       if (skip) return;
+
       // Generate value in -1..1 from randomMin/Max scaled -100..100
-      const min = Math.min(Number(lfo.randomMin || -100), Number(lfo.randomMax || 100)) / 100;
-      const max = Math.max(Number(lfo.randomMin || -100), Number(lfo.randomMax || 100)) / 100;
+      const min = Math.min(Number(lfoState.randomMin || -100), Number(lfoState.randomMax || 100)) / 100;
+      const max = Math.max(Number(lfoState.randomMin || -100), Number(lfoState.randomMax || 100)) / 100;
       const rand = min + Math.random() * (max - min);
       const clamped = Math.max(-1, Math.min(1, rand));
-      applyLFOModulation(clamped);
 
-      // Additionally, fire randomize triggers for mappings that request it
-      const layer = selectedLayerRef.current;
-      const mps = mappingsRef.current;
+      const state = (useStore as any).getState();
+      const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+      const col = scene?.columns?.find((c: any) => c.id === state.playingColumnId);
+      const layer = col?.layers?.find((ly: any) => ly?.id === layerId);
+      if (!layer) return;
+
       const updateLayer = onUpdateLayerRef.current;
-      if (!layer || !mps || mps.length === 0) return;
+      const mps = (mappingsByLayer as any)[layerId] || [];
+
+      // Check if we have any enabled randomize mappings
+      const hasRandomizeMappings = mps.some((mapping: any) => {
+        if (!mapping.enabled || mapping.parameter === 'Select Parameter') return false;
+        const parts = mapping.parameter.split(' - ');
+        const rawName = parts.length > 1 ? parts[1] : undefined;
+        return rawName && (rawName === RANDOMIZE_ALL || rawName.endsWith(RANDOMIZE_SUFFIX));
+      });
+
+      // Apply continuous modulation only for the currently selected layer and only when
+      // there are no randomize mappings to avoid conflicts
+      if (!hasRandomizeMappings && selectedLayerRef.current?.id === layerId) {
+        applyLFOModulation(clamped);
+      }
 
       const effectId: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name;
       const isEffect = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;
       const effectComponent = isEffect && effectId ? (getEffect(effectId) || getEffect(`${effectId}Effect`) || null) : null;
       const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
 
-      mps.forEach((mapping) => {
+      mps.forEach((mapping: any) => {
         if (!mapping.enabled || mapping.parameter === 'Select Parameter') return;
         const parts = mapping.parameter.split(' - ');
         const rawName = parts.length > 1 ? parts[1] : undefined;
@@ -476,11 +538,54 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
             const unlockedDefs = (metadata.parameters as any[]).filter((p: any) => !(layer.params as any)?.[p.name]?.locked);
             const randomized = globalRandomize(unlockedDefs, layer.params);
             if (randomized && Object.keys(randomized).length > 0) {
-              const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
-              Object.entries(randomized).forEach(([n, obj]) => {
-                updatedParams[n] = { ...(updatedParams[n] || {}), value: (obj as any).value };
-              });
-              updateLayer(layer.id, { params: updatedParams });
+              const gs: any = (window as any).__vj_rand_smoothing;
+              const smoothing = Math.max(0, Math.min(1, typeof gs === 'number' && Number.isFinite(gs) ? gs : 0.1));
+              if (smoothing > 0) {
+                const targets: Record<string, number> = {};
+                const starts: Record<string, number> = {};
+                const immediateNonNumeric: Record<string, any> = {};
+                (unlockedDefs as any[]).forEach((def: any) => {
+                  const name = def.name;
+                  const randomizedObj = (randomized as any)[name];
+                  const randomTarget = randomizedObj ? randomizedObj.value : (layer.params as any)?.[name]?.value ?? def.value;
+                  if (def.type === 'number') {
+                    const metaMin = typeof def.min === 'number' ? def.min : 0;
+                    const metaMax = typeof def.max === 'number' ? def.max : 1;
+                    const currentVal: number = Number((layer.params as any)?.[name]?.value ?? def.value);
+                    targets[name] = Math.max(metaMin, Math.min(metaMax, Number(randomTarget)));
+                    starts[name] = currentVal;
+                  } else {
+                    immediateNonNumeric[name] = { ...((layer.params as any)[name] || {}), value: randomTarget };
+                  }
+                });
+                const baseDuration = 2000;
+                const duration = baseDuration * smoothing;
+                const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+                let startTime: number | null = null;
+                const step = (ts: number) => {
+                  if (startTime == null) startTime = ts;
+                  const frameParams = { ...(layer.params || {}), ...immediateNonNumeric } as Record<string, any>;
+                  Object.keys(targets).forEach((name) => {
+                    const from = starts[name];
+                    const to = targets[name];
+                    const elapsed = ts - startTime!;
+                    const pLin = Math.max(0, Math.min(1, duration > 0 ? elapsed / duration : 1));
+                    const p = easeInOut(pLin);
+                    frameParams[name] = { ...(frameParams[name] || {}), value: from + (to - from) * p };
+                  });
+                  updateLayer(layer.id, { params: frameParams });
+                  if ((ts - startTime!) < duration) {
+                    requestAnimationFrame(step);
+                  }
+                };
+                requestAnimationFrame(step);
+              } else {
+                const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
+                Object.entries(randomized).forEach(([n, obj]) => {
+                  updatedParams[n] = { ...(updatedParams[n] || {}), value: (obj as any).value };
+                });
+                updateLayer(layer.id, { params: updatedParams });
+              }
             }
           }
           return;
@@ -504,37 +609,65 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
             if (paramDef) {
               const randomized = globalRandomize([paramDef], layer.params);
               if (randomized && randomized[actualParamName]) {
-                const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
-                updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: (randomized as any)[actualParamName].value };
-                updateLayer(layer.id, { params: updatedParams });
+                const gs: any = (window as any).__vj_rand_smoothing;
+                const smoothing = Math.max(0, Math.min(1, typeof gs === 'number' && Number.isFinite(gs) ? gs : 0.1));
+                if (smoothing > 0 && paramDef.type === 'number') {
+                  const baseDuration = 2000;
+                  const duration = baseDuration * smoothing;
+                  const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+                  const start = Number((layer.params as any)?.[actualParamName]?.value ?? paramDef.value);
+                  const target = Number((randomized as any)[actualParamName].value);
+                  let startTime: number | null = null;
+                  const step = (ts: number) => {
+                    if (startTime == null) startTime = ts;
+                    const pLin = Math.max(0, Math.min(1, duration > 0 ? (ts - startTime) / duration : 1));
+                    const p = easeInOut(pLin);
+                    const v = start + (target - start) * p;
+                    const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
+                    updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: v };
+                    updateLayer(layer.id, { params: updatedParams });
+                    if ((ts - startTime) < duration) requestAnimationFrame(step);
+                  };
+                  requestAnimationFrame(step);
+                } else {
+                  const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
+                  updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: (randomized as any)[actualParamName].value };
+                  updateLayer(layer.id, { params: updatedParams });
+                }
               }
-
             }
           }
         }
       });
     };
 
-    // Mode: sync to BPM divisions using its own interval that updates on BPM/division changes
-    if (((lfo.randomTimingMode as any) || 'sync') === 'sync') {
-      let currentBpm = bpmMgr.getBPM();
-      const restart = () => {
-        clearTimer();
-        const ms = parseDivisionToMs(currentBpm, (lfo.randomDivision as any) || '1/4');
-        timer = window.setInterval(fireRandom, ms);
-      };
-      const onBpmChange = (b: number) => { currentBpm = b; restart(); };
-      bpmMgr.addCallback(onBpmChange);
-      restart();
-      return () => { clearTimer(); bpmMgr.removeCallback(onBpmChange); };
-    }
+    // Create random generators for all layers with random mode enabled
+    Object.entries(lfoStateByLayer).forEach(([layerId, lfoState]) => {
+      if (!lfoState || (lfoState as any).mode !== 'random') return;
 
-    // Mode: fixed Hz interval
-    const hz = Math.max(0.1, Math.min(20, Number((lfo.randomHz as any) || 2)));
-    const intervalMs = 1000 / hz;
-    timer = window.setInterval(fireRandom, intervalMs);
-    return () => clearTimer();
-  }, [lfoStateByLayer, selectedLayer?.id, transportPlaying]);
+      if ((((lfoState as any).randomTimingMode) || 'sync') === 'sync') {
+        let currentBpm = bpmMgr.getBPM();
+        const restart = () => {
+          if (timers[layerId]) clearInterval(timers[layerId]);
+          const ms = parseDivisionToMs(currentBpm, ((lfoState as any).randomDivision as any) || '1/4');
+          timers[layerId] = window.setInterval(() => fireRandomForLayer(layerId, lfoState), ms);
+        };
+        const onBpmChange = (b: number) => { currentBpm = b; restart(); };
+        bpmMgr.addCallback(onBpmChange);
+        bpmUnsubs.push(() => bpmMgr.removeCallback(onBpmChange));
+        restart();
+      } else {
+        const hz = Math.max(0.1, Math.min(20, Number((((lfoState as any).randomHz) as any) || 2)));
+        const intervalMs = 1000 / hz;
+        timers[layerId] = window.setInterval(() => fireRandomForLayer(layerId, lfoState), intervalMs);
+      }
+    });
+
+    return () => {
+      Object.values(timers).forEach((t) => clearInterval(t));
+      bpmUnsubs.forEach((fn) => fn());
+    };
+  }, [lfoStateByLayer, transportPlaying, mappingsByLayer, selectedLayer?.id]);
 
   const addMappingHandler = () => {
     const newMapping: LFOMapping = {
