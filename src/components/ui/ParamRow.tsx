@@ -16,6 +16,8 @@ interface ParamRowProps {
   showLabel?: boolean;
   valueDisplay?: string;
   buttonsAfter?: boolean;
+  // Layout control: auto (responsive), stacked (label above), or inline (single row)
+  layout?: 'auto' | 'stacked' | 'inline';
 }
 
 export const ParamRow: React.FC<ParamRowProps> = ({
@@ -32,7 +34,8 @@ export const ParamRow: React.FC<ParamRowProps> = ({
   showValue = true,
   showLabel = true,
   valueDisplay,
-  buttonsAfter = false
+  buttonsAfter = false,
+  layout = 'auto'
 }) => {
 
   // Handle the shadcn/ui Slider's onValueChange which receives an array
@@ -50,44 +53,79 @@ export const ParamRow: React.FC<ParamRowProps> = ({
 
   const Buttons = showButtons && onIncrement && onDecrement ? (
     <div className="param-buttons tw-inline-flex tw-items-center tw-gap-1">
-      <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-6 tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onDecrement}>
+      <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-5 tw-h-5 xl:tw-w-6 xl:tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onDecrement}>
         -
       </button>
-      <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-6 tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onIncrement}>
+      <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-5 tw-h-5 xl:tw-w-6 xl:tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onIncrement}>
         +
       </button>
     </div>
   ) : null;
 
+  // Stacked layout shows label on top, then a row: value | slider | +/-
+  if (layout === 'stacked') {
+    return (
+      <div className="effect-param tw-w-full tw-min-w-0 tw-pr-0 tw-flex tw-flex-col tw-gap-1">
+        {showLabel && (
+          <label className="param-label tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full">
+            {label}
+          </label>
+        )}
+        <div className="tw-w-full tw-flex tw-items-center tw-gap-2">
+          {showValue && (
+            <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums tw-w-[44px] tw-text-left">
+              {displayValue}
+            </span>
+          )}
+          <div className="slider-container tw-flex-1 tw-min-w-0">
+            <Slider
+              value={[value]}
+              min={min}
+              max={max}
+              step={step}
+              onValueChange={handleSliderChange}
+            />
+          </div>
+          {Buttons}
+        </div>
+      </div>
+    );
+  }
+
+  // Auto/inline layout (responsive)
   return (
-    <div className="effect-param tw-flex tw-items-center tw-gap-2 tw-w-full tw-min-w-0 tw-pr-6">
+    <div className={
+      layout === 'inline'
+        ? 'effect-param tw-w-full tw-min-w-0 tw-pr-0 tw-flex tw-items-center tw-gap-1'
+        : 'effect-param tw-w-full tw-min-w-0 tw-pr-0 tw-flex tw-flex-col tw-gap-1 xl:tw-flex-row xl:tw-items-center xl:tw-gap-1'
+    }>
       {showLabel && (
-        <label className="param-label tw-text-xs tw-uppercase tw-text-neutral-400 tw-shrink-0 tw-w-[180px]">
+        <label className="param-label tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xl:tw-w-[180px] xl:tw-shrink-0">
           {label}
         </label>
       )}
 
       {showValue && (
-        <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums tw-min-w-[44px] tw-text-right">
+        <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums tw-w-full tw-text-right xl:tw-w-[36px]">
           {displayValue}
         </span>
       )}
 
-      {!buttonsAfter && Buttons}
-
       {showSlider && (
-        <div className="slider-container tw-flex-1 tw-min-w-0">
-          <Slider 
-            value={[value]} 
-            min={min} 
-            max={max} 
-            step={step} 
-            onValueChange={handleSliderChange} 
-          />
+        <div className="tw-w-full tw-flex tw-items-center tw-gap-2">
+          {!buttonsAfter && Buttons}
+          <div className="slider-container tw-flex-1 tw-min-w-0">
+            <Slider
+              value={[value]}
+              min={min}
+              max={max}
+              step={step}
+              onValueChange={handleSliderChange}
+            />
+          </div>
+          {buttonsAfter && Buttons}
         </div>
       )}
-
-      {buttonsAfter && Buttons}
     </div>
   );
 };

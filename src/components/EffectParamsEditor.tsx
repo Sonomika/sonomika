@@ -209,7 +209,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
   return (
     <div className="tw-space-y-3">
       {/* Toolbar: Randomize all unlocked + Lock/Unlock all */}
-      <div className="tw-flex tw-justify-end tw-items-center tw-gap-1">
+      <div className="tw-flex tw-flex-wrap tw-justify-end tw-items-center tw-gap-1">
         <button
           type="button"
           onClick={randomizeAll}
@@ -258,84 +258,169 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
         const uiValue = localParamValues[param.name] ?? currentValue;
         const isLocked = !!lockedParams[param.name];
         return (
-          <div key={param.name} className="tw-flex tw-items-center tw-gap-2 tw-w-full">
+          <div key={param.name} className="tw-w-full tw-min-w-0 tw-flex tw-flex-col xl:tw-grid xl:tw-items-center tw-gap-1 xl:tw-gap-2" style={{ gridTemplateColumns: '160px 1fr 40px' }}>
             {/* Label */}
-            <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-shrink-0 tw-w-[180px]">{param.description || param.name}</label>
+            <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xl:tw-w-[160px] xl:tw-shrink-0">{param.description || param.name}</label>
 
             {/* Numeric inline */}
             {param.type === 'number' && (
-              <div className="tw-flex-1 tw-min-w-0">
-                <ParamRow
-                  key={param.name}
-                  label={param.description || param.name}
-                  value={Number(uiValue)}
-                  min={param.min || 0}
-                  max={param.max || 1}
-                  step={param.step || 0.1}
-                  buttonsAfter
-                  onChange={(value) => {
-                    if (isLocked) return;
-                    setLocalParamValues((prev) => ({ ...prev, [param.name]: value }));
-                    handleParamChange(param.name, value, param);
-                  }}
-                  onIncrement={() => {
-                    if (isLocked) return;
-                    const currentVal = (localParamValues as any)[param.name] ?? currentValue;
-                    const step = param.step || 0.1;
-                    const newValue = Math.min(param.max || 1, Number(currentVal) + step);
-                    setLocalParamValues((prev) => ({ ...prev, [param.name]: newValue }));
-                    handleParamChange(param.name, newValue, param);
-                  }}
-                  onDecrement={() => {
-                    if (isLocked) return;
-                    const currentVal = (localParamValues as any)[param.name] ?? currentValue;
-                    const step = param.step || 0.1;
-                    const newValue = Math.max(param.min || 0, Number(currentVal) - step);
-                    setLocalParamValues((prev) => ({ ...prev, [param.name]: newValue }));
-                    handleParamChange(param.name, newValue, param);
-                  }}
-                  showLabel={false}
-                />
+              <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
+                <div className="tw-flex-1 tw-min-w-0">
+                  <ParamRow
+                    key={param.name}
+                    label={param.description || param.name}
+                    value={Number(uiValue)}
+                    min={param.min || 0}
+                    max={param.max || 1}
+                    step={param.step || 0.1}
+                    buttonsAfter
+                    layout="stacked"
+                    onChange={(value) => {
+                      if (isLocked) return;
+                      setLocalParamValues((prev) => ({ ...prev, [param.name]: value }));
+                      handleParamChange(param.name, value, param);
+                    }}
+                    onIncrement={() => {
+                      if (isLocked) return;
+                      const currentVal = (localParamValues as any)[param.name] ?? currentValue;
+                      const step = param.step || 0.1;
+                      const newValue = Math.min(param.max || 1, Number(currentVal) + step);
+                      setLocalParamValues((prev) => ({ ...prev, [param.name]: newValue }));
+                      handleParamChange(param.name, newValue, param);
+                    }}
+                    onDecrement={() => {
+                      if (isLocked) return;
+                      const currentVal = (localParamValues as any)[param.name] ?? currentValue;
+                      const step = param.step || 0.1;
+                      const newValue = Math.max(param.min || 0, Number(currentVal) - step);
+                      setLocalParamValues((prev) => ({ ...prev, [param.name]: newValue }));
+                      handleParamChange(param.name, newValue, param);
+                    }}
+                    showLabel={false}
+                  />
+                </div>
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                  <button
+                    type="button"
+                    onClick={() => randomizeSingle(param)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title="Randomize this parameter"
+                  >
+                    <DiceIcon className="tw-text-white" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleLock(param.name)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title={isLocked ? 'Unlock parameter' : 'Lock parameter'}
+                    aria-pressed={isLocked}
+                  >
+                    {isLocked ? <LockIcon className="tw-text-neutral-400" /> : <UnlockIcon className="tw-text-white" />}
+                  </button>
+                </div>
               </div>
             )}
 
             {param.type === 'color' && (
-              <input
-                type="color"
-                value={uiValue}
-                onChange={(e) => !isLocked && handleParamChange(param.name, e.target.value, param)}
-                className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
-                disabled={isLocked}
-              />
+              <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
+                <input
+                  type="color"
+                  value={uiValue}
+                  onChange={(e) => !isLocked && handleParamChange(param.name, e.target.value, param)}
+                  className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
+                  disabled={isLocked}
+                />
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                  <button
+                    type="button"
+                    onClick={() => randomizeSingle(param)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title="Randomize this parameter"
+                  >
+                    <DiceIcon className="tw-text-white" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleLock(param.name)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title={isLocked ? 'Unlock parameter' : 'Lock parameter'}
+                    aria-pressed={isLocked}
+                  >
+                    {isLocked ? <LockIcon className="tw-text-neutral-400" /> : <UnlockIcon className="tw-text-white" />}
+                  </button>
+                </div>
+              </div>
             )}
             {param.type === 'string' && (
-              <div className="tw-flex-1 tw-min-w-0">
-                <Input
-                  value={String(uiValue ?? '')}
-                  onChange={(e) => {
-                    if (isLocked) return;
-                    const v = e.target.value;
-                    setLocalParamValues((prev) => ({ ...prev, [param.name]: v }));
-                    handleParamChange(param.name, v, param);
-                  }}
-                />
+              <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
+                <div className="tw-flex-1 tw-min-w-0">
+                  <Input
+                    value={String(uiValue ?? '')}
+                    onChange={(e) => {
+                      if (isLocked) return;
+                      const v = e.target.value;
+                      setLocalParamValues((prev) => ({ ...prev, [param.name]: v }));
+                      handleParamChange(param.name, v, param);
+                    }}
+                  />
+                </div>
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                  <button
+                    type="button"
+                    onClick={() => randomizeSingle(param)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title="Randomize this parameter"
+                  >
+                    <DiceIcon className="tw-text-white" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleLock(param.name)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title={isLocked ? 'Unlock parameter' : 'Lock parameter'}
+                    aria-pressed={isLocked}
+                  >
+                    {isLocked ? <LockIcon className="tw-text-neutral-400" /> : <UnlockIcon className="tw-text-white" />}
+                  </button>
+                </div>
               </div>
             )}
             {param.type === 'select' && (
-              <div className="tw-w-[240px]">
-                <Select
-                  value={String(uiValue)}
-                  onChange={(val) => {
-                    if (isLocked) return;
-                    setLocalParamValues((prev) => ({ ...prev, [param.name]: val as any }));
-                    handleParamChange(param.name, val, param);
-                  }}
-                  options={(param.options || []).map((opt: any) => (typeof opt === 'string' ? { value: opt, label: opt } : { value: opt.value, label: opt.label || opt.value }))}
-                />
+              <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
+                <div className="tw-w-full sm:tw-w-[240px]">
+                  <Select
+                    value={String(uiValue)}
+                    onChange={(val) => {
+                      if (isLocked) return;
+                      setLocalParamValues((prev) => ({ ...prev, [param.name]: val as any }));
+                      handleParamChange(param.name, val, param);
+                    }}
+                    options={(param.options || []).map((opt: any) => (typeof opt === 'string' ? { value: opt, label: opt } : { value: opt.value, label: opt.label || opt.value }))}
+                  />
+                </div>
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                  <button
+                    type="button"
+                    onClick={() => randomizeSingle(param)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title="Randomize this parameter"
+                  >
+                    <DiceIcon className="tw-text-white" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleLock(param.name)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title={isLocked ? 'Unlock parameter' : 'Lock parameter'}
+                    aria-pressed={isLocked}
+                  >
+                    {isLocked ? <LockIcon className="tw-text-neutral-400" /> : <UnlockIcon className="tw-text-white" />}
+                  </button>
+                </div>
               </div>
             )}
             {param.type === 'boolean' && (
-              <div>
+              <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
                 <button
                   type="button"
                   className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] tw-appearance-none tw-border tw-border-neutral-700 tw-shadow-none tw-outline-none focus:tw-outline-none focus:tw-ring-0 focus:tw-shadow-none ${Boolean(currentValue) ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
@@ -349,11 +434,30 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                 >
                   {Boolean(currentValue) ? 'ON' : 'OFF'}
                 </button>
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                  <button
+                    type="button"
+                    onClick={() => randomizeSingle(param)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title="Randomize this parameter"
+                  >
+                    <DiceIcon className="tw-text-white" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleLock(param.name)}
+                    className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
+                    title={isLocked ? 'Unlock parameter' : 'Lock parameter'}
+                    aria-pressed={isLocked}
+                  >
+                    {isLocked ? <LockIcon className="tw-text-neutral-400" /> : <UnlockIcon className="tw-text-white" />}
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Icons */}
-            <div className="tw-flex tw-items-center tw-gap-1 tw-shrink-0 tw-ml-auto tw-w-[48px] tw-justify-end">
+            {/* Trailing icons column for xl+ to align across rows */}
+            <div className="tw-hidden xl:tw-flex tw-items-center tw-gap-1 tw-justify-end">
               <button
                 type="button"
                 onClick={() => randomizeSingle(param)}

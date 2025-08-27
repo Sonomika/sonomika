@@ -1852,7 +1852,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                        };
                      }, []);
                      return (
-                       <ScrollArea.Viewport ref={viewportRef as any} className="vj-scroll-viewport tw-h-full tw-w-full tw-overflow-auto scroll-touch drag-scroll tw-pr-[72px] tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
+                       <ScrollArea.Viewport ref={viewportRef as any} className="vj-scroll-viewport tw-h-full tw-w-full tw-overflow-auto scroll-touch drag-scroll tw-pr-0 sm:tw-pr-3 tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
                          {middlePanelTab === 'global' ? (
                            <div className="tw-h-full">
                              <GlobalEffectsTab className="tw-h-full" />
