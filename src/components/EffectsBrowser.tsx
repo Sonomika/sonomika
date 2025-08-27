@@ -159,7 +159,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
       <div className="tw-flex-1 tw-overflow-auto tw-p-3">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources')}>
           <TabsContent value="effects">
-            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 2xl:tw-grid-cols-3 tw-gap-2">
+            <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 2xl:tw-grid-cols-3 tw-gap-2">
               {visualEffects.map((e) => (
                 <div
                   key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
@@ -182,7 +182,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             </div>
           </TabsContent>
           <TabsContent value="sources">
-            <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 2xl:tw-grid-cols-3 tw-gap-2">
+            <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 2xl:tw-grid-cols-3 tw-gap-2">
               {generativeSources.map((e) => (
                 <div
                   key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}

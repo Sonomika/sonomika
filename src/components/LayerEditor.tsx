@@ -198,7 +198,7 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
 				{layer.metadata && (
 					<div>
 						<h4 className="tw-text-sm tw-font-semibold tw-text-white tw-mb-2">Metadata</h4>
-						<div className="tw-grid tw-gap-2 tw-grid-cols-1 md:tw-grid-cols-2">
+						<div className="tw-grid tw-gap-2 tw-grid-cols-1 lg:tw-grid-cols-2">
 							{Object.entries(layer.metadata).map(([key, value]) => (
 								<div key={key} className="tw-flex tw-items-center tw-justify-between tw-text-sm tw-bg-white/5 tw-px-2 tw-py-1">
 									<span className="tw-text-neutral-300">{key}:</span>

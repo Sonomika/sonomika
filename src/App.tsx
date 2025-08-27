@@ -109,6 +109,14 @@ function App() {
   });
 
   useEffect(() => {
+    // Mark Electron environment for CSS targeting (e.g., scrollbar styling)
+    try {
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+      if (isElectron) {
+        document.body.classList.add('is-electron');
+      }
+    } catch {}
+
     // Handle Dropbox OAuth redirect (web only)
     try {
       const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
@@ -691,9 +699,9 @@ function App() {
         onAdvancedMirror={() => { setAdvMirrorOpen(true); }}
       />
       
-      <div className="tw-bg-black tw-text-white tw-min-h-screen md:tw-h-screen tw-flex tw-flex-col">
+      <div className="tw-bg-black tw-text-white tw-min-h-screen lg:tw-h-screen tw-flex tw-flex-col">
 
-        <div className="vj-app-content tw-flex-1 tw-pt-16 md:tw-min-h-0 md:tw-overflow-hidden">
+        <div className="vj-app-content tw-flex-1 tw-pt-16 tw-overflow-y-auto lg:tw-min-h-0 lg:tw-overflow-y-auto">
           {showUIDemo ? (
             <UIDemo onClose={() => setShowUIDemo(false)} />
           ) : (

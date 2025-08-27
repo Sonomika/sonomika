@@ -342,7 +342,7 @@ export const UIDemo: React.FC<UIDemoProps> = ({ onClose }) => {
               <CardDescription className="tw-text-xs">Scrollable content and right-click menu</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
+              <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-4">
                 <ScrollArea className="tw-h-32 tw-w-full tw-border tw-border-neutral-800 tw-p-2">
                   <div className="tw-space-y-2 tw-text-xs">
                     {Array.from({ length: 30 }).map((_, i) => (

@@ -1075,8 +1075,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   if (!currentScene) {
     return (
-      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col md:tw-overflow-hidden tw-overflow-auto">
-        <div className="tw-flex tw-flex-col tw-h-full md:tw-overflow-hidden tw-overflow-auto">
+      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col lg:tw-overflow-hidden tw-overflow-auto">
+        <div className="tw-flex tw-flex-col tw-h-full lg:tw-overflow-hidden tw-overflow-auto">
           <div className="tw-flex tw-items-center tw-justify-between tw-h-12 tw-px-4 tw-py-2 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <h2>No Scene Selected</h2>
             <div className="scene-controls">
@@ -1255,8 +1255,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     console.log('LayerManager about to render main content');
     
     return (
-      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col md:tw-overflow-hidden tw-overflow-auto">
-        <div className="tw-flex tw-flex-col tw-h-full md:tw-min-h-0 md:tw-overflow-y-auto md:tw-pb-0">
+      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col lg:tw-overflow-hidden tw-overflow-auto">
+        <div className="tw-flex tw-flex-col tw-h-full lg:tw-min-h-0 lg:tw-overflow-y-auto lg:tw-pb-0">
           <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <div className="header-left tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
 
@@ -1342,7 +1342,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   </div>
                 )}
                 {/* Unified scene navigator: desktop shows list; mobile centers current scene with arrows */}
-                <div className="tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last md:tw-order-none md:tw-basis-auto tw-mt-2 md:tw-mt-0 tw-w-full md:tw-w-auto tw-justify-between md:tw-justify-start">
+                <div className="tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last lg:tw-order-none lg:tw-basis-auto tw-mt-2 lg:tw-mt-0 tw-w-full lg:tw-w-auto tw-justify-between lg:tw-justify-start">
                 <button
                   onClick={() => {
                     const currentIndex = scenes.findIndex((s: any) => s.id === currentSceneId);
@@ -1350,13 +1350,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     setCurrentScene(scenes[prevIndex].id);
                   }}
                   disabled={scenes.length <= 1}
-                  className="tw-inline-flex md:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                  className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
                   title="Previous scene"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
                 </button>
                 {/* Mobile: single current scene label centered */}
-                <div className="tw-flex-1 tw-flex tw-justify-center md:tw-hidden">
+                <div className="tw-flex-1 tw-flex tw-justify-center lg:tw-hidden">
                   <button
                     className={`tw-text-xs tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${'tw-text-white'}`}
                     style={{ backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' }}
@@ -1366,7 +1366,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   </button>
                 </div>
 
-                <div className="tw-hidden md:tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last md:tw-order-none md:tw-basis-auto tw-mt-2 md:tw-mt-0">
+                <div className="tw-hidden lg:tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last lg:tw-order-none lg:tw-basis-auto tw-mt-2 lg:tw-mt-0">
                   {scenes.map((scene: any, index: number) => (
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>
@@ -1414,7 +1414,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     setCurrentScene(scenes[nextIndex].id);
                   }}
                   disabled={scenes.length <= 1}
-                  className="tw-inline-flex md:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                  className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
                   title="Next scene"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
@@ -1706,11 +1706,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
           {/* Bottom Section with Preview, Layer Options, and Media Library */}
           <div 
-            className="tw-flex tw-flex-col md:tw-flex-row tw-gap-3 tw-px-3 tw-pb-3 tw-pt-0 tw-flex-1 md:tw-sticky md:tw-top-0 md:tw-z-30 md:tw-bg-neutral-900 md:tw-border-t md:tw-border-neutral-800 md:tw-h-[360px]"
+            className="tw-flex tw-flex-col lg:tw-flex-row tw-gap-3 tw-px-3 tw-pb-3 tw-pt-0 tw-flex-1 lg:tw-sticky lg:tw-top-0 lg:tw-z-30 lg:tw-bg-neutral-900 lg:tw-border-t lg:tw-border-neutral-800 lg:tw-h-[360px]"
           >
             {/* Preview Window - Bottom Left */}
             <div 
-              className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden md:tw-basis-[30%] md:tw-flex-none tw-min-w-[200px] tw-w-full"
+              className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden lg:tw-basis-[30%] lg:tw-flex-none tw-min-w-[200px] tw-w-full"
               ref={previewContainerRef}
               style={fsFallbackActive ? { position: 'fixed', inset: 0, zIndex: 9999, width: '100vw', height: '100dvh' as any } : undefined}
             >
@@ -1880,7 +1880,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             </div>
 
             {/* Media Library / MIDI Mapper - Bottom Right */}
-            <div className="md:tw-w-1/3 tw-w-full tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
+            <div className="lg:tw-w-1/3 tw-w-full tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
               {/* Tab Navigation */}
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
                                <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'effects')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>

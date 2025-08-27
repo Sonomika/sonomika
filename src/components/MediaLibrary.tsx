@@ -794,7 +794,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                 />
               )}
 
-              <div className="tw-grid tw-gap-3 md:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
+              <div className="tw-grid tw-gap-3 lg:tw-grid-cols-2 xl:tw-grid-cols-3 2xl:tw-grid-cols-4">
                 {filteredAssets.length === 0 ? (
                   <div className="empty-state">
                     <h3>No assets found</h3>

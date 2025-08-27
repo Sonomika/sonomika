@@ -131,14 +131,14 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
       <div className="tw-h-8 tw-flex tw-items-center tw-justify-start tw-px-2 tw-cursor-grab app-drag-region" style={{ backgroundColor: '#111' }}>
         {/* Mobile hamburger */}
         <button
-          className="tw-inline-flex md:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-text-neutral-200 tw-bg-transparent tw-border-0 app-no-drag"
+          className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-text-neutral-200 tw-bg-transparent tw-border-0 app-no-drag"
           aria-label="Open menu"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMobileMenuOpen(true); }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
         </button>
 
-        <div className="tw-flex tw-items-center tw-gap-5 tw-hidden md:tw-flex">
+        <div className="tw-flex tw-items-center tw-gap-5 tw-hidden lg:tw-flex">
           <div className="menu-item-dropdown app-no-drag" ref={fileMenuRef}>
             <Popover open={fileMenuOpen} onOpenChange={setFileMenuOpen}>
               <PopoverTrigger asChild>

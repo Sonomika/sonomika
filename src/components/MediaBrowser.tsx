@@ -556,7 +556,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
             <div className="tw-space-y-4">
               <div>
                 <h3 className="tw-text-sm tw-font-semibold tw-text-neutral-300">Visual Effects</h3>
-                <div className="tw-grid md:tw-grid-cols-2 xl:tw-grid-cols-3 tw-gap-2">
+                <div className="tw-grid lg:tw-grid-cols-2 xl:tw-grid-cols-3 tw-gap-2">
                   {visualEffects.map((effect) => (
                     <div
                       key={effect.id}
@@ -591,7 +591,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
             <div className="tw-space-y-4">
               <div>
                 <h3 className="tw-text-sm tw-font-semibold tw-text-neutral-300">Generative Sources</h3>
-                <div className="tw-grid md:tw-grid-cols-2 xl:tw-grid-cols-3 tw-gap-2">
+                <div className="tw-grid lg:tw-grid-cols-2 xl:tw-grid-cols-3 tw-gap-2">
                   {generativeSources.map((effect) => (
                     <div
                       key={effect.id}
