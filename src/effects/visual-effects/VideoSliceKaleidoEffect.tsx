@@ -208,8 +208,7 @@ void main(){
     { name: 'angle', type: 'number', value: 0, min: 0, max: 360, step: 1 },
     { name: 'scale', type: 'number', value: 1, min: 0.2, max: 3, step: 0.01 },
     { name: 'offsetX', type: 'number', value: 0, min: -1, max: 1, step: 0.01 },
-    { name: 'offsetY', type: 'number', value: 0, min: -1, max: 1, step: 0.01 },
-    { name: 'opacity', type: 'number', value: 1, min: 0, max: 1, step: 0.1 }
+    { name: 'offsetY', type: 'number', value: 0, min: -1, max: 1, step: 0.01 }
   ]
 };
 

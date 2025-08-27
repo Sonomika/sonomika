@@ -221,8 +221,7 @@ export const MatrixNumbersEffect: React.FC<MatrixNumbersEffectProps> = ({
     { name: 'colorIntensity', type: 'number', value: 1.0, min: 0.3, max: 2.0, step: 0.1 },
     { name: 'spaceSize', type: 'number', value: 8, min: 4, max: 15, step: 1 },
     { name: 'flowSpeed', type: 'number', value: 2.0, min: 0.5, max: 5.0, step: 0.1 },
-    { name: 'numberChangeSpeed', type: 'number', value: 1.0, min: 0.2, max: 3.0, step: 0.1 },
-    { name: 'opacity', type: 'number', value: 1, min: 0, max: 1, step: 0.1 }
+    { name: 'numberChangeSpeed', type: 'number', value: 1.0, min: 0.2, max: 3.0, step: 0.1 }
   ]
 };
 

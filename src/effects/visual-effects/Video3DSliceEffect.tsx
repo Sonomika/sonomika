@@ -339,8 +339,7 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
     { name: 'rotationIntensity', type: 'number', value: 1, min: 0, max: 3, step: 0.1 },
     { name: 'depthSpread', type: 'number', value: 2, min: 0, max: 5, step: 0.1 },
     { name: 'animationSpeed', type: 'number', value: 1, min: 0, max: 3, step: 0.1 },
-    { name: 'chaosLevel', type: 'number', value: 0.5, min: 0, max: 1, step: 0.1 },
-    { name: 'opacity', type: 'number', value: 1, min: 0, max: 1, step: 0.1 }
+    { name: 'chaosLevel', type: 'number', value: 0.5, min: 0, max: 1, step: 0.1 }
   ]
 };
 

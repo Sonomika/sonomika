@@ -293,7 +293,6 @@ void main(){
     { name: 'shape', type: 'number', value: 0, min: 0, max: 1, step: 0.01 },
     { name: 'color', type: 'color', value: '#ffffff' },
     { name: 'invert', type: 'boolean', value: false },
-    { name: 'opacity', type: 'number', value: 1, min: 0, max: 1, step: 0.1 },
     { name: 'preserveColors', type: 'boolean', value: false }
   ]
 };

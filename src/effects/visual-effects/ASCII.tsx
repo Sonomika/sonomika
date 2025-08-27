@@ -375,7 +375,6 @@ void main() {
     { name: 'cellSize', type: 'number', value: 28, min: 4, max: 32, step: 1 },
     { name: 'color', type: 'color', value: '#ffffff' },
     { name: 'invert', type: 'boolean', value: false },
-    { name: 'opacity', type: 'number', value: 1, min: 0, max: 1, step: 0.1 },
     { name: 'preserveColors', type: 'boolean', value: false }
   ]
 };

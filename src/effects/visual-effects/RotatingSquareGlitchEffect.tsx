@@ -282,8 +282,7 @@ export const RotatingSquareGlitchEffect: React.FC<RotatingSquareGlitchEffectProp
     { name: 'rotationSpeed', type: 'number', value: 2, min: 0, max: 5, step: 0.1 },
     { name: 'glitchAmount', type: 'number', value: 0.8, min: 0, max: 1, step: 0.1 },
     { name: 'colorShift', type: 'number', value: 0.7, min: 0, max: 1, step: 0.1 },
-    { name: 'depthVariation', type: 'number', value: 2, min: 0, max: 3, step: 0.1 },
-    { name: 'opacity', type: 'number', value: 1, min: 0, max: 1, step: 0.1 }
+    { name: 'depthVariation', type: 'number', value: 2, min: 0, max: 3, step: 0.1 }
   ]
 };
 
