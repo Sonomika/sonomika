@@ -134,4 +134,6 @@ export interface AppState {
   timelineZoom: number; // Timeline zoom level
   // Default sizing mode for video/image/webcam sources
   defaultVideoFitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
+  // Default internal render scale for new/unspecified video layers (0.1..1)
+  defaultVideoRenderScale?: number;
 } 

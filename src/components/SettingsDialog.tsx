@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/Dialog';
 import { Switch } from './ui/switch';
 import { useStore } from '../store/store';
-import { Button } from './ui';
+import { Button, Slider } from './ui';
 import { getSupabase } from '../lib/supabaseClient';
 
 interface SettingsDialogProps {
@@ -11,7 +11,7 @@ interface SettingsDialogProps {
 }
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
-  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor } = useStore() as any;
+  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale } = useStore() as any;
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -70,6 +70,33 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                 onChange={(e) => setAccentColor(`#${e.target.value.replace(/[^0-9a-fA-F]/g,'').slice(0,6)}`)}
                 className="tw-w-24 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
                 placeholder="00bcd4"
+              />
+            </div>
+          </div>
+
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">Default Video Resolution</div>
+              <div className="tw-text-xs tw-text-neutral-400">Internal render scale for video layers (0.10 – 1.00)</div>
+            </div>
+            <div className="tw-flex tw-items-center tw-gap-2">
+              <div className="tw-w-56">
+                <Slider
+                  min={0.1}
+                  max={1}
+                  step={0.01}
+                  value={[Number(defaultVideoRenderScale ?? 1)]}
+                  onValueChange={(vals) => vals && vals.length > 0 && setDefaultVideoRenderScale(vals[0])}
+                />
+              </div>
+              <input
+                type="number"
+                min={0.1}
+                max={1}
+                step={0.01}
+                value={Number(defaultVideoRenderScale ?? 1).toFixed(2)}
+                onChange={(e) => setDefaultVideoRenderScale(parseFloat(e.target.value))}
+                className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
               />
             </div>
           </div>

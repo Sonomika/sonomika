@@ -321,6 +321,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     if (previewContent && previewContent.type === 'timeline' && selectedTimelineClip && (!selectedTimelineClip.layerId || String(layerId).startsWith('timeline-layer-'))) {
       try {
         const nextClipData = { ...(selectedTimelineClip.data || {}) } as any;
+        // Merge top-level layer options (e.g., fitMode, blendMode, opacity, etc.)
+        Object.keys(options || {}).forEach((key) => {
+          if (key === 'params') return; // handled below
+          (nextClipData as any)[key] = (options as any)[key];
+        });
+        // Merge params separately
         if (options?.params) {
           nextClipData.params = { ...(nextClipData.params || {}), ...(options.params || {}) };
         }

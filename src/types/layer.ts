@@ -39,6 +39,8 @@ export interface VideoLayer extends BaseLayer {
   muted?: boolean;
   loop?: boolean;
   playMode?: 'restart' | 'continue'; // New property: restart video or continue from current position
+  // Render at lower internal resolution to improve performance (e.g., 0.25, 0.5, 1)
+  renderScale?: number;
   metadata?: {
     width: number;
     height: number;

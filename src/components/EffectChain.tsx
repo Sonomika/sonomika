@@ -6,7 +6,7 @@ import { getCachedVideoCanvas } from '../utils/AssetPreloader';
 import { useStore } from '../store/store';
 
 export type ChainItem =
-  | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; fitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile'; backgroundSizeMode?: 'cover' | 'contain' | 'auto' | 'custom'; backgroundRepeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'; backgroundSizeCustom?: string; __uniqueKey?: string }
+  | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; fitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile'; backgroundSizeMode?: 'cover' | 'contain' | 'auto' | 'custom'; backgroundRepeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'; backgroundSizeCustom?: string; renderScale?: number; __uniqueKey?: string }
   | { type: 'source'; effectId: string; params?: Record<string, any>; __uniqueKey?: string }
   | { type: 'effect'; effectId: string; params?: Record<string, any>; __uniqueKey?: string };
 
@@ -36,7 +36,18 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   // Per-stage render targets to keep texture identity stable
   const rtRefs = useRef<Array<THREE.WebGLRenderTarget | null>>([]);
 
+  // Determine effective render scale for video only (fallback 1)
+  const defaultVideoRenderScale = (useStore as any).getState?.()?.defaultVideoRenderScale ?? 1;
+  const effectiveScale = React.useMemo(() => {
+    const firstVideo = items.find((it) => it.type === 'video') as Extract<ChainItem, { type: 'video' }> | undefined;
+    const raw = (firstVideo as any)?.renderScale;
+    const n = raw != null ? (typeof raw === 'number' ? raw : parseFloat(String(raw))) : defaultVideoRenderScale;
+    const clamped = Number.isFinite(n) ? Math.max(0.1, Math.min(1, n)) : defaultVideoRenderScale;
+    return clamped;
+  }, [items, defaultVideoRenderScale]);
+
   const ensureRTs = () => {
+    // Offscreen RTs for sources/effects remain full composition resolution
     const w = Math.max(2, Math.floor(compositionWidth));
     const h = Math.max(2, Math.floor(compositionHeight));
     if (rtRefs.current.length !== items.length) {
@@ -264,8 +275,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
             if (mat.map !== videoTexture) { mat.map = videoTexture; mat.needsUpdate = true; }
           }
           // ensure RT size
-          const w = Math.max(2, Math.floor(compositionWidth));
-          const h = Math.max(2, Math.floor(compositionHeight));
+          const w = Math.max(2, Math.floor(compositionWidth * effectiveScale));
+          const h = Math.max(2, Math.floor(compositionHeight * effectiveScale));
           if (!videoRtRef.current || videoRtRef.current.width !== w || videoRtRef.current.height !== h) {
             videoRtRef.current?.dispose();
             videoRtRef.current = new THREE.WebGLRenderTarget(w, h, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false });

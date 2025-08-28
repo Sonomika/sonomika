@@ -5,6 +5,7 @@ import type { Layer } from '../types/layer';
 import { getEffect } from '../utils/effectRegistry';
 import { ParamRow, ButtonGroup, Slider } from './ui';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
+import { useStore } from '../store/store';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
@@ -36,6 +37,7 @@ const DiceIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
+  const { defaultVideoRenderScale } = useStore() as any;
   // Update local state when selectedLayer changes
   const [loopMode, setLoopMode] = useState<LoopMode>(
     (selectedLayer as any)?.loopMode || LOOP_MODES.NONE
@@ -799,6 +801,55 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                     columns={5}
                     size="small"
                   />
+                </div>
+                {/* Render Resolution / Scale as numeric value (0.1 .. 1.0) */}
+                <div className="tw-col-span-2 sm:tw-col-span-1">
+                  <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Render Resolution</label>
+                  <div className="tw-flex tw-items-center tw-gap-2">
+                    <div className="tw-flex-1 tw-min-w-0">
+                      <ParamRow
+                        label="Render Resolution"
+                        value={Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1))}
+                        min={0.1}
+                        max={1}
+                        step={0.01}
+                        buttonsAfter
+                        showLabel={false}
+                        onChange={(value) => {
+                          if (!selectedLayer) return;
+                          const n = Number(value);
+                          const clamped = Number.isFinite(n) ? Math.max(0.1, Math.min(1, n)) : 1;
+                          onUpdateLayer(selectedLayer.id, { renderScale: clamped } as any);
+                        }}
+                        onIncrement={() => {
+                          if (!selectedLayer) return;
+                          const cur = Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1));
+                          const next = Math.min(1, Math.round((cur + 0.01) * 100) / 100);
+                          onUpdateLayer(selectedLayer.id, { renderScale: next } as any);
+                        }}
+                        onDecrement={() => {
+                          if (!selectedLayer) return;
+                          const cur = Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1));
+                          const next = Math.max(0.1, Math.round((cur - 0.01) * 100) / 100);
+                          onUpdateLayer(selectedLayer.id, { renderScale: next } as any);
+                        }}
+                      />
+                    </div>
+                    <input
+                      type="number"
+                      step={0.01}
+                      min={0.1}
+                      max={1}
+                      value={Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1)).toFixed(2)}
+                      onChange={(e) => {
+                        if (!selectedLayer) return;
+                        const n = parseFloat(e.target.value);
+                        const clamped = Number.isFinite(n) ? Math.max(0.1, Math.min(1, n)) : 1;
+                        onUpdateLayer(selectedLayer.id, { renderScale: clamped } as any);
+                      }}
+                      className="tw-w-[72px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                    />
+                  </div>
                 </div>
               </div>
               <div>

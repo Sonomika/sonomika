@@ -926,6 +926,7 @@ const ColumnScene: React.FC<{
               backgroundSizeMode: (layer as any)?.backgroundSizeMode,
               backgroundRepeat: (layer as any)?.backgroundRepeat,
               backgroundSizeCustom: (layer as any)?.backgroundSizeCustom,
+              renderScale: (layer as any)?.renderScale,
               __uniqueKey: `video-${layer.id}`
             });
           } else if (kind === 'source') {

@@ -87,6 +87,7 @@ const initialState: AppState = {
   timelineSnapEnabled: true,
   timelineDuration: 60, // 1 minute default
   timelineZoom: 2, // Default zoom level
+  defaultVideoRenderScale: 0.5,
 };
 
 initialState.currentSceneId = initialState.scenes[0].id;
@@ -158,6 +159,7 @@ export const useStore = createWithEqualityFn<AppState & {
   setCurrentPresetName?: (name: string | null) => void;
   recordSettings: RecordSettings;
   setRecordSettings: (rs: Partial<RecordSettings>) => void;
+  setDefaultVideoRenderScale: (scale: number) => void;
 }>()(
   persist(
     (set, get) => ({
@@ -166,6 +168,7 @@ export const useStore = createWithEqualityFn<AppState & {
       setCurrentPresetName: (name: string | null) => set({ currentPresetName: name } as any),
       recordSettings: initialRecordSettings,
       setRecordSettings: (rs) => set({ recordSettings: { ...get().recordSettings, ...rs } }),
+      setDefaultVideoRenderScale: (scale: number) => set({ defaultVideoRenderScale: Math.max(0.1, Math.min(1, Number(scale) || 1)) }),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();
@@ -850,6 +853,7 @@ export const useStore = createWithEqualityFn<AppState & {
            transitionType: state.transitionType,
            transitionDuration: state.transitionDuration,
            compositionSettings: state.compositionSettings,
+           defaultVideoRenderScale: (state as any).defaultVideoRenderScale,
            defaultVideoFitMode: state.defaultVideoFitMode,
            timelineSnapEnabled: state.timelineSnapEnabled,
            timelineDuration: state.timelineDuration,
