@@ -1,19 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
-import { Select } from './ui';
-
-interface MIDIMapping {
-  id: string;
-  name: string;
-  target: string;
-  input: string;
-  output: string;
-  channel: number;
-  note: string;
-  status: string;
-  velocity: string;
-  isActive: boolean;
-}
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Select, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui';
+import { MIDIManager } from '../midi/MIDIManager';
+import { MIDIProcessor } from '../utils/MIDIProcessor';
+import { MIDIMapping } from '../store/types';
 
 interface MIDIDevice {
   id: string;
@@ -22,70 +12,16 @@ interface MIDIDevice {
 }
 
 export const MIDIMapper: React.FC = () => {
-  const [selectedDevice, setSelectedDevice] = useState<string>('Loopmidi');
-  const [selectedMapping, setSelectedMapping] = useState<MIDIMapping | null>(null);
-  const [mappings, setMappings] = useState<MIDIMapping[]>([
-    {
-      id: '1',
-      name: 'Composition Columns 1 Connect',
-      target: 'By Position',
-      input: 'Any device',
-      output: 'All devices',
-      channel: 1,
-      note: 'C2',
-      status: 'Empty',
-      velocity: '0 - Off',
-      isActive: true
-    },
-    {
-      id: '2',
-      name: 'Composition Columns 10 Connect',
-      target: 'By Position',
-      input: 'Any device',
-      output: 'All devices',
-      channel: 1,
-      note: 'A2',
-      status: 'Empty',
-      velocity: '0 - Off',
-      isActive: false
-    },
-    {
-      id: '3',
-      name: 'Composition Columns 2 Connect',
-      target: 'By Position',
-      input: 'Any device',
-      output: 'All devices',
-      channel: 1,
-      note: 'C#2',
-      status: 'Empty',
-      velocity: '0 - Off',
-      isActive: false
-    },
-    {
-      id: '4',
-      name: 'Composition Columns 3 Connect',
-      target: 'By Position',
-      input: 'Any device',
-      output: 'All devices',
-      channel: 1,
-      note: 'D2',
-      status: 'Empty',
-      velocity: '0 - Off',
-      isActive: false
-    },
-    {
-      id: '5',
-      name: 'Composition Columns 4 Connect',
-      target: 'By Position',
-      input: 'Any device',
-      output: 'All devices',
-      channel: 1,
-      note: 'D#2',
-      status: 'Empty',
-      velocity: '0 - Off',
-      isActive: false
-    }
-  ]);
+  const { midiMappings, setMIDIMappings } = useStore() as any;
+  const [selectedDevice, setSelectedDevice] = useState<string>('Any device');
+  const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const mappings = midiMappings as MIDIMapping[];
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState('midi-mapping');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [monitorEnabled, setMonitorEnabled] = useState(true);
+  const [lastEventAt, setLastEventAt] = useState<number | null>(null);
+  const [recentEvents, setRecentEvents] = useState<Array<{ type: 'note' | 'cc'; channel: number; number: number; value: number; ts: number }>>([]);
 
   const [devices] = useState<MIDIDevice[]>([
     { id: 'loopmidi', name: 'Loopmidi', type: 'input' },
@@ -93,13 +29,45 @@ export const MIDIMapper: React.FC = () => {
     { id: 'virtual-midi', name: 'Virtual MIDI', type: 'input' }
   ]);
 
-  const targetOptions = [
-    'By Position',
-    'Composition Columns',
-    'Layer Controls',
-    'Scene Management',
-    'Transport Controls'
+  const inputTypeOptions = [
+    { value: 'note', label: 'Note' },
+    { value: 'cc', label: 'CC' }
   ];
+
+  const actionTypeOptions = [
+    { value: 'column', label: 'Trigger Column' },
+    { value: 'transport', label: 'Transport' },
+    { value: 'scene', label: 'Switch Scene' },
+  ];
+
+  // Ableton-style presets for mapping columns -> notes
+  // Ableton labels middle C as C3 (60), so C1 = 36, C2 = 48
+  const abletonNotePresets = [
+    { value: 'ableton-c1', label: 'Ableton: C1..B1 (36-47)', base: 36 },
+    { value: 'ableton-c2', label: 'Ableton: C2..B2 (48-59)', base: 48 },
+    { value: 'standard-c4', label: 'Standard: C4..B4 (60-71)', base: 60 },
+  ];
+  const [notePreset, setNotePreset] = useState<string>('ableton-c1');
+
+  const populateFromPreset = () => {
+    try {
+      const selected = abletonNotePresets.find(p => p.value === notePreset) || abletonNotePresets[0];
+      const base = selected.base;
+      const state = useStore.getState() as any;
+      const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+      const columns = scene?.columns || [];
+      const count = Math.max(1, columns.length || 12);
+      const maxCount = Math.min(count, 128 - base);
+      const generated: MIDIMapping[] = Array.from({ length: maxCount }, (_, i) => ({
+        type: 'note',
+        channel: 1,
+        number: base + i,
+        target: { type: 'column', index: i + 1 } as any,
+      }));
+      updateMappings(generated);
+      setSelectedIndex(0);
+    } catch {}
+  };
 
   const inputOptions = [
     'Any device',
@@ -127,164 +95,311 @@ export const MIDIMapper: React.FC = () => {
     '64-127 - Upper Half'
   ];
 
+  // Ensure MIDI listeners route to processor
   useEffect(() => {
-    // Set first mapping as selected by default
-    if (mappings.length > 0 && !selectedMapping) {
-      setSelectedMapping(mappings[0]);
-    }
-  }, [mappings, selectedMapping]);
+    try {
+      const mgr = MIDIManager.getInstance();
+      const proc = MIDIProcessor.getInstance();
+      proc.setMappings(mappings || []);
+      const onNote = (n: number, v: number, ch: number) => proc.handleNoteMessage(n, v, ch);
+      const onCC = (c: number, v: number, ch: number) => proc.handleCCMessage(c, v, ch);
+      mgr.addNoteCallback(onNote);
+      mgr.addCCCallback(onCC);
+      return () => {
+        try { mgr.removeNoteCallback(onNote); } catch {}
+        try { mgr.removeCCCallback(onCC); } catch {}
+      };
+    } catch {}
+  }, [mappings]);
 
-  const handleMappingSelect = (mapping: MIDIMapping) => {
-    setSelectedMapping(mapping);
-    // Update active state
-    setMappings(prev => prev.map(m => ({
-      ...m,
-      isActive: m.id === mapping.id
-    })));
+  // Lightweight MIDI monitor (for debugging incoming notes/CC)
+  useEffect(() => {
+    if (!monitorEnabled) return;
+    try {
+      const mgr = MIDIManager.getInstance();
+      const onNote = (n: number, v: number, ch: number) => {
+        const ts = Date.now();
+        setLastEventAt(ts);
+        setRecentEvents(prev => {
+          const next = [{ type: 'note', channel: ch, number: n, value: v, ts }, ...prev];
+          return next.slice(0, 20);
+        });
+      };
+      const onCC = (c: number, v: number, ch: number) => {
+        const ts = Date.now();
+        setLastEventAt(ts);
+        setRecentEvents(prev => {
+          const next = [{ type: 'cc', channel: ch, number: c, value: v, ts }, ...prev];
+          return next.slice(0, 20);
+        });
+      };
+      mgr.addNoteCallback(onNote);
+      mgr.addCCCallback(onCC);
+      return () => {
+        try { mgr.removeNoteCallback(onNote); } catch {}
+        try { mgr.removeCCCallback(onCC); } catch {}
+      };
+    } catch {}
+  }, [monitorEnabled]);
+
+  const selectedMapping = mappings?.[selectedIndex] as MIDIMapping | undefined;
+
+  const handleMappingSelect = (idx: number) => {
+    setSelectedIndex(idx);
   };
 
-  const handleSettingChange = (field: keyof MIDIMapping, value: string | number) => {
+  const updateMappings = (next: MIDIMapping[]) => {
+    setMIDIMappings(next);
+  };
+
+  const updateSelected = (mutate: (m: MIDIMapping) => MIDIMapping) => {
     if (!selectedMapping) return;
-    
-    const updatedMapping = { ...selectedMapping, [field]: value };
-    setSelectedMapping(updatedMapping);
-    
-    setMappings(prev => prev.map(m => 
-      m.id === selectedMapping.id ? updatedMapping : m
-    ));
+    const next = mappings.map((m, i) => (i === selectedIndex ? mutate(m) : m));
+    updateMappings(next);
   };
 
   const getNoteChannelDisplay = (mapping: MIDIMapping) => {
-    return `${mapping.channel}/${mapping.note}`;
+    return `${mapping.channel}/${mapping.number}`;
   };
+
+  const ensureOneDefault = useMemo(() => {
+    if (!mappings || mappings.length > 0) return mappings;
+    const initial: MIDIMapping = {
+      type: 'note',
+      channel: 1,
+      number: 60,
+      target: { type: 'transport', action: 'play' }
+    };
+    setMIDIMappings([initial]);
+    return [initial];
+  }, [mappings, setMIDIMappings]);
 
   return (
     <div className="tw-flex tw-flex-col tw-h-full tw-text-neutral-200">
-      {/* Top Section: MIDI Mappings List */}
       <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
         <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
-          <div className="tw-min-w-[160px]">
-            <Select
-              value={selectedDevice}
-              onChange={(v) => setSelectedDevice(v as string)}
-              options={devices.map(d => ({ value: d.name }))}
-            />
+          <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
+            <div className="tw-min-w-[160px]">
+              <Select value={selectedDevice} onChange={(v) => setSelectedDevice(v as string)} options={devices.map(d => ({ value: d.name }))} />
+            </div>
+            <div className="tw-min-w-[220px]">
+              <Select
+                value={notePreset}
+                onChange={(v) => setNotePreset(String(v))}
+                options={abletonNotePresets.map(p => ({ value: p.value, label: p.label }))}
+              />
+            </div>
+            <Button variant="secondary" onClick={populateFromPreset}>Populate Columns</Button>
+          </div>
+          <div className="tw-flex tw-gap-2 tw-flex-wrap">
+            <Button onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>
+            <Button variant="secondary" onClick={() => {
+              if (!selectedMapping) return;
+              const clone = JSON.parse(JSON.stringify(selectedMapping)) as MIDIMapping;
+              const next = mappings.slice();
+              const insertAt = Math.min(mappings.length, selectedIndex + 1);
+              next.splice(insertAt, 0, clone);
+              updateMappings(next);
+              setSelectedIndex(insertAt);
+            }}>Duplicate</Button>
+            <Button variant="destructive" onClick={() => { if (selectedMapping) { const next = mappings.filter((_, i) => i !== selectedIndex); updateMappings(next); setSelectedIndex(Math.max(0, selectedIndex - 1)); } }}>Remove</Button>
+            <Button variant="secondary" onClick={() => { try { const n = (useStore.getState() as any).currentPresetName || 'midi-mapping'; setSaveName(String(n)); } catch { setSaveName('midi-mapping'); } setSaveOpen(true); }}>Save Preset</Button>
+            <Button variant="secondary" onClick={() => {
+              try {
+                const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
+                if (isElectron) {
+                  (async () => {
+                    const result = await (window as any).electron.showOpenDialog({ title: 'Load Set', properties: ['openFile'], filters: [{ name: 'VJ Preset', extensions: ['vjpreset', 'json'] }] });
+                    if (!result.canceled && result.filePaths && result.filePaths[0]) {
+                      const content = await (window as any).electron.readFileText(result.filePaths[0]);
+                      if (content) {
+                        const blob = new Blob([content], { type: 'application/json' });
+                        const file = new File([blob], result.filePaths[0]);
+                        const { loadPreset } = useStore.getState() as any;
+                        await loadPreset(file);
+                      }
+                    }
+                  })();
+                } else {
+                  fileInputRef.current?.click();
+                }
+              } catch {}
+            }}>Load Preset</Button>
           </div>
         </div>
-        
-        <div className="tw-mt-2 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden tw-max-h-64 tw-min-h-0 tw-bg-neutral-900">
-          {mappings.map((mapping) => (
-            <div
-              key={mapping.id}
-              className={`tw-flex tw-justify-between tw-items-center tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 tw-cursor-pointer hover:tw-bg-neutral-800/60 ${mapping.isActive ? 'tw-bg-sky-600 tw-text-black' : ''}`}
-              onClick={() => handleMappingSelect(mapping)}
+
+        <div className="tw-mt-2 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-auto tw-max-h-64 tw-min-h-0 tw-bg-neutral-900">
+          {(ensureOneDefault || []).map((mapping, idx) => (
+            <div key={idx}
+              className={`tw-flex tw-justify-between tw-items-center tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 tw-cursor-pointer hover:tw-bg-neutral-800/60 ${idx === selectedIndex ? 'tw-bg-sky-600 tw-text-black' : ''}`}
+              onClick={() => handleMappingSelect(idx)}
             >
-              <span className="tw-text-sm tw-font-medium">{mapping.name}</span>
+              <span className="tw-text-sm tw-font-medium">{mapping.target.type}</span>
               <span className="tw-text-xs tw-font-semibold tw-text-neutral-300">{getNoteChannelDisplay(mapping)}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Middle Section: MIDI Settings */}
       <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
-        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
-          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Target:</label>
-          <div className="tw-relative tw-z-[1]">
-            <Select
-              value={(selectedMapping?.target || '') as string}
-              onChange={(v) => handleSettingChange('target', v as string)}
-              options={targetOptions.map(o => ({ value: o }))}
-            />
+        <div className="tw-grid tw-grid-cols-2 tw-gap-2">
+          <div className="tw-space-y-2">
+            <Label className="tw-text-xs">Input Type</Label>
+            <Select value={selectedMapping?.type || 'note'} onChange={(v) => updateSelected(m => ({ ...m, type: v as any }))} options={inputTypeOptions} />
           </div>
-        </div>
+          <div className="tw-space-y-2">
+            <Label className="tw-text-xs">Channel</Label>
+            <Select value={String(selectedMapping?.channel || 1)} onChange={(v) => updateSelected(m => ({ ...m, channel: Number(v) }))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
+          </div>
+          <div className="tw-space-y-2">
+            <Label className="tw-text-xs">Note/CC Number</Label>
+            <Input value={selectedMapping?.number ?? 60} onChange={(e) => updateSelected(m => ({ ...m, number: Math.max(0, Math.min(127, Number(e.target.value) || 0)) }))} />
+          </div>
+          <div className="tw-space-y-2">
+            <Label className="tw-text-xs">Action</Label>
+            <Select value={selectedMapping && (selectedMapping.target as any)?.type || 'transport'} onChange={(v) => {
+              const val = String(v);
+              if (val === 'transport') updateSelected(m => ({ ...m, target: { type: 'transport', action: 'play' } as any }));
+              else if (val === 'column') updateSelected(m => ({ ...m, target: { type: 'column', index: 1 } as any }));
+              else if (val === 'scene') updateSelected(m => ({ ...m, target: { type: 'scene', id: (useStore.getState() as any).currentSceneId } as any }));
+            }} options={actionTypeOptions} />
+          </div>
 
-        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
-          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Input:</label>
-          <div className="tw-relative tw-z-[1]">
-            <Select
-              value={(selectedMapping?.input || '') as string}
-              onChange={(v) => handleSettingChange('input', v as string)}
-              options={inputOptions.map(o => ({ value: o }))}
-            />
-          </div>
-        </div>
-
-        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
-          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Output:</label>
-          <div className="tw-relative tw-z-[1]">
-            <Select
-              value={(selectedMapping?.output || '') as string}
-              onChange={(v) => handleSettingChange('output', v as string)}
-              options={outputOptions.map(o => ({ value: o }))}
-            />
-          </div>
-        </div>
-
-        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
-          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Channel:</label>
-          <div className="tw-relative tw-z-[1]">
-            <Select
-              value={String(selectedMapping?.channel || 1)}
-              onChange={(v) => handleSettingChange('channel', Number(v))}
-              options={Array.from({ length: 16 }, (_, i) => i + 1).map(ch => ({ value: String(ch), label: String(ch) }))}
-            />
-          </div>
-        </div>
-
-        <div className="tw-flex tw-items-center tw-gap-2">
-          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Note:</label>
-          <div className="tw-relative tw-z-[1]">
-            <Select
-              value={(selectedMapping?.note || '') as string}
-              onChange={(v) => handleSettingChange('note', v as string)}
-              options={noteOptions.map(n => ({ value: n }))}
-            />
-          </div>
+          {selectedMapping?.target?.type === 'transport' && (
+            <div className="tw-space-y-2">
+              <Label className="tw-text-xs">Transport Action</Label>
+              <Select value={(selectedMapping.target as any).action} onChange={(v) => updateSelected(m => ({ ...m, target: { type: 'transport', action: v as any } as any }))} options={[{ value: 'play' }, { value: 'pause' }, { value: 'stop' }]} />
+            </div>
+          )}
+          {selectedMapping?.target?.type === 'column' && (
+            <div className="tw-space-y-2">
+              <Label className="tw-text-xs">Column Index</Label>
+              <Input value={(selectedMapping.target as any).index} onChange={(e) => updateSelected(m => ({ ...m, target: { type: 'column', index: Math.max(1, Number(e.target.value) || 1) } as any }))} />
+              <div className="tw-space-y-1">
+                <Label className="tw-text-xs">Note Preset (Ableton)</Label>
+                <Select
+                  value={notePreset}
+                  onChange={(v) => {
+                    const selected = abletonNotePresets.find(p => p.value === v);
+                    setNotePreset(String(v));
+                    if (!selected) return;
+                    const colIndex = (selectedMapping.target as any).index || 1; // 1-based
+                    const noteNumber = Math.min(127, selected.base + (colIndex - 1));
+                    updateSelected(m => ({ ...m, type: 'note', number: noteNumber }));
+                  }}
+                  options={abletonNotePresets.map(p => ({ value: p.value, label: p.label }))}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Lower Section: MIDI Out Velocity */}
-      <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
-        <h4 className="tw-text-sm tw-font-semibold tw-mb-2">MIDI Out Velocity</h4>
-        
-        <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2">
-          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Status:</label>
-          <div className="tw-relative tw-z-[1]">
-            <Select
-              value={(selectedMapping?.status || 'Empty') as string}
-              onChange={(v) => handleSettingChange('status', v as string)}
-              options={[
-                { value: 'Empty' },
-                { value: 'Active' },
-                { value: 'Inactive' }
-              ]}
-            />
+      <div className="tw-bg-neutral-900 tw-flex-1 tw-overflow-auto tw-text-xs tw-text-neutral-300 tw-p-2">
+        <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <span className="tw-text-neutral-300">MIDI Monitor</span>
+            <span className={`tw-inline-block tw-w-2 tw-h-2 tw-rounded-full ${lastEventAt && Date.now() - lastEventAt < 500 ? 'tw-bg-emerald-400' : 'tw-bg-neutral-700'}`}></span>
+          </div>
+          <div className="tw-flex tw-gap-2">
+            <Button variant="secondary" onClick={() => setMonitorEnabled(!monitorEnabled)}>{monitorEnabled ? 'Pause' : 'Resume'}</Button>
+            <Button variant="secondary" onClick={() => setRecentEvents([])}>Clear</Button>
           </div>
         </div>
-
-        <div className="tw-flex tw-items-center tw-gap-2">
-          <label className="tw-w-20 tw-text-sm tw-text-neutral-300">Velocity:</label>
-          <div className="tw-min-w-[220px]">
-            <Select
-              value={(selectedMapping?.velocity || '') as string}
-              onChange={(v) => handleSettingChange('velocity', v as string)}
-              options={velocityOptions.map(v => ({ value: v }))}
-            />
-          </div>
+        <div className="tw-space-y-1">
+          {recentEvents.length === 0 ? (
+            <div className="tw-text-neutral-500">No MIDI events yet. Play a note or move a control.</div>
+          ) : (
+            recentEvents.map((e, i) => (
+              <div key={i} className="tw-flex tw-justify-between tw-border tw-border-neutral-800 tw-rounded tw-px-2 tw-py-1">
+                <span className="tw-text-neutral-200">{e.type.toUpperCase()} {e.number}</span>
+                <span className="tw-text-neutral-400">ch {e.channel} • val {e.value} • {new Date(e.ts).toLocaleTimeString()}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
-      {/* Bottom Section: Help */}
-      <div className="tw-bg-neutral-900 tw-flex-1 tw-overflow-auto">
-        <div className="tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800">
-          <span className="tw-text-sm tw-font-medium">Help</span>
-          <button className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
-        </div>
-        <div className="tw-p-2 tw-text-sm tw-text-neutral-300">
-          Move your mouse over the interface element that you would like more info about.
-        </div>
-      </div>
+      {/* Hidden file input for web load */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".vjpreset,.json,application/json"
+        className="tw-hidden"
+        onChange={async (e) => {
+          try {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const { loadPreset } = useStore.getState() as any;
+            await loadPreset(file);
+            // reset input value to allow re-selecting same file later
+            (e.target as HTMLInputElement).value = '';
+          } catch {}
+        }}
+      />
+
+      {/* Save Preset Dialog */}
+      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Preset</DialogTitle>
+            <DialogDescription>Save the current set, including MIDI mappings.</DialogDescription>
+          </DialogHeader>
+          <div className="tw-space-y-2">
+            <Label className="tw-text-xs">Name</Label>
+            <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setSaveOpen(false)}>Cancel</Button>
+            <Button onClick={() => {
+              const name = (saveName || 'midi-mapping').trim();
+              const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showSaveDialog;
+              if (isElectron) {
+                (async () => {
+                  const presetName = `preset-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.vjpreset`;
+                  const result = await (window as any).electron.showSaveDialog({ title: 'Save Set', defaultPath: presetName, filters: [{ name: 'VJ Preset', extensions: ['vjpreset', 'json'] }] });
+                  if (!result.canceled && result.filePath) {
+                    const { savePreset } = useStore.getState() as any;
+                    const key = savePreset(name.replace(/\.(vjpreset|json)$/i, ''));
+                    if (key) {
+                      const state = useStore.getState() as any;
+                      const preset = {
+                        name: key,
+                        displayName: key,
+                        timestamp: Date.now(),
+                        version: '1.0.0',
+                        description: `VJ Preset: ${key}`,
+                        data: {
+                          scenes: state.scenes,
+                          currentSceneId: state.currentSceneId,
+                          playingColumnId: state.playingColumnId,
+                          bpm: state.bpm,
+                          sidebarVisible: state.sidebarVisible,
+                          midiMappings: state.midiMappings,
+                          selectedLayerId: state.selectedLayerId,
+                          previewMode: state.previewMode,
+                          transitionType: state.transitionType,
+                          transitionDuration: state.transitionDuration,
+                          compositionSettings: state.compositionSettings,
+                          assets: state.assets,
+                        }
+                      } as any;
+                      await (window as any).electron.saveFile(result.filePath, JSON.stringify(preset, null, 2));
+                    }
+                  }
+                  setSaveOpen(false);
+                })();
+              } else {
+                try {
+                  const { savePreset } = useStore.getState() as any;
+                  savePreset(name);
+                } catch {}
+                setSaveOpen(false);
+              }
+            }}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }; 

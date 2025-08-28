@@ -40,36 +40,56 @@ export class MIDIProcessor {
       )
       .forEach(mapping => {
         switch (mapping.target.type) {
-          case 'scene':
-            store.setCurrentScene(mapping.target.id);
+          case 'scene': {
+            store.setCurrentScene((mapping.target as any).id);
             break;
-
-          case 'layer':
-            const layer = this.findLayer(mapping.target.id);
+          }
+          case 'layer': {
+            const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
+            const layer = this.findLayer(layerTarget.id);
             if (layer) {
-              if (mapping.target.param === 'opacity') {
-                store.updateLayer(mapping.target.id, { opacity: velocity / 127 });
-              } else if (mapping.target.param) {
-                const metadata = this.getEffectMetadata(layer.type) as any;
-                const paramConfig = metadata?.parameters.find((p: any) => p.name === mapping.target.param);
+              if (layerTarget.param === 'opacity') {
+                store.updateLayer(layerTarget.id, { opacity: velocity / 127 });
+              } else if (layerTarget.param) {
+                const metadata = this.getEffectMetadata((layer as any).type) as any;
+                const paramConfig = metadata?.parameters?.find((p: any) => p.name === layerTarget.param);
                 if (paramConfig && paramConfig.type === 'number') {
                   const range = (paramConfig.max || 1) - (paramConfig.min || 0);
                   const normalizedValue = velocity / 127;
                   const mappedValue = (paramConfig.min || 0) + (range * normalizedValue);
-                  store.updateLayer(mapping.target.id, {
-                    params: { ...layer.params, [mapping.target.param]: mappedValue }
+                  store.updateLayer(layerTarget.id, {
+                    params: { ...(layer as any).params, [layerTarget.param]: mappedValue }
                   });
                 }
               }
             }
             break;
-
-          case 'global':
-            if (mapping.target.param === 'bpm') {
-              const bpm = Math.round(velocity / 127 * 200 + 60); // Map to 60-260 BPM
+          }
+          case 'global': {
+            const globalTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'global' }>;
+            if (globalTarget.param === 'bpm') {
+              const bpm = Math.round((velocity / 127) * 200 + 60);
               store.setBpm(bpm);
             }
             break;
+          }
+          case 'transport': {
+            const action = (mapping.target as any).action as 'play' | 'pause' | 'stop';
+            if (velocity === 0) return; // trigger on note-on
+            if (action === 'play') store.globalPlay();
+            else if (action === 'pause') store.globalPause();
+            else if (action === 'stop') store.globalStop();
+            break;
+          }
+          case 'column': {
+            if (velocity === 0) return; // trigger on note-on only
+            const idx = (mapping.target as any).index as number; // 1-based
+            const state = useStore.getState() as any;
+            const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+            const col = scene?.columns?.[Math.max(0, idx - 1)];
+            if (col && typeof state.playColumn === 'function') state.playColumn(col.id);
+            break;
+          }
         }
       });
   }
@@ -85,32 +105,53 @@ export class MIDIProcessor {
       )
       .forEach(mapping => {
         switch (mapping.target.type) {
-          case 'layer':
-            const layer = this.findLayer(mapping.target.id);
+          case 'layer': {
+            const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
+            const layer = this.findLayer(layerTarget.id);
             if (layer) {
-              if (mapping.target.param === 'opacity') {
-                store.updateLayer(mapping.target.id, { opacity: value / 127 });
-              } else if (mapping.target.param) {
-                const metadata = this.getEffectMetadata(layer.type) as any;
-                const paramConfig = metadata?.parameters.find((p: any) => p.name === mapping.target.param);
+              if (layerTarget.param === 'opacity') {
+                store.updateLayer(layerTarget.id, { opacity: value / 127 });
+              } else if (layerTarget.param) {
+                const metadata = this.getEffectMetadata((layer as any).type) as any;
+                const paramConfig = metadata?.parameters?.find((p: any) => p.name === layerTarget.param);
                 if (paramConfig && paramConfig.type === 'number') {
                   const range = (paramConfig.max || 1) - (paramConfig.min || 0);
                   const normalizedValue = value / 127;
                   const mappedValue = (paramConfig.min || 0) + (range * normalizedValue);
-                  store.updateLayer(mapping.target.id, {
-                    params: { ...layer.params, [mapping.target.param]: mappedValue }
+                  store.updateLayer(layerTarget.id, {
+                    params: { ...(layer as any).params, [layerTarget.param]: mappedValue }
                   });
                 }
               }
             }
             break;
-
-          case 'global':
-            if (mapping.target.param === 'bpm') {
-              const bpm = Math.round(value / 127 * 200 + 60); // Map to 60-260 BPM
+          }
+          case 'global': {
+            const globalTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'global' }>;
+            if (globalTarget.param === 'bpm') {
+              const bpm = Math.round((value / 127) * 200 + 60);
               store.setBpm(bpm);
             }
             break;
+          }
+          case 'transport': {
+            // CC can be used as momentary toggle; threshold at mid point
+            const action = (mapping.target as any).action as 'play' | 'pause' | 'stop';
+            const pressed = value > 63;
+            if (!pressed) return;
+            if (action === 'play') store.globalPlay();
+            else if (action === 'pause') store.globalPause();
+            else if (action === 'stop') store.globalStop();
+            break;
+          }
+          case 'column': {
+            const idx = (mapping.target as any).index as number; // 1-based
+            const state = useStore.getState() as any;
+            const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+            const col = scene?.columns?.[Math.max(0, idx - 1)];
+            if (col && typeof state.playColumn === 'function') state.playColumn(col.id);
+            break;
+          }
         }
       });
   }

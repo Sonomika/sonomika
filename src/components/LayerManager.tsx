@@ -272,6 +272,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     handleColumnPlay(columnId, currentScene, setPreviewContent, setIsPlaying, playColumn);
   };
 
+  // Keep preview content in sync when playback changes programmatically (e.g., via MIDI)
+  useEffect(() => {
+    try {
+      if (playingColumnId) {
+        handleColumnPlayWrapper(playingColumnId);
+      }
+    } catch {}
+  }, [playingColumnId]);
+
   // const handleLayerPlayWrapper = (layerId: string) => {
   //   handleLayerPlay(layerId, currentScene, setPreviewContent, setIsPlaying);
   // };

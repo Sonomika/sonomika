@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createWithEqualityFn } from 'zustand/traditional';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { AppState, Scene, Column, Layer, MIDIMapping, Asset, CompositionSettings, TransitionType } from './types';
@@ -107,7 +107,7 @@ const initialRecordSettings: RecordSettings = {
   untilStop: false
 };
 
-export const useStore = create<AppState & {
+export const useStore = createWithEqualityFn<AppState & {
   addScene: () => void;
   setCurrentScene: (sceneId: string) => void;
   updateScene: (sceneId: string, updates: Partial<Scene>) => void;
@@ -357,6 +357,21 @@ export const useStore = create<AppState & {
            document.dispatchEvent(new CustomEvent('videoResume', {
              detail: { type: 'videoResume', allColumns: true }
            }));
+
+           // Ensure a column is marked as playing so the app actually runs
+           try {
+             const st = get();
+             if (!st.playingColumnId) {
+               const scene = st.scenes.find(s => s.id === st.currentSceneId);
+               const firstColumn = scene?.columns?.[0];
+               if (firstColumn) {
+                 // Defer slightly to allow any listeners to attach
+                 setTimeout(() => {
+                   try { (get() as any).playColumn(firstColumn.id); } catch {}
+                 }, 0);
+               }
+             }
+           } catch {}
          } catch (error) {
            console.warn('Failed to start global playback:', error);
          }
@@ -891,5 +906,6 @@ export const useStore = create<AppState & {
           }
        },
     }
-  )
-); 
+  ),
+  Object.is
+);

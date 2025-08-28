@@ -64,14 +64,39 @@ export interface Scene {
 }
 
 export interface MIDIMapping {
+  // Incoming MIDI type and addressing
   type: 'note' | 'cc';
-  channel: number;
-  number: number;
-  target: {
-    type: 'layer' | 'scene' | 'global';
-    id: string;
-    param?: string;
-  };
+  channel: number; // 1-16
+  number: number;  // note number (0-127) or CC number (0-127)
+
+  // Target action for this mapping. We support multiple kinds of actions.
+  target:
+    | {
+        // Control a specific layer parameter
+        type: 'layer';
+        id: string; // layerId
+        param?: string; // parameter name (e.g., opacity or effect param)
+      }
+    | {
+        // Switch scenes by id
+        type: 'scene';
+        id: string; // sceneId
+      }
+    | {
+        // Global parameter control (e.g., bpm)
+        type: 'global';
+        param: 'bpm';
+      }
+    | {
+        // Transport actions (play/pause/stop)
+        type: 'transport';
+        action: 'play' | 'pause' | 'stop';
+      }
+    | {
+        // Trigger a column in the current scene by its 1-based index
+        type: 'column';
+        index: number; // 1..N in current scene
+      };
 }
 
 export interface CompositionSettings {

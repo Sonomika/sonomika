@@ -14,6 +14,8 @@ import { effectCache } from './utils/EffectCache';
 import { CanvasStreamManager } from './utils/CanvasStream';
 import { AdvancedMirrorStreamManager } from './utils/AdvancedMirrorStream';
 import './index.css';
+import { MIDIManager } from './midi/MIDIManager';
+import { MIDIProcessor } from './utils/MIDIProcessor';
 import { attachLFOEngineGlobalListeners } from './engine/LFOEngine';
 import { handleRedirectIfPresent } from './lib/dropbox';
 import { useToast } from './hooks/use-toast';
@@ -137,6 +139,16 @@ function App() {
 
     // Attach global LFO engine listeners (column/global play events)
     try { attachLFOEngineGlobalListeners(); } catch {}
+    // Wire MIDI globally so mappings work app-wide
+    try {
+      const mgr = MIDIManager.getInstance();
+      const proc = MIDIProcessor.getInstance();
+      proc.setMappings((useStore.getState() as any).midiMappings || []);
+      const onNote = (n: number, v: number, ch: number) => proc.handleNoteMessage(n, v, ch);
+      const onCC = (c: number, v: number, ch: number) => proc.handleCCMessage(c, v, ch);
+      mgr.addNoteCallback(onNote);
+      mgr.addCCCallback(onCC);
+    } catch {}
     // Detect Windows taskbar and adjust app height
     const adjustForTaskbar = () => {
       const viewportHeight = window.innerHeight;
