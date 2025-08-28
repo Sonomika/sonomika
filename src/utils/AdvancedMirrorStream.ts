@@ -24,7 +24,7 @@ export class AdvancedMirrorStreamManager {
   private animationId: number | null = null;
   private lastDataUrlById: Map<string, string> = new Map();
   private slices: MirrorSliceConfig[] = [];
-  private sliceWindows: Map<string, { win: Window, img: HTMLImageElement | null }> = new Map();
+  private sliceWindows: Map<string, { win: Window, img: HTMLImageElement | null, blobUrl?: string }> = new Map();
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -67,8 +67,6 @@ export class AdvancedMirrorStreamManager {
         this.sliceWindows.forEach(({ win }) => { try { win.close(); } catch {} });
         this.sliceWindows.clear();
         for (const s of slices) {
-          const w = window.open('', `mirror_slice_${s.id}`, 'width=640,height=360,resizable=yes');
-          if (!w) continue;
           const html = `<!DOCTYPE html><html><head><title>Slice ${s.id}</title><meta name="viewport" content="width=device-width, initial-scale=1"/><style>
             html,body{margin:0;height:100%;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
             body{touch-action:pan-y;-webkit-user-select:none;user-select:none}
@@ -92,9 +90,15 @@ export class AdvancedMirrorStreamManager {
               })();
             </script>
           </body></html>`;
-          try { w.document.write(html); w.document.close(); } catch {}
+          
+          // Create blob URL instead of data URL to avoid browser security restrictions
+          const blob = new Blob([html], { type: 'text/html' });
+          const blobUrl = URL.createObjectURL(blob);
+          const w = window.open(blobUrl, `mirror_slice_${s.id}`, 'width=640,height=360,resizable=yes');
+          if (!w) continue;
+          
           const img = w.document.getElementById('img') as HTMLImageElement | null;
-          this.sliceWindows.set(s.id, { win: w, img });
+          this.sliceWindows.set(s.id, { win: w, img, blobUrl });
         }
       } catch {}
     }
@@ -111,8 +115,11 @@ export class AdvancedMirrorStreamManager {
     this.slices = [];
     try { window.advancedMirror?.closeAll(); } catch {}
     try { (window as any).electron?.advancedMirrorCloseAll?.(); } catch {}
-    // Close browser fallback windows
-    this.sliceWindows.forEach(({ win }) => { try { win.close(); } catch {} });
+    // Close browser fallback windows and clean up blob URLs
+    this.sliceWindows.forEach(({ win, blobUrl }) => { 
+      try { win.close(); } catch {} 
+      if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch {} }
+    });
     this.sliceWindows.clear();
   }
 

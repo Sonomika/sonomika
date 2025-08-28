@@ -7,6 +7,7 @@ export class CanvasStreamManager {
   private browserWindow: Window | null = null;
   private mirrorCanvas: HTMLCanvasElement | null = null;
   private mirrorCtx: CanvasRenderingContext2D | null = null;
+  private blobUrl: string | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -84,28 +85,32 @@ export class CanvasStreamManager {
     winH = Math.max(270, winH);
     
     const features = `width=${winW},height=${winH},resizable=yes,scrollbars=no,status=no,location=no`;
-    const streamWindow = window.open('', 'mirror_window', features);
-
-    if (!streamWindow) {
-      throw new Error('Failed to open mirror window');
-    }
-
+    
     // Create HTML content for the mirror window
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>sonomika</title>
+        <title>sonomika - Mirror</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body {
+          * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+          }
+          html, body {
+            width: 100%;
+            height: 100%;
             background: #000;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          }
+          body {
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
           }
           canvas {
             width: 100%;
@@ -115,19 +120,48 @@ export class CanvasStreamManager {
           }
           /* Hide any UI in mirror window */
           .mirror-info { display: none; }
+          .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 16px;
+            opacity: 0.7;
+          }
         </style>
       </head>
       <body>
+        <div class="loading">Loading mirror...</div>
         <canvas id="mirror-canvas"></canvas>
+        <script>
+          // Ensure the page is properly loaded
+          document.addEventListener('DOMContentLoaded', function() {
+            console.log('Mirror window loaded successfully');
+            document.title = 'sonomika - Mirror';
+            
+            // Hide loading message once canvas is ready
+            const canvas = document.getElementById('mirror-canvas');
+            if (canvas) {
+              const loading = document.querySelector('.loading');
+              if (loading) loading.style.display = 'none';
+            }
+          });
+        </script>
       </body>
       </html>
     `;
 
-    // Write content to the new window (stays same-origin for scripting)
-    streamWindow.document.write(htmlContent);
-    streamWindow.document.close();
+    // Create blob URL instead of data URL to avoid browser security restrictions
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    this.blobUrl = URL.createObjectURL(blob);
+    const streamWindow = window.open(this.blobUrl, 'mirror_window', features);
 
-    // Wait for the window to load
+    if (!streamWindow) {
+      throw new Error('Failed to open mirror window');
+    }
+
+    // Wait for the window to load and DOM to be ready
     await new Promise(resolve => {
       if (streamWindow.document.readyState === 'complete') {
         resolve(true);
@@ -136,20 +170,17 @@ export class CanvasStreamManager {
       }
     });
 
-    // Replace about:blank with a friendlier same-origin path without reloading
-    try {
-      streamWindow.document.title = 'sonomika';
-      const desiredPath = '/mirror';
-      const currentUrl = new URL(streamWindow.location.href);
-      if (currentUrl.pathname !== desiredPath) {
-        streamWindow.history.replaceState({}, 'sonomika', desiredPath);
-      }
-    } catch {}
+    // Wait a bit more for DOM elements to be fully available
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Cache refs for drawing in web environment
     this.browserWindow = streamWindow;
     this.mirrorCanvas = streamWindow.document.getElementById('mirror-canvas') as HTMLCanvasElement | null;
     this.mirrorCtx = this.mirrorCanvas ? this.mirrorCanvas.getContext('2d') : null;
+
+    // Log for debugging
+    console.log('Mirror window canvas found:', !!this.mirrorCanvas);
+    console.log('Mirror window context found:', !!this.mirrorCtx);
 
     // Sync backing store size with viewport for crisp rendering
     const resizeMirrorCanvas = () => {
@@ -160,6 +191,7 @@ export class CanvasStreamManager {
       if (this.mirrorCanvas.width !== width || this.mirrorCanvas.height !== height) {
         this.mirrorCanvas.width = width;
         this.mirrorCanvas.height = height;
+        console.log('Mirror canvas resized to:', width, 'x', height);
       }
     };
 
@@ -223,15 +255,32 @@ export class CanvasStreamManager {
           const needsReplacement = !this.canvas || !this.canvas.isConnected || this.canvas.width === 0 || this.canvas.height === 0;
           if (needsReplacement) {
             const canvases = Array.from(document.querySelectorAll('canvas')) as HTMLCanvasElement[];
+            console.log('Available canvases:', canvases.map(c => ({ id: c.id, width: c.width, height: c.height, connected: c.isConnected })));
             const replacement = canvases.find(c => c.id !== 'dummy-mirror-canvas' && c.width > 0 && c.height > 0);
             if (replacement) {
+              console.log('Replacing canvas with:', replacement.id, replacement.width, 'x', replacement.height);
               this.canvas = replacement;
+            } else {
+              console.log('No replacement canvas found, using current canvas:', this.canvas?.id, this.canvas?.width, 'x', this.canvas?.height);
             }
           }
-        } catch {}
+        } catch (e) {
+          console.warn('Canvas replacement error:', e);
+        }
 
         // Check if canvas has content
         if (this.canvas && this.canvas.width > 0 && this.canvas.height > 0) {
+          // Debug: log canvas state occasionally
+          if (Math.random() < 0.01) {
+            console.log('Canvas streaming state:', {
+              canvasId: this.canvas.id,
+              canvasSize: `${this.canvas.width}x${this.canvas.height}`,
+              hasElectron: !!(window.electron && window.electron.sendCanvasData),
+              hasBrowserWindow: !!(this.browserWindow && !this.browserWindow.closed),
+              hasMirrorCtx: !!this.mirrorCtx,
+              hasMirrorCanvas: !!this.mirrorCanvas
+            });
+          }
           try {
             if (window.electron && window.electron.sendCanvasData) {
               // Electron path: composite to (at least) a supersampled size and send as JPEG data URL
@@ -296,6 +345,11 @@ export class CanvasStreamManager {
               try { (this.mirrorCtx as any).imageSmoothingQuality = 'high'; } catch {}
               this.mirrorCtx.drawImage(this.canvas, dx, dy, drawW, drawH);
               this.mirrorCtx.restore();
+              
+              // Debug logging (only log occasionally to avoid spam)
+              if (Math.random() < 0.01) { // Log ~1% of frames
+                console.log('Canvas streaming to mirror:', { srcW, srcH, destW, destH, drawW, drawH, dx, dy });
+              }
             } else {
               // Browser mirror closed: stop streaming
               if (this.browserWindow && this.browserWindow.closed) {
@@ -339,6 +393,13 @@ export class CanvasStreamManager {
     if (this.browserWindow && !this.browserWindow.closed) {
       try { this.browserWindow.close(); } catch {}
     }
+    
+    // Clean up blob URL
+    if (this.blobUrl) {
+      try { URL.revokeObjectURL(this.blobUrl); } catch {}
+      this.blobUrl = null;
+    }
+    
     this.browserWindow = null;
     this.mirrorCanvas = null;
     this.mirrorCtx = null;
