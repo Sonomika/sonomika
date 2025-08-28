@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Select, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui';
+import { Button, Input, Label, Select, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui';
 import { MIDIManager } from '../midi/MIDIManager';
 import { MIDIProcessor } from '../utils/MIDIProcessor';
 import { MIDIMapping } from '../store/types';
@@ -21,7 +21,7 @@ export const MIDIMapper: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [monitorEnabled, setMonitorEnabled] = useState(true);
   const [lastEventAt, setLastEventAt] = useState<number | null>(null);
-  const [recentEvents, setRecentEvents] = useState<Array<{ type: 'note' | 'cc'; channel: number; number: number; value: number; ts: number }>>([]);
+  const [lastEvent, setLastEvent] = useState<{ type: 'note' | 'cc'; channel: number; number: number; value: number; ts: number } | null>(null);
 
   const [devices] = useState<MIDIDevice[]>([
     { id: 'loopmidi', name: 'Loopmidi', type: 'input' },
@@ -40,34 +40,7 @@ export const MIDIMapper: React.FC = () => {
     { value: 'scene', label: 'Switch Scene' },
   ];
 
-  // Ableton-style presets for mapping columns -> notes
-  // Ableton labels middle C as C3 (60), so C1 = 36, C2 = 48
-  const abletonNotePresets = [
-    { value: 'ableton-c1', label: 'Ableton: C1..B1 (36-47)', base: 36 },
-    { value: 'ableton-c2', label: 'Ableton: C2..B2 (48-59)', base: 48 },
-    { value: 'standard-c4', label: 'Standard: C4..B4 (60-71)', base: 60 },
-  ];
-  const [notePreset, setNotePreset] = useState<string>('ableton-c1');
-
-  const populateFromPreset = () => {
-    try {
-      const selected = abletonNotePresets.find(p => p.value === notePreset) || abletonNotePresets[0];
-      const base = selected.base;
-      const state = useStore.getState() as any;
-      const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
-      const columns = scene?.columns || [];
-      const count = Math.max(1, columns.length || 12);
-      const maxCount = Math.min(count, 128 - base);
-      const generated: MIDIMapping[] = Array.from({ length: maxCount }, (_, i) => ({
-        type: 'note',
-        channel: 1,
-        number: base + i,
-        target: { type: 'column', index: i + 1 } as any,
-      }));
-      updateMappings(generated);
-      setSelectedIndex(0);
-    } catch {}
-  };
+  // Removed Ableton-style presets; mappings can still be added/edited manually
 
   const inputOptions = [
     'Any device',
@@ -120,18 +93,12 @@ export const MIDIMapper: React.FC = () => {
       const onNote = (n: number, v: number, ch: number) => {
         const ts = Date.now();
         setLastEventAt(ts);
-        setRecentEvents(prev => {
-          const next = [{ type: 'note', channel: ch, number: n, value: v, ts }, ...prev];
-          return next.slice(0, 20);
-        });
+        setLastEvent({ type: 'note', channel: ch, number: n, value: v, ts });
       };
       const onCC = (c: number, v: number, ch: number) => {
         const ts = Date.now();
         setLastEventAt(ts);
-        setRecentEvents(prev => {
-          const next = [{ type: 'cc', channel: ch, number: c, value: v, ts }, ...prev];
-          return next.slice(0, 20);
-        });
+        setLastEvent({ type: 'cc', channel: ch, number: c, value: v, ts });
       };
       mgr.addNoteCallback(onNote);
       mgr.addCCCallback(onCC);
@@ -179,17 +146,9 @@ export const MIDIMapper: React.FC = () => {
       <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
         <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
           <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
-            <div className="tw-min-w-[160px]">
+          <div className="tw-min-w-[160px]">
               <Select value={selectedDevice} onChange={(v) => setSelectedDevice(v as string)} options={devices.map(d => ({ value: d.name }))} />
             </div>
-            <div className="tw-min-w-[220px]">
-              <Select
-                value={notePreset}
-                onChange={(v) => setNotePreset(String(v))}
-                options={abletonNotePresets.map(p => ({ value: p.value, label: p.label }))}
-              />
-            </div>
-            <Button variant="secondary" onClick={populateFromPreset}>Populate Columns</Button>
           </div>
           <div className="tw-flex tw-gap-2 tw-flex-wrap">
             <Button onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>
@@ -227,7 +186,7 @@ export const MIDIMapper: React.FC = () => {
             }}>Load Preset</Button>
           </div>
         </div>
-
+        
         <div className="tw-mt-2 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-auto tw-max-h-64 tw-min-h-0 tw-bg-neutral-900">
           {(ensureOneDefault || []).map((mapping, idx) => (
             <div key={idx}
@@ -250,7 +209,7 @@ export const MIDIMapper: React.FC = () => {
           <div className="tw-space-y-2">
             <Label className="tw-text-xs">Channel</Label>
             <Select value={String(selectedMapping?.channel || 1)} onChange={(v) => updateSelected(m => ({ ...m, channel: Number(v) }))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
-          </div>
+        </div>
           <div className="tw-space-y-2">
             <Label className="tw-text-xs">Note/CC Number</Label>
             <Input value={selectedMapping?.number ?? 60} onChange={(e) => updateSelected(m => ({ ...m, number: Math.max(0, Math.min(127, Number(e.target.value) || 0)) }))} />
@@ -263,62 +222,44 @@ export const MIDIMapper: React.FC = () => {
               else if (val === 'column') updateSelected(m => ({ ...m, target: { type: 'column', index: 1 } as any }));
               else if (val === 'scene') updateSelected(m => ({ ...m, target: { type: 'scene', id: (useStore.getState() as any).currentSceneId } as any }));
             }} options={actionTypeOptions} />
-          </div>
+        </div>
 
           {selectedMapping?.target?.type === 'transport' && (
             <div className="tw-space-y-2">
               <Label className="tw-text-xs">Transport Action</Label>
               <Select value={(selectedMapping.target as any).action} onChange={(v) => updateSelected(m => ({ ...m, target: { type: 'transport', action: v as any } as any }))} options={[{ value: 'play' }, { value: 'pause' }, { value: 'stop' }]} />
-            </div>
+          </div>
           )}
           {selectedMapping?.target?.type === 'column' && (
             <div className="tw-space-y-2">
               <Label className="tw-text-xs">Column Index</Label>
               <Input value={(selectedMapping.target as any).index} onChange={(e) => updateSelected(m => ({ ...m, target: { type: 'column', index: Math.max(1, Number(e.target.value) || 1) } as any }))} />
-              <div className="tw-space-y-1">
-                <Label className="tw-text-xs">Note Preset (Ableton)</Label>
-                <Select
-                  value={notePreset}
-                  onChange={(v) => {
-                    const selected = abletonNotePresets.find(p => p.value === v);
-                    setNotePreset(String(v));
-                    if (!selected) return;
-                    const colIndex = (selectedMapping.target as any).index || 1; // 1-based
-                    const noteNumber = Math.min(127, selected.base + (colIndex - 1));
-                    updateSelected(m => ({ ...m, type: 'note', number: noteNumber }));
-                  }}
-                  options={abletonNotePresets.map(p => ({ value: p.value, label: p.label }))}
-                />
-              </div>
-            </div>
-          )}
         </div>
-      </div>
+          )}
+          </div>
+        </div>
 
       <div className="tw-bg-neutral-900 tw-flex-1 tw-overflow-auto tw-text-xs tw-text-neutral-300 tw-p-2">
         <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
-          <div className="tw-flex tw-items-center tw-gap-2">
+        <div className="tw-flex tw-items-center tw-gap-2">
             <span className="tw-text-neutral-300">MIDI Monitor</span>
             <span className={`tw-inline-block tw-w-2 tw-h-2 tw-rounded-full ${lastEventAt && Date.now() - lastEventAt < 500 ? 'tw-bg-emerald-400' : 'tw-bg-neutral-700'}`}></span>
           </div>
           <div className="tw-flex tw-gap-2">
             <Button variant="secondary" onClick={() => setMonitorEnabled(!monitorEnabled)}>{monitorEnabled ? 'Pause' : 'Resume'}</Button>
-            <Button variant="secondary" onClick={() => setRecentEvents([])}>Clear</Button>
           </div>
         </div>
-        <div className="tw-space-y-1">
-          {recentEvents.length === 0 ? (
+        <div>
+          {!lastEvent ? (
             <div className="tw-text-neutral-500">No MIDI events yet. Play a note or move a control.</div>
           ) : (
-            recentEvents.map((e, i) => (
-              <div key={i} className="tw-flex tw-justify-between tw-border tw-border-neutral-800 tw-rounded tw-px-2 tw-py-1">
-                <span className="tw-text-neutral-200">{e.type.toUpperCase()} {e.number}</span>
-                <span className="tw-text-neutral-400">ch {e.channel} • val {e.value} • {new Date(e.ts).toLocaleTimeString()}</span>
-              </div>
-            ))
-          )}
-        </div>
+            <div className="tw-flex tw-justify-between tw-border tw-border-neutral-800 tw-rounded tw-px-2 tw-py-1">
+              <span className="tw-text-neutral-200">{lastEvent.type.toUpperCase()} {lastEvent.number}</span>
+              <span className="tw-text-neutral-400">ch {lastEvent.channel} • val {lastEvent.value} • {new Date(lastEvent.ts).toLocaleTimeString()}</span>
       </div>
+          )}
+          </div>
+        </div>
 
       {/* Hidden file input for web load */}
       <input
@@ -348,7 +289,7 @@ export const MIDIMapper: React.FC = () => {
           <div className="tw-space-y-2">
             <Label className="tw-text-xs">Name</Label>
             <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} />
-          </div>
+        </div>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setSaveOpen(false)}>Cancel</Button>
             <Button onClick={() => {
