@@ -26,3 +26,5 @@
 
 ## Security Rules
 - ALWAYS keep keys secure - never hardcode API keys, secrets, or sensitive credentials in code
+
+example.txt is just for reference not part of our app
