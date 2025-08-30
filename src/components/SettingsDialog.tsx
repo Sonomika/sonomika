@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/Dialog';
 import { Switch } from './ui/switch';
 import { useStore } from '../store/store';
-import { Button, Slider } from './ui';
+import { Button, Slider, Select } from './ui';
 import { getSupabase } from '../lib/supabaseClient';
 
 interface SettingsDialogProps {
@@ -11,7 +11,7 @@ interface SettingsDialogProps {
 }
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
-  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale } = useStore() as any;
+  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality } = useStore() as any;
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -97,6 +97,24 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                 value={Number(defaultVideoRenderScale ?? 1).toFixed(2)}
                 onChange={(e) => setDefaultVideoRenderScale(parseFloat(e.target.value))}
                 className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
+              />
+            </div>
+          </div>
+
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">Mirror Quality</div>
+              <div className="tw-text-xs tw-text-neutral-400">Affects mirror FPS, resolution, and JPEG compression</div>
+            </div>
+            <div className="tw-w-56">
+              <Select
+                value={String(mirrorQuality || 'medium')}
+                onChange={(val: string) => setMirrorQuality((val as any) as ('low'|'medium'|'high'))}
+                options={[
+                  { value: 'low', label: 'Low' },
+                  { value: 'medium', label: 'Medium' },
+                  { value: 'high', label: 'High' }
+                ]}
               />
             </div>
           </div>

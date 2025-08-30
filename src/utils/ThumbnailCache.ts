@@ -288,45 +288,67 @@ async function generateVideoThumbnailInternal(
       video.addEventListener('error', onError, { once: true });
     });
 
-    const canvas = document.createElement('canvas');
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('Failed to get canvas context');
+    // Offload scaling/encoding to worker when possible
+    const useWorker = typeof OffscreenCanvas !== 'undefined' && typeof (window as any).createImageBitmap === 'function';
+    let dataUrl: string | null = null;
+    if (useWorker) {
+      try {
+        const bitmap: ImageBitmap = await (window as any).createImageBitmap(video);
+        const worker = new Worker(new URL('../workers/thumbnailGenerator.worker.ts', import.meta.url), { type: 'module' });
+        let regId: string | null = null;
+        try { const { workerRegistry } = await import('./WorkerRegistry'); regId = workerRegistry.register({ id: '', kind: 'thumbnail', label: 'thumbnail gen' }); } catch {}
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const handleMessage = (ev: MessageEvent) => {
+            const msg = ev.data || {};
+            if (msg.type === 'result' && msg.id === id) {
+              cleanup();
+              resolve(msg.dataUrl as string);
+            } else if (msg.type === 'error' && msg.id === id) {
+              cleanup();
+              reject(new Error(String(msg.error)));
+            }
+          };
+          const cleanup = () => {
+            try { worker.removeEventListener('message', handleMessage as any); } catch {}
+            try { worker.terminate(); } catch {}
+            try { (async () => { try { const { workerRegistry } = await import('./WorkerRegistry'); if (regId) workerRegistry.unregister(regId); } catch {} })(); } catch {}
+          };
+          worker.addEventListener('message', handleMessage as any);
+          worker.postMessage({
+            type: 'generate',
+            id,
+            bitmap,
+            target: { width: targetWidth, height: targetHeight },
+            background: '#000',
+            quality: 0.7
+          }, [bitmap as any]);
+        });
+      } catch (e) {
+        console.warn('📸 Worker thumbnail generation failed, falling back:', e);
+      }
     }
 
-    // Compute fitted rect preserving aspect ratio
-    const videoW = video.videoWidth || targetWidth;
-    const videoH = video.videoHeight || targetHeight;
-            // console.log('📸 Video dimensions:', videoW, 'x', videoH, 'for:', src);
-    
-    const scale = Math.min(targetWidth / videoW, targetHeight / videoH);
-    const drawW = Math.floor(videoW * scale);
-    const drawH = Math.floor(videoH * scale);
-    const offsetX = Math.floor((targetWidth - drawW) / 2);
-    const offsetY = Math.floor((targetHeight - drawH) / 2);
-
-            // console.log('📸 Drawing video to canvas:', {
-            //   targetSize: `${targetWidth}x${targetHeight}`,
-            //   drawSize: `${drawW}x${drawH}`,
-            //   offset: `${offsetX},${offsetY}`,
-            //   scale
-            // });
-
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, targetWidth, targetHeight);
-    
-    try {
-      // Use contain (letterbox/pillarbox) to avoid cropping
+    if (!dataUrl) {
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Failed to get canvas context');
+      }
+      const videoW = video.videoWidth || targetWidth;
+      const videoH = video.videoHeight || targetHeight;
+      const scale = Math.min(targetWidth / videoW, targetHeight / videoH);
+      const drawW = Math.floor(videoW * scale);
+      const drawH = Math.floor(videoH * scale);
+      const offsetX = Math.floor((targetWidth - drawW) / 2);
+      const offsetY = Math.floor((targetHeight - drawH) / 2);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
       ctx.drawImage(video, 0, 0, videoW, videoH, offsetX, offsetY, drawW, drawH);
-      // console.log('📸 Video drawn to canvas successfully:', src);
-    } catch (drawError) {
-      console.error('📸 Failed to draw video to canvas:', src, drawError);
-      throw new Error(`Failed to draw video to canvas: ${drawError}`);
+      dataUrl = canvas.toDataURL('image/jpeg', 0.7);
     }
-
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
     // console.log('📸 Generated data URL for thumbnail:', src, 'length:', dataUrl.length);
     
     // Validate the data URL

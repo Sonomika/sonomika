@@ -88,6 +88,7 @@ const initialState: AppState = {
   timelineDuration: 60, // 1 minute default
   timelineZoom: 2, // Default zoom level
   defaultVideoRenderScale: 0.5,
+  mirrorQuality: 'medium',
 };
 
 initialState.currentSceneId = initialState.scenes[0].id;
@@ -160,6 +161,7 @@ export const useStore = createWithEqualityFn<AppState & {
   recordSettings: RecordSettings;
   setRecordSettings: (rs: Partial<RecordSettings>) => void;
   setDefaultVideoRenderScale: (scale: number) => void;
+  setMirrorQuality: (q: 'low' | 'medium' | 'high') => void;
 }>()(
   persist(
     (set, get) => ({
@@ -169,6 +171,7 @@ export const useStore = createWithEqualityFn<AppState & {
       recordSettings: initialRecordSettings,
       setRecordSettings: (rs) => set({ recordSettings: { ...get().recordSettings, ...rs } }),
       setDefaultVideoRenderScale: (scale: number) => set({ defaultVideoRenderScale: Math.max(0.1, Math.min(1, Number(scale) || 1)) }),
+      setMirrorQuality: (q) => set({ mirrorQuality: (q === 'low' || q === 'medium' || q === 'high') ? q : 'medium' }),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();
@@ -859,6 +862,7 @@ export const useStore = createWithEqualityFn<AppState & {
            timelineDuration: state.timelineDuration,
            timelineZoom: state.timelineZoom,
            recordSettings: state.recordSettings,
+           mirrorQuality: (state as any).mirrorQuality,
          };
        },
              onRehydrateStorage: () => (state) => {

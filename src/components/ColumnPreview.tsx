@@ -38,6 +38,7 @@ const VideoTexture: React.FC<{
   const fallbackReadyRef = useRef(false);
   const lastTimeRef = useRef(0);
   const loopGuardUntilRef = useRef(0);
+  const frameReadyRef = useRef<boolean>(false);
   
   // Use composition settings for aspect ratio instead of video's natural ratio
   const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
@@ -69,6 +70,24 @@ const VideoTexture: React.FC<{
       } catch {}
       setTexture(videoTexture);
     }
+  }, [video]);
+
+  // RVFC-driven invalidation for live texture
+  useEffect(() => {
+    const anyVideo: any = video as any;
+    if (!video || typeof anyVideo.requestVideoFrameCallback !== 'function') return;
+    let handle: any;
+    let stopped = false;
+    const tick = () => {
+      if (stopped) return;
+      frameReadyRef.current = true;
+      try { handle = anyVideo.requestVideoFrameCallback(tick); } catch {}
+    };
+    try { handle = anyVideo.requestVideoFrameCallback(tick); } catch {}
+    return () => {
+      stopped = true;
+      try { anyVideo.cancelVideoFrameCallback?.(handle); } catch {}
+    };
   }, [video]);
 
   // Initialize and keep an updated canvas-based fallback texture with the last good frame
@@ -250,7 +269,10 @@ const VideoTexture: React.FC<{
     }
 
     if (texture && ready) {
-      texture.needsUpdate = true;
+      if (frameReadyRef.current) {
+        texture.needsUpdate = true;
+        frameReadyRef.current = false;
+      }
       // If rVFC isn't available, do occasional updates inline
       if (!(video as any).requestVideoFrameCallback && canvas && fallbackTexture) {
         try {

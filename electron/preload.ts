@@ -47,6 +47,12 @@ try {
   // Expose protected methods that allow the renderer process to use
   // the ipcRenderer without exposing the entire object
   contextBridge.exposeInMainWorld('electron', {
+    onDebugToggleOverlay: (cb: () => void) => {
+      ipcRenderer.on('debug:toggleOverlay', () => { try { cb(); } catch {} });
+    },
+    onDebugOpenPanel: (cb: () => void) => {
+      ipcRenderer.on('debug:openPanel', () => { try { cb(); } catch {} });
+    },
     minimize: () => {
       // console.log('Preload: minimize called');
       ipcRenderer.send('window-minimize');

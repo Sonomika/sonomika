@@ -97,6 +97,10 @@ async function preloadVideoAsset(asset: any, layer?: any): Promise<HTMLVideoElem
         video.autoplay = true;
         video.playsInline = true;
         video.crossOrigin = 'anonymous';
+        // Prefer hw-decoding-friendly hints
+        try { (video as any).disablePictureInPicture = true; } catch {}
+        try { (video as any).disableRemotePlayback = true; } catch {}
+        try { video.setAttribute('controls', ''); video.removeAttribute('controls'); } catch {}
         if (layer?.id) {
           try { (video as any)['__layerKey'] = layer.id; } catch {}
           video.setAttribute('data-layer-id', layer.id);

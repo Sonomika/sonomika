@@ -570,6 +570,21 @@ function createCustomMenu() {
         },
         { type: 'separator' },
         {
+          label: 'Toggle Debug Overlay',
+          accelerator: 'CmdOrCtrl+Shift+D',
+          click: () => {
+            try { mainWindow?.webContents.send('debug:toggleOverlay'); } catch {}
+          }
+        },
+        {
+          label: 'Show Debug Panel',
+          accelerator: 'CmdOrCtrl+Alt+D',
+          click: () => {
+            try { mainWindow?.webContents.send('debug:openPanel'); } catch {}
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'Reload',
           accelerator: 'CmdOrCtrl+R',
           click: () => {

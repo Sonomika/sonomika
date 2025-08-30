@@ -3,6 +3,11 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useEffectComponent } from '../utils/EffectLoader';
 import { useStore } from '../store/store';
+import { WorkerFrameRenderer } from '../utils/WorkerFrameRenderer';
+import { FRAME_BUFFER_CONFIG, VIDEO_PIPELINE_CONFIG } from '../constants/video';
+import { WorkerVideoPipeline } from '../utils/WorkerVideoPipeline';
+import { WorkerCanvasDrawer } from '../utils/WorkerCanvasDrawer';
+import { demuxWithMediaSource } from '../utils/Demuxers';
 
 interface CanvasRendererProps {
   assets: Array<{
@@ -16,6 +21,168 @@ interface CanvasRendererProps {
   isPlaying?: boolean;
 }
 
+// Worker-backed CanvasTexture for video when supported
+const WorkerVideoTexture: React.FC<{ 
+  video: HTMLVideoElement; 
+  opacity: number; 
+  blendMode: string;
+}> = ({ video, opacity, blendMode }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const [texture, setTexture] = useState<THREE.CanvasTexture | THREE.Texture | null>(null);
+  const rendererRef = useRef<WorkerFrameRenderer | null>(null);
+  const pipelineRef = useRef<WorkerVideoPipeline | null>(null);
+  const drawerRef = useRef<WorkerCanvasDrawer | null>(null);
+  const captureVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [fallback, setFallback] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!video) return;
+    const w = Math.max(1, video.videoWidth || 640);
+    const h = Math.max(1, video.videoHeight || 360);
+
+    // Prefer decode worker pipeline delivering ImageBitmap frames
+    const ensureCaptureVideo = async (): Promise<HTMLVideoElement> => {
+      let cap = captureVideoRef.current;
+      if (!cap) {
+        cap = document.createElement('video');
+        cap.src = video.currentSrc || video.src;
+        cap.muted = true;
+        cap.playsInline = true;
+        cap.preload = 'auto';
+        captureVideoRef.current = cap;
+      }
+      if (cap.readyState < 1) {
+        await new Promise<void>((resolve) => {
+          const onMeta = () => { resolve(); };
+          cap!.addEventListener('loadedmetadata', onMeta, { once: true });
+          try { cap!.load(); } catch {}
+        });
+      }
+      return cap;
+    };
+
+    const pipeline = new WorkerVideoPipeline({
+      src: video.currentSrc || video.src,
+      width: w,
+      height: h,
+      nbFramesToCheck: VIDEO_PIPELINE_CONFIG.NB_FRAMES_TO_CHECK,
+      requestMarginMs: VIDEO_PIPELINE_CONFIG.REQUEST_MARGIN_MS,
+      maxQueueSize: VIDEO_PIPELINE_CONFIG.MAX_QUEUE_SIZE,
+      clock: () => (video.currentTime || 0),
+      onQueueStats: ({ size }) => { try {
+        // Passively bubble queue size to overlay by updating registry meta
+        // The registry entry is already updated inside the pipeline, overlay reads from there.
+      } catch {} },
+      onFrame: (bitmap) => {
+        // Prefer worker canvas drawing for zero main-thread painting
+        let drawer = drawerRef.current;
+        if (!drawer) {
+          drawer = new WorkerCanvasDrawer({ width: w, height: h, onFrame: () => { try { const t: any = texture as any; if (t) t.needsUpdate = true; } catch {} } });
+          drawer.start();
+          drawerRef.current = drawer;
+          const canvas = drawer.canvas!;
+          const canvasTex = new THREE.CanvasTexture(canvas);
+          canvasTex.minFilter = THREE.LinearFilter;
+          canvasTex.magFilter = THREE.LinearFilter;
+          canvasTex.format = THREE.RGBAFormat;
+          canvasTex.generateMipmaps = false;
+          try {
+            (canvasTex as any).colorSpace = (THREE as any).SRGBColorSpace || (canvasTex as any).colorSpace;
+            if (!(canvasTex as any).colorSpace && (THREE as any).sRGBEncoding) {
+              (canvasTex as any).encoding = (THREE as any).sRGBEncoding;
+            }
+          } catch {}
+          setTexture(canvasTex);
+        }
+        try { drawer.draw(bitmap); } finally { try { bitmap.close?.(); } catch {} }
+      },
+      // Fallback capture path: createImageBitmap at a target time
+      fallbackCapture: async (timeSec: number) => {
+        try {
+          const cap = await ensureCaptureVideo();
+          await new Promise<void>((resolve, reject) => {
+            const onSeeked = () => resolve();
+            const onErr = () => reject(new Error('seek error'));
+            cap.addEventListener('seeked', onSeeked, { once: true });
+            cap.addEventListener('error', onErr, { once: true });
+            try { cap.currentTime = timeSec; } catch { resolve(); }
+          });
+          const bmp: ImageBitmap = await (window as any).createImageBitmap(cap);
+          return bmp;
+        } catch { return null; }
+      },
+      chunkFeeder: async (push) => {
+        try { await demuxWithMediaSource(video.currentSrc || video.src, push); } catch {}
+      }
+    });
+    pipeline.start();
+    pipelineRef.current = pipeline;
+
+    // If Offscreen worker-draw path is supported and preferred, we can still run it as fallback
+    let renderer: WorkerFrameRenderer | null = null;
+    if (WorkerFrameRenderer.isSupported()) {
+      try {
+        renderer = new WorkerFrameRenderer(video, {
+          width: w,
+          height: h,
+          maxInFlightFrames: FRAME_BUFFER_CONFIG.MAX_IN_FLIGHT_FRAMES,
+          onFrame: () => { try { if (texture) (texture as any).needsUpdate = true; } catch {} }
+        });
+        // Do not start by default; reserve as fallback if pipeline fails
+      } catch {}
+    }
+    rendererRef.current = renderer;
+
+    // Event-driven flushing on seek/rate changes
+    const onSeeking = () => { try { pipeline.flush(); } catch {} };
+    const onRate = () => { try { pipeline.flush(); } catch {} };
+    try { video.addEventListener('seeking', onSeeking); } catch {}
+    try { video.addEventListener('ratechange', onRate); } catch {}
+
+    return () => {
+      try { pipeline.stop(); } catch {}
+      pipelineRef.current = null;
+      try { (texture as any)?.dispose?.(); } catch {}
+      setTexture(null);
+      try { drawerRef.current?.stop?.(); } catch {}
+      drawerRef.current = null;
+      try { renderer?.stop?.(); } catch {}
+      rendererRef.current = null;
+      try { video.removeEventListener('seeking', onSeeking); } catch {}
+      try { video.removeEventListener('ratechange', onRate); } catch {}
+      captureVideoRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video]);
+
+  if (fallback) {
+    return (
+      <VideoTexture video={video} opacity={opacity} blendMode={blendMode} />
+    );
+  }
+
+  if (!texture) {
+    return (
+      <mesh>
+        <planeGeometry args={[2, 2]} />
+        <meshBasicMaterial color={0x000000} transparent opacity={0} />
+      </mesh>
+    );
+  }
+
+  return (
+    <mesh ref={meshRef}>
+      <planeGeometry args={[2, 2]} />
+      <meshBasicMaterial 
+        map={texture} 
+        transparent 
+        opacity={opacity}
+        blending={getBlendMode(blendMode)}
+      />
+    </mesh>
+  );
+};
+
 // Video texture component for R3F
 const VideoTexture: React.FC<{ 
   video: HTMLVideoElement; 
@@ -24,6 +191,7 @@ const VideoTexture: React.FC<{
 }> = ({ video, opacity, blendMode }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+  const frameReadyRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (video) {
@@ -31,9 +199,43 @@ const VideoTexture: React.FC<{
       videoTexture.minFilter = THREE.LinearFilter;
       videoTexture.magFilter = THREE.LinearFilter;
       videoTexture.format = THREE.RGBAFormat;
+      videoTexture.generateMipmaps = false;
+      // Ensure correct color space to avoid washed-out appearance
+      try {
+        (videoTexture as any).colorSpace = (THREE as any).SRGBColorSpace || (videoTexture as any).colorSpace;
+        if (!(videoTexture as any).colorSpace && (THREE as any).sRGBEncoding) {
+          (videoTexture as any).encoding = (THREE as any).sRGBEncoding;
+        }
+      } catch {}
       setTexture(videoTexture);
     }
   }, [video]);
+
+  // Prefer requestVideoFrameCallback to invalidate texture only when a decoded frame is ready
+  useEffect(() => {
+    const anyVideo: any = video as any;
+    if (!video || typeof anyVideo.requestVideoFrameCallback !== 'function') return;
+    let handle: any;
+    let stopped = false;
+    const tick = () => {
+      if (stopped) return;
+      frameReadyRef.current = true;
+      try { handle = anyVideo.requestVideoFrameCallback(tick); } catch {}
+    };
+    try { handle = anyVideo.requestVideoFrameCallback(tick); } catch {}
+    return () => {
+      stopped = true;
+      try { anyVideo.cancelVideoFrameCallback?.(handle); } catch {}
+    };
+  }, [video]);
+
+  // Fallback: mark texture as updated on the next frame when RVFC signaled
+  useFrame(() => {
+    if (texture && frameReadyRef.current) {
+      texture.needsUpdate = true;
+      frameReadyRef.current = false;
+    }
+  });
 
   if (!texture) {
     // Render a transparent placeholder instead of null to prevent black flash
@@ -335,12 +537,21 @@ const CanvasScene: React.FC<{
           const video = loadedAssets.videos.get(asset.id);
           if (video) {
             return (
-              <VideoTexture
-                key={key}
-                video={video}
-                opacity={layer.opacity || 1}
-                blendMode={layer.blendMode || 'add'}
-              />
+              (WorkerFrameRenderer.isSupported() ? (
+                <WorkerVideoTexture
+                  key={key}
+                  video={video}
+                  opacity={layer.opacity || 1}
+                  blendMode={layer.blendMode || 'add'}
+                />
+              ) : (
+                <VideoTexture
+                  key={key}
+                  video={video}
+                  opacity={layer.opacity || 1}
+                  blendMode={layer.blendMode || 'add'}
+                />
+              ))
             );
           }
         } else if (type === 'effect') {
@@ -508,10 +719,20 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
           <Canvas
             camera={{ position: [0, 0, 2], fov: 75 }}
             className="tw-w-full tw-h-full"
-            gl={{ preserveDrawingBuffer: false, powerPreference: 'high-performance' }}
+            dpr={[1, Math.min(1.5, (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1)]}
+            gl={{ preserveDrawingBuffer: false, powerPreference: 'high-performance', antialias: false }}
             onCreated={({ gl }) => {
               gl.autoClear = false; // Do not auto-clear between frames
               gl.setClearColor('#000000', 1); // Solid background once
+              // Renderer color management to prevent washed-out colors
+              try {
+                if ((gl as any).outputColorSpace !== undefined && (THREE as any).SRGBColorSpace) {
+                  (gl as any).outputColorSpace = (THREE as any).SRGBColorSpace;
+                } else if ((gl as any).outputEncoding !== undefined && (THREE as any).sRGBEncoding) {
+                  (gl as any).outputEncoding = (THREE as any).sRGBEncoding;
+                }
+                (gl as any).toneMapping = (THREE as any).NoToneMapping;
+              } catch {}
             }}
           >
             <CanvasScene 

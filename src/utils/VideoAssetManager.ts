@@ -36,6 +36,9 @@ export class VideoAssetManager {
         video.autoplay = true;
         video.playsInline = true;
         video.crossOrigin = 'anonymous';
+        try { (video as any).disablePictureInPicture = true; } catch {}
+        try { (video as any).disableRemotePlayback = true; } catch {}
+        try { video.setAttribute('controls', ''); video.removeAttribute('controls'); } catch {}
         try { (video as any).dataset = { ...(video as any).dataset, assetId: id }; } catch {}
         try { (video as any).__firstFrameProduced = false; } catch {}
         video.preload = 'auto';

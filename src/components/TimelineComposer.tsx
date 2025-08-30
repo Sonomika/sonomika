@@ -37,6 +37,7 @@ const VideoTexture: React.FC<{
   const [fallbackTexture, setFallbackTexture] = useState<THREE.CanvasTexture | null>(null);
   const liveMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const fallbackMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const frameReadyRef = useRef<boolean>(false);
   
   // Use composition settings for aspect ratio instead of video's natural ratio
   const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
@@ -58,8 +59,32 @@ const VideoTexture: React.FC<{
       videoTexture.magFilter = THREE.LinearFilter;
       videoTexture.format = THREE.RGBAFormat;
       videoTexture.generateMipmaps = false;
+      try {
+        (videoTexture as any).colorSpace = (THREE as any).SRGBColorSpace || (videoTexture as any).colorSpace;
+        if (!(videoTexture as any).colorSpace && (THREE as any).sRGBEncoding) {
+          (videoTexture as any).encoding = (THREE as any).sRGBEncoding;
+        }
+      } catch {}
       setTexture(videoTexture);
     }
+  }, [video]);
+
+  // RVFC-driven invalidation for live texture
+  useEffect(() => {
+    const anyVideo: any = video as any;
+    if (!video || typeof anyVideo.requestVideoFrameCallback !== 'function') return;
+    let handle: any;
+    let stopped = false;
+    const tick = () => {
+      if (stopped) return;
+      frameReadyRef.current = true;
+      try { handle = anyVideo.requestVideoFrameCallback(tick); } catch {}
+    };
+    try { handle = anyVideo.requestVideoFrameCallback(tick); } catch {}
+    return () => {
+      stopped = true;
+      try { anyVideo.cancelVideoFrameCallback?.(handle); } catch {}
+    };
   }, [video]);
 
   // Initialize fallback canvas/texture and seed from preloader if available
@@ -122,7 +147,10 @@ const VideoTexture: React.FC<{
       fallbackMaterialRef.current.transparent = true;
     }
     if (texture && ready) {
-      texture.needsUpdate = true;
+      if (frameReadyRef.current) {
+        texture.needsUpdate = true;
+        frameReadyRef.current = false;
+      }
       // Keep fallback updated when possible
       if (canvas && fallbackTexture) {
         try {
@@ -487,8 +515,15 @@ const TimelineScene: React.FC<{
 
   return (
     <>
-      {/* Background */}
-      <color attach="background" args={[0, 0, 0]} />
+      {/* Keep scene background transparent to avoid one-frame clears */}
+      {(() => {
+        try {
+          const { gl, scene } = useThree();
+          (gl as any).setClearAlpha?.(0);
+          (scene as any).background = null;
+        } catch {}
+        return null;
+      })()}
       
       {/* Render all clips using chain-based stacking with global effects appended */}
       {(() => {
@@ -537,6 +572,7 @@ const TimelineScene: React.FC<{
         const enabledGlobals = Array.isArray(globalEffects) ? globalEffects.filter((g: any) => g && g.enabled) : [];
 
         const elements: React.ReactElement[] = [];
+        let renderedBaseThisFrame = false;
         // Compute blending across successive chains for a short window around cuts
         const CROSSFADE_MS = 160; // chosen for minimal perceptibility
         const chainsWithKeys = chains.map((chain, idx) => ({ chain, idx }));
@@ -644,6 +680,7 @@ const TimelineScene: React.FC<{
                 assetId={(activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === v.video)?.asset?.id) || undefined}
               />
             );
+            renderedBaseThisFrame = true;
           } else {
             // Propagate baseAssetId from the chain's video (if any) so EffectChain can seed correctly
             const baseVid = chainWithGlobals.find((it) => it.type === 'video') as any;
@@ -658,6 +695,7 @@ const TimelineScene: React.FC<{
                 baseAssetId={baseAssetIdForChain}
               />
             );
+            if (baseVid) renderedBaseThisFrame = true;
           }
         });
 
@@ -676,6 +714,21 @@ const TimelineScene: React.FC<{
             />
           );
           appendedFallback = true;
+        }
+
+        // Safety: if no base video was rendered at all this frame, draw the last stable video chain
+        if (!renderedBaseThisFrame && lastVideoChainRef.current) {
+          const chainWithGlobals = lastVideoChainRef.current as ChainItem[];
+          elements.push(
+            <EffectChain
+              key={`chain-last-video-safety`}
+              items={chainWithGlobals}
+              compositionWidth={compositionWidth}
+              compositionHeight={compositionHeight}
+              opacity={1}
+              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
+            />
+          );
         }
 
         // Expose active layers for engines (LFO) while timeline is playing
@@ -719,17 +772,28 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
       <Canvas
         camera={{ position: [0, 0, 1], fov: 90 }}
         className="tw-w-full tw-h-full tw-block"
+        dpr={[1, Math.min(1.5, (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1)]}
         gl={{ 
-          preserveDrawingBuffer: false,
-          antialias: true,
+          preserveDrawingBuffer: true,
+          antialias: false,
           powerPreference: 'high-performance'
         }}
         onCreated={({ gl }) => {
           console.log('Timeline R3F Canvas created successfully');
+          try { (gl as any).autoClear = false; } catch {}
           // Keep alpha to let the black container show through and avoid red flashes
           try { (gl as any).setClearColor?.(0x000000, 0); } catch {}
           // Keep a handle to the canvas for cut overlays
           try { canvasElRef.current = (gl as any).domElement as HTMLCanvasElement; } catch {}
+          // Renderer color space and tone mapping
+          try {
+            if ((gl as any).outputColorSpace !== undefined && (THREE as any).SRGBColorSpace) {
+              (gl as any).outputColorSpace = (THREE as any).SRGBColorSpace;
+            } else if ((gl as any).outputEncoding !== undefined && (THREE as any).sRGBEncoding) {
+              (gl as any).outputEncoding = (THREE as any).sRGBEncoding;
+            }
+            (gl as any).toneMapping = (THREE as any).NoToneMapping;
+          } catch {}
         }}
         onError={(error) => {
           console.error('Timeline R3F Canvas error:', error);

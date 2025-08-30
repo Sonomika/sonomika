@@ -25,3 +25,15 @@ export const VIDEO_ELEMENT_CONFIG = {
   PRELOAD: 'auto',
   BACKGROUND_COLOR: '#1a1a1a',
 } as const; 
+
+// Frame buffering configuration for worker-based rendering
+export const FRAME_BUFFER_CONFIG = {
+  MAX_IN_FLIGHT_FRAMES: 2, // keep small to avoid latency and memory
+} as const;
+
+// Decode/pipeline buffering parameters
+export const VIDEO_PIPELINE_CONFIG = {
+  NB_FRAMES_TO_CHECK: 6,
+  REQUEST_MARGIN_MS: 90,
+  MAX_QUEUE_SIZE: 8,
+} as const;

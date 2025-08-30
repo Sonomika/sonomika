@@ -136,4 +136,6 @@ export interface AppState {
   defaultVideoFitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
   // Default internal render scale for new/unspecified video layers (0.1..1)
   defaultVideoRenderScale?: number;
+  // Mirror output quality preset
+  mirrorQuality?: 'low' | 'medium' | 'high';
 } 

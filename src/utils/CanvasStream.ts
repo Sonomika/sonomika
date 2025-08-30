@@ -238,7 +238,8 @@ export class CanvasStreamManager {
     } catch {}
 
     let lastFrameTime = 0;
-    const targetFPS = 60; // Match main preview window at 60 FPS
+    const mq = (useStore.getState() as any).mirrorQuality || 'medium';
+    const targetFPS = mq === 'low' ? 30 : 60;
     const frameInterval = 1000 / targetFPS;
     let lastDataUrl = '';
 
@@ -287,8 +288,8 @@ export class CanvasStreamManager {
               const comp = (useStore.getState() as any).compositionSettings || {};
               const compW = Math.max(1, Number(comp.width) || 1920);
               const compH = Math.max(1, Number(comp.height) || 1080);
-              // Ensure high resolution even for small compositions by upscaling to a minimum longest edge
-              const minLongestEdge = 1080; // baseline quality target
+              // Determine render target by mirror quality
+              const minLongestEdge = mq === 'low' ? 540 : (mq === 'medium' ? 720 : 1080);
               const longest = Math.max(compW, compH);
               const upscale = longest < minLongestEdge ? (minLongestEdge / longest) : 1;
               const targetWidth = Math.max(1, Math.round(compW * upscale));
@@ -311,10 +312,11 @@ export class CanvasStreamManager {
                 const dx = Math.floor((targetWidth - drawW) / 2);
                 const dy = Math.floor((targetHeight - drawH) / 2);
                 tempCtx.imageSmoothingEnabled = true;
-                tempCtx.imageSmoothingQuality = 'high' as any;
+                tempCtx.imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
                 tempCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
                 // Use a slightly higher quality for fewer artifacts at scale
-                const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.95);
+                const jpegQ = mq === 'low' ? 0.6 : (mq === 'medium' ? 0.85 : 0.95);
+                const dataUrl = tempCanvas.toDataURL('image/jpeg', jpegQ);
                 if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
                   window.electron.sendCanvasData(dataUrl);
                   lastDataUrl = dataUrl;
@@ -342,7 +344,7 @@ export class CanvasStreamManager {
 
               // Favor speed to avoid potential throttling during fullscreen transitions
               this.mirrorCtx.imageSmoothingEnabled = true;
-              try { (this.mirrorCtx as any).imageSmoothingQuality = 'high'; } catch {}
+              try { (this.mirrorCtx as any).imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')); } catch {}
               this.mirrorCtx.drawImage(this.canvas, dx, dy, drawW, drawH);
               this.mirrorCtx.restore();
               

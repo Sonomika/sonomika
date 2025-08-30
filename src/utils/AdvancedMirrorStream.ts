@@ -126,15 +126,16 @@ export class AdvancedMirrorStreamManager {
   private start(): void {
     if (!this.canvas) return;
 
-    // Match regular mirror output: 1920x1080 at 60 FPS
-    const targetWidth = 1920;
-    const targetHeight = 1080;
+    // Match mirror quality presets
+    const mq = (useStore.getState() as any).mirrorQuality || 'medium';
+    const targetWidth = mq === 'low' ? 960 : (mq === 'medium' ? 1280 : 1920);
+    const targetHeight = mq === 'low' ? 540 : (mq === 'medium' ? 720 : 1080);
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = targetWidth;
     tempCanvas.height = targetHeight;
     const tempCtx = tempCanvas.getContext('2d');
     let lastFrameTime = 0;
-    const frameInterval = 1000 / 60; // 60 FPS
+    const frameInterval = 1000 / (mq === 'low' ? 30 : 60);
 
     const raf = requestAnimationFrame;
 
@@ -171,7 +172,7 @@ export class AdvancedMirrorStreamManager {
             const dy = Math.floor((targetHeight - dh) / 2);
             // Use 9-arg drawImage to crop source region
             tempCtx.imageSmoothingEnabled = true;
-            try { (tempCtx as any).imageSmoothingQuality = 'high'; } catch {}
+            try { (tempCtx as any).imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')); } catch {}
             // Draw via offscreen canvas to avoid reallocating temp canvas per slice
             try {
               let off: HTMLCanvasElement | null = (tempCanvas as any).__offCanvas || null;
@@ -195,7 +196,8 @@ export class AdvancedMirrorStreamManager {
             }
             tempCtx.restore();
 
-            const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
+            const jpegQ = mq === 'low' ? 0.6 : (mq === 'medium' ? 0.85 : 0.95);
+            const dataUrl = tempCanvas.toDataURL('image/jpeg', jpegQ);
             const last = this.lastDataUrlById.get(s.id);
             if (dataUrl !== last && dataUrl.length > 100) {
               this.lastDataUrlById.set(s.id, dataUrl);

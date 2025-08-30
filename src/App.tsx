@@ -19,6 +19,7 @@ import { MIDIProcessor } from './utils/MIDIProcessor';
 import { attachLFOEngineGlobalListeners } from './engine/LFOEngine';
 import { handleRedirectIfPresent } from './lib/dropbox';
 import { useToast } from './hooks/use-toast';
+import DebugOverlay from './components/DebugOverlay';
 
 // Effects are loaded dynamically - no hardcoded imports needed
 
@@ -94,6 +95,7 @@ function App() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   
   const [debugMode, setDebugMode] = useState(false);
+  const [showDebugOverlay, setShowDebugOverlay] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const advStreamRef = useRef<AdvancedMirrorStreamManager | null>(null);
   const usingDummyCanvas = useRef<boolean>(false);
@@ -179,6 +181,26 @@ function App() {
     return () => {
       window.removeEventListener('resize', adjustForTaskbar);
     };
+  }, []);
+
+  // Wire Electron debug menu events
+  useEffect(() => {
+    try { (window as any).electron?.onDebugToggleOverlay?.(() => setShowDebugOverlay((v) => !v)); } catch {}
+    try { (window as any).electron?.onDebugOpenPanel?.(() => setDebugMode(true)); } catch {}
+  }, []);
+
+  // Renderer hotkey: Ctrl/Cmd+Shift+D toggles overlay
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toLowerCase().includes('mac');
+      const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+      if (ctrlOrCmd && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        e.preventDefault();
+        setShowDebugOverlay((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, []);
 
   // Subscribe to window maximize state changes
@@ -549,6 +571,7 @@ function App() {
 
   const handleToggleDebug = () => {
     setDebugMode(!debugMode);
+    setShowDebugOverlay((v) => !v);
   };
 
   const handleModalClose = () => {
@@ -842,6 +865,7 @@ function App() {
       <AdvancedMirrorDialog open={advMirrorOpen} onOpenChange={setAdvMirrorOpen} onStart={(opts) => handleAdvancedMirror(opts)} />
       <Toaster />
       <CloudPresetBrowser open={cloudBrowserOpen} onOpenChange={setCloudBrowserOpen} />
+      <DebugOverlay visible={!!showDebugOverlay} />
     </ErrorBoundary>
   );
 }
