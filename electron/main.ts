@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog } from 'electron';
+import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog, powerSaveBlocker } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -21,6 +21,9 @@ if (!gotTheLock) {
 
 let mainWindow: BrowserWindow | null = null;
 let mirrorWindow: BrowserWindow | null = null;
+let mirrorPowerSaveBlockId: number | null = null;
+let outputWindow: BrowserWindow | null = null;
+let outputAspectRatio: number | null = null;
 let mirrorAspectRatio: number | null = null;
 // Advanced mirror windows keyed by slice id
 const advancedMirrorWindows: Map<string, BrowserWindow> = new Map();
@@ -74,7 +77,8 @@ function createWindow() {
       sandbox: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      backgroundThrottling: false
     },
     show: false, // Don't show until ready
   });
@@ -113,6 +117,55 @@ function createWindow() {
     // Prevent background throttling
     mainWindow!.webContents.setBackgroundThrottling(false);
   });
+
+  // Ensure renderer-created child windows (via window.open) are chrome-less for output
+  try {
+    mainWindow.webContents.setWindowOpenHandler((details) => {
+      const isOutput = details.frameName === 'output-canvas';
+      if (isOutput) {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            title: 'Output',
+            frame: false,
+            titleBarStyle: 'hidden',
+            autoHideMenuBar: true,
+            backgroundColor: '#000000',
+            fullscreenable: true,
+            resizable: true,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true,
+              sandbox: false,
+              backgroundThrottling: false,
+            },
+          },
+        } as any;
+      }
+      return { action: 'allow' } as any;
+    });
+
+    mainWindow.webContents.on('did-create-window', (childWindow, details: any) => {
+      try {
+        if (details?.frameName === 'output-canvas') {
+          outputWindow = childWindow;
+          try { childWindow.removeMenu(); } catch {}
+          try { childWindow.setMenuBarVisibility(false); } catch {}
+          try { childWindow.webContents.setBackgroundThrottling(false); } catch {}
+          try {
+            if (outputAspectRatio && isFinite(outputAspectRatio) && outputAspectRatio > 0) {
+              childWindow.setAspectRatio(outputAspectRatio);
+            }
+          } catch {}
+          try {
+            childWindow.on('closed', () => {
+              outputWindow = null;
+            });
+          } catch {}
+        }
+      } catch {}
+    });
+  } catch {}
 
   // Forward window state to renderer
   mainWindow.on('maximize', () => {
@@ -199,7 +252,8 @@ function createMirrorWindow() {
       sandbox: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      preload: path.join(__dirname, 'mirror-preload.js')
+      preload: path.join(__dirname, 'mirror-preload.js'),
+      backgroundThrottling: false
     },
     show: false,
     resizable: true, // Allow resizing
@@ -358,6 +412,12 @@ function createMirrorWindow() {
     // Apply a safe default aspect ratio until renderer provides composition ratio
     // The renderer will send the actual canvas dimensions via set-mirror-aspect
     try { mirrorWindow!.setAspectRatio(mirrorAspectRatio || (1920 / 1080)); } catch {}
+    try {
+      if (mirrorPowerSaveBlockId == null) {
+        mirrorPowerSaveBlockId = powerSaveBlocker.start('prevent-display-sleep');
+      }
+      mirrorWindow!.webContents.setBackgroundThrottling(false);
+    } catch {}
   });
 
   // Handle keyboard events for the mirror window
@@ -365,6 +425,11 @@ function createMirrorWindow() {
     if (input.key === 'Escape') {
       mirrorWindow!.close();
     }
+  });
+
+  mirrorWindow.on('closed', () => {
+    try { if (mirrorPowerSaveBlockId != null) { powerSaveBlocker.stop(mirrorPowerSaveBlockId); } } catch {}
+    mirrorPowerSaveBlockId = null;
   });
 }
 
@@ -920,50 +985,15 @@ app.whenReady().then(() => {
 
   ipcMain.on('canvas-data', (event, dataUrl) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      // Use a more efficient update mechanism to prevent glitching
-      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
-      mirrorWindow.webContents.executeJavaScript(`
-        (function() {
-          const noStreamDiv = document.getElementById('no-stream');
-          const mirrorImage = document.getElementById('mirror-image');
-          
-          if (noStreamDiv && mirrorImage) {
-            // Hide the waiting message
-            noStreamDiv.style.display = 'none';
-            
-            // Only update if the image source is different to prevent flashing
-            if (mirrorImage.src !== '${escapedDataUrl}') {
-              mirrorImage.src = '${escapedDataUrl}';
-              mirrorImage.style.display = 'block';
-            }
-          }
-        })();
-      `);
+      // Forward to mirror renderer via IPC handled in mirror preload
+      mirrorWindow.webContents.send('update-canvas', dataUrl);
     }
   });
 
   // Handle sendCanvasData from CanvasStream
   ipcMain.on('sendCanvasData', (event, dataUrl) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      // Use a more efficient update mechanism to prevent glitching
-      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
-      mirrorWindow.webContents.executeJavaScript(`
-        (function() {
-          const noStreamDiv = document.getElementById('no-stream');
-          const mirrorImage = document.getElementById('mirror-image');
-          
-          if (noStreamDiv && mirrorImage) {
-            // Hide the waiting message
-            noStreamDiv.style.display = 'none';
-            
-            // Only update if the image source is different to prevent flashing
-            if (mirrorImage.src !== '${escapedDataUrl}') {
-              mirrorImage.src = '${escapedDataUrl}';
-              mirrorImage.style.display = 'block';
-            }
-          }
-        })();
-      `);
+      mirrorWindow.webContents.send('sendCanvasData', dataUrl);
     }
   });
 
@@ -1048,14 +1078,19 @@ app.whenReady().then(() => {
 
   // Allow renderer to enforce a fixed aspect ratio on the mirror window
   ipcMain.on('set-mirror-aspect', (event, width: number, height: number) => {
-    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      try {
-        const w = Math.max(1, Number(width) || 1);
-        const h = Math.max(1, Number(height) || 1);
-        mirrorAspectRatio = w / h;
-        mirrorWindow.setAspectRatio(mirrorAspectRatio);
-      } catch {}
-    }
+    try {
+      const w = Math.max(1, Number(width) || 1);
+      const h = Math.max(1, Number(height) || 1);
+      const ratio = w / h;
+      mirrorAspectRatio = ratio;
+      outputAspectRatio = ratio;
+      if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+        try { mirrorWindow.setAspectRatio(ratio); } catch {}
+      }
+      if (outputWindow && !outputWindow.isDestroyed()) {
+        try { outputWindow.setAspectRatio(ratio); } catch {}
+      }
+    } catch {}
   });
 
   // Advanced mirror IPC

@@ -17,6 +17,9 @@ if (!gotTheLock) {
 }
 let mainWindow = null;
 let mirrorWindow = null;
+let mirrorPowerSaveBlockId = null;
+let outputWindow = null;
+let outputAspectRatio = null;
 let mirrorAspectRatio = null;
 const advancedMirrorWindows = /* @__PURE__ */ new Map();
 let encryptedAuthStore = {};
@@ -65,7 +68,8 @@ function createWindow() {
       sandbox: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      preload: path.join(__dirname, "preload.js")
+      preload: path.join(__dirname, "preload.js"),
+      backgroundThrottling: false
     },
     show: false
     // Don't show until ready
@@ -92,6 +96,65 @@ function createWindow() {
     mainWindow.show();
     mainWindow.webContents.setBackgroundThrottling(false);
   });
+  try {
+    mainWindow.webContents.setWindowOpenHandler((details) => {
+      const isOutput = details.frameName === "output-canvas";
+      if (isOutput) {
+        return {
+          action: "allow",
+          overrideBrowserWindowOptions: {
+            title: "Output",
+            frame: false,
+            titleBarStyle: "hidden",
+            autoHideMenuBar: true,
+            backgroundColor: "#000000",
+            fullscreenable: true,
+            resizable: true,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true,
+              sandbox: false,
+              backgroundThrottling: false
+            }
+          }
+        };
+      }
+      return { action: "allow" };
+    });
+    mainWindow.webContents.on("did-create-window", (childWindow, details) => {
+      try {
+        if ((details == null ? void 0 : details.frameName) === "output-canvas") {
+          outputWindow = childWindow;
+          try {
+            childWindow.removeMenu();
+          } catch {
+          }
+          try {
+            childWindow.setMenuBarVisibility(false);
+          } catch {
+          }
+          try {
+            childWindow.webContents.setBackgroundThrottling(false);
+          } catch {
+          }
+          try {
+            if (outputAspectRatio && isFinite(outputAspectRatio) && outputAspectRatio > 0) {
+              childWindow.setAspectRatio(outputAspectRatio);
+            }
+          } catch {
+          }
+          try {
+            childWindow.on("closed", () => {
+              outputWindow = null;
+            });
+          } catch {
+          }
+        }
+      } catch {
+      }
+    });
+  } catch {
+  }
   mainWindow.on("maximize", () => {
     try {
       mainWindow == null ? void 0 : mainWindow.webContents.send("window-state", { maximized: true });
@@ -162,7 +225,8 @@ function createMirrorWindow() {
       sandbox: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
-      preload: path.join(__dirname, "mirror-preload.js")
+      preload: path.join(__dirname, "mirror-preload.js"),
+      backgroundThrottling: false
     },
     show: false,
     resizable: true,
@@ -322,11 +386,27 @@ function createMirrorWindow() {
       mirrorWindow.setAspectRatio(mirrorAspectRatio || 1920 / 1080);
     } catch {
     }
+    try {
+      if (mirrorPowerSaveBlockId == null) {
+        mirrorPowerSaveBlockId = electron.powerSaveBlocker.start("prevent-display-sleep");
+      }
+      mirrorWindow.webContents.setBackgroundThrottling(false);
+    } catch {
+    }
   });
   mirrorWindow.webContents.on("before-input-event", (event, input) => {
     if (input.key === "Escape") {
       mirrorWindow.close();
     }
+  });
+  mirrorWindow.on("closed", () => {
+    try {
+      if (mirrorPowerSaveBlockId != null) {
+        electron.powerSaveBlocker.stop(mirrorPowerSaveBlockId);
+      }
+    } catch {
+    }
+    mirrorPowerSaveBlockId = null;
   });
 }
 function closeMirrorWindow() {
@@ -873,46 +953,12 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.on("canvas-data", (event, dataUrl) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
-      mirrorWindow.webContents.executeJavaScript(`
-        (function() {
-          const noStreamDiv = document.getElementById('no-stream');
-          const mirrorImage = document.getElementById('mirror-image');
-          
-          if (noStreamDiv && mirrorImage) {
-            // Hide the waiting message
-            noStreamDiv.style.display = 'none';
-            
-            // Only update if the image source is different to prevent flashing
-            if (mirrorImage.src !== '${escapedDataUrl}') {
-              mirrorImage.src = '${escapedDataUrl}';
-              mirrorImage.style.display = 'block';
-            }
-          }
-        })();
-      `);
+      mirrorWindow.webContents.send("update-canvas", dataUrl);
     }
   });
   electron.ipcMain.on("sendCanvasData", (event, dataUrl) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      const escapedDataUrl = dataUrl.replace(/'/g, "\\'");
-      mirrorWindow.webContents.executeJavaScript(`
-        (function() {
-          const noStreamDiv = document.getElementById('no-stream');
-          const mirrorImage = document.getElementById('mirror-image');
-          
-          if (noStreamDiv && mirrorImage) {
-            // Hide the waiting message
-            noStreamDiv.style.display = 'none';
-            
-            // Only update if the image source is different to prevent flashing
-            if (mirrorImage.src !== '${escapedDataUrl}') {
-              mirrorImage.src = '${escapedDataUrl}';
-              mirrorImage.style.display = 'block';
-            }
-          }
-        })();
-      `);
+      mirrorWindow.webContents.send("sendCanvasData", dataUrl);
     }
   });
   electron.ipcMain.on("toggle-fullscreen", () => {
@@ -978,14 +1024,25 @@ electron.app.whenReady().then(() => {
     }
   });
   electron.ipcMain.on("set-mirror-aspect", (event, width, height) => {
-    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      try {
-        const w = Math.max(1, Number(width) || 1);
-        const h = Math.max(1, Number(height) || 1);
-        mirrorAspectRatio = w / h;
-        mirrorWindow.setAspectRatio(mirrorAspectRatio);
-      } catch {
+    try {
+      const w = Math.max(1, Number(width) || 1);
+      const h = Math.max(1, Number(height) || 1);
+      const ratio = w / h;
+      mirrorAspectRatio = ratio;
+      outputAspectRatio = ratio;
+      if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+        try {
+          mirrorWindow.setAspectRatio(ratio);
+        } catch {
+        }
       }
+      if (outputWindow && !outputWindow.isDestroyed()) {
+        try {
+          outputWindow.setAspectRatio(ratio);
+        } catch {
+        }
+      }
+    } catch {
     }
   });
   electron.ipcMain.on("advanced-mirror:open", (event, slices) => {

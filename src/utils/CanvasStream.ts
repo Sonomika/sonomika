@@ -8,6 +8,10 @@ export class CanvasStreamManager {
   private mirrorCanvas: HTMLCanvasElement | null = null;
   private mirrorCtx: CanvasRenderingContext2D | null = null;
   private blobUrl: string | null = null;
+  private directWindow: Window | null = null;
+  private originalParent: Node | null = null;
+  private placeholderEl: HTMLDivElement | null = null;
+  private mode: 'direct-output' | 'electron-stream' | 'browser-bitmap' | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -26,7 +30,19 @@ export class CanvasStreamManager {
 
   async openMirrorWindow(): Promise<void> {
     try {
-      // Use Electron IPC to open mirror window
+      // Avoid opening multiple windows
+      if (this.isWindowOpen) {
+        try { this.directWindow?.focus(); } catch {}
+        try { this.browserWindow?.focus(); } catch {}
+        return;
+      }
+
+      // Prefer direct-output mode (move the live canvas into a child window), like the example
+      const triedDirect = this.openDirectOutputWindow();
+      if (triedDirect) {
+        return;
+      }
+
       if (window.electron && window.electron.openMirrorWindow) {
         window.electron.openMirrorWindow();
         this.isWindowOpen = true;
@@ -54,6 +70,163 @@ export class CanvasStreamManager {
     } catch (error) {
       console.error('Failed to open mirror window:', error);
       throw error;
+    }
+  }
+
+  // Open a same-process child window and move the actual canvas into it
+  private openDirectOutputWindow(): boolean {
+    try {
+      if (!this.canvas) return false;
+      // Open or focus a named window; same-process so we can move DOM nodes
+      const win = window.open('', 'output-canvas');
+      if (!win) return false;
+      this.directWindow = win;
+
+      // Minimal container layout
+      win.document.open();
+      win.document.write(`<!DOCTYPE html><html><head><title>Output</title><style>
+        html, body { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; }
+        /* Allow window dragging on any empty space */
+        body { -webkit-app-region: drag; }
+        #container { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+        /* Canvas sized by script to preserve aspect */
+        canvas { display:block; -webkit-app-region: drag; }
+      </style></head>
+      <body>
+        <div id="container"></div>
+        <script>
+          (function(){
+            var targetRatio = null;
+            function adjust(){
+              try {
+                var c = document.querySelector('#container canvas');
+                if (!c) return;
+                var W = document.documentElement.clientWidth;
+                var H = document.documentElement.clientHeight;
+                var r = targetRatio || (c.width > 0 && c.height > 0 ? (c.width / c.height) : 16/9);
+                // contain fit
+                var w = W, h = Math.floor(W / r);
+                if (h > H) { h = H; w = Math.floor(H * r); }
+                c.style.width = w + 'px';
+                c.style.height = h + 'px';
+              } catch(e){}
+            }
+            window.__setAspectRatio = function(r){ targetRatio = r && r > 0 ? r : null; adjust(); };
+            window.addEventListener('resize', adjust);
+            ['fullscreenchange','webkitfullscreenchange','msfullscreenchange'].forEach(function(evt){
+              try { document.addEventListener(evt, function(){ setTimeout(adjust, 0); }); } catch(e){}
+            });
+            function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+            function enterFs(){
+              const el = document.documentElement;
+              (el.requestFullscreen || el.webkitRequestFullscreen || function(){})?.call(el);
+            }
+            function exitFs(){
+              (document.exitFullscreen || document.webkitExitFullscreen || function(){})?.call(document);
+            }
+            function toggleFs(){ isFullscreen() ? exitFs() : enterFs(); }
+            document.addEventListener('dblclick', toggleFs);
+            document.addEventListener('keydown', function(e){
+              if (e.key === 'Escape') {
+                try {
+                  if (isFullscreen()) {
+                    exitFs();
+                  } else {
+                    window.close();
+                  }
+                } catch(e){}
+              }
+            }, { passive: true });
+          })();
+        </script>
+      </body></html>`);
+      win.document.close();
+
+      const container = win.document.getElementById('container');
+      if (!container) return false;
+
+      // Create a placeholder to preserve layout in original parent
+      const parent = this.canvas.parentNode;
+      this.originalParent = parent;
+      const placeholder = document.createElement('div');
+      placeholder.style.width = (this.canvas as any).style?.width || '100%';
+      placeholder.style.height = (this.canvas as any).style?.height || '100%';
+      placeholder.style.minHeight = '1px';
+      this.placeholderEl = placeholder;
+      if (parent) {
+        try { parent.insertBefore(placeholder, this.canvas); } catch {}
+      }
+
+      // Move the canvas into the external window container
+      try { container.appendChild(this.canvas); } catch {}
+
+      // Match background
+      try {
+        const bg = (useStore.getState() as any).compositionSettings?.backgroundColor || '#000000';
+        (container as HTMLElement).style.background = bg;
+        win.document.body.style.background = bg;
+      } catch {}
+
+      // Size the window to match the canvas/composition, clamped to the current screen
+      try {
+        const comp = (useStore.getState() as any).compositionSettings || {};
+        const compW = Math.max(1, Number(comp.width) || this.canvas.width || 1920);
+        const compH = Math.max(1, Number(comp.height) || this.canvas.height || 1080);
+        const parentScreen = window.screen || { availWidth: window.innerWidth, availHeight: window.innerHeight } as any;
+        const maxW = Math.floor((parentScreen.availWidth || window.innerWidth) * 0.95);
+        const maxH = Math.floor((parentScreen.availHeight || window.innerHeight) * 0.95);
+        let winW = compW;
+        let winH = compH;
+        if (winW > maxW || winH > maxH) {
+          const scale = Math.min(maxW / winW, maxH / winH);
+          winW = Math.max(320, Math.floor(winW * scale));
+          winH = Math.max(180, Math.floor(winH * scale));
+        }
+        try { win.resizeTo(winW, winH); } catch {}
+        try {
+          const left = Math.max(0, Math.floor(((parentScreen.availWidth || window.innerWidth) - winW) / 2));
+          const top = Math.max(0, Math.floor(((parentScreen.availHeight || window.innerHeight) - winH) / 2));
+          win.moveTo(left, top);
+        } catch {}
+        // Provide aspect ratio to child for correct contain sizing
+        try { (win as any).__setAspectRatio?.(compW / compH); } catch {}
+        // Also lock aspect on Electron child window via IPC (main will map it to the child)
+        try { (window as any).electron?.setMirrorAspectRatio?.(compW, compH); } catch {}
+      } catch {}
+
+      // Resize handling to trigger R3F size updates in the parent without recursion
+      const resize = () => {
+        try { window.dispatchEvent(new Event('resize')); } catch {}
+      };
+      try { win.addEventListener('resize', resize); } catch {}
+
+      // Cleanup on close: restore canvas to original parent
+      win.addEventListener('beforeunload', () => {
+        try {
+          if (this.originalParent && this.canvas) {
+            // Put canvas back and remove placeholder
+            try { this.originalParent.insertBefore(this.canvas, this.placeholderEl || null); } catch {}
+            if (this.placeholderEl && this.placeholderEl.parentNode) {
+              try { this.placeholderEl.parentNode.removeChild(this.placeholderEl); } catch {}
+            }
+          }
+        } finally {
+          this.placeholderEl = null;
+          this.originalParent = null;
+          this.directWindow = null;
+          this.isWindowOpen = false;
+        }
+      }, { once: true });
+
+      this.isWindowOpen = true;
+      this.mode = 'direct-output';
+      ;(window as any).__CANVAS_STREAM_MODE__ = this.mode;
+      try { console.log('[CanvasStream] Mode:', this.mode); } catch {}
+      try { win.document.title = 'Output [direct]'; } catch {}
+      return true;
+    } catch (e) {
+      console.warn('Direct output window failed, falling back to stream:', e);
+      return false;
     }
   }
 
@@ -91,7 +264,7 @@ export class CanvasStreamManager {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>sonomika - Mirror</title>
+        <title>sonomika - Mirror [bitmap] </title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
@@ -138,7 +311,7 @@ export class CanvasStreamManager {
           // Ensure the page is properly loaded
           document.addEventListener('DOMContentLoaded', function() {
             console.log('Mirror window loaded successfully');
-            document.title = 'sonomika - Mirror';
+            document.title = 'sonomika - Mirror [bitmap]';
             
             // Hide loading message once canvas is ready
             const canvas = document.getElementById('mirror-canvas');
@@ -147,6 +320,50 @@ export class CanvasStreamManager {
               if (loading) loading.style.display = 'none';
             }
           });
+
+          // Handle ImageBitmap frames via postMessage for efficient transfer
+          (function() {
+            const canvas = document.getElementById('mirror-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const resize = () => {
+              const w = Math.floor(window.innerWidth * dpr);
+              const h = Math.floor(window.innerHeight * dpr);
+              if (canvas.width !== w || canvas.height !== h) {
+                canvas.width = w; canvas.height = h;
+              }
+            };
+            resize();
+            window.addEventListener('resize', resize);
+
+            window.addEventListener('message', async (event) => {
+              try {
+                const data = event.data || {};
+                if (data && data.type === 'mirror-frame' && data.bitmap) {
+                  const bitmap = data.bitmap; // ImageBitmap
+                  // Contain scaling
+                  const srcW = bitmap.width, srcH = bitmap.height;
+                  const destW = canvas.width, destH = canvas.height;
+                  const scale = Math.min(destW / srcW, destH / srcH);
+                  const drawW = Math.floor(srcW * scale);
+                  const drawH = Math.floor(srcH * scale);
+                  const dx = Math.floor((destW - drawW) / 2);
+                  const dy = Math.floor((destH - drawH) / 2);
+                  ctx.save();
+                  ctx.fillStyle = data.background || '#000000';
+                  ctx.fillRect(0, 0, destW, destH);
+                  ctx.imageSmoothingEnabled = true;
+                  try { ctx.imageSmoothingQuality = data.quality || 'high'; } catch {}
+                  ctx.drawImage(bitmap, dx, dy, drawW, drawH);
+                  ctx.restore();
+                  try { bitmap.close && bitmap.close(); } catch {}
+                }
+              } catch (e) {
+                console.warn('Mirror window draw error:', e);
+              }
+            }, false);
+          })();
         </script>
       </body>
       </html>
@@ -284,6 +501,11 @@ export class CanvasStreamManager {
           }
           try {
             if (window.electron && window.electron.sendCanvasData) {
+              if (this.mode !== 'electron-stream') {
+                this.mode = 'electron-stream';
+                ;(window as any).__CANVAS_STREAM_MODE__ = this.mode;
+                try { console.log('[CanvasStream] Mode:', this.mode); } catch {}
+              }
               // Electron path: composite to (at least) a supersampled size and send as JPEG data URL
               const comp = (useStore.getState() as any).compositionSettings || {};
               const compW = Math.max(1, Number(comp.width) || 1920);
@@ -322,36 +544,25 @@ export class CanvasStreamManager {
                   lastDataUrl = dataUrl;
                 }
               }
-            } else if (this.browserWindow && !this.browserWindow.closed && this.mirrorCtx && this.mirrorCanvas) {
-              // Web path: draw directly to the mirror window canvas, preserving aspect ratio (contain)
-              const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
-              const destW = this.mirrorCanvas.width;
-              const destH = this.mirrorCanvas.height;
-
-              // Clear with background
-              this.mirrorCtx.save();
-              this.mirrorCtx.fillStyle = bg;
-              this.mirrorCtx.fillRect(0, 0, destW, destH);
-
-              const srcW = this.canvas.width;
-              const srcH = this.canvas.height;
-              // Use contain scaling to fit entire canvas within window while maintaining aspect ratio
-              const scale = Math.min(destW / srcW, destH / srcH);
-              const drawW = Math.floor(srcW * scale);
-              const drawH = Math.floor(srcH * scale);
-              const dx = Math.floor((destW - drawW) / 2);
-              const dy = Math.floor((destH - drawH) / 2);
-
-              // Favor speed to avoid potential throttling during fullscreen transitions
-              this.mirrorCtx.imageSmoothingEnabled = true;
-              try { (this.mirrorCtx as any).imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')); } catch {}
-              this.mirrorCtx.drawImage(this.canvas, dx, dy, drawW, drawH);
-              this.mirrorCtx.restore();
-              
-              // Debug logging (only log occasionally to avoid spam)
-              if (Math.random() < 0.01) { // Log ~1% of frames
-                console.log('Canvas streaming to mirror:', { srcW, srcH, destW, destH, drawW, drawH, dx, dy });
+            } else if (this.browserWindow && !this.browserWindow.closed) {
+              if (this.mode !== 'browser-bitmap') {
+                this.mode = 'browser-bitmap';
+                ;(window as any).__CANVAS_STREAM_MODE__ = this.mode;
+                try { console.log('[CanvasStream] Mode:', this.mode); } catch {}
               }
+              // Web path: transfer ImageBitmap via postMessage to mirror window
+              const comp = (useStore.getState() as any).compositionSettings || {};
+              const bg = comp.backgroundColor || '#000000';
+              const quality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
+              const sourceCanvas = this.canvas as HTMLCanvasElement;
+              // Create ImageBitmap without blocking the main thread (async)
+              createImageBitmap(sourceCanvas).then((bitmap) => {
+                try {
+                  this.browserWindow!.postMessage({ type: 'mirror-frame', bitmap, background: bg, quality }, '*', [bitmap as any]);
+                } catch (e) {
+                  try { (bitmap as any).close && (bitmap as any).close(); } catch {}
+                }
+              }).catch(() => {});
             } else {
               // Browser mirror closed: stop streaming
               if (this.browserWindow && this.browserWindow.closed) {
@@ -374,6 +585,25 @@ export class CanvasStreamManager {
   }
 
   closeMirrorWindow(): void {
+    // If using direct window, restore canvas and close the window
+    if (this.directWindow && !this.directWindow.closed) {
+      try {
+        if (this.originalParent && this.canvas) {
+          try { this.originalParent.insertBefore(this.canvas, this.placeholderEl || null); } catch {}
+        }
+        if (this.placeholderEl && this.placeholderEl.parentNode) {
+          try { this.placeholderEl.parentNode.removeChild(this.placeholderEl); } catch {}
+        }
+      } finally {
+        try { this.directWindow.close(); } catch {}
+        this.directWindow = null;
+        this.originalParent = null;
+        this.placeholderEl = null;
+        this.isWindowOpen = false;
+      }
+      return;
+    }
+
     if (this.animationId) {
       // Try to cancel on the appropriate window context
       try {
