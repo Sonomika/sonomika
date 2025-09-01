@@ -4,6 +4,10 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useStore } from '../../store/store';
 import { registerEffect } from '../../utils/effectRegistry';
 
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+
 interface ShaderFeedbackEffectProps {
   // Feedback controls
   feedbackAmount?: number; // 0..1 how much of previous frame persists
@@ -25,7 +29,13 @@ interface ShaderFeedbackEffectProps {
 
   // Optional video source
   videoTexture?: THREE.VideoTexture;
+  compositionWidth?: number;
+  compositionHeight?: number;
 }
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 const ShaderFeedbackEffect: React.FC<ShaderFeedbackEffectProps> = ({
   feedbackAmount = 0.9,
@@ -38,8 +48,22 @@ const ShaderFeedbackEffect: React.FC<ShaderFeedbackEffectProps> = ({
   lightLeakIntensity = 0.3,
   lightLeakColor = '#ff7e47',
   pulseStrength = 0.15,
-  videoTexture
+  videoTexture,
+  compositionWidth,
+  compositionHeight
 }) => {
+  // ============================================================================
+  // COMPOSITION SETTINGS & DIMENSIONS
+  // ============================================================================
+  
+  const compositionSettings = useStore((state) => state.compositionSettings);
+  const effectiveCompositionWidth = compositionWidth || compositionSettings?.width || 1920;
+  const effectiveCompositionHeight = compositionHeight || compositionSettings?.height || 1080;
+
+  // ============================================================================
+  // THREE.JS SETUP & REFS
+  // ============================================================================
+  
   const { gl, size, viewport } = useThree();
   const { bpm } = useStore();
 
@@ -244,8 +268,8 @@ const ShaderFeedbackEffect: React.FC<ShaderFeedbackEffectProps> = ({
 
   // Initialize ping-pong buffers and internal scene
   useEffect(() => {
-    const w = Math.max(2, Math.floor(size.width));
-    const h = Math.max(2, Math.floor(size.height));
+    const w = Math.max(2, Math.floor(effectiveCompositionWidth));
+    const h = Math.max(2, Math.floor(effectiveCompositionHeight));
 
     const options: THREE.WebGLRenderTargetOptions = {
       minFilter: THREE.LinearFilter,
@@ -291,7 +315,7 @@ const ShaderFeedbackEffect: React.FC<ShaderFeedbackEffectProps> = ({
       pingRef.current?.dispose();
       pongRef.current?.dispose();
     };
-  }, [gl, size.width, size.height, feedbackMaterial]);
+  }, [gl, effectiveCompositionWidth, effectiveCompositionHeight, feedbackMaterial]);
 
   // Sync uniforms on prop changes
   useEffect(() => {

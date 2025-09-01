@@ -68,6 +68,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // console.log('LayerManager component rendering');
   
   const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId } = useStore() as any;
+  
+  // Debug logging for playingColumnId
+  useEffect(() => {
+    console.log('🎵 LayerManager playingColumnId changed:', playingColumnId);
+  }, [playingColumnId]);
   const [bpmInputValue, setBpmInputValue] = useState(bpm.toString());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false);
@@ -105,6 +110,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       bpmManager.removeCallback(onBeat);
       if (beatPulseTimeoutRef.current != null) clearTimeout(beatPulseTimeoutRef.current);
     };
+  }, []);
+
+  // Listen for mirror window close events to sync state
+  useEffect(() => {
+    if (window.electron) {
+      const handleMirrorWindowClosed = () => {
+        console.log('LayerManager: Mirror window closed event received, updating state');
+        setIsPreviewMirrorOpen(false);
+        // Clean up stream manager
+        if (mirrorStreamRef.current) {
+          mirrorStreamRef.current.closeMirrorWindow();
+          mirrorStreamRef.current = null;
+        }
+      };
+      
+      window.electron.onMirrorWindowClosed(handleMirrorWindowClosed);
+      
+      // Cleanup listener on unmount
+      return () => {
+        if (window.electron) {
+          // Note: There's no removeListener method in the current preload API
+          // The listener will be cleaned up when the component unmounts
+        }
+      };
+    }
   }, []);
 
   // Compute fixed per-column width so exactly 20 columns fit the visible area
@@ -173,6 +203,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const previewHeaderRef = useRef<HTMLDivElement | null>(null);
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const mirrorStreamRef = useRef<CanvasStreamManager | null>(null);
+  const [isPreviewMirrorOpen, setIsPreviewMirrorOpen] = useState(false);
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [fsFallbackActive, setFsFallbackActive] = useState(false);
 
@@ -1510,13 +1541,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                    const displayNameClean = (displayName || '').replace(/\.[^/.]+$/, '');
                    const hasAsset = Boolean(layer?.asset);
                    const cellId = `${column.id}-${layerNum}`;
-                   const isDragOver = dragOverCell === cellId;
+                                      const isDragOver = dragOverCell === cellId;
                    const isDragOverLayer = dragOverLayer === cellId;
+                   const isColumnPlaying = playingColumnId === column.id;
+                   
+                   // Debug logging
+                   if (hasAsset && isColumnPlaying) {
+                     console.log('🎯 Active cell detected:', { cellId, columnId: column.id, playingColumnId, isColumnPlaying });
+                   }
  
                    return (
                      <div
                        key={cellId}
-                                               className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? 'tw-border tw-border-neutral-800 tw-bg-neutral-900' : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${(isDragOver || isDragOverLayer) ? 'tw-ring-2 tw-ring-sky-600' : ''} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
+                       style={hasAsset && isColumnPlaying ? { boxShadow: 'inset 0 0 0 2px var(--accent)' } : undefined}
+                                                className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? (isColumnPlaying ? 'tw-border-2 tw-border-purple-500 tw-bg-neutral-900 !tw-border-purple-500' : 'tw-border tw-border-neutral-800 tw-bg-neutral-900') : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${(isDragOver || isDragOverLayer) ? 'tw-ring-2 tw-ring-sky-600' : ''} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
                        data-system-files={isDragOver && (() => {
                          const dragData = (window as any).currentDragData;
                          return dragData && dragData.files && dragData.files.length > 0 ? 'true' : 'false';
@@ -1525,11 +1563,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                        onContextMenu={(e) => {
                          if (hasAsset) {
                            handleCellRightClick(e, layer, column.id);
-                         }
-                       }}
-                       onDragStart={(e) => {
-                         if (hasAsset) {
-                           handleLayerReorderDragStart(e, layer, column.id, setDraggedLayer);
                          }
                        }}
                        onDragEnd={handleDragEnd}
@@ -1565,7 +1598,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                            handleDropWrapper(e, column.id, layerNum);
                          }
                        }}
-                       draggable={hasAsset}
+                       
                      >
                        {hasAsset ? (
                          <div 
@@ -1598,6 +1631,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                <img
                                  src={getAssetPath(layer.asset)}
                                  alt={displayNameClean}
+                                 draggable={false}
                                  className="tw-w-full tw-aspect-video tw-object-cover tw-rounded"
                                  onLoad={() => {
                                    console.log('Image loaded successfully:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
@@ -1616,6 +1650,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                <div className="tw-w-full tw-aspect-video tw-rounded tw-overflow-hidden">
                                  <video
                                    src={getAssetPath(layer.asset, true)}
+                                   draggable={false}
                                    className="tw-w-full tw-h-full tw-object-cover"
                                    muted
                                    onLoadStart={() => console.log('Layer video loading:', layer.asset.name)}
@@ -1735,15 +1770,26 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
                       onClick={() => {
                         try {
-                          // Start or show mirror window
-                          const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-                          if (!canvas) return;
-                          if (!mirrorStreamRef.current) {
-                            mirrorStreamRef.current = new CanvasStreamManager(canvas);
+                          if (isPreviewMirrorOpen) {
+                            // Close mirror window
+                            if (mirrorStreamRef.current) {
+                              mirrorStreamRef.current.closeMirrorWindow();
+                              mirrorStreamRef.current = null;
+                            }
+                            setIsPreviewMirrorOpen(false);
                           } else {
-                            mirrorStreamRef.current.updateCanvas(canvas);
+                            // Open mirror window
+                            const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+                            if (!canvas) return;
+                            if (!mirrorStreamRef.current) {
+                              mirrorStreamRef.current = new CanvasStreamManager(canvas);
+                            } else {
+                              mirrorStreamRef.current.updateCanvas(canvas);
+                            }
+                            mirrorStreamRef.current.openMirrorWindow().then(() => {
+                              setIsPreviewMirrorOpen(true);
+                            }).catch(() => {});
                           }
-                          mirrorStreamRef.current.openMirrorWindow().catch(() => {});
                         } catch {}
                       }}
                       title="Mirror"
@@ -1878,7 +1924,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'effects')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
                 <TabsList>
                   <TabsTrigger value="effects">Bank</TabsTrigger>
-                  <TabsTrigger value="media">Media</TabsTrigger>
                   <TabsTrigger value="files">Files</TabsTrigger>
                   <TabsTrigger value="midi">MIDI</TabsTrigger>
                   <TabsTrigger value="lfo">LFO</TabsTrigger>
@@ -1895,9 +1940,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         <div className="tw-space-y-2">
                           <EffectsBrowser />
                         </div>
-                      </TabsContent>
-                      <TabsContent value="media">
-                        <MemoMediaLibrary onClose={handleMediaLibClose} isEmbedded={true} />
                       </TabsContent>
                       <TabsContent value="files">
                         <div className="tw-h-full">

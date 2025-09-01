@@ -3,6 +3,11 @@ import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
+import { useStore } from '../../store/store';
+
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 
 interface BinaryProps {
   videoTexture?: THREE.VideoTexture;
@@ -14,7 +19,13 @@ interface BinaryProps {
   opacity?: number;
   preserveColors?: boolean;
   isGlobal?: boolean;
+  compositionWidth?: number;
+  compositionHeight?: number;
 }
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 export const Binary: React.FC<BinaryProps> = ({
   videoTexture,
@@ -25,12 +36,30 @@ export const Binary: React.FC<BinaryProps> = ({
   invert = false,
   opacity = 1,
   preserveColors = false,
-  isGlobal = false
+  isGlobal = false,
+  compositionWidth,
+  compositionHeight
 }) => {
+  // ============================================================================
+  // COMPOSITION SETTINGS & DIMENSIONS
+  // ============================================================================
+  
+  const compositionSettings = useStore((state) => state.compositionSettings);
+  const effectiveCompositionWidth = compositionWidth || compositionSettings?.width || 1920;
+  const effectiveCompositionHeight = compositionHeight || compositionSettings?.height || 1080;
+
+  // ============================================================================
+  // CHARACTER PROCESSING
+  // ============================================================================
+  
   const effectiveChars = useMemo(() => {
     return typeof characters === 'string' && characters.length > 0 ? characters : '01';
   }, [characters]);
 
+  // ============================================================================
+  // UTILITY FUNCTIONS
+  // ============================================================================
+  
   const normalizeColorToHex = (input: any): string => {
     try {
       if (input == null) return '#00ff55';
@@ -83,10 +112,18 @@ export const Binary: React.FC<BinaryProps> = ({
     return '#00ff55';
   };
 
+  // ============================================================================
+  // THREE.JS SETUP & REFS
+  // ============================================================================
+  
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { gl, scene, camera, size } = useThree();
 
+  // ============================================================================
+  // TEXTURE CREATION
+  // ============================================================================
+  
   const createCharactersTexture = (characters: string, fontSize: number): THREE.Texture => {
     const canvas = document.createElement('canvas');
 
@@ -154,8 +191,8 @@ export const Binary: React.FC<BinaryProps> = ({
   const renderTarget = useMemo(() => {
     if (isGlobal) {
       const rt = new THREE.WebGLRenderTarget(
-        Math.max(1, size.width),
-        Math.max(1, size.height),
+        Math.max(1, effectiveCompositionWidth),
+        Math.max(1, effectiveCompositionHeight),
         {
           format: THREE.RGBAFormat,
           type: THREE.UnsignedByteType,
@@ -166,7 +203,7 @@ export const Binary: React.FC<BinaryProps> = ({
       return rt;
     }
     return null;
-  }, [isGlobal, size.width, size.height]);
+  }, [isGlobal, effectiveCompositionWidth, effectiveCompositionHeight]);
 
   useEffect(() => {
     return () => {
@@ -176,6 +213,10 @@ export const Binary: React.FC<BinaryProps> = ({
     };
   }, [renderTarget]);
 
+  // ============================================================================
+  // SHADER CODE
+  // ============================================================================
+  
   const fragmentShader = `
 uniform sampler2D inputBuffer;
 uniform sampler2D uCharacters;
@@ -229,7 +270,7 @@ void main() {
         uInvert: { value: invert },
         uOpacity: { value: opacity },
         uPreserveColors: { value: preserveColors ? 1 : 0 },
-        resolution: { value: new THREE.Vector2(Math.max(1, size.width), Math.max(1, size.height)) }
+        resolution: { value: new THREE.Vector2(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight)) }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -296,18 +337,26 @@ void main() {
     }
   });
 
+  // ============================================================================
+  // RESOLUTION & DIMENSION UPDATES
+  // ============================================================================
+  
   useEffect(() => {
     if (materialRef.current) {
       materialRef.current.uniforms.resolution.value.set(
-        Math.max(1, size.width),
-        Math.max(1, size.height)
+        Math.max(1, effectiveCompositionWidth),
+        Math.max(1, effectiveCompositionHeight)
       );
     }
     if (isGlobal && renderTarget) {
-      renderTarget.setSize(Math.max(1, size.width), Math.max(1, size.height));
+      renderTarget.setSize(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
-  }, [size, isGlobal, renderTarget]);
+  }, [effectiveCompositionWidth, effectiveCompositionHeight, isGlobal, renderTarget]);
 
+  // ============================================================================
+  // ASPECT RATIO CALCULATION
+  // ============================================================================
+  
   const compositionAspect = useMemo(() => {
     return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9;
   }, [size]);

@@ -15,7 +15,17 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
   const [newPassword, setNewPassword] = useState('');
   const [resetRequestMode, setResetRequestMode] = useState(false);
 
+  // Check if running in Electron
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+
   useEffect(() => {
+    // Skip authentication entirely when running in Electron
+    if (isElectron) {
+      setUser({ id: 'electron-user', email: 'local@electron' }); // Mock user for Electron
+      setLoading(false);
+      return;
+    }
+
     const supabase = getSupabase();
     const init = async () => {
       try {
@@ -33,7 +43,7 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
       setUser(session?.user ?? null);
     });
     return () => { sub.subscription.unsubscribe(); };
-  }, []);
+  }, [isElectron]);
 
   const handleEmailPassword = async (mode: 'signup' | 'signin') => {
     setError(null);
@@ -109,7 +119,7 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
   return (
     <>
       {children}
-      {(!user || resetMode) && (
+      {!isElectron && (!user || resetMode) && (
         <div className="tw-fixed tw-inset-0 tw-flex tw-items-center tw-justify-center tw-z-[7000] tw-text-white tw-bg-black/60 app-no-drag">
           <Card className="tw-w-[380px] tw-bg-neutral-900 tw-border-neutral-800 app-no-drag">
             <CardHeader>

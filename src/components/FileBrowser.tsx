@@ -360,95 +360,113 @@ const FileBrowser: React.FC = () => {
         </div>
       )}
 
-      <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap tw-mb-2">
+      {/* Path Input - Top Row */}
+      <div className="tw-flex tw-items-center tw-gap-2 tw-mb-3 tw-justify-center">
+        <input
+          type="text"
+          placeholder="Enter path..."
+          value={pathInput}
+          onChange={(e) => setPathInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && pathInput) loadDirectory(pathInput); }}
+          className="tw-w-96 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
+          style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+        />
         <button
-          onClick={navigateUp}
-          title="Up"
-          className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
+          className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-3 tw-py-2 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800 tw-rounded"
+          onClick={() => pathInput && loadDirectory(pathInput)}
         >
-          Up
+          Go
         </button>
+      </div>
 
-        {roots.length > 0 && (
-          <div className="tw-min-w-[160px]">
-            <Select
-              value={'' as any}
-              onChange={(val) => { const v = String(val); if (v) loadDirectory(v); }}
-              options={[{ value: '', label: 'Drives' }, ...roots.map(r => ({ value: r, label: r }))]}
-            />
-          </div>
-        )}
-
-        {favorites.map((f) => (
-          <div key={f.path} className="tw-inline-flex tw-items-center tw-gap-1">
-            <button
-              onClick={() => loadDirectory(f.path)}
-              title={f.path}
-              className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
-            >
-              {f.label}
-            </button>
-            <button
-              onClick={() => removeFavorite(f.path)}
-              title="Remove favorite"
-              className="tw-inline-flex tw-items-center tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-300 tw-px-1 tw-py-1 hover:tw-bg-neutral-800"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-
-        <div className="tw-flex tw-items-center tw-gap-1 tw-ml-auto">
-          <input
-            type="text"
-            placeholder="Path"
-            value={pathInput}
-            onChange={(e) => setPathInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && pathInput) loadDirectory(pathInput); }}
-            className="tw-min-w-[260px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2"
-            style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
-          />
+      {/* Navigation Controls - Second Row */}
+      <div className="tw-flex tw-items-center tw-gap-3 tw-mb-3">
+        {/* Left side - Navigation buttons */}
+        <div className="tw-flex tw-items-center tw-gap-2">
           <button
-            className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
-            onClick={() => pathInput && loadDirectory(pathInput)}
+            onClick={navigateUp}
+            title="Go to parent directory"
+            className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-3 tw-py-2 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800 tw-rounded"
           >
-            Go
+            Up
           </button>
+          
+          {roots.length > 0 && (
+            <div className="tw-min-w-[140px]">
+              <Select
+                value={'' as any}
+                onChange={(val) => { const v = String(val); if (v) loadDirectory(v); }}
+                options={[{ value: '', label: 'Select Drive...' }, ...roots.map(r => ({ value: r, label: r }))]}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Right side - Filter */}
+        <div className="tw-flex tw-items-center tw-gap-2 tw-ml-auto">
           <input
             type="text"
-            placeholder="Filter"
+            placeholder="Filter files..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="tw-min-w-[140px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2"
+            className="tw-w-40 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
             style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
           />
         </div>
       </div>
 
-      <div className="tw-flex tw-items-center tw-gap-2 tw-mb-2 tw-flex-wrap">
-        <div className="tw-flex tw-gap-1.5 tw-flex-wrap tw-items-center">
-          {breadcrumb.map((c, i) => (
-            <React.Fragment key={c.full}>
-              <button className="tw-text-sm tw-text-sky-400 hover:tw-underline" onClick={() => loadDirectory(c.full)}>{c.label}</button>
-              {i < breadcrumb.length - 1 && <span className="tw-text-neutral-500">/</span>}
-            </React.Fragment>
+      {/* Favorites and Breadcrumb - Second Row */}
+      <div className="tw-flex tw-items-center tw-justify-between tw-mb-3">
+        {/* Left side - Favorites */}
+        <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
+          {favorites.map((f) => (
+            <div key={f.path} className="tw-inline-flex tw-items-center tw-gap-1">
+              <button
+                onClick={() => loadDirectory(f.path)}
+                title={f.path}
+                className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800 tw-rounded"
+              >
+                {f.label}
+              </button>
+              <button
+                onClick={() => removeFavorite(f.path)}
+                title="Remove favorite"
+                className="tw-inline-flex tw-items-center tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-300 tw-px-1 tw-py-1 hover:tw-bg-neutral-800 tw-rounded"
+              >
+                ×
+              </button>
+            </div>
           ))}
         </div>
-        <div className="tw-ml-auto tw-flex tw-items-center tw-gap-2">
+
+        {/* Right side - Add new favorite */}
+        <div className="tw-flex tw-items-center tw-gap-2">
           <input
             type="text"
             placeholder="Favorite label"
             value={favLabel}
             onChange={(e) => setFavLabel(e.target.value)}
-            className="tw-min-w-[160px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2"
+            className="tw-w-40 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
             style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
           />
           <button
             onClick={addFavorite}
-            className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-white tw-px-2 tw-py-1 hover:tw-bg-neutral-700"
+            className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-white tw-px-3 tw-py-2 hover:tw-bg-neutral-700 tw-rounded"
           >
             Save Favorite
           </button>
+        </div>
+      </div>
+
+      {/* Breadcrumb Navigation - Third Row */}
+      <div className="tw-flex tw-items-center tw-gap-2 tw-mb-3 tw-px-1">
+        <div className="tw-flex tw-gap-1.5 tw-flex-wrap tw-items-center">
+          {breadcrumb.map((c, i) => (
+            <React.Fragment key={c.full}>
+              <button className="tw-text-sm tw-text-sky-400 hover:tw-underline hover:tw-text-sky-300" onClick={() => loadDirectory(c.full)}>{c.label}</button>
+              {i < breadcrumb.length - 1 && <span className="tw-text-neutral-500">/</span>}
+            </React.Fragment>
+          ))}
         </div>
       </div>
 

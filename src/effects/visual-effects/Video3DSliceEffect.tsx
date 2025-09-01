@@ -2,6 +2,11 @@ import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
+import { useStore } from '../../store/store';
+
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 
 interface Video3DSliceEffectProps {
   videoTexture?: THREE.VideoTexture;
@@ -13,7 +18,13 @@ interface Video3DSliceEffectProps {
   animationSpeed?: number;
   chaosLevel?: number;
   isGlobal?: boolean;
+  compositionWidth?: number;
+  compositionHeight?: number;
 }
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
   videoTexture,
@@ -24,8 +35,22 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
   depthSpread = 2,
   animationSpeed = 1,
   chaosLevel = 0.5,
-  isGlobal = false
+  isGlobal = false,
+  compositionWidth,
+  compositionHeight
 }) => {
+  // ============================================================================
+  // COMPOSITION SETTINGS & DIMENSIONS
+  // ============================================================================
+  
+  const compositionSettings = useStore((state) => state.compositionSettings);
+  const effectiveCompositionWidth = compositionWidth || compositionSettings?.width || 1920;
+  const effectiveCompositionHeight = compositionHeight || compositionSettings?.height || 1080;
+
+  // ============================================================================
+  // THREE.JS SETUP & REFS
+  // ============================================================================
+  
   const groupRef = useRef<THREE.Group>(null);
   const timeRef = useRef(0);
   const { gl, scene, camera, size } = useThree();
@@ -41,8 +66,8 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
   const renderTarget = useMemo(() => {
     if (isGlobal) {
       const rt = new THREE.WebGLRenderTarget(
-        Math.max(1, size.width),
-        Math.max(1, size.height),
+        Math.max(1, effectiveCompositionWidth),
+        Math.max(1, effectiveCompositionHeight),
         {
           format: THREE.RGBAFormat,
           type: THREE.UnsignedByteType,
@@ -53,7 +78,7 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
       return rt;
     }
     return null;
-  }, [isGlobal, size.width, size.height]);
+  }, [isGlobal, effectiveCompositionWidth, effectiveCompositionHeight]);
 
   useEffect(() => {
     return () => {
@@ -298,9 +323,9 @@ export const Video3DSliceEffect: React.FC<Video3DSliceEffectProps> = ({
   // Keep render target in sync with canvas size
   useEffect(() => {
     if (isGlobal && renderTarget) {
-      renderTarget.setSize(Math.max(1, size.width), Math.max(1, size.height));
+      renderTarget.setSize(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
-  }, [size, isGlobal, renderTarget]);
+  }, [effectiveCompositionWidth, effectiveCompositionHeight, isGlobal, renderTarget]);
 
   // Aspect-based scaling to fill composition
   const compositionAspect = useMemo(() => {

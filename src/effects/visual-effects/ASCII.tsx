@@ -3,6 +3,12 @@ import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
+import { useStore } from '../../store/store';
+import { useOptimizedUniforms } from '../../hooks/useOptimizedUniforms';
+
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 
 interface ASCIIProps {
   videoTexture?: THREE.VideoTexture;
@@ -13,37 +19,55 @@ interface ASCIIProps {
   invert?: boolean;
   opacity?: number;
   preserveColors?: boolean;
-  isGlobal?: boolean; // New prop to indicate if this is a global effect
+  isGlobal?: boolean;
+  compositionWidth?: number;
+  compositionHeight?: number;
 }
 
-export const ASCII: React.FC<ASCIIProps> = ({
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+export const ASCII: React.FC<ASCIIProps> = React.memo(({
   videoTexture,
   characters = ` .:,'-^=*+?!|0#X%WM@`,
-  fontSize = 54,
-  cellSize = 28,
+  fontSize = 72,
+  cellSize = 36,
   color = '#ffffff',
   invert = false,
   opacity = 1,
   preserveColors = false,
-  isGlobal = false
+  isGlobal = false,
+  compositionWidth,
+  compositionHeight
 }) => {
-  // Ensure at least one character to avoid invalid shader indexing when editing string to empty
-  const effectiveChars = useMemo(() => {
-    return typeof characters === 'string' && characters.length > 0 ? characters : ' .';
-  }, [characters]);
-  // Normalize various color input types to a hex string like '#rrggbb'
+  // ============================================================================
+  // COMPOSITION SETTINGS & DIMENSIONS
+  // ============================================================================
+  
+  const compositionSettings = useStore((state) => state.compositionSettings);
+  const effectiveCompositionWidth = compositionWidth || compositionSettings?.width || 1920;
+  const effectiveCompositionHeight = compositionHeight || compositionSettings?.height || 1080;
+
+  // ============================================================================
+  // UTILITY FUNCTIONS
+  // ============================================================================
+  
   const normalizeColorToHex = (input: any): string => {
     try {
       if (input == null) return '#ffffff';
+      
       // Unwrap { value: ... }
       if (typeof input === 'object' && 'value' in input) {
         return normalizeColorToHex((input as any).value);
       }
+      
       // THREE.Color instance
       if (typeof input === 'object' && (input as any).isColor) {
         const c = input as any;
         return `#${c.getHexString()}`;
       }
+      
       // { r, g, b } objects (0-1 or 0-255)
       if (typeof input === 'object' &&
           typeof (input as any).r === 'number' &&
@@ -58,13 +82,16 @@ export const ASCII: React.FC<ASCIIProps> = ({
         const toHex = (n: number) => n.toString(16).padStart(2, '0');
         return `#${toHex(rr)}${toHex(gg)}${toHex(bb)}`;
       }
+      
       // numeric hex like 0xff00ff
       if (typeof input === 'number') {
         return `#${(input as number).toString(16).padStart(6, '0')}`;
       }
+      
       if (typeof input === 'string') {
         const s = input.trim();
         if (s.startsWith('#')) return s;
+        
         // rudimentary rgb(a) parser
         if (s.startsWith('rgb')) {
           const m = s.match(/rgba?\(([^)]+)\)/i);
@@ -75,6 +102,7 @@ export const ASCII: React.FC<ASCIIProps> = ({
             return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
           }
         }
+        
         // fallback - let THREE.Color parse common strings
         try {
           const c = new THREE.Color(s);
@@ -84,11 +112,34 @@ export const ASCII: React.FC<ASCIIProps> = ({
     } catch {}
     return '#ffffff';
   };
+
+  // ============================================================================
+  // CHARACTER PROCESSING
+  // ============================================================================
+  
+  const effectiveChars = useMemo(() => {
+    return typeof characters === 'string' && characters.length > 0 ? characters : ' .';
+  }, [characters]);
+
+  // Memoize normalized color to avoid expensive operations every frame
+  const normalizedColor = useMemo(() => {
+    return normalizeColorToHex(color);
+  }, [color]);
+
+  // ============================================================================
+  // THREE.JS SETUP & REFS
+  // ============================================================================
+  
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { gl, scene, camera, size } = useThree();
+  const { updateUniforms } = useOptimizedUniforms();
 
-  /** Draws the characters on a Canvas and returns a texture - EXACT CODE FROM REFERENCE */
+  // ============================================================================
+  // TEXTURE CREATION
+  // ============================================================================
+  
+  /** Draws the characters on a Canvas and returns a texture */
   const createCharactersTexture = (characters: string, fontSize: number): THREE.Texture => {
     const canvas = document.createElement('canvas');
 
@@ -136,6 +187,17 @@ export const ASCII: React.FC<ASCIIProps> = ({
     return createCharactersTexture(effectiveChars, fontSize);
   }, [effectiveChars, fontSize]);
 
+  // Safe default 1x1 black texture for sampler2D uniform
+  const blackTexture = useMemo(() => {
+    const tex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
+
+  // ============================================================================
+  // CLEANUP & DISPOSAL
+  // ============================================================================
+  
   useEffect(() => {
     return () => {
       try {
@@ -144,25 +206,24 @@ export const ASCII: React.FC<ASCIIProps> = ({
     };
   }, [asciiTexture]);
 
-  // Safe default 1x1 black texture for sampler2D uniform
-  const blackTexture = useMemo(() => {
-    const tex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
-    tex.needsUpdate = true;
-    return tex;
-  }, []);
-
-  // Update material when asciiTexture changes (without recreating the material)
+  // ============================================================================
+  // MATERIAL UPDATES
+  // ============================================================================
+  
   useEffect(() => {
     if (materialRef.current) {
       // Update character count when characters change (clamped to >= 1)
       materialRef.current.uniforms.uCharactersCount.value = Math.max(1, effectiveChars.length);
     }
-  }, [effectiveChars.length]); // Only update when characters string changes
+  }, [effectiveChars.length]);
 
-  // For global effects, we need to capture the current render target
+  // ============================================================================
+  // RENDER TARGET SETUP (FOR GLOBAL EFFECTS)
+  // ============================================================================
+  
   const renderTarget = useMemo(() => {
     if (isGlobal) {
-      const rt = new THREE.WebGLRenderTarget(Math.max(1, size.width), Math.max(1, size.height), {
+      const rt = new THREE.WebGLRenderTarget(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight), {
         format: THREE.RGBAFormat,
         type: THREE.UnsignedByteType,
         minFilter: THREE.LinearFilter,
@@ -171,9 +232,8 @@ export const ASCII: React.FC<ASCIIProps> = ({
       return rt;
     }
     return null;
-  }, [isGlobal, size.width, size.height]);
+  }, [isGlobal, effectiveCompositionWidth, effectiveCompositionHeight]);
 
-  // Dispose render target on unmount or when it changes
   useEffect(() => {
     return () => {
       try {
@@ -182,7 +242,10 @@ export const ASCII: React.FC<ASCIIProps> = ({
     };
   }, [renderTarget]);
 
-  // Adapt the EXACT fragment shader from reference for our use
+  // ============================================================================
+  // SHADER CODE
+  // ============================================================================
+  
   const adaptedFragment = `
 uniform sampler2D inputBuffer;
 uniform sampler2D uCharacters;
@@ -231,7 +294,10 @@ void main() {
 }
 `;
 
-  // Create shader material using exact reference code logic
+  // ============================================================================
+  // SHADER MATERIAL CREATION
+  // ============================================================================
+  
   const shaderMaterial = useMemo(() => {
     if (!asciiTexture) return null;
 
@@ -241,11 +307,11 @@ void main() {
         uCharacters: { value: asciiTexture },
         uCellSize: { value: cellSize },
         uCharactersCount: { value: Math.max(1, effectiveChars.length) },
-        uColor: { value: new THREE.Color(normalizeColorToHex(color)) },
+        uColor: { value: new THREE.Color(normalizedColor) },
         uInvert: { value: invert },
         uOpacity: { value: opacity },
         uPreserveColors: { value: preserveColors ? 1 : 0 },
-        resolution: { value: new THREE.Vector2(Math.max(1, size.width), Math.max(1, size.height)) }
+        resolution: { value: new THREE.Vector2(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight)) }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -261,88 +327,86 @@ void main() {
       depthTest: false,
       depthWrite: false
     });
-  }, [isGlobal]); // Only recreate when global mode changes, not when ascii texture changes
+  }, [isGlobal]);
 
-  // For global effects, capture the current scene and apply ASCII effect
+  // ============================================================================
+  // RENDER LOOP & UNIFORM UPDATES
+  // ============================================================================
+  
   useFrame(() => {
-    if (isGlobal && renderTarget && shaderMaterial) {
-      // Capture current scene to render target
-      const currentRenderTarget = gl.getRenderTarget();
-      const wasVisible = meshRef.current ? meshRef.current.visible : undefined;
-      if (meshRef.current) meshRef.current.visible = false;
-      try {
-        gl.setRenderTarget(renderTarget);
-        gl.render(scene, camera);
-      } finally {
-        gl.setRenderTarget(currentRenderTarget);
-        if (meshRef.current && wasVisible !== undefined) meshRef.current.visible = wasVisible;
-      }
-
-      // Update the input buffer to use the captured scene
-      if (materialRef.current) {
-        materialRef.current.uniforms.inputBuffer.value = renderTarget.texture;
-      }
-    }
-
-    // Update uniforms on each frame
     if (materialRef.current && shaderMaterial) {
-      // Only update uniforms when values actually change (prevents video restart)
-      if (materialRef.current.uniforms.uCellSize.value !== cellSize) {
-        materialRef.current.uniforms.uCellSize.value = cellSize;
+      // Global capture path - only when needed
+      if (isGlobal && renderTarget) {
+        const currentRenderTarget = gl.getRenderTarget();
+        const wasVisible = meshRef.current ? meshRef.current.visible : undefined;
+        if (meshRef.current) meshRef.current.visible = false;
+        try {
+          gl.setRenderTarget(renderTarget);
+          gl.render(scene, camera);
+        } finally {
+          gl.setRenderTarget(currentRenderTarget);
+          if (meshRef.current && wasVisible !== undefined) meshRef.current.visible = wasVisible;
+        }
+        
+        // Only update texture if it changed
+        if (materialRef.current.uniforms.inputBuffer.value !== renderTarget.texture) {
+          materialRef.current.uniforms.inputBuffer.value = renderTarget.texture;
+        }
+      } else if (!isGlobal && videoTexture) {
+        // Only update texture if it changed
+        if (materialRef.current.uniforms.inputBuffer.value !== videoTexture) {
+          materialRef.current.uniforms.inputBuffer.value = videoTexture;
+        }
       }
-      const desiredCount = Math.max(1, effectiveChars.length);
-      if (materialRef.current.uniforms.uCharactersCount.value !== desiredCount) {
-        materialRef.current.uniforms.uCharactersCount.value = desiredCount;
-      }
-      const normalizedColor = normalizeColorToHex(color);
+
+      // Use optimized uniform updates for parameters that change frequently
+      updateUniforms(materialRef.current, {
+        uCellSize: cellSize,
+        uCharactersCount: Math.max(1, effectiveChars.length),
+        uInvert: invert,
+        uOpacity: opacity,
+        uPreserveColors: preserveColors ? 1 : 0
+      });
+
+      // Update color only when it changes (expensive operation)
       const currentHex = materialRef.current.uniforms.uColor.value.getHexString();
       const targetHex = normalizedColor.startsWith('#') ? normalizedColor.slice(1) : normalizedColor;
       if (currentHex !== targetHex) {
         materialRef.current.uniforms.uColor.value.set(normalizedColor);
       }
-      if (materialRef.current.uniforms.uInvert.value !== invert) {
-        materialRef.current.uniforms.uInvert.value = invert;
-      }
-      if (materialRef.current.uniforms.uOpacity && materialRef.current.uniforms.uOpacity.value !== opacity) {
-        materialRef.current.uniforms.uOpacity.value = opacity;
-      }
-      const preserveAsNumber = preserveColors ? 1 : 0;
-      if (materialRef.current.uniforms.uPreserveColors && materialRef.current.uniforms.uPreserveColors.value !== preserveAsNumber) {
-        materialRef.current.uniforms.uPreserveColors.value = preserveAsNumber;
-      }
       
-      // Update character texture only when characters or font size change
+      // Update character texture only when it changes
       if (materialRef.current.uniforms.uCharacters.value !== asciiTexture) {
         materialRef.current.uniforms.uCharacters.value = asciiTexture;
       }
-      
-      // Update video texture if available
-      if (!isGlobal && videoTexture && materialRef.current.uniforms.inputBuffer.value !== videoTexture) {
-        materialRef.current.uniforms.inputBuffer.value = videoTexture;
-      }
-      
-      // Texture binding is handled in useMemo and only changes when the source changes
-      // No need to constantly update inputBuffer during playback - this was causing the conflict
-      
     }
   });
 
-  // Update resolution uniform and render target size when canvas size changes
+  // ============================================================================
+  // RESOLUTION & DIMENSION UPDATES
+  // ============================================================================
+  
   useEffect(() => {
     if (materialRef.current) {
-      materialRef.current.uniforms.resolution.value.set(Math.max(1, size.width), Math.max(1, size.height));
+      materialRef.current.uniforms.resolution.value.set(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
     if (isGlobal && renderTarget) {
-      renderTarget.setSize(Math.max(1, size.width), Math.max(1, size.height));
+      renderTarget.setSize(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
-  }, [size, isGlobal, renderTarget]);
+  }, [effectiveCompositionWidth, effectiveCompositionHeight, isGlobal, renderTarget]);
 
-  // Derive plane aspect from renderer size for responsive layout
+  // ============================================================================
+  // ASPECT RATIO CALCULATION
+  // ============================================================================
+  
   const compositionAspect = useMemo(() => {
     return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9;
   }, [size]);
 
-  // Don't render if missing dependencies
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+  
   if (!shaderMaterial || !asciiTexture) {
     return null;
   }
@@ -357,9 +421,12 @@ void main() {
       />
     </mesh>
   );
-};
+});
 
-// Register the effect with metadata - EXACT defaults from reference
+// ============================================================================
+// EFFECT METADATA & REGISTRATION
+// ============================================================================
+
 (ASCII as any).metadata = {
   name: 'ASCII',
   description: 'Converts video texture to ASCII characters using GPU fragment shader - works as both layer and global effect',
@@ -367,19 +434,19 @@ void main() {
   icon: '',
   author: 'VJ System',
   version: '1.0.0',
-  replacesVideo: true, // This effect replaces the video texture
-  canBeGlobal: true, // NEW: This effect can be used as a global effect
+  replacesVideo: true,
+  canBeGlobal: true,
   parameters: [
     { name: 'characters', type: 'string', value: ` .:,'-^=*+?!|0#X%WM@` },
-    { name: 'fontSize', type: 'number', value: 54, min: 8, max: 100, step: 1 },
-    { name: 'cellSize', type: 'number', value: 28, min: 4, max: 32, step: 1 },
+    { name: 'fontSize', type: 'number', value: 72, min: 8, max: 120, step: 1 },
+    { name: 'cellSize', type: 'number', value: 36, min: 4, max: 48, step: 1 },
     { name: 'color', type: 'color', value: '#ffffff' },
     { name: 'invert', type: 'boolean', value: false },
     { name: 'preserveColors', type: 'boolean', value: false }
   ]
 };
 
-// Register the effect (single registration)
+// Register the effect with multiple IDs for compatibility
 registerEffect('ascii', ASCII);
 registerEffect('ascii-video-effect', ASCII); // backward compatibility
 registerEffect('visual-effects/ASCII', ASCII); // direct path-style id for discovery

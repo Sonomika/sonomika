@@ -10,6 +10,7 @@
     "strict": true,
     "outDir": "dist-electron",
     "rootDir": "electron",
+    "allowJs": true,
     "declaration": false,
     "sourceMap": false
   },

@@ -48,8 +48,10 @@ export const EffectChain: React.FC<EffectChainProps> = ({
 
   const ensureRTs = () => {
     // Offscreen RTs for sources/effects remain full composition resolution
-    const w = Math.max(2, Math.floor(compositionWidth));
-    const h = Math.max(2, Math.floor(compositionHeight));
+    // Apply device pixel ratio for crisp rendering
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(2, Math.floor(compositionWidth * dpr));
+    const h = Math.max(2, Math.floor(compositionHeight * dpr));
     if (rtRefs.current.length !== items.length) {
       // Dispose previous and recreate sized to items
       rtRefs.current.forEach((rt) => rt?.dispose());
@@ -274,9 +276,10 @@ export const EffectChain: React.FC<EffectChainProps> = ({
             const mat = m.material as THREE.MeshBasicMaterial;
             if (mat.map !== videoTexture) { mat.map = videoTexture; mat.needsUpdate = true; }
           }
-          // ensure RT size
-          const w = Math.max(2, Math.floor(compositionWidth * effectiveScale));
-          const h = Math.max(2, Math.floor(compositionHeight * effectiveScale));
+          // ensure RT size with device pixel ratio for crisp rendering
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          const w = Math.max(2, Math.floor(compositionWidth * effectiveScale * dpr));
+          const h = Math.max(2, Math.floor(compositionHeight * effectiveScale * dpr));
           if (!videoRtRef.current || videoRtRef.current.width !== w || videoRtRef.current.height !== h) {
             videoRtRef.current?.dispose();
             videoRtRef.current = new THREE.WebGLRenderTarget(w, h, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false });
@@ -536,7 +539,10 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       const EffectComponent = getEffectComponentSync(item.effectId);
       if (!EffectComponent) return null;
       const params = item.params || {};
-      const extras: Record<string, any> = {};
+      const extras: Record<string, any> = {
+        compositionWidth,
+        compositionHeight
+      };
       if (item.type === 'effect') {
         const stageRT = rtRefs.current[idx]!;
         const candidate = inputTextures[idx] || null;

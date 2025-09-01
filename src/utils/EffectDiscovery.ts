@@ -462,8 +462,11 @@ export class EffectDiscovery {
    * Generate effect name from filename
    */
   private generateEffectName(fileName: string): string {
+    // Remove file extension first
+    const nameWithoutExt = fileName.replace(/\.(tsx|ts|js|jsx)$/, '');
+    
     // Convert CamelCase to Title Case
-    return fileName
+    return nameWithoutExt
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, str => str.toUpperCase())
       .replace(/Effect$/, '')

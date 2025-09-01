@@ -30,14 +30,37 @@ try {
         onToggleMirror: (callback) => {
             electron_1.ipcRenderer.on('toggle-mirror', callback);
         },
+        onMirrorWindowClosed: (callback) => {
+            electron_1.ipcRenderer.on('mirror-window-closed', callback);
+        },
         openMirrorWindow: () => electron_1.ipcRenderer.send('open-mirror-window'),
         closeMirrorWindow: () => electron_1.ipcRenderer.send('close-mirror-window'),
         sendCanvasData: (dataUrl) => {
             console.log('Preload: sendCanvasData called');
-            electron_1.ipcRenderer.send('canvas-data', dataUrl);
+            electron_1.ipcRenderer.send('sendCanvasData', dataUrl);
+        },
+        setMirrorAspectRatio: (width, height) => {
+            console.log('Preload: setMirrorAspectRatio called', width, height);
+            electron_1.ipcRenderer.send('set-mirror-aspect', width, height);
+        },
+        resizeMirrorWindow: (width, height) => {
+            console.log('Preload: resizeMirrorWindow called', width, height);
+            electron_1.ipcRenderer.send('resize-mirror-window', width, height);
         },
         readLocalFileAsBase64: (filePath) => {
             return electron_1.ipcRenderer.invoke('read-local-file-base64', filePath);
+        },
+        showOpenDialog: (options) => {
+            return electron_1.ipcRenderer.invoke('show-open-dialog', options);
+        },
+        showSaveDialog: (options) => {
+            return electron_1.ipcRenderer.invoke('show-save-dialog', options);
+        },
+        readFileText: (filePath) => {
+            return electron_1.ipcRenderer.invoke('read-file-text', filePath);
+        },
+        saveFile: (filePath, content) => {
+            return electron_1.ipcRenderer.invoke('save-file', filePath, content);
         }
     });
     console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');

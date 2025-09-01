@@ -100,10 +100,6 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   if (isLoading) {
     return (
       <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
-        <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
-          <h2 className="tw-text-base tw-font-semibold">Effects Browser</h2>
-          <button onClick={onClose} className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
-        </div>
         <div className="tw-flex-1 tw-flex tw-items-center tw-justify-center tw-p-6">
           <div className="tw-flex tw-flex-col tw-items-center tw-gap-2">
             <div className="tw-h-6 tw-w-6 tw-animate-spin tw-rounded-full tw-border-2 tw-border-neutral-600 tw-border-t-transparent" />
@@ -117,10 +113,6 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   if (!isLoading && effects.length === 0) {
     return (
       <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
-        <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
-          <h2 className="tw-text-base tw-font-semibold">Effects Browser</h2>
-          <button onClick={onClose} className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
-        </div>
         <div className="tw-flex-1 tw-overflow-auto tw-p-4">
           <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
             <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No Effects Found</h3>
@@ -133,19 +125,6 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
 
   return (
     <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
-      <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
-        <div className="tw-flex tw-items-center tw-gap-3">
-          <h2 className="tw-text-base tw-font-semibold">Effects Browser</h2>
-          <input
-            type="text"
-            placeholder="Search effects..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
-          />
-        </div>
-        <button onClick={onClose} className="tw-w-6 tw-h-6 tw-flex tw-items-center tw-justify-center hover:tw-bg-neutral-800">×</button>
-      </div>
       <div className="tw-mb-2">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources')}>
           <TabsList>
@@ -156,14 +135,23 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           <TabsContent value="sources" />
         </Tabs>
       </div>
+      <div className="tw-px-3 tw-pb-2">
+        <input
+          type="text"
+          placeholder="Search effects..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="tw-w-full tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+        />
+      </div>
       <div className="tw-flex-1 tw-overflow-auto tw-p-3">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources')}>
           <TabsContent value="effects">
-            <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 2xl:tw-grid-cols-3 tw-gap-2">
+            <div className="tw-space-y-2">
               {visualEffects.map((e) => (
                 <div
                   key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
-                  className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-cursor-pointer hover:tw-bg-neutral-800"
+                  className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
                   draggable
                   onDragStart={(ev) => {
                     ev.dataTransfer.setData('application/json', JSON.stringify({
@@ -174,19 +162,17 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   }}
                   title={`${e.name}: ${e.description}`}
                 >
-                  <div className="tw-text-sm tw-font-medium">{e.name}</div>
-                  <div className="tw-text-xs tw-text-neutral-300">{e.description}</div>
-                  <div className="tw-mt-1 tw-text-[10px] tw-uppercase tw-text-neutral-400">{e.category}</div>
+                  <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
                 </div>
               ))}
             </div>
           </TabsContent>
           <TabsContent value="sources">
-            <div className="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 2xl:tw-grid-cols-3 tw-gap-2">
+            <div className="tw-space-y-2">
               {generativeSources.map((e) => (
                 <div
                   key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
-                  className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-cursor-pointer hover:tw-bg-neutral-800"
+                  className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
                   draggable
                   onDragStart={(ev) => {
                     ev.dataTransfer.setData('application/json', JSON.stringify({
@@ -197,9 +183,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   }}
                   title={`${e.name}: ${e.description}`}
                 >
-                  <div className="tw-text-sm tw-font-medium">{e.name}</div>
-                  <div className="tw-text-xs tw-text-neutral-300">{e.description}</div>
-                  <div className="tw-mt-1 tw-text-[10px] tw-uppercase tw-text-neutral-400">{e.category}</div>
+                  <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
                 </div>
               ))}
             </div>

@@ -32,6 +32,7 @@ declare global {
       close: () => void;
       toggleMirror: () => void;
       onToggleMirror: (callback: () => void) => void;
+      onMirrorWindowClosed: (callback: () => void) => void;
       openMirrorWindow: () => void;
       closeMirrorWindow: () => void;
       sendCanvasData: (dataUrl: string) => void;
@@ -279,6 +280,15 @@ function App() {
     if (window.electron) {
       window.electron.onToggleMirror(() => {
         handleMirrorToggle();
+      });
+      window.electron.onMirrorWindowClosed(() => {
+        console.log('Mirror window closed event received, updating state');
+        setIsMirrorOpen(false);
+        // Clean up stream manager
+        if (streamManagerRef.current) {
+          streamManagerRef.current.closeMirrorWindow();
+          streamManagerRef.current = null;
+        }
       });
       (window.electron as any).onToggleAdvancedMirror?.(() => {
         setAdvMirrorOpen(true);

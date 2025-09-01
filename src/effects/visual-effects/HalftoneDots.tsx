@@ -3,6 +3,11 @@ import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
+import { useStore } from '../../store/store';
+
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 
 interface HalftoneDotsProps {
   videoTexture?: THREE.VideoTexture;
@@ -16,7 +21,13 @@ interface HalftoneDotsProps {
   opacity?: number;
   preserveColors?: boolean;
   isGlobal?: boolean;
+  compositionWidth?: number;
+  compositionHeight?: number;
 }
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 export const HalftoneDots: React.FC<HalftoneDotsProps> = ({
   videoTexture,
@@ -29,8 +40,22 @@ export const HalftoneDots: React.FC<HalftoneDotsProps> = ({
   invert = false,
   opacity = 1,
   preserveColors = false,
-  isGlobal = false
+  isGlobal = false,
+  compositionWidth,
+  compositionHeight
 }) => {
+  // ============================================================================
+  // COMPOSITION SETTINGS & DIMENSIONS
+  // ============================================================================
+  
+  const compositionSettings = useStore((state) => state.compositionSettings);
+  const effectiveCompositionWidth = compositionWidth || compositionSettings?.width || 1920;
+  const effectiveCompositionHeight = compositionHeight || compositionSettings?.height || 1080;
+
+  // ============================================================================
+  // THREE.JS SETUP & REFS
+  // ============================================================================
+  
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { gl, scene, camera, size } = useThree();
@@ -92,7 +117,7 @@ export const HalftoneDots: React.FC<HalftoneDotsProps> = ({
 
   const renderTarget = useMemo(() => {
     if (isGlobal) {
-      const rt = new THREE.WebGLRenderTarget(Math.max(1, size.width), Math.max(1, size.height), {
+      const rt = new THREE.WebGLRenderTarget(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight), {
         format: THREE.RGBAFormat,
         type: THREE.UnsignedByteType,
         minFilter: THREE.LinearFilter,
@@ -101,7 +126,7 @@ export const HalftoneDots: React.FC<HalftoneDotsProps> = ({
       return rt;
     }
     return null;
-  }, [isGlobal, size.width, size.height]);
+  }, [isGlobal, effectiveCompositionWidth, effectiveCompositionHeight]);
 
   useEffect(() => {
     return () => {
@@ -169,7 +194,7 @@ void main(){
     return new THREE.ShaderMaterial({
       uniforms: {
         inputBuffer: { value: blackTexture },
-        resolution: { value: new THREE.Vector2(Math.max(1, size.width), Math.max(1, size.height)) },
+        resolution: { value: new THREE.Vector2(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight)) },
         uColor: { value: new THREE.Color(normalizeColorToHex(color)) },
         uOpacity: { value: opacity },
         uPreserveColors: { value: preserveColors ? 1 : 0 },
@@ -253,12 +278,12 @@ void main(){
 
   useEffect(() => {
     if (materialRef.current) {
-      materialRef.current.uniforms.resolution.value.set(Math.max(1, size.width), Math.max(1, size.height));
+      materialRef.current.uniforms.resolution.value.set(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
     if (isGlobal && renderTarget) {
-      renderTarget.setSize(Math.max(1, size.width), Math.max(1, size.height));
+      renderTarget.setSize(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
-  }, [size, isGlobal, renderTarget]);
+  }, [effectiveCompositionWidth, effectiveCompositionHeight, isGlobal, renderTarget]);
 
   const compositionAspect = useMemo(() => {
     return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9;

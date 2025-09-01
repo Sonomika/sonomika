@@ -1,4 +1,4 @@
-// src/effects/VideoWarpEffect.tsx
+// src/effects/visual-effects/VideoWarpEffect.tsx
 import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -6,14 +6,24 @@ import { useStore } from '../../store/store';
 import { registerEffect } from '../../utils/effectRegistry';
 import { useOptimizedUniforms } from '../../hooks/useOptimizedUniforms';
 
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+
 interface VideoWarpEffectProps {
   intensity?: number;
   frequency?: number;
   speed?: number;
   waveType?: 'sine' | 'cosine' | 'tangent';
   videoTexture?: THREE.VideoTexture;
-  isGlobal?: boolean; // New prop to indicate if this is a global effect
+  isGlobal?: boolean;
+  compositionWidth?: number;
+  compositionHeight?: number;
 }
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
   intensity = 0.1,
@@ -21,8 +31,22 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
   speed = 1.0,
   waveType = 'sine',
   videoTexture,
-  isGlobal = false // Default to false
+  isGlobal = false,
+  compositionWidth,
+  compositionHeight
 }) => {
+  // ============================================================================
+  // COMPOSITION SETTINGS & DIMENSIONS
+  // ============================================================================
+  
+  const compositionSettings = useStore((state) => state.compositionSettings);
+  const effectiveCompositionWidth = compositionWidth || compositionSettings?.width || 1920;
+  const effectiveCompositionHeight = compositionHeight || compositionSettings?.height || 1080;
+
+  // ============================================================================
+  // THREE.JS SETUP & REFS
+  // ============================================================================
+  
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { bpm } = useStore();
@@ -33,8 +57,8 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
   const renderTarget = useMemo(() => {
     if (isGlobal) {
       const rt = new THREE.WebGLRenderTarget(
-        Math.max(1, size.width),
-        Math.max(1, size.height),
+        Math.max(1, effectiveCompositionWidth),
+        Math.max(1, effectiveCompositionHeight),
         {
           format: THREE.RGBAFormat,
           type: THREE.UnsignedByteType,
@@ -45,7 +69,7 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
       return rt;
     }
     return null;
-  }, [isGlobal, size.width, size.height]);
+  }, [isGlobal, effectiveCompositionWidth, effectiveCompositionHeight]);
 
   useEffect(() => {
     return () => {
@@ -209,9 +233,9 @@ const VideoWarpEffect = React.memo<VideoWarpEffectProps>(({
   // Update render target size on canvas resize
   useEffect(() => {
     if (isGlobal && renderTarget) {
-      renderTarget.setSize(Math.max(1, size.width), Math.max(1, size.height));
+      renderTarget.setSize(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
-  }, [size, isGlobal, renderTarget]);
+  }, [effectiveCompositionWidth, effectiveCompositionHeight, isGlobal, renderTarget]);
 
   // Calculate aspect ratio from video texture if available
   const compositionAspect = useMemo(() => {

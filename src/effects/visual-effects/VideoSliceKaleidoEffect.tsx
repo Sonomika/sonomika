@@ -2,6 +2,11 @@ import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { registerEffect } from '../../utils/effectRegistry';
+import { useStore } from '../../store/store';
+
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 
 interface VideoSliceKaleidoEffectProps {
   videoTexture?: THREE.VideoTexture;
@@ -12,7 +17,13 @@ interface VideoSliceKaleidoEffectProps {
   offsetY?: number;
   opacity?: number;
   isGlobal?: boolean;
+  compositionWidth?: number;
+  compositionHeight?: number;
 }
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 export const VideoSliceKaleidoEffect: React.FC<VideoSliceKaleidoEffectProps> = ({
   videoTexture,
@@ -22,8 +33,22 @@ export const VideoSliceKaleidoEffect: React.FC<VideoSliceKaleidoEffectProps> = (
   offsetX = 0,
   offsetY = 0,
   opacity = 1,
-  isGlobal = false
+  isGlobal = false,
+  compositionWidth,
+  compositionHeight
 }) => {
+  // ============================================================================
+  // COMPOSITION SETTINGS & DIMENSIONS
+  // ============================================================================
+  
+  const compositionSettings = useStore((state) => state.compositionSettings);
+  const effectiveCompositionWidth = compositionWidth || compositionSettings?.width || 1920;
+  const effectiveCompositionHeight = compositionHeight || compositionSettings?.height || 1080;
+
+  // ============================================================================
+  // THREE.JS SETUP & REFS
+  // ============================================================================
+  
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { gl, scene, camera, size } = useThree();
@@ -37,8 +62,8 @@ export const VideoSliceKaleidoEffect: React.FC<VideoSliceKaleidoEffectProps> = (
   const renderTarget = useMemo(() => {
     if (isGlobal) {
       const rt = new THREE.WebGLRenderTarget(
-        Math.max(1, size.width),
-        Math.max(1, size.height),
+        Math.max(1, effectiveCompositionWidth),
+        Math.max(1, effectiveCompositionHeight),
         {
           format: THREE.RGBAFormat,
           type: THREE.UnsignedByteType,
@@ -49,7 +74,7 @@ export const VideoSliceKaleidoEffect: React.FC<VideoSliceKaleidoEffectProps> = (
       return rt;
     }
     return null;
-  }, [isGlobal, size.width, size.height]);
+  }, [isGlobal, effectiveCompositionWidth, effectiveCompositionHeight]);
 
   useEffect(() => {
     return () => {
@@ -101,7 +126,7 @@ void main(){
     return new THREE.ShaderMaterial({
       uniforms: {
         tDiffuse: { value: blackTexture },
-        resolution: { value: new THREE.Vector2(Math.max(1, size.width), Math.max(1, size.height)) },
+        resolution: { value: new THREE.Vector2(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight)) },
         uSegments: { value: Math.max(2, Math.floor(segments)) },
         uAngle: { value: (angle * Math.PI) / 180 },
         uOffset: { value: new THREE.Vector2(offsetX, offsetY) },
@@ -168,15 +193,15 @@ void main(){
     }
   });
 
-  // Keep resolution and RT size synced with canvas size
+  // Keep resolution and RT size synced with composition dimensions
   useEffect(() => {
     if (materialRef.current) {
-      materialRef.current.uniforms.resolution.value.set(Math.max(1, size.width), Math.max(1, size.height));
+      materialRef.current.uniforms.resolution.value.set(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
     if (isGlobal && renderTarget) {
-      renderTarget.setSize(Math.max(1, size.width), Math.max(1, size.height));
+      renderTarget.setSize(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
-  }, [size, isGlobal, renderTarget]);
+  }, [effectiveCompositionWidth, effectiveCompositionHeight, isGlobal, renderTarget]);
 
   const compositionAspect = useMemo(() => {
     return size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9;

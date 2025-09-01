@@ -1122,7 +1122,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                   preserveDrawingBuffer: true,
                   antialias: false,
                   powerPreference: 'high-performance',
-                  premultipliedAlpha: false
+                  premultipliedAlpha: false,
+                  pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
                 }}
               onCreated={({ gl, camera }) => {
                 // Check if this column contains only source effects
@@ -1185,7 +1186,11 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                       camera.updateProjectionMatrix();
                     }
 
-                    // Size renderer to the container box without changing the container's CSS size
+                    // Set device pixel ratio for crisp rendering
+                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                    gl.setPixelRatio(dpr);
+                    
+                    // Size renderer to the container box with proper pixel ratio
                     gl.setSize(widthPx, heightPx, false);
                     gl.domElement.style.width = '100%';
                     gl.domElement.style.height = '100%';
@@ -1211,6 +1216,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                         camera.updateProjectionMatrix();
                       }
 
+                      // Maintain device pixel ratio for crisp rendering
+                      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                      gl.setPixelRatio(dpr);
                       gl.setSize(widthPx, heightPx, false);
                       gl.domElement.style.width = '100%';
                       gl.domElement.style.height = '100%';

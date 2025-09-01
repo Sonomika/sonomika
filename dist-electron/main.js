@@ -407,6 +407,11 @@ function createMirrorWindow() {
     } catch {
     }
     mirrorPowerSaveBlockId = null;
+    console.log("Mirror window closed, notifying main app");
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("mirror-window-closed");
+    }
+    mirrorWindow = null;
   });
 }
 function closeMirrorWindow() {
