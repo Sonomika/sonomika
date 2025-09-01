@@ -10,7 +10,7 @@ interface Props {
 export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
   const { recordSettings, setRecordSettings } = useStore() as any;
   const [duration, setDuration] = useState<number>(recordSettings?.durationSec ?? 5);
-  const [fps, setFps] = useState<number>(recordSettings?.fps ?? 30);
+  // Fixed export FPS (30) – remove user control
   const [codec, setCodec] = useState<'vp8' | 'vp9'>(recordSettings?.codec ?? 'vp8');
   const [quality, setQuality] = useState<'low' | 'medium' | 'high'>(recordSettings?.quality ?? 'medium');
   const [untilStop, setUntilStop] = useState<boolean>(!!recordSettings?.untilStop);
@@ -18,7 +18,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
   useEffect(() => {
     if (open) {
       setDuration(recordSettings?.durationSec ?? 5);
-      setFps(recordSettings?.fps ?? 30);
+      // no-op: fixed FPS
       setCodec(recordSettings?.codec ?? 'vp8');
       setQuality(recordSettings?.quality ?? 'medium');
       setUntilStop(!!recordSettings?.untilStop);
@@ -53,17 +53,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
             />
             <Label htmlFor="untilStop" className="tw-text-xs tw-text-neutral-300">Record until Stop</Label>
           </div>
-          <div>
-            <label className="tw-block tw-text-xs tw-text-neutral-300 tw-mb-1">FPS</label>
-            <input
-              className="tw-w-full tw-bg-neutral-900 tw-text-neutral-100 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
-              type="number"
-              min={1}
-              max={120}
-              value={fps}
-              onChange={(e) => setFps(Math.max(1, Number(e.target.value) || 1))}
-            />
-          </div>
+          {/* FPS fixed at 30 for export */}
           <div>
             <label className="tw-block tw-text-xs tw-text-neutral-300 tw-mb-1">Codec</label>
             <select
@@ -96,7 +86,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
             </button>
             <button
               className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-rounded tw-text-white tw-bg-neutral-700 hover:tw-bg-neutral-600 tw-border tw-border-neutral-600 tw-px-3"
-              onClick={() => { setRecordSettings({ durationSec: duration, fps, codec, quality, untilStop }); onOpenChange(false); }}
+              onClick={() => { setRecordSettings({ durationSec: duration, codec, quality, untilStop }); onOpenChange(false); }}
             >
               Save
             </button>

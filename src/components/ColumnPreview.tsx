@@ -6,6 +6,7 @@ import EffectLoader from './EffectLoader';
 import { getCachedVideo, getCachedVideoCanvas } from '../utils/AssetPreloader';
 import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
 import EffectChain, { ChainItem } from './EffectChain';
+import { debounce } from '../utils/debounce';
 
 interface ColumnPreviewProps {
   column: any;
@@ -417,6 +418,12 @@ const ColumnScene: React.FC<{
   const pendingRestartRef = useRef<boolean>(false);
   const firstFrameReadyRef = useRef<boolean>(false);
   const frameCounterRef = useRef<number>(0);
+  
+  // Reset first-frame readiness whenever the column changes so we don't unmask too early
+  useEffect(() => {
+    firstFrameReadyRef.current = false;
+    frameCounterRef.current = 0;
+  }, [column?.id]);
   
   // Use ref to track loaded assets to prevent infinite loops
   const loadedAssetsRef = useRef<{
@@ -1047,6 +1054,13 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [maskVisible, setMaskVisible] = useState<boolean>(true);
+  
+  // Re-arm mask whenever the column changes so background never shows during switch
+  useEffect(() => {
+    try { setMaskVisible(true); } catch {}
+    // Signal mirror to freeze on last frame while new column warms up
+    try { window.dispatchEvent(new CustomEvent('mirrorFreeze', { detail: { freeze: true } })); } catch {}
+  }, [column?.id]);
   // Use composition background color behind the transparent canvas so sources show correct bg
   const compositionBg = (() => {
     try {
@@ -1105,7 +1119,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                className="tw-w-full tw-h-full tw-block tw-bg-transparent"
                 gl={{ 
                   alpha: true,
-                  preserveDrawingBuffer: false,
+                  preserveDrawingBuffer: true,
                   antialias: false,
                   powerPreference: 'high-performance',
                   premultipliedAlpha: false
@@ -1184,7 +1198,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 if ((gl as any).__vjResizeObserver) {
                   try { (gl as any).__vjResizeObserver.disconnect(); } catch {}
                 }
-                const resizeObserver = new ResizeObserver(() => {
+                // Debounce expensive resize computations
+                const handleResize = debounce(() => {
                   if (container) {
                     try {
                       const rect = container.getBoundingClientRect();
@@ -1203,7 +1218,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                       console.error('Error in resize observer:', error);
                     }
                   }
-                });
+                }, 200);
+
+                const resizeObserver = new ResizeObserver(() => handleResize());
                 
                 if (container) {
                   (gl as any).__vjResizeObserver = resizeObserver;
@@ -1222,7 +1239,11 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 globalEffects={globalEffects}
                 compositionWidth={width}
                 compositionHeight={height}
-                onFirstFrameReady={() => setMaskVisible(false)}
+                onFirstFrameReady={() => {
+                  setMaskVisible(false);
+                  // Unfreeze mirror when first frame is ready
+                  try { window.dispatchEvent(new CustomEvent('mirrorFreeze', { detail: { freeze: false } })); } catch {}
+                }}
               />
             </Canvas>
           </div>

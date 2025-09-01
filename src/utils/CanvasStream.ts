@@ -12,6 +12,7 @@ export class CanvasStreamManager {
   private originalParent: Node | null = null;
   private placeholderEl: HTMLDivElement | null = null;
   private mode: 'direct-output' | 'electron-stream' | 'browser-bitmap' | null = null;
+  private freezeMirror: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -73,6 +74,19 @@ export class CanvasStreamManager {
     }
   }
 
+  private installFreezeListener() {
+    try {
+      const handler = (e: Event) => {
+        try {
+          const ev = e as CustomEvent;
+          const freeze = !!(ev?.detail?.freeze);
+          this.freezeMirror = freeze;
+        } catch {}
+      };
+      window.addEventListener('mirrorFreeze', handler as any);
+    } catch {}
+  }
+
   // Open a same-process child window and move the actual canvas into it
   private openDirectOutputWindow(): boolean {
     try {
@@ -91,9 +105,13 @@ export class CanvasStreamManager {
         #container { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
         /* Canvas sized by script to preserve aspect */
         canvas { display:block; -webkit-app-region: drag; }
+        /* Freeze overlay sits above canvas to hold last frame */
+        #freeze-overlay { position:fixed; inset:0; background:#000; display:none; align-items:center; justify-content:center; }
+        #freeze-overlay img { max-width:100%; max-height:100%; object-fit:contain; image-rendering:auto; }
       </style></head>
       <body>
         <div id="container"></div>
+        <div id="freeze-overlay"><img id="freeze-image" /></div>
         <script>
           (function(){
             var targetRatio = null;
@@ -137,6 +155,11 @@ export class CanvasStreamManager {
                 } catch(e){}
               }
             }, { passive: true });
+            // Freeze controls
+            var overlay = document.getElementById('freeze-overlay');
+            var overlayImg = document.getElementById('freeze-image');
+            window.__showFreeze = function(src){ try { if (overlay && overlayImg) { overlayImg.src = src; overlay.style.display = 'flex'; } } catch(e){} };
+            window.__hideFreeze = function(){ try { if (overlay && overlayImg) { overlay.style.display = 'none'; overlayImg.src = ''; } } catch(e){} };
           })();
         </script>
       </body></html>`);
@@ -223,6 +246,8 @@ export class CanvasStreamManager {
       ;(window as any).__CANVAS_STREAM_MODE__ = this.mode;
       try { console.log('[CanvasStream] Mode:', this.mode); } catch {}
       try { win.document.title = 'Output [direct]'; } catch {}
+      // Start listening for freeze events
+      this.installFreezeListener();
       return true;
     } catch (e) {
       console.warn('Direct output window failed, falling back to stream:', e);
@@ -437,6 +462,7 @@ export class CanvasStreamManager {
 
     this.isWindowOpen = true;
     // Start streaming frames to the browser window
+    this.installFreezeListener();
     this.startCanvasCapture();
   }
 
@@ -536,6 +562,11 @@ export class CanvasStreamManager {
                 tempCtx.imageSmoothingEnabled = true;
                 tempCtx.imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
                 tempCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
+                // If frozen, overlay a last-frame hold mask to avoid flicker on mirror
+                if (this.freezeMirror) {
+                  tempCtx.fillStyle = 'rgba(0,0,0,0.001)';
+                  tempCtx.fillRect(0, 0, targetWidth, targetHeight);
+                }
                 // Use a slightly higher quality for fewer artifacts at scale
                 const jpegQ = mq === 'low' ? 0.6 : (mq === 'medium' ? 0.85 : 0.95);
                 const dataUrl = tempCanvas.toDataURL('image/jpeg', jpegQ);
@@ -558,11 +589,44 @@ export class CanvasStreamManager {
               // Create ImageBitmap without blocking the main thread (async)
               createImageBitmap(sourceCanvas).then((bitmap) => {
                 try {
-                  this.browserWindow!.postMessage({ type: 'mirror-frame', bitmap, background: bg, quality }, '*', [bitmap as any]);
+                  this.browserWindow!.postMessage({ type: 'mirror-frame', bitmap, background: bg, quality, freeze: this.freezeMirror }, '*', [bitmap as any]);
                 } catch (e) {
                   try { (bitmap as any).close && (bitmap as any).close(); } catch {}
                 }
               }).catch(() => {});
+            } else if (this.directWindow && !this.directWindow.closed) {
+              // Direct-output: if frozen, capture a frame and show overlay; else hide overlay
+              try {
+                const comp = (useStore.getState() as any).compositionSettings || {};
+                const compW = Math.max(1, Number(comp.width) || 1920);
+                const compH = Math.max(1, Number(comp.height) || 1080);
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = compW;
+                tempCanvas.height = compH;
+                const tctx = tempCanvas.getContext('2d');
+                if (tctx) {
+                  const bg = comp.backgroundColor || '#000000';
+                  tctx.fillStyle = bg;
+                  tctx.fillRect(0, 0, compW, compH);
+                  const srcW = this.canvas!.width;
+                  const srcH = this.canvas!.height;
+                  const scale = Math.min(compW / srcW, compH / srcH);
+                  const drawW = Math.floor(srcW * scale);
+                  const drawH = Math.floor(srcH * scale);
+                  const dx = Math.floor((compW - drawW) / 2);
+                  const dy = Math.floor((compH - drawH) / 2);
+                  tctx.imageSmoothingEnabled = true;
+                  tctx.imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
+                  tctx.drawImage(this.canvas!, dx, dy, drawW, drawH);
+                  if (this.freezeMirror) {
+                    const jpegQ = mq === 'low' ? 0.6 : (mq === 'medium' ? 0.85 : 0.95);
+                    const url = tempCanvas.toDataURL('image/jpeg', jpegQ);
+                    try { (this.directWindow as any).__showFreeze?.(url); } catch {}
+                  } else {
+                    try { (this.directWindow as any).__hideFreeze?.(); } catch {}
+                  }
+                }
+              } catch {}
             } else {
               // Browser mirror closed: stop streaming
               if (this.browserWindow && this.browserWindow.closed) {

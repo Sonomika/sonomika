@@ -15,10 +15,9 @@ const getPersistedCompositionSettings = (): CompositionSettings | null => {
     const width = Number(saved.width);
     const height = Number(saved.height);
     const aspect = saved.aspectRatio || (width && height ? `${width}:${height}` : '16:9');
-    const frameRate = Number(saved.frameRate) || 30;
     const backgroundColor = typeof saved.backgroundColor === 'string' ? saved.backgroundColor : '#000000';
     if (!width || !height) return null;
-    return { width, height, aspectRatio: aspect, frameRate, backgroundColor } as CompositionSettings;
+    return { width, height, aspectRatio: aspect, backgroundColor } as CompositionSettings;
   } catch {
     return null;
   }
@@ -81,7 +80,6 @@ const initialState: AppState = {
     width: 1920,
     height: 1080,
     aspectRatio: '16:9',
-    frameRate: 30,
     backgroundColor: '#000000',
   },
   timelineSnapEnabled: true,
@@ -95,7 +93,6 @@ initialState.currentSceneId = initialState.scenes[0].id;
 
 export type RecordSettings = {
   durationSec: number;
-  fps: number;
   codec: 'vp8' | 'vp9';
   quality: 'low' | 'medium' | 'high';
   untilStop?: boolean;
@@ -103,7 +100,6 @@ export type RecordSettings = {
 
 const initialRecordSettings: RecordSettings = {
   durationSec: 5,
-  fps: 30,
   codec: 'vp8',
   quality: 'medium',
   untilStop: false

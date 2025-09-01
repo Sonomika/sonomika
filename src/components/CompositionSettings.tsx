@@ -49,15 +49,7 @@ const PRESET_SIZES = [
   { name: '10240 × 768 (ultra-wide custom)', width: 10240, height: 768 },
 ];
 
-const FRAME_RATES = [
-  { name: 'Auto', value: 0 },
-  { name: '24 fps', value: 24 },
-  { name: '25 fps', value: 25 },
-  { name: '30 fps', value: 30 },
-  { name: '50 fps', value: 50 },
-  { name: '60 fps', value: 60 },
-  { name: '120 fps', value: 120 },
-];
+// Removed frame rate selection; live uses rAF, export fixed 30fps
 
 export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen, onClose }) => {
   const { compositionSettings, updateCompositionSettings } = useStore();
@@ -91,19 +83,14 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
     }
   };
 
-  const handleFrameRateSelect = (frameRate: typeof FRAME_RATES[0]) => {
-    setSettings(prev => ({ ...prev, frameRate: frameRate.value }));
-  };
+  // Frame rate selection removed
 
   const getCurrentSizeName = () => {
     const preset = PRESET_SIZES.find(p => p.width === settings.width && p.height === settings.height);
     return preset ? preset.name : 'Custom';
   };
 
-  const getCurrentFrameRateName = () => {
-    const frameRate = FRAME_RATES.find(f => f.value === settings.frameRate);
-    return frameRate ? frameRate.name : 'Auto';
-  };
+  // Frame rate display removed
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -169,18 +156,7 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
             </div>
           </div>
 
-          <div className="tw-space-y-2">
-            <Label>Frame Rate:</Label>
-            <Select
-              value={getCurrentFrameRateName()}
-              onChange={(name: string) => {
-                const fr = FRAME_RATES.find(f => f.name === name) || FRAME_RATES[0];
-                handleFrameRateSelect(fr);
-              }}
-              options={FRAME_RATES.map(f => ({ value: f.name, label: f.name }))}
-              className="tw-w-[150px]"
-            />
-          </div>
+          {/* Frame rate control removed; live via requestAnimationFrame, export fixed 30fps */}
         </div>
 
         <DialogFooter>

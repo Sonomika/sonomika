@@ -26,6 +26,7 @@ import { GlobalEffectsTab } from './GlobalEffectsTab';
 import { PlayIcon, PauseIcon, StopIcon } from '@radix-ui/react-icons';
 import TimelineControls from './TimelineControls';
 import FileBrowser from './FileBrowser';
+import { debounce } from '../utils/debounce';
 
 
 interface LayerManagerProps {
@@ -127,7 +128,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       } catch {}
     };
     compute();
-    const ro = new ResizeObserver(() => compute());
+    const ro = new ResizeObserver(debounce(() => compute(), 200));
     ro.observe(el);
     window.addEventListener('resize', compute);
     return () => {
@@ -519,7 +520,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     };
 
     compute();
-    const ro = new ResizeObserver(() => compute());
+    const ro = new ResizeObserver(debounce(() => compute(), 200));
     try { if (previewContainerRef.current) ro.observe(previewContainerRef.current); } catch {}
     window.addEventListener('resize', compute);
     return () => {
@@ -1182,7 +1183,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   useEffect(() => {
     if (!selectedTimelineClip) return;
     try {
-      setMiddlePanelTab('layer');
+      // Do not override user selection of Global tab during playback
+      setMiddlePanelTab((curr) => (curr === 'global' ? curr : 'layer'));
       const scene = scenes.find((s: any) => s.id === currentSceneId);
       const allLayers = scene ? scene.columns.flatMap((c: any) => c.layers) : [];
       let resolved: any = null;

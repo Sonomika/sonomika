@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { debounce } from '../utils/debounce';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { AudioWaveform } from './AudioWaveform';
 import { useStore } from '../store/store';
@@ -289,13 +290,14 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     // Observe size changes of the viewport
     let ro: ResizeObserver | null = null;
     try {
-      ro = new ResizeObserver(() => {
+      const handle = debounce(() => {
         try {
           setViewportWidth(el.clientWidth);
           setHasOverflowX((el.scrollWidth - el.clientWidth) > 1);
           setHasOverflowY((el.scrollHeight - el.clientHeight) > 1);
         } catch {}
-      });
+      }, 150);
+      ro = new ResizeObserver(() => handle());
       ro.observe(el);
     } catch {}
     return () => {

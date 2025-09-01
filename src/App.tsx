@@ -791,7 +791,7 @@ function App() {
               if (isRecording && recorderRef.current) { try { recorderRef.current.stop(); } catch {} return; }
               const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
               if (!canvas || !(canvas as any).captureStream) return;
-              const fps = Math.max(1, Number(recordSettings?.fps) || 30);
+              const fps = 30; // Fixed export FPS
               const stream: MediaStream = (canvas as any).captureStream(fps);
               const useVp9 = (recordSettings?.codec === 'vp9');
               const supportsVP9 = (window as any).MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
@@ -820,7 +820,7 @@ function App() {
               recorder.start();
               recorderRef.current = recorder;
               const duration = Math.max(1, Number(recordSettings?.durationSec) || 5);
-              toast({ description: `Recording started (${duration}s @ ${fps}fps, ${quality})...` });
+              toast({ description: `Recording started (${duration}s @ 30fps, ${quality})...` });
               setIsRecording(true);
               if (!recordSettings?.untilStop) {
                 setTimeout(() => { try { recorder.stop(); } catch {} }, duration * 1000);
