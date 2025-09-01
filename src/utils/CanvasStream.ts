@@ -13,6 +13,7 @@ export class CanvasStreamManager {
   private placeholderEl: HTMLDivElement | null = null;
   private mode: 'direct-output' | 'electron-stream' | 'browser-bitmap' | null = null;
   private freezeMirror: boolean = false;
+  private unfreezeHoldFrames: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -59,10 +60,9 @@ export class CanvasStreamManager {
           (window as any).electron?.resizeMirrorWindow?.(w, h);
         } catch {}
 
-        // Reduced wait time for faster opening - start streaming immediately
-        setTimeout(() => {
-          this.startCanvasCapture();
-        }, 100);
+        // Install freeze listener before starting capture, then start streaming shortly after
+        try { this.installFreezeListener(); } catch {}
+        setTimeout(() => { this.startCanvasCapture(); }, 100);
         
       } else {
         // Fallback to browser window if not in Electron
@@ -80,16 +80,31 @@ export class CanvasStreamManager {
         try {
           const ev = e as CustomEvent;
           const freeze = !!(ev?.detail?.freeze);
-          this.freezeMirror = freeze;
+          if (freeze) {
+            this.freezeMirror = true;
+            this.unfreezeHoldFrames = 0;
+          } else {
+            // Hold a couple frames before resuming to avoid early black frames
+            this.freezeMirror = true;
+            this.unfreezeHoldFrames = 2;
+          }
         } catch {}
       };
       window.addEventListener('mirrorFreeze', handler as any);
+      // Freeze immediately on column switches for earlier coverage
+      const freezeNow = () => { try { this.freezeMirror = true; this.unfreezeHoldFrames = 0; } catch {} };
+      window.addEventListener('columnPlay', freezeNow as any);
     } catch {}
   }
 
   // Open a same-process child window and move the actual canvas into it
   private openDirectOutputWindow(): boolean {
     try {
+      // If settings request keeping preview, skip direct-output and stream instead
+      try {
+        const keep = (useStore.getState() as any).mirrorKeepPreview;
+        if (keep !== false) return false; // default to keeping preview when undefined
+      } catch {}
       if (!this.canvas) return false;
       // Open or focus a named window; same-process so we can move DOM nodes
       const win = window.open('', 'output-canvas');
@@ -532,7 +547,21 @@ export class CanvasStreamManager {
                 ;(window as any).__CANVAS_STREAM_MODE__ = this.mode;
                 try { console.log('[CanvasStream] Mode:', this.mode); } catch {}
               }
-              // Electron path: composite to (at least) a supersampled size and send as JPEG data URL
+              // If frozen, keep showing last frame and avoid capturing new content to prevent flashes
+              if (this.freezeMirror) {
+                if (lastDataUrl) {
+                  try { window.electron.sendCanvasData(lastDataUrl); } catch {}
+                }
+                // Count down grace frames after unfreeze request
+                if (this.unfreezeHoldFrames > 0) {
+                  this.unfreezeHoldFrames -= 1;
+                  if (this.unfreezeHoldFrames <= 0) {
+                    this.freezeMirror = false;
+                  }
+                }
+                // Skip generating new frame while frozen
+              } else {
+                // Electron path: composite to (at least) a supersampled size and send as JPEG data URL
               const comp = (useStore.getState() as any).compositionSettings || {};
               const compW = Math.max(1, Number(comp.width) || 1920);
               const compH = Math.max(1, Number(comp.height) || 1080);
@@ -562,11 +591,6 @@ export class CanvasStreamManager {
                 tempCtx.imageSmoothingEnabled = true;
                 tempCtx.imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
                 tempCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
-                // If frozen, overlay a last-frame hold mask to avoid flicker on mirror
-                if (this.freezeMirror) {
-                  tempCtx.fillStyle = 'rgba(0,0,0,0.001)';
-                  tempCtx.fillRect(0, 0, targetWidth, targetHeight);
-                }
                 // Use a slightly higher quality for fewer artifacts at scale
                 const jpegQ = mq === 'low' ? 0.6 : (mq === 'medium' ? 0.85 : 0.95);
                 const dataUrl = tempCanvas.toDataURL('image/jpeg', jpegQ);
@@ -575,25 +599,36 @@ export class CanvasStreamManager {
                   lastDataUrl = dataUrl;
                 }
               }
+              }
             } else if (this.browserWindow && !this.browserWindow.closed) {
               if (this.mode !== 'browser-bitmap') {
                 this.mode = 'browser-bitmap';
                 ;(window as any).__CANVAS_STREAM_MODE__ = this.mode;
                 try { console.log('[CanvasStream] Mode:', this.mode); } catch {}
               }
-              // Web path: transfer ImageBitmap via postMessage to mirror window
-              const comp = (useStore.getState() as any).compositionSettings || {};
-              const bg = comp.backgroundColor || '#000000';
-              const quality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
-              const sourceCanvas = this.canvas as HTMLCanvasElement;
-              // Create ImageBitmap without blocking the main thread (async)
-              createImageBitmap(sourceCanvas).then((bitmap) => {
-                try {
-                  this.browserWindow!.postMessage({ type: 'mirror-frame', bitmap, background: bg, quality, freeze: this.freezeMirror }, '*', [bitmap as any]);
-                } catch (e) {
-                  try { (bitmap as any).close && (bitmap as any).close(); } catch {}
+              // Web path: if frozen, skip sending new frames to keep last frame shown
+              if (!this.freezeMirror) {
+                const comp = (useStore.getState() as any).compositionSettings || {};
+                const bg = comp.backgroundColor || '#000000';
+                const quality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
+                const sourceCanvas = this.canvas as HTMLCanvasElement;
+                // Create ImageBitmap without blocking the main thread (async)
+                createImageBitmap(sourceCanvas).then((bitmap) => {
+                  try {
+                    this.browserWindow!.postMessage({ type: 'mirror-frame', bitmap, background: bg, quality, freeze: this.freezeMirror }, '*', [bitmap as any]);
+                  } catch (e) {
+                    try { (bitmap as any).close && (bitmap as any).close(); } catch {}
+                  }
+                }).catch(() => {});
+              } else {
+                // Count down grace frames after unfreeze request
+                if (this.unfreezeHoldFrames > 0) {
+                  this.unfreezeHoldFrames -= 1;
+                  if (this.unfreezeHoldFrames <= 0) {
+                    this.freezeMirror = false;
+                  }
                 }
-              }).catch(() => {});
+              }
             } else if (this.directWindow && !this.directWindow.closed) {
               // Direct-output: if frozen, capture a frame and show overlay; else hide overlay
               try {

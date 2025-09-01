@@ -131,10 +131,13 @@ export interface AppState {
   timelineSnapEnabled: boolean; // Magnet/Snap toggle
   timelineDuration: number; // Timeline duration in seconds
   timelineZoom: number; // Timeline zoom level
-  // Default sizing mode for video/image/webcam sources
-  defaultVideoFitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
+  // Default sizing mode for video/image/webcam sourcesu
   // Default internal render scale for new/unspecified video layers (0.1..1)
   defaultVideoRenderScale?: number;
   // Mirror output quality preset
   mirrorQuality?: 'low' | 'medium' | 'high';
+  // Whether single mirror keeps preview in app (skip direct-output)
+  mirrorKeepPreview?: boolean;
+  // Global default fit mode for video sources
+  defaultVideoFitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
 } 

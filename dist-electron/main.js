@@ -236,7 +236,7 @@ function createMirrorWindow() {
     fullscreen: false,
     kiosk: false,
     alwaysOnTop: true,
-    skipTaskbar: true,
+    skipTaskbar: false,
     focusable: true,
     movable: true,
     frame: false,
@@ -958,7 +958,25 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.on("sendCanvasData", (event, dataUrl) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      mirrorWindow.webContents.send("sendCanvasData", dataUrl);
+      try {
+        const escaped = (typeof dataUrl === "string" ? dataUrl : "").replace(/'/g, "\\'");
+        mirrorWindow.webContents.executeJavaScript(`
+          (function(){
+            try {
+              var noStream = document.getElementById('no-stream');
+              var img = document.getElementById('mirror-image');
+              if (noStream) noStream.style.display = 'none';
+              if (img) {
+                if (img.src !== '${escaped}') {
+                  img.src = '${escaped}';
+                  img.style.display = 'block';
+                }
+              }
+            } catch(e) {}
+          })();
+        `);
+      } catch {
+      }
     }
   });
   electron.ipcMain.on("toggle-fullscreen", () => {

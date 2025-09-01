@@ -261,7 +261,7 @@ function createMirrorWindow() {
     fullscreen: false,
     kiosk: false,
     alwaysOnTop: true,
-    skipTaskbar: true,
+    skipTaskbar: false,
     focusable: true,
     movable: true,
     frame: false, // Keep borderless but add custom controls
@@ -990,10 +990,27 @@ app.whenReady().then(() => {
     }
   });
 
-  // Handle sendCanvasData from CanvasStream
+  // Handle sendCanvasData from CanvasStream (update DOM directly to avoid preload mismatch)
   ipcMain.on('sendCanvasData', (event, dataUrl) => {
     if (mirrorWindow && !mirrorWindow.isDestroyed()) {
-      mirrorWindow.webContents.send('sendCanvasData', dataUrl);
+      try {
+        const escaped = (typeof dataUrl === 'string' ? dataUrl : '').replace(/'/g, "\\'");
+        mirrorWindow.webContents.executeJavaScript(`
+          (function(){
+            try {
+              var noStream = document.getElementById('no-stream');
+              var img = document.getElementById('mirror-image');
+              if (noStream) noStream.style.display = 'none';
+              if (img) {
+                if (img.src !== '${escaped}') {
+                  img.src = '${escaped}';
+                  img.style.display = 'block';
+                }
+              }
+            } catch(e) {}
+          })();
+        `);
+      } catch {}
     }
   });
 

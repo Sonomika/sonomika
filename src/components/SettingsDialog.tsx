@@ -118,6 +118,17 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
               />
             </div>
           </div>
+
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">Keep Preview During Mirror</div>
+              <div className="tw-text-xs tw-text-neutral-400">Show in-app preview and mirror window simultaneously</div>
+            </div>
+            <Switch
+              checked={((useStore.getState() as any).mirrorKeepPreview) !== false}
+              onCheckedChange={(val) => (useStore.getState() as any).setMirrorKeepPreview(Boolean(val))}
+            />
+          </div>
           
           <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
           <div className="tw-flex tw-items-center tw-justify-between">
