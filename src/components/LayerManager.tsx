@@ -80,6 +80,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [columnWidth, setColumnWidth] = useState<number>(160);
   const [gridHasOverflowX, setGridHasOverflowX] = useState<boolean>(false);
   const [gridHasOverflowY, setGridHasOverflowY] = useState<boolean>(false);
+  // Ensure consistent cell height across all layer cells, even when empty
+  const CELL_HEIGHT_PX = 80;
   
   // Sync local BPM input with store BPM
   useEffect(() => {
@@ -1563,8 +1565,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                    return (
                      <div
                        key={cellId}
-                       style={hasAsset && isColumnPlaying ? { boxShadow: 'inset 0 0 0 2px var(--accent)' } : undefined}
-                                                className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? (isColumnPlaying ? 'tw-border-2 tw-border-purple-500 tw-bg-neutral-900 !tw-border-purple-500' : 'tw-border tw-border-neutral-800 tw-bg-neutral-900') : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${(isDragOver || isDragOverLayer) ? 'tw-ring-2 tw-ring-sky-600' : ''} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
+                       style={{ height: CELL_HEIGHT_PX, ...(hasAsset && isColumnPlaying ? { boxShadow: 'inset 0 0 0 2px var(--accent)' } : {}) }}
+                                                 className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? (isColumnPlaying ? 'tw-border-2 tw-border-purple-500 tw-bg-neutral-900 !tw-border-purple-500' : 'tw-border tw-border-neutral-800 tw-bg-neutral-900') : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${(isDragOver || isDragOverLayer) ? 'tw-ring-2 tw-ring-sky-600' : ''} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
                        data-system-files={isDragOver && (() => {
                          const dragData = (window as any).currentDragData;
                          return dragData && dragData.files && dragData.files.length > 0 ? 'true' : 'false';
@@ -1636,7 +1638,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              }
                            }}
                          >
-                           <div className="tw-mb-1">
+                           <div className="tw-mb-1" onClick={(e) => { e.stopPropagation(); setMiddlePanelTab('layer'); handleLayerClickWrapper(layer, column.id); }}>
                              {layer.asset.type === 'image' && (
                                <img
                                  src={getAssetPath(layer.asset)}
@@ -1689,7 +1691,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                          </div>
                        ) : (
                          <div 
-                           className="tw-p-2 tw-min-h-[48px] tw-flex tw-flex-col tw-justify-center tw-items-center"
+                           className="tw-p-2 tw-flex tw-flex-col tw-justify-center tw-items-center tw-h-full"
                            onDragOver={(e) => {
                              e.preventDefault();
                              e.currentTarget.classList.add('drag-over');
