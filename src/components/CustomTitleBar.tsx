@@ -63,6 +63,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const helpMenuRef = useRef<HTMLDivElement>(null);
   const [apiDialogOpen, setApiDialogOpen] = useState(false);
+  const [openaiDialogOpen, setOpenaiDialogOpen] = useState(false);
   const { showTimeline, setShowTimeline, currentPresetName } = (useStore() as any) || {};
 
   // Detect Electron vs Web
@@ -294,6 +295,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                   <div className="tw-flex tw-flex-col tw-py-1">
                     <button 
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => { e.stopPropagation(); setOpenaiDialogOpen(true); setHelpMenuOpen(false); }}
+                    >
+                      OpenAI API Key
+                    </button>
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
                       onClick={(e) => { e.stopPropagation(); setApiDialogOpen(true); setHelpMenuOpen(false); }}
                     >
                       API
@@ -430,6 +437,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onToggleUIDemo?.(); setMobileMenuOpen(false); }}>UI Demo</button>
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onCompositionSettings?.(); setMobileMenuOpen(false); }}>Composition Settings</button>
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onOpenSettings?.(); setMobileMenuOpen(false); }}>Settings</button>
+              <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { setOpenaiDialogOpen(true); setMobileMenuOpen(false); }}>Help › OpenAI API Key</button>
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { setApiDialogOpen(true); setMobileMenuOpen(false); }}>Help › API</button>
               {process.env.NODE_ENV === 'development' && onToggleDebug && (
                 <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onToggleDebug?.(); setMobileMenuOpen(false); }}>Debug</button>
@@ -488,6 +496,38 @@ useStore.getState().globalPlay();`}</code></pre>
               <pre className="tw-bg-neutral-900 tw-text-neutral-200 tw-p-3 tw-rounded tw-overflow-auto"><code>{`import { ui } from '@/api';
 // Example: <ui.Button>Click</ui.Button>`}</code></pre>
             </section>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* OpenAI Key Help dialog */}
+      <Dialog open={openaiDialogOpen} onOpenChange={setOpenaiDialogOpen}>
+        <DialogContent className="tw-w-[92vw] tw-max-w-2xl tw-max-h-[80vh] tw-overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="tw-text-sm">Get an OpenAI (ChatGPT) API Key</DialogTitle>
+          </DialogHeader>
+          <div className="tw-text-neutral-200 tw-text-xs tw-space-y-4">
+            <div>Follow these steps to use the AI Effect Generator:</div>
+            <ol className="tw-list-decimal tw-ml-5 tw-space-y-2">
+              <li>
+                Go to <a className="tw-text-blue-400" href="https://platform.openai.com/" target="_blank" rel="noreferrer">OpenAI Platform</a> and sign in.
+              </li>
+              <li>
+                Ensure billing is enabled: <a className="tw-text-blue-400" href="https://platform.openai.com/account/billing" target="_blank" rel="noreferrer">Billing settings</a>.
+              </li>
+              <li>
+                Create a key: <a className="tw-text-blue-400" href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">API Keys</a> → “Create new secret key”, then copy it (starts with <code>sk-</code>).
+              </li>
+              <li>
+                In this app, open Settings → paste the key under “OpenAI API Key”, click “Save Key”, then “Test Connection”.
+              </li>
+            </ol>
+            <div className="tw-text-neutral-300">
+              Security: your key is stored locally and encrypted via Electron safeStorage. Do not share it or commit it to Git.
+            </div>
+            <div>
+              Full guide: <span className="tw-text-neutral-300">docs/GET_OPENAI_API_KEY.md</span>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

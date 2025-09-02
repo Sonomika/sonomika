@@ -68,6 +68,26 @@ try {
         }
     });
     console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
+
+    // Expose encrypted auth storage bridge
+    try {
+        electron_1.contextBridge.exposeInMainWorld('authStorage', {
+            isEncryptionAvailableSync: () => {
+                try { return electron_1.ipcRenderer.sendSync('authStorage:isEncryptionAvailableSync'); } catch (_a) { return false; }
+            },
+            saveSync: (key, plainText) => {
+                try { return electron_1.ipcRenderer.sendSync('authStorage:saveSync', key, plainText); } catch (_b) { return false; }
+            },
+            loadSync: (key) => {
+                try { return electron_1.ipcRenderer.sendSync('authStorage:loadSync', key); } catch (_c) { return null; }
+            },
+            removeSync: (key) => {
+                try { return electron_1.ipcRenderer.sendSync('authStorage:removeSync', key); } catch (_d) { return false; }
+            },
+        });
+    } catch (e) {
+        console.warn('Failed to expose authStorage in preload:', e);
+    }
     // Expose safe fs API
     electron_1.contextBridge.exposeInMainWorld('fsApi', {
         listDirectory: (dirPath) => {

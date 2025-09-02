@@ -15,6 +15,7 @@ import { handleDrop, handleLayerReorderDragStart, handleLayerReorderDragOver, ha
 import { handleColumnPlay, handleUpdateLayer } from '../utils/LayerManagementHandlers';
 import { handleSceneRename } from '../utils/SceneManagementHandlers';
 import EffectsBrowser from './EffectsBrowser';
+import AIEffectGenerator from './AIEffectGenerator';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
 // Scenes header now uses ContextMenu for actions
@@ -1936,6 +1937,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'effects')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
                 <TabsList>
                   <TabsTrigger value="effects">Bank</TabsTrigger>
+                  <TabsTrigger value="ai-generator">AI Generator</TabsTrigger>
                   <TabsTrigger value="files">Files</TabsTrigger>
                   <TabsTrigger value="midi">MIDI</TabsTrigger>
                   <TabsTrigger value="lfo">LFO</TabsTrigger>
@@ -1951,6 +1953,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       <TabsContent value="effects">
                         <div className="tw-space-y-2">
                           <EffectsBrowser />
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="ai-generator">
+                        <div className="tw-h-full">
+                          <AIEffectGenerator />
                         </div>
                       </TabsContent>
                       <TabsContent value="files">

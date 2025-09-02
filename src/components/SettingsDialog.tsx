@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/Dialog';
 import { Switch } from './ui/switch';
 import { useStore } from '../store/store';
-import { Button, Slider, Select } from './ui';
+import { Button, Slider, Select, Input } from './ui';
 import { getSupabase } from '../lib/supabaseClient';
 
 interface SettingsDialogProps {
@@ -13,6 +13,9 @@ interface SettingsDialogProps {
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
   const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality } = useStore() as any;
   const [user, setUser] = useState<any>(null);
+  const [openaiApiKey, setOpenaiApiKey] = useState<string>('');
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -30,11 +33,90 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     };
   }, []);
 
+  // Load OpenAI API key on mount
+  useEffect(() => {
+    const loadApiKey = async () => {
+      try {
+        if (typeof window !== 'undefined' && (window as any).authStorage) {
+          const key = (window as any).authStorage.loadSync('openai_api_key');
+          if (key) {
+            setOpenaiApiKey(key);
+          }
+        }
+        // Fallback: web builds may store in localStorage
+        if (!openaiApiKey) {
+          try {
+            const ls = (typeof window !== 'undefined') ? window.localStorage : null;
+            const key2 = ls?.getItem('openai_api_key') || '';
+            if (key2) setOpenaiApiKey(key2);
+          } catch {}
+        }
+      } catch (error) {
+        console.warn('Failed to load OpenAI API key:', error);
+      }
+    };
+    loadApiKey();
+  }, []);
+
   const handleSignOut = async () => {
     try {
       const supabase = getSupabase();
       await supabase.auth.signOut();
     } catch {}
+  };
+
+  const saveOpenAIKey = async () => {
+    try {
+      if (typeof window !== 'undefined' && (window as any).authStorage) {
+        if (openaiApiKey.trim()) {
+          (window as any).authStorage.saveSync('openai_api_key', openaiApiKey.trim());
+        } else {
+          (window as any).authStorage.removeSync('openai_api_key');
+        }
+        setConnectionStatus('success');
+      }
+      // Also persist to localStorage for web builds
+      try {
+        const ls = (typeof window !== 'undefined') ? window.localStorage : null;
+        if (ls) {
+          if (openaiApiKey.trim()) ls.setItem('openai_api_key', openaiApiKey.trim());
+          else ls.removeItem('openai_api_key');
+        }
+      } catch {}
+    } catch (error) {
+      console.error('Failed to save OpenAI API key:', error);
+      setConnectionStatus('error');
+    }
+  };
+
+  const testOpenAIConnection = async () => {
+    if (!openaiApiKey.trim()) {
+      setConnectionStatus('error');
+      return;
+    }
+
+    setIsTestingConnection(true);
+    setConnectionStatus('idle');
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey.trim()}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setConnectionStatus('success');
+      } else {
+        setConnectionStatus('error');
+      }
+    } catch (error) {
+      console.error('OpenAI connection test failed:', error);
+      setConnectionStatus('error');
+    } finally {
+      setIsTestingConnection(false);
+    }
   };
 
   return (
@@ -130,6 +212,46 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
             />
           </div>
           
+          <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
+          
+          {/* OpenAI API Key Section */}
+          <div className="tw-space-y-3">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">OpenAI API Key</div>
+              <div className="tw-text-xs tw-text-neutral-400">For AI effect generation (stored securely)</div>
+            </div>
+            <div className="tw-space-y-2">
+              <Input
+                type="password"
+                placeholder="sk-..."
+                value={openaiApiKey}
+                onChange={(e) => setOpenaiApiKey(e.target.value)}
+                className="tw-bg-neutral-800 tw-border-neutral-700"
+              />
+              <div className="tw-flex tw-gap-2">
+                <Button
+                  onClick={saveOpenAIKey}
+                  className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-text-sm"
+                >
+                  Save Key
+                </Button>
+                <Button
+                  onClick={testOpenAIConnection}
+                  disabled={isTestingConnection || !openaiApiKey.trim()}
+                  className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-text-sm"
+                >
+                  {isTestingConnection ? 'Testing...' : 'Test Connection'}
+                </Button>
+              </div>
+              {connectionStatus === 'success' && (
+                <div className="tw-text-xs tw-text-green-400">✓ Connection successful</div>
+              )}
+              {connectionStatus === 'error' && (
+                <div className="tw-text-xs tw-text-red-400">✗ Connection failed</div>
+              )}
+            </div>
+          </div>
+
           <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
           <div className="tw-flex tw-items-center tw-justify-between">
             <div>

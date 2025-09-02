@@ -1,5 +1,7 @@
 ## Effects and Sources: Global Rules and Authoring Guide
 
+> Need AI-generated effects? First set up your OpenAI API key. See: [Get an OpenAI (ChatGPT) API Key](./GET_OPENAI_API_KEY.md)
+
 This project renders all effects using React Fiber over Three.js. Effects and sources are discovered dynamically from the `src/effects/` tree and must never be hard‑referenced outside that folder. Follow these rules and patterns to ensure consistency, performance, and compatibility with both layer and global contexts.
 
 ### Core Non‑Negotiables
