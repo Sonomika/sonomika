@@ -6,6 +6,7 @@ yarn-error.log*
 
 # Example and test directories
 example/
+examples/
 
 # Electron build artifacts
 dist/
@@ -61,3 +62,6 @@ jspm_packages/
 # dotenv environment variables file
 .env 
 .env.local
+dist-electron/
+
+tsconfig.node.tsbuildinfo
