@@ -1,6 +1,7 @@
 import { useStore } from '../store/store';
 import { useLFOStore, type LFOState, type LFOMapping } from '../store/lfoStore';
-import { BPMManager } from './BPMManager';
+// BPMManager removed; use central Clock
+import { getClock } from './Clock';
 import { getEffect } from '../utils/effectRegistry';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
 
@@ -185,8 +186,9 @@ class LFOEngineImpl {
     }
     const lfoState = useLFOStore.getState();
     const updateLayer = (useStore.getState() as any).updateLayer as (id: string, updates: Partial<LayerLike>) => void;
-    const bpmMgr = BPMManager.getInstance();
-    const bpm = bpmMgr.getBPM?.() || 120;
+    // Prefer central Clock BPM (smoothed); fall back to BPMManager
+    const clock = getClock();
+    const bpm = (clock?.smoothedBpm || clock?.bpm || 120);
 
     for (const layer of layers) {
       const lfo: LFOState | undefined = lfoState.lfoStateByLayer[layer.id];
@@ -210,8 +212,8 @@ class LFOEngineImpl {
         // Compute current value
         const timeSec = nowMs * 0.001;
         // Support BPM sync for LFO
-        const bpmMgr = BPMManager.getInstance();
-        const bpm = bpmMgr.getBPM?.() || 120;
+        const clock = getClock();
+        const bpm = (clock?.smoothedBpm || clock?.bpm || 120);
         const timingMode = String((lfo as any).lfoTimingMode || 'hz').toLowerCase();
         const division = (lfo as any).lfoDivision || '1/4';
         const periodMs = timingMode === 'sync' ? parseDivisionToMs(bpm, division) : undefined;
@@ -471,9 +473,11 @@ export function attachLFOEngineGlobalListeners() {
 
   // Rebuild random timers when BPM changes so Sync timing updates immediately
   try {
-    const bpmMgr = BPMManager.getInstance();
-    const onBpmChange = () => engine.resetRandomTimers();
-    bpmMgr.addCallback(onBpmChange);
+    try {
+      const clock = getClock();
+      const onBpm = () => engine.resetRandomTimers();
+      clock.onBpmChangeListener(onBpm);
+    } catch {}
   } catch {}
 
   // Extra safety: subscribe to store state to auto-start/stop on playing state changes

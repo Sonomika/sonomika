@@ -187,6 +187,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const zoom = timelineZoom;
   const setZoom = setTimelineZoom;
   const [isPlaying, setIsPlaying] = useState(false);
+  const isPlayingRef = useRef<boolean>(false);
   const [selectedClips, setSelectedClips] = useState<Set<string>>(() => {
     try {
       const raw = localStorage.getItem('vj-timeline-selected-clips');
@@ -199,6 +200,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   // waveform state managed by wavesurfer
   const [playbackInterval, setPlaybackInterval] = useState<NodeJS.Timeout | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastTsRef = useRef<number | null>(null);
   const [draggingClip, setDraggingClip] = useState<{ clipId: string; sourceTrackId: string } | null>(null);
   // Lasso selection state
   const [isLassoSelecting, setIsLassoSelecting] = useState(false);
@@ -1246,7 +1249,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   // (preview component removed)
 
-  // Start timeline playback
+  // Start timeline playback (requestAnimationFrame-driven)
   const startTimelinePlayback = () => {
     // Reset and pause all audio elements before starting
     try {
@@ -1260,11 +1263,15 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     console.log('🎵 Timeline tracks:', tracks);
     console.log('🎵 Earliest clip time:', getEarliestClipTime());
     
-    // Clear any existing interval first
+    // Clear any existing interval/RAF first
     if (playbackInterval) {
       console.log('Clearing existing interval');
       clearInterval(playbackInterval);
       setPlaybackInterval(null);
+    }
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
     
     // Always start from the earliest clip time (fallback to 0 if none)
@@ -1272,36 +1279,42 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     const startAt = earliest > 0 ? earliest : 0;
     setCurrentTime(startAt);
     
-    console.log('Creating new interval');
-    const interval = setInterval(() => {
-      console.log('🔄 Interval callback executed at:', Date.now());
+    // Mark timeline as playing before starting the loop so first frame proceeds
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+    try { (window as any).__vj_timeline_is_playing__ = true; } catch {}
+
+    // RAF accumulator
+    lastTsRef.current = null;
+    const loop = (ts: number) => {
+      if (!isPlayingRef.current) return; // safety guard
+      if (lastTsRef.current == null) lastTsRef.current = ts;
+      const dt = (ts - (lastTsRef.current || ts)) / 1000; // seconds
+      lastTsRef.current = ts;
       setCurrentTime(prevTime => {
-        const newTime = prevTime + 0.05; // 20fps update rate for smoother movement
-        console.log('🕒 Timeline time update:', prevTime, '->', newTime, 'duration:', duration);
+        const newTime = prevTime + dt;
         if (newTime >= duration) {
-          // End of timeline reached
-          console.log('⏹️ Timeline reached end, stopping playback');
           setIsPlaying(false);
-          // Reset to earliest clip or 0
+          isPlayingRef.current = false;
+          try {
+            (window as any).__vj_timeline_is_playing__ = false;
+            (window as any).__vj_timeline_active_layers__ = [];
+          } catch {}
           const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
           setCurrentTime(resetTime);
-          clearInterval(interval);
-          setPlaybackInterval(null);
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
           return resetTime;
         }
-        console.log('✅ Returning new time:', newTime);
-        // Drive a custom event so engines can react to timeline play
         try {
           const evt = new CustomEvent('timelineTick', { detail: { time: newTime, duration } });
           document.dispatchEvent(evt);
         } catch {}
         return newTime;
       });
-    }, 50); // 50ms = 20fps for smoother movement
-    
-    console.log('Setting playback interval:', interval);
-    setPlaybackInterval(interval);
-    setIsPlaying(true); // Ensure playing state is set
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
     try { document.dispatchEvent(new Event('timelinePlay')); } catch {}
     console.log('Timeline playback started, isPlaying set to true');
   };
@@ -1313,6 +1326,15 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       clearInterval(playbackInterval);
       setPlaybackInterval(null);
     }
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    isPlayingRef.current = false;
+    try {
+      (window as any).__vj_timeline_is_playing__ = false;
+      (window as any).__vj_timeline_active_layers__ = [];
+    } catch {}
     // Pause all audio elements when stopping
     try {
       audioElementsRef.current.forEach((audio) => {
@@ -1415,11 +1437,29 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     console.log('🕒 currentTime changed to:', currentTime);
   }, [currentTime]);
 
-  // Update preview content when timeline is playing
+  // Update preview content for timeline
   useEffect(() => {
     if (onPreviewUpdate) {
       const activeClips = getClipsAtTime(currentTime);
       console.log('Timeline preview update - Time:', currentTime, 'Playing:', isPlaying, 'Active clips:', activeClips.length);
+      // Expose timeline playing state and active layers for LFO engine
+      try {
+        (window as any).__vj_timeline_is_playing__ = isPlaying === true;
+        if (isPlaying) {
+          const layers = activeClips.map((clip: any) => ({
+            id: `timeline-layer-${clip.id}`,
+            type: clip.type,
+            name: clip.name,
+            opacity: (clip.params && clip.params.opacity && typeof clip.params.opacity.value === 'number') ? clip.params.opacity.value : undefined,
+            params: clip.params || {},
+            asset: clip.asset || {},
+            clipId: clip.id,
+          }));
+          ;(window as any).__vj_timeline_active_layers__ = layers;
+        } else {
+          ;(window as any).__vj_timeline_active_layers__ = [];
+        }
+      } catch {}
       
       // AUDIO SYNC: ensure audio clips play/pause in sync with timeline
       try {
@@ -1464,24 +1504,18 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         console.warn('Audio sync error:', err);
       }
 
-      if (isPlaying && activeClips.length > 0) {
-        // Send timeline preview content to parent
-        const timelinePreviewContent = {
-          type: 'timeline',
-          tracks: tracks,
-          currentTime: currentTime,
-          duration: duration,
-          isPlaying: true,
-          activeClips: activeClips
-        };
-        
-        console.log('Sending timeline preview content:', timelinePreviewContent);
-        onPreviewUpdate(timelinePreviewContent);
-      } else {
-        // Clear preview when not playing or no active clips
-        console.log('Clearing timeline preview');
-        onPreviewUpdate(null);
-      }
+      // Always send preview content so paused frames are visible
+      const timelinePreviewContent = {
+        type: 'timeline',
+        tracks: tracks,
+        currentTime: currentTime,
+        duration: duration,
+        // Use ref to avoid lag between RAF loop starting and state update
+        isPlaying: Boolean(isPlayingRef.current),
+        activeClips: activeClips
+      };
+      console.log('Sending timeline preview content:', timelinePreviewContent);
+      onPreviewUpdate(timelinePreviewContent);
     }
   }, [currentTime, isPlaying, tracks, duration, onPreviewUpdate]);
 
@@ -1495,11 +1529,15 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     console.log('isPlaying changed to:', isPlaying);
   }, [isPlaying]);
 
-  // Cleanup interval on unmount
+  // Cleanup interval/RAF on unmount
   useEffect(() => {
     return () => {
       if (playbackInterval) {
         clearInterval(playbackInterval);
+      }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
   }, [playbackInterval]);

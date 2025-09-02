@@ -8,7 +8,7 @@ import { ColumnPreview } from './ColumnPreview';
 import { MediaLibrary } from './MediaLibrary';
 import { Timeline } from './Timeline';
 import TimelineComposer from './TimelineComposer';
-import { BPMManager } from '../engine/BPMManager';
+import { getClock } from '../engine/Clock';
 import { v4 as uuidv4 } from 'uuid';
 import { getAssetPath, createColumn, handleDragOver, handleDragLeave, handleLayerClick } from '../utils/LayerManagerUtils';
 import { handleDrop, handleLayerReorderDragStart, handleLayerReorderDragOver, handleLayerReorderDrop } from '../utils/DragDropHandlers';
@@ -86,28 +86,27 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     setBpmInputValue(bpm.toString());
   }, [bpm]);
   
-  // Initialize BPMManager with store BPM
+  // Keep central Clock BPM in sync with store BPM
   useEffect(() => {
-    const bpmManager = BPMManager.getInstance();
-    bpmManager.setBPM(bpm);
+    try { getClock().setBpm(bpm); } catch {}
   }, [bpm]);
 
-  // Subscribe to BPM beat ticks to trigger a short pulse animation
+  // Subscribe to Clock beat ticks to trigger a short pulse animation
   useEffect(() => {
-    const bpmManager = BPMManager.getInstance();
-    const onBeat = (currentBpm: number) => {
+    const clock = getClock();
+    const onBeat = (_beatInBar: number) => {
       setIsBeatPulse(true);
       if (beatPulseTimeoutRef.current != null) {
         clearTimeout(beatPulseTimeoutRef.current);
       }
-      const clamped = Math.max(30, Math.min(300, Number(currentBpm) || 120));
+      const clamped = Math.max(30, Math.min(300, Number(clock.smoothedBpm || clock.bpm || 120)));
       const beatMs = (60 / clamped) * 1000;
       const duration = Math.max(80, Math.min(200, beatMs * 0.15));
       beatPulseTimeoutRef.current = window.setTimeout(() => setIsBeatPulse(false), duration);
     };
-    bpmManager.addCallback(onBeat);
+    try { clock.onNewBeatListener(onBeat); } catch {}
     return () => {
-      bpmManager.removeCallback(onBeat);
+      try { clock.onNewBeatListener(undefined); } catch {}
       if (beatPulseTimeoutRef.current != null) clearTimeout(beatPulseTimeoutRef.current);
     };
   }, []);
@@ -1313,10 +1312,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 <div className="tw-flex tw-items-center tw-gap-2">
                   <button 
                     onClick={() => {
-                      const bpmManager = BPMManager.getInstance();
-                      bpmManager.tap();
-                      const newBpm = bpmManager.getBPM();
-                      setBpm(newBpm);
+                      // Simple tap-to-BPM using clock: compute from intervals
+                      try {
+                        const w: any = window as any;
+                        const now = performance.now();
+                        w.__vj_tap_hist__ = (w.__vj_tap_hist__ || []).filter((t: number) => now - t < 2000);
+                        w.__vj_tap_hist__.push(now);
+                        if (w.__vj_tap_hist__.length >= 2) {
+                          const ivals: number[] = [];
+                          for (let i = 1; i < w.__vj_tap_hist__.length; i++) ivals.push(w.__vj_tap_hist__[i] - w.__vj_tap_hist__[i-1]);
+                          const avg = ivals.reduce((a, b) => a + b, 0) / ivals.length;
+                          const newBpm = Math.max(30, Math.min(999, Math.round(60000 / avg)));
+                          setBpm(newBpm);
+                          getClock().setBpm(newBpm);
+                        }
+                      } catch {}
                     }}
                     className="tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 tw-rounded-full hover:tw-bg-neutral-800"
                     title="Tap to set BPM"

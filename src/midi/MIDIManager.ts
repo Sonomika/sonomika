@@ -1,4 +1,5 @@
 import { WebMidi, Input, NoteMessageEvent, ControlChangeMessageEvent } from 'webmidi';
+import { getClock } from '../engine/Clock';
 
 type NoteCallback = (note: number, velocity: number, channel: number) => void;
 type CCCallback = (cc: number, value: number, channel: number) => void;
@@ -43,6 +44,10 @@ export class MIDIManager {
     this.inputs.forEach(input => {
       input.removeListener('noteon');
       input.removeListener('controlchange');
+      input.removeListener('clock');
+      input.removeListener('start');
+      input.removeListener('stop');
+      input.removeListener('continue');
     });
 
     this.inputs = WebMidi.inputs;
@@ -60,6 +65,25 @@ export class MIDIManager {
           });
         }
       });
+
+      // MIDI Clock: 24 PPQN timing pulses and transport
+      try {
+        const clock = getClock();
+        input.addListener('clock', () => {
+          clock.sendTimingPulse();
+        });
+        input.addListener('start', () => {
+          clock.startOnNextTimingPulse();
+        });
+        input.addListener('continue', () => {
+          clock.continueOnNextTimingPulse();
+        });
+        input.addListener('stop', () => {
+          clock.stop();
+        });
+      } catch (err) {
+        console.warn('Failed to attach MIDI clock listeners:', err);
+      }
     });
   }
 

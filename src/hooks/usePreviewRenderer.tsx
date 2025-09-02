@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useStore } from '../store/store';
+import TimelineComposer from '../components/TimelineComposer';
 
 interface PreviewContent {
   type: 'column' | 'layer' | 'timeline';
@@ -208,7 +209,6 @@ export const usePreviewRenderer = () => {
 
     if (previewContent.type === 'timeline') {
       const activeClips = previewContent.activeClips || [];
-      
       return (
         <div className="tw-h-full tw-flex tw-flex-col">
           <div className="tw-flex tw-items-center tw-gap-3 tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
@@ -218,7 +218,6 @@ export const usePreviewRenderer = () => {
               Time: {Math.floor(previewContent.currentTime || 0)}s / {Math.floor(previewContent.duration || 0)}s
             </div>
           </div>
-          
           <div className="tw-flex tw-flex-col tw-gap-2 tw-flex-1 tw-p-2 tw-rounded-md tw-bg-neutral-900 tw-border tw-border-neutral-800">
             {activeClips.length === 0 ? (
               <div className="tw-flex tw-items-center tw-justify-center tw-h-48 tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded">
@@ -234,11 +233,16 @@ export const usePreviewRenderer = () => {
                   data-aspect-ratio={`${compositionSettings.width}:${compositionSettings.height}`}
                   style={{ aspectRatio: compositionSettings.width / compositionSettings.height }}
                 >
-                  <div className="tw-flex tw-items-center tw-justify-center tw-w-full tw-h-full tw-text-neutral-300 tw-text-sm">
-                    Timeline Composer Component
-                  </div>
+                  <TimelineComposer
+                    activeClips={activeClips}
+                    isPlaying={isPlaying}
+                    currentTime={previewContent.currentTime || 0}
+                    width={compositionSettings.width}
+                    height={compositionSettings.height}
+                    bpm={useStore.getState().bpm}
+                    globalEffects={[]}
+                  />
                 </div>
-                
                 <div className="tw-mt-2">
                   <h5 className="tw-text-sm tw-font-semibold tw-text-white">Active Timeline Clips:</h5>
                   {activeClips.map((clip: any, index: number) => (

@@ -292,14 +292,15 @@ const TimelineScene: React.FC<{
         if (!clip.asset) continue;
 
         const asset = clip.asset;
+        const key = String(asset.id);
         
         // Check if asset is already loaded
-        if (loadedAssetsRef.current.images.has(asset.id)) {
-          newImages.set(asset.id, loadedAssetsRef.current.images.get(asset.id)!);
+        if (loadedAssetsRef.current.images.has(key)) {
+          newImages.set(key, loadedAssetsRef.current.images.get(key)!);
           continue;
         }
-        if (loadedAssetsRef.current.videos.has(asset.id)) {
-          newVideos.set(asset.id, loadedAssetsRef.current.videos.get(asset.id)!);
+        if (loadedAssetsRef.current.videos.has(key)) {
+          newVideos.set(key, loadedAssetsRef.current.videos.get(key)!);
           continue;
         }
 
@@ -312,7 +313,7 @@ const TimelineScene: React.FC<{
               img.onerror = reject;
               img.src = asset.path;
             });
-            newImages.set(asset.id, img);
+            newImages.set(key, img);
             console.log(`✅ Image loaded for clip ${clip.name}:`, asset.name);
           } catch (error) {
             console.error(`❌ Failed to load image for clip ${clip.name}:`, error);
@@ -320,13 +321,14 @@ const TimelineScene: React.FC<{
         } else if (asset.type === 'video') {
           try {
             // Use persistent video per assetId
-            let managed = videoAssetManager.get(asset.id);
+            let managed = videoAssetManager.get(key);
             if (!managed) {
               managed = await videoAssetManager.getOrCreate(asset, (a) => getAssetPath(a, true));
             }
             const video = managed.element;
-            globalAssetCacheRef.current.videos.set(asset.id, video);
-            newVideos.set(asset.id, video);
+            try { video.muted = true; } catch {}
+            globalAssetCacheRef.current.videos.set(key, video);
+            newVideos.set(key, video);
             console.log(`✅ Video manager provided element for clip ${clip.name}:`, asset.name);
           } catch (error) {
             console.error(`❌ Failed to load video for clip ${clip.name}:`, error);
@@ -369,10 +371,17 @@ const TimelineScene: React.FC<{
           video.currentTime = targetTime;
         }
         
+        // Force muted autoplay policy compliance and remove readyState gating
+        try { video.muted = true; } catch {}
+        try { video.playbackRate = 1; } catch {}
         if (video.paused) {
-          video.play().catch(() => {
-            console.warn('Could not auto-play video');
-          });
+          const p = video.play();
+          if (p && typeof (p as any).catch === 'function') {
+            (p as any).catch((err: any) => {
+              console.warn('Could not auto-play video, retrying muted:', err);
+              try { video.muted = true; void video.play(); } catch {}
+            });
+          }
         }
       } else {
         // Pause video if not playing or not in active clips
@@ -399,6 +408,7 @@ const TimelineScene: React.FC<{
           if (drift > 0.2) {
             console.log(`Correcting video drift for ${assetId}: ${drift.toFixed(2)}s`);
             video.currentTime = targetTime;
+            try { if (video.paused) void video.play(); } catch {}
           }
         }
       });
@@ -430,6 +440,20 @@ const TimelineScene: React.FC<{
     }
   });
 
+  // Helper function to build a correct file:// URL across platforms (Windows-friendly)
+  const toFileURL = (absPath: string) => {
+    try {
+      let p = String(absPath || '');
+      // Normalize backslashes to forward slashes
+      p = p.replace(/\\/g, '/');
+      // Ensure leading slash for drive letters (C:/...)
+      if (!p.startsWith('/')) p = '/' + p;
+      return 'file://' + p;
+    } catch {
+      return 'file://' + absPath;
+    }
+  };
+
   // Helper function to get proper file path for Electron
   const getAssetPath = (asset: any, useForPlayback: boolean = false) => {
     if (!asset) return '';
@@ -438,7 +462,7 @@ const TimelineScene: React.FC<{
     // For video playback, prioritize file paths over blob URLs
     if (useForPlayback && asset.type === 'video') {
       if (asset.filePath) {
-        const filePath = `file://${asset.filePath}`;
+        const filePath = toFileURL(asset.filePath);
         console.log('Using file path for video playback:', filePath);
         return filePath;
       }
@@ -448,7 +472,7 @@ const TimelineScene: React.FC<{
       }
       if (asset.path && asset.path.startsWith('local-file://')) {
         const filePath = asset.path.replace('local-file://', '');
-        const standardPath = `file://${filePath}`;
+        const standardPath = toFileURL(filePath);
         console.log('Converting local-file to file for video playback:', standardPath);
         return standardPath;
       }
@@ -461,7 +485,7 @@ const TimelineScene: React.FC<{
     }
     
     if (asset.filePath) {
-      const filePath = `file://${asset.filePath}`;
+      const filePath = toFileURL(asset.filePath);
       console.log('Using file protocol:', filePath);
       return filePath;
     }

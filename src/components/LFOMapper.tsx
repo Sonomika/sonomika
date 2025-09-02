@@ -3,7 +3,7 @@ import { useStore } from '../store/store';
 import { Layer } from '../store/types';
 import { useLFOStore, type LFOMapping } from '../store/lfoStore';
 import { ParamRow, Select, Tabs, TabsList, TabsTrigger, TabsContent, Checkbox } from './ui';
-import { BPMManager } from '../engine/BPMManager';
+import { getClock } from '../engine/Clock';
 import { getEffect } from '../utils/effectRegistry';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
 
@@ -402,8 +402,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     ctx.beginPath();
     const points = 200;
     // Compute effective Hz from timing mode
-    const bpmMgr = BPMManager.getInstance();
-    const bpm = bpmMgr.getBPM?.() || 120;
+    const clock = getClock();
+    const bpm = (clock.smoothedBpm || clock.bpm || 120) as number;
     const timingMode = String(((lfo as any)?.lfoTimingMode || 'hz')).toLowerCase();
     const division = (lfo as any)?.lfoDivision || '1/4';
     const periodMs = timingMode === 'sync' ? parseDivisionToMs(bpm, division) : undefined;
@@ -450,8 +450,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     const animate = () => {
       const time = Date.now() * 0.001;
       // Compute effective rate (Hz) based on timing mode
-      const bpmMgr = BPMManager.getInstance();
-      const bpm = bpmMgr.getBPM?.() || 120;
+      const clock = getClock();
+      const bpm = (clock.smoothedBpm || clock.bpm || 120) as number;
       const timingMode = String(((lfo as any)?.lfoTimingMode || 'hz')).toLowerCase();
       const division = (lfo as any)?.lfoDivision || '1/4';
       const periodMs = timingMode === 'sync' ? parseDivisionToMs(bpm, division as any) : undefined;
@@ -471,9 +471,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   // Random generators: run for all layers in random mode, independent of selection
   useEffect(() => {
     if (!transportPlaying) return;
-    const bpmMgr = BPMManager.getInstance();
+    const clock = getClock();
     const timers: Record<string, number> = {};
-    const bpmUnsubs: Array<() => void> = [];
 
     const isLayerInActiveColumn = (lid: string) => {
       try {
@@ -646,15 +645,15 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       if (!lfoState || (lfoState as any).mode !== 'random') return;
 
       if ((((lfoState as any).randomTimingMode) || 'sync') === 'sync') {
-        let currentBpm = bpmMgr.getBPM();
+        let currentBpm = (clock.smoothedBpm || clock.bpm || 120) as number;
         const restart = () => {
           if (timers[layerId]) clearInterval(timers[layerId]);
           const ms = parseDivisionToMs(currentBpm, ((lfoState as any).randomDivision as any) || '1/4');
           timers[layerId] = window.setInterval(() => fireRandomForLayer(layerId, lfoState), ms);
         };
-        const onBpmChange = (b: number) => { currentBpm = b; restart(); };
-        bpmMgr.addCallback(onBpmChange);
-        bpmUnsubs.push(() => bpmMgr.removeCallback(onBpmChange));
+        const onBeatOrBpm = () => { currentBpm = (clock.smoothedBpm || clock.bpm || 120) as number; restart(); };
+        try { clock.onBpmChangeListener(() => onBeatOrBpm()); } catch {}
+        try { clock.onNewBeatListener(() => onBeatOrBpm()); } catch {}
         restart();
       } else {
         const hz = Math.max(0.1, Math.min(20, Number((((lfoState as any).randomHz) as any) || 2)));
@@ -665,7 +664,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
     return () => {
       Object.values(timers).forEach((t) => clearInterval(t));
-      bpmUnsubs.forEach((fn) => fn());
+      try { clock.onBpmChangeListener(undefined); } catch {}
+      try { clock.onNewBeatListener(undefined); } catch {}
     };
   }, [lfoStateByLayer, transportPlaying, mappingsByLayer, selectedLayer?.id]);
 

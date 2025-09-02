@@ -1,5 +1,5 @@
 import { useStore } from '../store/store';
-import { BPMManager } from '../engine/BPMManager';
+import { getClock } from '../engine/Clock';
 
 interface ShortcutConfig {
   handler: (e: KeyboardEvent) => void;
@@ -257,17 +257,28 @@ export class KeyboardShortcuts {
   }
 
   private tapTempo(): void {
-    BPMManager.getInstance().tap();
+    // local tap-to-bpm using central clock
+    const w: any = window as any;
+    const now = performance.now();
+    w.__vj_tap_hist__ = (w.__vj_tap_hist__ || []).filter((t: number) => now - t < 2000);
+    w.__vj_tap_hist__.push(now);
+    if (w.__vj_tap_hist__.length >= 2) {
+      const ivals: number[] = [];
+      for (let i = 1; i < w.__vj_tap_hist__.length; i++) ivals.push(w.__vj_tap_hist__[i] - w.__vj_tap_hist__[i-1]);
+      const avg = ivals.reduce((a, b) => a + b, 0) / ivals.length;
+      const newBpm = Math.max(30, Math.min(999, Math.round(60000 / avg)));
+      try { getClock().setBpm(newBpm); } catch {}
+    }
   }
 
   private increaseBPM(): void {
-    const bpmManager = BPMManager.getInstance();
-    bpmManager.setBPM(bpmManager.getBPM() + 1);
+    const clock = getClock();
+    clock.setBpm((clock.bpm || 120) + 1);
   }
 
   private decreaseBPM(): void {
-    const bpmManager = BPMManager.getInstance();
-    bpmManager.setBPM(bpmManager.getBPM() - 1);
+    const clock = getClock();
+    clock.setBpm((clock.bpm || 120) - 1);
   }
 
   private previousScene(): void {

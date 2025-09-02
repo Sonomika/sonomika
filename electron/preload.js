@@ -61,6 +61,10 @@ try {
         },
         saveFile: (filePath, content) => {
             return electron_1.ipcRenderer.invoke('save-file', filePath, content);
+        },
+        toggleAppFullscreen: () => {
+            console.log('Preload: toggleAppFullscreen called');
+            electron_1.ipcRenderer.send('toggle-app-fullscreen');
         }
     });
     console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
