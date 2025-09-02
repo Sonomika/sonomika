@@ -60,6 +60,9 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const externalMenuRef = useRef<HTMLDivElement>(null);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
+  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const helpMenuRef = useRef<HTMLDivElement>(null);
+  const [apiDialogOpen, setApiDialogOpen] = useState(false);
   const { showTimeline, setShowTimeline, currentPresetName } = (useStore() as any) || {};
 
   // Detect Electron vs Web
@@ -276,6 +279,30 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onOpenSettings}>
             Settings
           </button>
+          {/* Help dropdown */}
+          <div className="menu-item-dropdown app-no-drag" ref={helpMenuRef}>
+            <Popover open={helpMenuOpen} onOpenChange={setHelpMenuOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent`}
+                >
+                  Help
+                </button>
+              </PopoverTrigger>
+              {helpMenuOpen && (
+                <PopoverContent className="tw-min-w-[180px] app-no-drag" align="start" side="bottom" >
+                  <div className="tw-flex tw-flex-col tw-py-1">
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => { e.stopPropagation(); setApiDialogOpen(true); setHelpMenuOpen(false); }}
+                    >
+                      API
+                    </button>
+                  </div>
+                </PopoverContent>
+              )}
+            </Popover>
+          </div>
           {process.env.NODE_ENV === 'development' && onStyleGuide && (
             <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onStyleGuide}>
               Style Guide
@@ -403,10 +430,64 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onToggleUIDemo?.(); setMobileMenuOpen(false); }}>UI Demo</button>
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onCompositionSettings?.(); setMobileMenuOpen(false); }}>Composition Settings</button>
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onOpenSettings?.(); setMobileMenuOpen(false); }}>Settings</button>
+              <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { setApiDialogOpen(true); setMobileMenuOpen(false); }}>Help › API</button>
               {process.env.NODE_ENV === 'development' && onToggleDebug && (
                 <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm hover:tw-bg-neutral-800" onClick={() => { onToggleDebug?.(); setMobileMenuOpen(false); }}>Debug</button>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* API Docs dialog */}
+      <Dialog open={apiDialogOpen} onOpenChange={setApiDialogOpen}>
+        <DialogContent className="tw-w-[92vw] tw-max-w-3xl tw-max-h-[80vh] tw-overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="tw-text-sm">API</DialogTitle>
+          </DialogHeader>
+          <div className="tw-text-neutral-200 tw-text-xs tw-space-y-5">
+            <section>
+              <div className="tw-font-semibold tw-mb-2">Entry point</div>
+              <pre className="tw-bg-neutral-900 tw-text-neutral-200 tw-p-3 tw-rounded tw-overflow-auto"><code>{`import { engine, midi, ui, effects, store } from '@/api';`}</code></pre>
+            </section>
+            <section>
+              <div className="tw-font-semibold tw-mb-2">Engine</div>
+              <pre className="tw-bg-neutral-900 tw-text-neutral-200 tw-p-3 tw-rounded tw-overflow-auto"><code>{`const clock = engine.getClock();
+clock.setBpm(128);
+clock.start();
+
+const lfo = engine.getLFOEngine();
+engine.attachLFOEngineGlobalListeners();`}</code></pre>
+            </section>
+            <section>
+              <div className="tw-font-semibold tw-mb-2">MIDI</div>
+              <pre className="tw-bg-neutral-900 tw-text-neutral-200 tw-p-3 tw-rounded tw-overflow-auto"><code>{`const mm = midi.MIDIManager.getInstance();
+mm.addCCCallback((cc, value, ch) => {
+  if (cc === 1) engine.getClock().setBpm(60 + value);
+});`}</code></pre>
+            </section>
+            <section>
+              <div className="tw-font-semibold tw-mb-2">Effects</div>
+              <pre className="tw-bg-neutral-900 tw-text-neutral-200 tw-p-3 tw-rounded tw-overflow-auto"><code>{`// Discover available effects dynamically (no hardcoded names)
+const discovery = effects.EffectDiscovery.getInstance();
+await discovery.discoverEffects();
+const list = discovery.getDiscoveredEffects();
+
+// Access registry helpers
+const ids = effects.getAllRegisteredEffects();`}</code></pre>
+            </section>
+            <section>
+              <div className="tw-font-semibold tw-mb-2">Store</div>
+              <pre className="tw-bg-neutral-900 tw-text-neutral-200 tw-p-3 tw-rounded tw-overflow-auto"><code>{`import { store } from '@/api';
+const { useStore } = store;
+const isPlaying = useStore.getState().isGlobalPlaying;
+useStore.getState().globalPlay();`}</code></pre>
+            </section>
+            <section>
+              <div className="tw-font-semibold tw-mb-2">UI</div>
+              <pre className="tw-bg-neutral-900 tw-text-neutral-200 tw-p-3 tw-rounded tw-overflow-auto"><code>{`import { ui } from '@/api';
+// Example: <ui.Button>Click</ui.Button>`}</code></pre>
+            </section>
           </div>
         </DialogContent>
       </Dialog>

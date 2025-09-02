@@ -8,12 +8,12 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "strict": true,
-    "outDir": "dist-electron",
+    "outDir": "out/electron",
     "rootDir": "electron",
     "allowJs": true,
     "declaration": false,
     "sourceMap": false
   },
   "include": ["electron/**/*"],
-  "exclude": ["node_modules", "dist-electron"]
+  "exclude": ["node_modules", "out/electron"]
 }

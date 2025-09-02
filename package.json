@@ -2,7 +2,7 @@
   "name": "p5vj",
   "version": "1.0.0",
   "description": "A VJ application built with Electron and p5.js",
-  "main": "dist-electron/main.js",
+  "main": "out/electron/main.js",
   "scripts": {
     "start": "electron .",
     "build": "tsc -p tsconfig.electron.json && tsc && vite build",

@@ -1,5 +1,0 @@
-[33maa7ea4e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Fix TypeScript error: rename R3FColorPulse.ts to R3FColorPulse.tsx for JSX support
-[33mc3e40ce[m Update VJ app with equal-width three-column layout and improved layer options panel
-[33m123d6f8[m Convert p5.js effects to Three.js - Added 6 new Three.js effects: CirclePulseEffect, SquarePulseEffect, WaveEffect, GeometricPatternEffect, AudioReactiveEffect, ColorPulseEffect. Updated EffectsBrowser and ColumnPreview to support new effects with BPM synchronization and advanced shader materials.
-[33md05a690[m Merge remote changes with local debugging improvements
-[33m4d845ff[m Add R3F debugging and error handling - Add comprehensive debugging elements to ColumnPreview - Add error boundary and error state management - Add loading indicator and test mesh for R3F debugging - Add enhanced console logging for troubleshooting - Improve Effects Browser UI with compact design and type grouping

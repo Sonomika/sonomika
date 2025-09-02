@@ -196,25 +196,49 @@ function createWindow() {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
           console.log(`Retrying in ${delay}ms...`);
           setTimeout(() => loadDevURL(port, retryCount + 1), delay);
-        } else if (port < 5180) {
-          // Try next port
-          setTimeout(() => loadDevURL(port + 1), 1000);
         } else {
           console.log('All ports failed, loading fallback HTML');
-          mainWindow!.loadFile(path.join(__dirname, '../index.html')).catch((error) => {
-            console.error('Failed to load fallback HTML:', error);
-            // Show error page
-            mainWindow!.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+          const candidatePaths = [
+            path.join(__dirname, '../web/index.html'),
+            path.join(__dirname, '../dist/index.html'),
+            path.join(__dirname, '../index.html'),
+            path.join(__dirname, '../../index.html'),
+          ];
+          const found = candidatePaths.find(p => {
+            try { return fs.existsSync(p); } catch { return false; }
           });
+          if (found) {
+            console.log('Loading fallback file:', found);
+            mainWindow!.loadFile(found).catch((error) => {
+              console.error('Failed to load fallback HTML:', error);
+              mainWindow!.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+            });
+          } else {
+            console.warn('No fallback index.html found. Loading data URL.');
+            mainWindow!.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+          }
         }
       });
     };
     
-    // Start with port 5173 after a short delay
+    // Only try Electron dev server port 5173
     setTimeout(() => loadDevURL(5173), 500);
   } else {
     console.log('Running in production mode');
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    const prodCandidates = [
+      path.join(__dirname, '../web/index.html'),
+      path.join(__dirname, '../dist/index.html')
+    ];
+    const found = prodCandidates.find(p => {
+      try { return fs.existsSync(p); } catch { return false; }
+    });
+    if (found) {
+      console.log('Loading production file:', found);
+      mainWindow.loadFile(found);
+    } else {
+      console.error('No production index.html found at', prodCandidates);
+      mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Missing build.</p></body></html>`);
+    }
   }
 
   // Log when the window is ready
