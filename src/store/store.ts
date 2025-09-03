@@ -273,7 +273,8 @@ export const useStore = createWithEqualityFn<AppState & {
 
       setPreviewMode: (mode: AppState['previewMode']) => set({ previewMode: mode }),
 
-      setShowTimeline: (show: boolean) => set({ showTimeline: show }),
+      // Temporarily disable timeline mode for release: force false
+      setShowTimeline: (_show: boolean) => set({ showTimeline: false }),
 
       addMIDIMapping: (mapping: MIDIMapping) => set((state) => ({
         midiMappings: [...state.midiMappings, mapping],
@@ -847,7 +848,8 @@ export const useStore = createWithEqualityFn<AppState & {
            playingColumnId: state.playingColumnId,
            bpm: state.bpm,
            sidebarVisible: state.sidebarVisible,
-           showTimeline: (state as any).showTimeline,
+           // Force timeline off in persisted state
+           showTimeline: false,
            midiMappings: state.midiMappings,
            selectedLayerId: state.selectedLayerId,
            selectedTimelineClip: state.selectedTimelineClip,
@@ -866,6 +868,8 @@ export const useStore = createWithEqualityFn<AppState & {
          };
        },
              onRehydrateStorage: () => (state) => {
+         // Ensure timeline remains disabled after rehydrate
+         try { (useStore as any)?.setState?.({ showTimeline: false }); } catch {}
          // console.log('🔄 Store rehydrated successfully!');
          // console.log('📊 Rehydrated data summary:');
          // console.log('  - Assets:', state?.assets?.length || 0, 'items');

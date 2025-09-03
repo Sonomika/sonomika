@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
+import { Tabs, TabsList, TabsTrigger, TabsContent, Button } from './ui';
 
 interface EffectsBrowserProps {
   onClose?: () => void;
@@ -25,37 +25,37 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'effects' | 'sources'>('effects');
   const [effects, setEffects] = useState<LightEffect[]>([]);
 
-  useEffect(() => {
+  const refreshEffects = async () => {
     let mounted = true;
-    const run = async () => {
-      try {
-        setIsLoading(true);
-        setLoadingText('Discovering effects...');
-        const { EffectDiscovery } = await import('../utils/EffectDiscovery');
-        const discovery = EffectDiscovery.getInstance();
-        const light = await discovery.listAvailableEffectsLightweight();
-        if (!mounted) return;
-        const mapped: LightEffect[] = light.map((e: any) => ({
-          id: e.id,
-          name: e.name,
-          description: e.description,
-          category: e.category,
-          icon: e.icon,
-          author: e.author,
-          version: e.version,
-          metadata: e.metadata as any,
-          fileKey: e.fileKey,
-        }));
-        setEffects(mapped);
-      } catch (err) {
-        console.warn('EffectsBrowser: discovery failed', err);
-        if (mounted) setEffects([]);
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    };
-    run();
-    return () => { mounted = false; };
+    try {
+      setIsLoading(true);
+      setLoadingText('Refreshing effects...');
+      const { EffectDiscovery } = await import('../utils/EffectDiscovery');
+      const discovery = EffectDiscovery.getInstance();
+      const light = await discovery.listAvailableEffectsLightweight();
+      if (!mounted) return;
+      const mapped: LightEffect[] = light.map((e: any) => ({
+        id: e.id,
+        name: e.name,
+        description: e.description,
+        category: e.category,
+        icon: e.icon,
+        author: e.author,
+        version: e.version,
+        metadata: e.metadata as any,
+        fileKey: e.fileKey,
+      }));
+      setEffects(mapped);
+    } catch (err) {
+      console.warn('EffectsBrowser: discovery failed', err);
+      if (mounted) setEffects([]);
+    } finally {
+      if (mounted) setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshEffects();
   }, []);
 
   const filtered = useMemo(() => {
@@ -135,14 +135,22 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           <TabsContent value="sources" />
         </Tabs>
       </div>
-      <div className="tw-px-3 tw-pb-2">
+      <div className="tw-px-3 tw-pb-2 tw-flex tw-gap-2">
         <input
           type="text"
           placeholder="Search effects..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="tw-w-full tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+          className="tw-flex-1 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
         />
+        <Button 
+          onClick={refreshEffects} 
+          disabled={isLoading}
+          className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-3 tw-py-1 tw-text-sm"
+          title="Refresh effects list"
+        >
+          {isLoading ? '⟳' : '↻'}
+        </Button>
       </div>
       <div className="tw-flex-1 tw-overflow-auto tw-p-3">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources')}>

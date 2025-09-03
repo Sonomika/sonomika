@@ -1,7 +1,14 @@
 // Effect File Manager
 // Handles creation, saving, and management of AI-generated effect files
 
-import { GeneratedEffectCode } from '../services/OpenAIService';
+// Local definition to avoid coupling to any API service
+export interface GeneratedEffectCode {
+  id: string;
+  name: string;
+  description: string;
+  category: 'visual-effects' | 'sources';
+  code: string;
+}
 
 export interface EffectFileInfo {
   id: string;
