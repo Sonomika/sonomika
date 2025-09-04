@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
-import { Button, Input, Label, Select, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui';
+import { Button, Input, Label, Select, Switch } from './ui';
 import { MIDIManager } from '../midi/MIDIManager';
 import { MIDIProcessor } from '../utils/MIDIProcessor';
 import { MIDIMapping } from '../store/types';
@@ -13,16 +13,15 @@ interface MIDIDevice {
 }
 
 export const MIDIMapper: React.FC = () => {
-  const { midiMappings, setMIDIMappings } = useStore() as any;
+  const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1 } = useStore() as any;
   const [selectedDevice, setSelectedDevice] = useState<string>('Any device');
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const mappings = midiMappings as MIDIMapping[];
-  const [saveOpen, setSaveOpen] = useState(false);
-  const [saveName, setSaveName] = useState('midi-mapping');
+  // Removed custom save dialog; we now use system Save dialog (Electron or File System Access API)
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [monitorEnabled, setMonitorEnabled] = useState(true);
   const [lastEventAt, setLastEventAt] = useState<number | null>(null);
-  const [lastEvent, setLastEvent] = useState<{ type: 'note' | 'cc'; channel: number; number: number; value: number; ts: number } | null>(null);
+  const [lastEvent, setLastEvent] = useState<{ type: 'note' | 'cc'; channel: number; effChannel?: number; forced?: boolean; number: number; value: number; ts: number } | null>(null);
 
   const [devices] = useState<MIDIDevice[]>([
     { id: 'loopmidi', name: 'Loopmidi', type: 'input' },
@@ -101,12 +100,16 @@ export const MIDIMapper: React.FC = () => {
       const onNote = (n: number, v: number, ch: number) => {
         const ts = Date.now();
         setLastEventAt(ts);
-        setLastEvent({ type: 'note', channel: ch, number: n, value: v, ts });
+        const force = !!(useStore.getState() as any).midiForceChannel1;
+        const effCh = force ? 1 : ch;
+        setLastEvent({ type: 'note', channel: ch, effChannel: effCh, forced: force, number: n, value: v, ts });
       };
       const onCC = (c: number, v: number, ch: number) => {
         const ts = Date.now();
         setLastEventAt(ts);
-        setLastEvent({ type: 'cc', channel: ch, number: c, value: v, ts });
+        const force = !!(useStore.getState() as any).midiForceChannel1;
+        const effCh = force ? 1 : ch;
+        setLastEvent({ type: 'cc', channel: ch, effChannel: effCh, forced: force, number: c, value: v, ts });
       };
       const onKey = (k: string, mods: { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean }) => {
         const ts = Date.now();
@@ -149,6 +152,54 @@ export const MIDIMapper: React.FC = () => {
     updateMappings(next);
   };
 
+  // System Save: Electron showSaveDialog or File System Access API
+  const saveMappingsToFile = async () => {
+    try {
+      const payload = {
+        type: 'midi-mapping',
+        name: (useStore.getState() as any).currentPresetName || 'midi-mapping',
+        timestamp: Date.now(),
+        version: '1.0.0',
+        data: { midiMappings: (useStore.getState() as any).midiMappings }
+      } as any;
+
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showSaveDialog;
+      if (isElectron) {
+        const defaultPath = `midi-mapping-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+        const result = await (window as any).electron.showSaveDialog({ title: 'Save MIDI Mapping', defaultPath, filters: [{ name: 'JSON', extensions: ['json'] }] });
+        if (!result.canceled && result.filePath) {
+          await (window as any).electron.saveFile(result.filePath, JSON.stringify(payload, null, 2));
+        }
+        return;
+      }
+
+      // Web: use File System Access API if available for native save dialog
+      const supportsFS = typeof window !== 'undefined' && 'showSaveFilePicker' in window;
+      if (supportsFS) {
+        // @ts-ignore
+        const handle = await window.showSaveFilePicker({
+          suggestedName: `midi-mapping-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`,
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+        await writable.close();
+        return;
+      }
+
+      // Fallback: download via anchor (no custom UI available)
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `midi-mapping-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {}
+  };
+
   const getNoteChannelDisplay = (mapping: MIDIMapping) => {
     if (mapping.type === 'key') {
       const parts: string[] = [];
@@ -171,6 +222,10 @@ export const MIDIMapper: React.FC = () => {
           <div className="tw-min-w-[160px]">
             <Select value={selectedDevice} onChange={(v) => setSelectedDevice(v as string)} options={devices.map(d => ({ value: d.name }))} />
           </div>
+          <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+            <Label className="tw-text-xs">Force Channel 1</Label>
+            <Switch checked={!!midiForceChannel1} onCheckedChange={(val: boolean) => setMIDIForceChannel1(!!val)} />
+          </div>
           <div className="tw-flex tw-gap-2 tw-flex-wrap">
             <Button variant="secondary" onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>
             <Button variant="secondary" onClick={() => {
@@ -183,7 +238,7 @@ export const MIDIMapper: React.FC = () => {
               setSelectedIndex(insertAt);
             }}>Duplicate</Button>
             <Button variant="destructive" onClick={() => { if (selectedMapping) { const next = mappings.filter((_, i) => i !== selectedIndex); updateMappings(next); setSelectedIndex(Math.max(0, selectedIndex - 1)); } }}>Remove</Button>
-            <Button variant="secondary" onClick={() => { try { const n = (useStore.getState() as any).currentPresetName || 'midi-mapping'; setSaveName(String(n)); } catch { setSaveName('midi-mapping'); } setSaveOpen(true); }}>Save Preset</Button>
+            <Button variant="secondary" onClick={() => { saveMappingsToFile(); }}>Save Preset</Button>
             <Button variant="secondary" onClick={() => {
               try {
                 const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
@@ -309,8 +364,16 @@ export const MIDIMapper: React.FC = () => {
           ) : (
             <div className="tw-flex tw-justify-between tw-border tw-border-neutral-800 tw-rounded tw-px-2 tw-py-1">
               <span className="tw-text-neutral-200">{lastEvent.type.toUpperCase()} {lastEvent.number}</span>
-              <span className="tw-text-neutral-400">ch {lastEvent.channel} • val {lastEvent.value} • {new Date(lastEvent.ts).toLocaleTimeString()}</span>
-      </div>
+              <span className="tw-text-neutral-400">
+                {(() => {
+                  const forced = !!lastEvent.forced;
+                  const chDisp = forced
+                    ? (lastEvent.channel === 1 ? 'ch 1 forced' : `ch ${lastEvent.channel}→1 forced`)
+                    : `ch ${lastEvent.channel}`;
+                  return `${chDisp} • val ${lastEvent.value} • ${new Date(lastEvent.ts).toLocaleTimeString()}`;
+                })()}
+              </span>
+            </div>
           )}
           </div>
         </div>
@@ -343,69 +406,13 @@ export const MIDIMapper: React.FC = () => {
         }}
       />
 
-      {/* Save Preset Dialog */}
-      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save MIDI Mapping</DialogTitle>
-            <DialogDescription>Save only the MIDI mappings to a preset file.</DialogDescription>
-          </DialogHeader>
-          <div className="tw-space-y-2">
-            <Label className="tw-text-xs">Name</Label>
-            <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} />
-        </div>
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setSaveOpen(false)}>Cancel</Button>
-            <Button onClick={() => {
-              const name = (saveName || 'midi-mapping').trim();
-              const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showSaveDialog;
-              if (isElectron) {
-                (async () => {
-                  const defaultPath = `midi-mapping-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
-                  const result = await (window as any).electron.showSaveDialog({ title: 'Save MIDI Mapping', defaultPath, filters: [{ name: 'JSON', extensions: ['json'] }] });
-                  if (!result.canceled && result.filePath) {
-                    const state = useStore.getState() as any;
-                    const payload = {
-                      type: 'midi-mapping',
-                      name,
-                      timestamp: Date.now(),
-                      version: '1.0.0',
-                      data: {
-                        midiMappings: state.midiMappings,
-                      }
-                    } as any;
-                    await (window as any).electron.saveFile(result.filePath, JSON.stringify(payload, null, 2));
-                  }
-                  setSaveOpen(false);
-                })();
-              } else {
-                try {
-                  const state = useStore.getState() as any;
-                  const payload = {
-                    type: 'midi-mapping',
-                    name,
-                    timestamp: Date.now(),
-                    version: '1.0.0',
-                    data: {
-                      midiMappings: state.midiMappings,
-                    }
-                  } as any;
-                  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `${name.replace(/\s+/g, '-')}.json`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                } catch {}
-                setSaveOpen(false);
-              }
-            }}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* System Save handler (Electron or File System Access API) */}
+      {/* No custom dialog; using native OS picker instead */}
+
+      {/* Helper: save mappings to a JSON file via system UI */}
+      {(() => {
+        // define once within component scope
+      })()}
     </div>
   );
 }; 

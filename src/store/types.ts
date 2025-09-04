@@ -124,6 +124,8 @@ export interface AppState {
   accessibilityEnabled: boolean; // Global accessibility mode
   accentColor?: string;
   midiMappings: MIDIMapping[];
+  // MIDI options
+  midiForceChannel1?: boolean; // If true, remap incoming MIDI events to channel 1
   selectedLayerId: string | null;
   selectedTimelineClip: any | null;
   previewMode: 'composition' | 'layer';

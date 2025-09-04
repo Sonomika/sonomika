@@ -31,12 +31,16 @@ export class MIDIProcessor {
 
   handleNoteMessage(note: number, velocity: number, channel: number): void {
     const store = useStore.getState() as Store;
+    const force = !!(store as any).midiForceChannel1;
+    const effectiveChannel = force ? 1 : channel;
 
     this.mappings
       .filter(mapping => 
         mapping.type === 'note' &&
         mapping.number === note &&
-        mapping.channel === channel
+        (
+          force ? true : mapping.channel === effectiveChannel
+        )
       )
       .forEach(mapping => {
         switch (mapping.target.type) {
@@ -96,12 +100,16 @@ export class MIDIProcessor {
 
   handleCCMessage(cc: number, value: number, channel: number): void {
     const store = useStore.getState() as Store;
+    const force = !!(store as any).midiForceChannel1;
+    const effectiveChannel = force ? 1 : channel;
 
     this.mappings
       .filter(mapping => 
         mapping.type === 'cc' &&
         mapping.number === cc &&
-        mapping.channel === channel
+        (
+          force ? true : mapping.channel === effectiveChannel
+        )
       )
       .forEach(mapping => {
         switch (mapping.target.type) {

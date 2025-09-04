@@ -69,6 +69,7 @@ const initialState: AppState = {
   accessibilityEnabled: false,
   accentColor: '#00bcd4',
   midiMappings: [],
+  midiForceChannel1: false,
   selectedLayerId: null,
   selectedTimelineClip: null,
   previewMode: 'composition',
@@ -130,6 +131,7 @@ export const useStore = createWithEqualityFn<AppState & {
   addMIDIMapping: (mapping: MIDIMapping) => void;
   removeMIDIMapping: (index: number) => void;
   setMIDIMappings: (mappings: MIDIMapping[]) => void;
+  setMIDIForceChannel1: (forced: boolean) => void;
   setTransitionType: (type: TransitionType) => void;
   setTransitionDuration: (duration: number) => void;
   setPlayingColumn: (columnId: string | null) => void;
@@ -289,6 +291,7 @@ export const useStore = createWithEqualityFn<AppState & {
       })),
 
       setMIDIMappings: (mappings: MIDIMapping[]) => set({ midiMappings: mappings }),
+      setMIDIForceChannel1: (forced: boolean) => set({ midiForceChannel1: !!forced }),
 
       setTransitionType: (type: AppState['transitionType']) => set({ transitionType: type }),
 
@@ -855,6 +858,7 @@ export const useStore = createWithEqualityFn<AppState & {
            // Force timeline off in persisted state
            showTimeline: false,
            midiMappings: state.midiMappings,
+           midiForceChannel1: (state as any).midiForceChannel1,
            selectedLayerId: state.selectedLayerId,
            selectedTimelineClip: state.selectedTimelineClip,
            previewMode: state.previewMode,
