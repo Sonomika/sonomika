@@ -23,8 +23,6 @@ interface CustomTitleBarProps {
   onRecord?: () => void;
   onRecordSettings?: () => void;
   isRecording?: boolean;
-  recordUntilStop?: boolean;
-  onToggleRecordUntilStop?: () => void;
 }
 
 export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
@@ -47,9 +45,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onAdvancedMirror,
   onRecord,
   onRecordSettings,
-  isRecording,
-  recordUntilStop,
-  onToggleRecordUntilStop
+  isRecording
 }) => {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -242,7 +238,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                   <span className="tw-inline-flex tw-items-center tw-gap-1">
                     Record
                     {isRecording && (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z"/></svg>
+                      <div className="tw-w-3 tw-h-3 tw-bg-red-500 tw-rounded-full tw-animate-pulse"></div>
                     )}
                   </span>
                 </button>
@@ -251,19 +247,13 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                 <div className="tw-flex tw-flex-col tw-py-1">
                   <button 
                     className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
-                    onClick={(e) => { e.stopPropagation(); onRecord && onRecord(); }}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      console.log('Record button clicked, isRecording:', isRecording);
+                      onRecord && onRecord(); 
+                    }}
                   >
                     {isRecording ? 'Stop Recording' : 'Record'}
-                  </button>
-                  <button
-                    className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
-                    onClick={(e) => { e.stopPropagation(); onToggleRecordUntilStop && onToggleRecordUntilStop(); }}
-                    aria-pressed={!!recordUntilStop}
-                  >
-                    <span>Record until Stop</span>
-                    {recordUntilStop && (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19l11-11-1.4-1.4z"/></svg>
-                    )}
                   </button>
                   <button 
                     className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"

@@ -732,7 +732,9 @@ electron.app.whenReady().then(() => {
     return result;
   });
   electron.ipcMain.handle("show-save-dialog", async (event, options) => {
+    console.log("Show save dialog called with options:", options);
     const result = await electron.dialog.showSaveDialog(mainWindow, options);
+    console.log("Save dialog result:", result);
     return result;
   });
   electron.ipcMain.handle("save-file", async (event, filePath, content) => {
@@ -746,7 +748,9 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.handle("save-binary-file", async (event, filePath, data) => {
     try {
+      console.log("Saving binary file to:", filePath, "Size:", data.length, "bytes");
       await fs.promises.writeFile(filePath, Buffer.from(data));
+      console.log("Binary file saved successfully");
       return true;
     } catch (e) {
       console.error("Failed to save binary file:", e);

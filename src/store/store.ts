@@ -94,21 +94,17 @@ const initialState: AppState = {
 initialState.currentSceneId = initialState.scenes[0].id;
 
 export type RecordSettings = {
-  durationSec: number;
   codec: 'vp8' | 'vp9';
   quality: 'low' | 'medium' | 'high';
-  untilStop?: boolean;
   audioSource: 'none' | 'microphone' | 'system';
   audioBitrate: number;
 };
 
 const initialRecordSettings: RecordSettings = {
-  durationSec: 5,
-  codec: 'vp8',
+  codec: 'vp9',
   quality: 'medium',
   audioSource: 'none',
-  audioBitrate: 128000,
-  untilStop: false
+  audioBitrate: 128000
 };
 
 export const useStore = createWithEqualityFn<AppState & {

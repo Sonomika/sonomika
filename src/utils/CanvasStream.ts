@@ -14,6 +14,7 @@ export class CanvasStreamManager {
   private mode: 'direct-output' | 'electron-stream' | 'browser-bitmap' | null = null;
   private freezeMirror: boolean = false;
   private unfreezeHoldFrames: number = 0;
+  private originalCanvasStyle: string | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -186,6 +187,10 @@ export class CanvasStreamManager {
       // Create a placeholder to preserve layout in original parent
       const parent = this.canvas.parentNode;
       this.originalParent = parent;
+      // Save original inline style so we can restore after closing mirror
+      try {
+        this.originalCanvasStyle = (this.canvas as HTMLCanvasElement).getAttribute('style');
+      } catch {}
       const placeholder = document.createElement('div');
       placeholder.style.width = (this.canvas as any).style?.width || '100%';
       placeholder.style.height = (this.canvas as any).style?.height || '100%';
@@ -244,13 +249,24 @@ export class CanvasStreamManager {
           if (this.originalParent && this.canvas) {
             // Put canvas back and remove placeholder
             try { this.originalParent.insertBefore(this.canvas, this.placeholderEl || null); } catch {}
+            // Restore original inline style (clears mirror window scaling)
+            try {
+              if (this.originalCanvasStyle == null) {
+                (this.canvas as HTMLCanvasElement).removeAttribute('style');
+              } else {
+                (this.canvas as HTMLCanvasElement).setAttribute('style', this.originalCanvasStyle);
+              }
+            } catch {}
             if (this.placeholderEl && this.placeholderEl.parentNode) {
               try { this.placeholderEl.parentNode.removeChild(this.placeholderEl); } catch {}
             }
+            // Notify layout to recalc sizes after restoration
+            try { window.dispatchEvent(new Event('resize')); } catch {}
           }
         } finally {
           this.placeholderEl = null;
           this.originalParent = null;
+          this.originalCanvasStyle = null;
           this.directWindow = null;
           this.isWindowOpen = false;
         }

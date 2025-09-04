@@ -750,7 +750,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('show-save-dialog', async (event, options: Electron.SaveDialogOptions) => {
+    console.log('Show save dialog called with options:', options);
     const result = await dialog.showSaveDialog(mainWindow!, options);
+    console.log('Save dialog result:', result);
     return result;
   });
 
@@ -766,7 +768,9 @@ app.whenReady().then(() => {
 
   ipcMain.handle('save-binary-file', async (event, filePath: string, data: Uint8Array) => {
     try {
+      console.log('Saving binary file to:', filePath, 'Size:', data.length, 'bytes');
       await fs.promises.writeFile(filePath, Buffer.from(data));
+      console.log('Binary file saved successfully');
       return true;
     } catch (e) {
       console.error('Failed to save binary file:', e);
@@ -788,7 +792,7 @@ app.whenReady().then(() => {
       }
 
       // Get the primary display source
-      const primarySource = sources.find(source => source.name === 'Entire Screen') || sources[0];
+      const primarySource = sources.find((source: any) => source.name === 'Entire Screen') || sources[0];
       
       return {
         success: true,

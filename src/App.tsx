@@ -128,10 +128,14 @@ function App() {
     // Mark Electron environment for CSS targeting (e.g., scrollbar styling)
     try {
       const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+      console.log('App startup - Electron detected:', isElectron);
       if (isElectron) {
         document.body.classList.add('is-electron');
+        console.log('Electron APIs available:', Object.keys((window as any).electron || {}));
       }
-    } catch {}
+    } catch (error) {
+      console.error('Error checking Electron environment:', error);
+    }
 
     // Handle Dropbox OAuth redirect (web only)
     try {
@@ -749,19 +753,43 @@ function App() {
         recorder.onstop = async () => {
           const blob = new Blob(chunks, { type: mime });
           const buffer = new Uint8Array(await blob.arrayBuffer());
-          const { filePath } = await (window as any).electron.showSaveDialog({
-            title: 'Save Recording',
-            defaultPath: 'recording.webm',
-            filters: [{ name: 'WebM', extensions: ['webm'] }]
-          });
-          if (filePath) {
-            const ok = await (window as any).electron.saveBinaryFile(filePath, buffer);
-            if (ok) toast({ description: 'Recording saved.' });
+          try {
+            // Check if Electron APIs are available
+            if (!(window as any).electron) {
+              throw new Error('Electron APIs not available');
+            }
+            
+            if (typeof (window as any).electron.showSaveDialog !== 'function') {
+              throw new Error('showSaveDialog function not available');
+            }
+            
+            if (typeof (window as any).electron.saveBinaryFile !== 'function') {
+              throw new Error('saveBinaryFile function not available');
+            }
+            
+            const result = await (window as any).electron.showSaveDialog({
+              title: 'Save Recording',
+              defaultPath: 'recording.webm',
+              filters: [{ name: 'WebM', extensions: ['webm'] }]
+            });
+            if (result && !result.canceled && result.filePath) {
+              const ok = await (window as any).electron.saveBinaryFile(result.filePath, buffer);
+              if (ok) {
+                toast({ description: 'Recording saved successfully.' });
+              } else {
+                toast({ description: 'Failed to save recording.' });
+              }
+            } else {
+              toast({ description: 'Recording save canceled.' });
+            }
+          } catch (error) {
+            console.error('Error saving recording:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            toast({ description: 'Error saving recording: ' + errorMessage });
           }
         };
         recorder.start();
-        toast({ description: 'Recording started (5s)...' });
-        setTimeout(() => { try { recorder.stop(); } catch {} }, 5000);
+        toast({ description: 'Recording started...' });
       } catch {}
     };
     const settingsHandler = () => {
@@ -805,15 +833,16 @@ function App() {
         }}
         onAdvancedMirror={() => { setAdvMirrorOpen(true); }}
         isRecording={isRecording}
-        recordUntilStop={!!recordSettings?.untilStop}
-        onToggleRecordUntilStop={() => setRecordSettings({ untilStop: !recordSettings?.untilStop })}
         onRecord={() => {
           // Reuse the same startHandler logic inline
           (async () => {
             try {
               if (isRecording && recorderRef.current) { 
                 try { 
+                  console.log('Stopping recording...');
                   recorderRef.current.stop(); 
+                  // Update state immediately when stop is pressed
+                  setIsRecording(false);
                   // Clean up any active audio streams
                   const audioTracks = document.querySelectorAll('audio');
                   audioTracks.forEach(audio => {
@@ -822,7 +851,12 @@ function App() {
                       stream.getTracks().forEach(track => track.stop());
                     }
                   });
-                } catch {} 
+                  console.log('Recording stop requested');
+                } catch (error) {
+                  console.error('Error stopping recording:', error);
+                  // Still update state even if there's an error
+                  setIsRecording(false);
+                } 
                 return; 
               }
               const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
@@ -896,33 +930,99 @@ function App() {
               const chunks: BlobPart[] = [];
               recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
               recorder.onstop = async () => {
+                console.log('Recording onstop callback triggered');
                 const blob = new Blob(chunks, { type: mime });
                 const buffer = new Uint8Array(await blob.arrayBuffer());
-                const { filePath } = await (window as any).electron.showSaveDialog({
-                  title: 'Save Recording',
-                  defaultPath: 'recording.webm',
-                  filters: [{ name: 'WebM', extensions: ['webm'] }]
-                });
-                if (filePath) {
-                  const ok = await (window as any).electron.saveBinaryFile(filePath, buffer);
-                  if (ok) toast({ description: 'Recording saved.' });
+                console.log('Recording blob size:', blob.size, 'bytes');
+                
+                try {
+                  // Check if we're running in Electron
+                  const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+                  console.log('Running in Electron:', isElectron);
+                  console.log('Window electron object:', (window as any).electron);
+                  console.log('Available methods:', (window as any).electron ? Object.keys((window as any).electron) : 'none');
+                  
+                  // Check if Electron APIs are available
+                  if (!isElectron || !(window as any).electron) {
+                    console.error('Electron APIs not available, trying fallback...');
+                    // Fallback: create download link
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'recording.webm';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    toast({ description: 'Recording downloaded (Electron APIs not available).' });
+                    return;
+                  }
+                  
+                  if (typeof (window as any).electron.showSaveDialog !== 'function') {
+                    throw new Error('showSaveDialog function not available');
+                  }
+                  
+                  if (typeof (window as any).electron.saveBinaryFile !== 'function') {
+                    throw new Error('saveBinaryFile function not available');
+                  }
+                  
+                  console.log('Electron APIs available, showing save dialog...');
+                  const result = await (window as any).electron.showSaveDialog({
+                    title: 'Save Recording',
+                    defaultPath: 'recording.webm',
+                    filters: [{ name: 'WebM', extensions: ['webm'] }]
+                  });
+                  console.log('Save dialog result:', result);
+                  
+                  if (result && !result.canceled && result.filePath) {
+                    console.log('Saving to file:', result.filePath);
+                    const ok = await (window as any).electron.saveBinaryFile(result.filePath, buffer);
+                    console.log('Save result:', ok);
+                    if (ok) {
+                      toast({ description: 'Recording saved successfully.' });
+                    } else {
+                      toast({ description: 'Failed to save recording.' });
+                    }
+                  } else {
+                    console.log('Save dialog was canceled or no file path provided');
+                    toast({ description: 'Recording save canceled.' });
+                  }
+                } catch (error) {
+                  console.error('Error in save process:', error);
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  toast({ description: 'Error saving recording: ' + errorMessage });
+                  
+                  // Fallback: try download if Electron APIs fail
+                  try {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'recording.webm';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    toast({ description: 'Recording downloaded as fallback.' });
+                  } catch (fallbackError) {
+                    console.error('Fallback download also failed:', fallbackError);
+                    toast({ description: 'Failed to save or download recording.' });
+                  }
                 }
+                
                 // Clean up audio streams
                 if (audioStream) {
                   audioStream.getTracks().forEach(track => track.stop());
                 }
                 setIsRecording(false);
                 recorderRef.current = null;
+                console.log('Recording cleanup completed');
               };
               recorder.start();
               recorderRef.current = recorder;
-              const duration = Math.max(1, Number(recordSettings?.durationSec) || 5);
               const audioInfo = audioSource === 'none' ? 'no audio' : `${audioSource} @ ${audioBitrate/1000}kbps`;
-              toast({ description: `Recording started (${duration}s @ 30fps, ${quality}, ${audioInfo})...` });
+              toast({ description: `Recording started (@ 30fps, ${quality}, ${audioInfo})...` });
               setIsRecording(true);
-              if (!recordSettings?.untilStop) {
-                setTimeout(() => { try { recorder.stop(); } catch {} }, duration * 1000);
-              }
+              console.log('Recording started, isRecording set to true');
             } catch {}
           })();
         }}
