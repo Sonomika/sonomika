@@ -16,6 +16,7 @@ import { AdvancedMirrorStreamManager } from './utils/AdvancedMirrorStream';
 import './index.css';
 import { MIDIManager } from './midi/MIDIManager';
 import { MIDIProcessor } from './utils/MIDIProcessor';
+import { KeyboardInputManager } from './utils/KeyboardInputManager';
 import { attachLFOEngineGlobalListeners } from './engine/LFOEngine';
 import { handleRedirectIfPresent } from './lib/dropbox';
 import { useToast } from './hooks/use-toast';
@@ -100,7 +101,7 @@ function App() {
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const advStreamRef = useRef<AdvancedMirrorStreamManager | null>(null);
   const usingDummyCanvas = useRef<boolean>(false);
-  const { savePreset, loadPreset, accessibilityEnabled, accentColor } = useStore() as any;
+  const { savePreset, loadPreset, accessibilityEnabled, accentColor, midiMappings } = useStore() as any;
   const lastSaveRef = useRef<number>(0);
   
   // Modal states
@@ -142,7 +143,7 @@ function App() {
 
     // Attach global LFO engine listeners (column/global play events)
     try { attachLFOEngineGlobalListeners(); } catch {}
-    // Wire MIDI globally so mappings work app-wide
+    // Wire MIDI + Keyboard globally so mappings work app-wide
     try {
       const mgr = MIDIManager.getInstance();
       const proc = MIDIProcessor.getInstance();
@@ -151,6 +152,10 @@ function App() {
       const onCC = (c: number, v: number, ch: number) => proc.handleCCMessage(c, v, ch);
       mgr.addNoteCallback(onNote);
       mgr.addCCCallback(onCC);
+
+      const keyMgr = KeyboardInputManager.getInstance();
+      const onKey = (k: string, mods: { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean }) => proc.handleKeyMessage(k, mods);
+      keyMgr.addKeyCallback(onKey);
     } catch {}
     // Detect Windows taskbar and adjust app height
     const adjustForTaskbar = () => {
@@ -183,6 +188,14 @@ function App() {
       window.removeEventListener('resize', adjustForTaskbar);
     };
   }, []);
+
+  // Keep processor mappings up-to-date when store mappings change
+  useEffect(() => {
+    try {
+      const proc = MIDIProcessor.getInstance();
+      proc.setMappings(midiMappings || []);
+    } catch {}
+  }, [midiMappings]);
 
   // Wire Electron debug menu events
   useEffect(() => {

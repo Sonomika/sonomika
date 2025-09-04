@@ -4,6 +4,7 @@ import { Button, Input, Label, Select, Dialog, DialogContent, DialogHeader, Dial
 import { MIDIManager } from '../midi/MIDIManager';
 import { MIDIProcessor } from '../utils/MIDIProcessor';
 import { MIDIMapping } from '../store/types';
+import { KeyboardInputManager } from '../utils/KeyboardInputManager';
 
 interface MIDIDevice {
   id: string;
@@ -31,7 +32,8 @@ export const MIDIMapper: React.FC = () => {
 
   const inputTypeOptions = [
     { value: 'note', label: 'Note' },
-    { value: 'cc', label: 'CC' }
+    { value: 'cc', label: 'CC' },
+    { value: 'key', label: 'Key' }
   ];
 
   const actionTypeOptions = [
@@ -68,7 +70,7 @@ export const MIDIMapper: React.FC = () => {
     '64-127 - Upper Half'
   ];
 
-  // Ensure MIDI listeners route to processor
+  // Ensure MIDI/Keyboard listeners route to processor
   useEffect(() => {
     try {
       const mgr = MIDIManager.getInstance();
@@ -78,18 +80,24 @@ export const MIDIMapper: React.FC = () => {
       const onCC = (c: number, v: number, ch: number) => proc.handleCCMessage(c, v, ch);
       mgr.addNoteCallback(onNote);
       mgr.addCCCallback(onCC);
+
+      const keyMgr = KeyboardInputManager.getInstance();
+      const onKey = (k: string, mods: { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean }) => proc.handleKeyMessage(k, mods);
+      keyMgr.addKeyCallback(onKey);
       return () => {
         try { mgr.removeNoteCallback(onNote); } catch {}
         try { mgr.removeCCCallback(onCC); } catch {}
+        try { keyMgr.removeKeyCallback(onKey); } catch {}
       };
     } catch {}
   }, [mappings]);
 
-  // Lightweight MIDI monitor (for debugging incoming notes/CC)
+  // Lightweight input monitor (MIDI + Key)
   useEffect(() => {
     if (!monitorEnabled) return;
     try {
       const mgr = MIDIManager.getInstance();
+      const keyMgr = KeyboardInputManager.getInstance();
       const onNote = (n: number, v: number, ch: number) => {
         const ts = Date.now();
         setLastEventAt(ts);
@@ -100,16 +108,32 @@ export const MIDIMapper: React.FC = () => {
         setLastEventAt(ts);
         setLastEvent({ type: 'cc', channel: ch, number: c, value: v, ts });
       };
+      const onKey = (k: string, mods: { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean }) => {
+        const ts = Date.now();
+        setLastEventAt(ts);
+        // overload fields: channel as 0, value 1; show key in number via NaN sentinel
+        setLastEvent({ type: 'cc', channel: 0, number: -1, value: 1, ts });
+      };
       mgr.addNoteCallback(onNote);
       mgr.addCCCallback(onCC);
+      keyMgr.addKeyCallback(onKey);
       return () => {
         try { mgr.removeNoteCallback(onNote); } catch {}
         try { mgr.removeCCCallback(onCC); } catch {}
+        try { keyMgr.removeKeyCallback(onKey); } catch {}
       };
     } catch {}
   }, [monitorEnabled]);
 
   const selectedMapping = mappings?.[selectedIndex] as MIDIMapping | undefined;
+
+  // Clamp selected index when mappings change (e.g., after delete)
+  useEffect(() => {
+    const len = (mappings || []).length;
+    if (selectedIndex > 0 && selectedIndex >= len) {
+      setSelectedIndex(Math.max(0, len - 1));
+    }
+  }, [mappings, selectedIndex]);
 
   const handleMappingSelect = (idx: number) => {
     setSelectedIndex(idx);
@@ -126,32 +150,29 @@ export const MIDIMapper: React.FC = () => {
   };
 
   const getNoteChannelDisplay = (mapping: MIDIMapping) => {
+    if (mapping.type === 'key') {
+      const parts: string[] = [];
+      if (mapping.ctrl) parts.push('Ctrl');
+      if (mapping.shift) parts.push('Shift');
+      if (mapping.alt) parts.push('Alt');
+      if (mapping.meta) parts.push('Meta');
+      parts.push(mapping.key || '?');
+      return parts.join('+');
+    }
     return `${mapping.channel}/${mapping.number}`;
   };
 
-  const ensureOneDefault = useMemo(() => {
-    if (!mappings || mappings.length > 0) return mappings;
-    const initial: MIDIMapping = {
-      type: 'note',
-      channel: 1,
-      number: 60,
-      target: { type: 'transport', action: 'play' }
-    };
-    setMIDIMappings([initial]);
-    return [initial];
-  }, [mappings, setMIDIMappings]);
+  // No forced default mapping; allow empty list
 
   return (
     <div className="tw-flex tw-flex-col tw-h-full tw-text-neutral-200">
       <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
-        <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
-          <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
+        <div className="tw-flex tw-flex-col tw-gap-2">
           <div className="tw-min-w-[160px]">
-              <Select value={selectedDevice} onChange={(v) => setSelectedDevice(v as string)} options={devices.map(d => ({ value: d.name }))} />
-            </div>
+            <Select value={selectedDevice} onChange={(v) => setSelectedDevice(v as string)} options={devices.map(d => ({ value: d.name }))} />
           </div>
           <div className="tw-flex tw-gap-2 tw-flex-wrap">
-            <Button onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>
+            <Button variant="secondary" onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>
             <Button variant="secondary" onClick={() => {
               if (!selectedMapping) return;
               const clone = JSON.parse(JSON.stringify(selectedMapping)) as MIDIMapping;
@@ -188,7 +209,7 @@ export const MIDIMapper: React.FC = () => {
         </div>
         
         <div className="tw-mt-2 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-auto tw-max-h-64 tw-min-h-0 tw-bg-neutral-900">
-          {(ensureOneDefault || []).map((mapping, idx) => (
+          {(mappings || []).map((mapping, idx) => (
             <div key={idx}
               className={`tw-flex tw-justify-between tw-items-center tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 tw-cursor-pointer hover:tw-bg-neutral-800/60 ${idx === selectedIndex ? 'tw-bg-sky-600 tw-text-black' : ''}`}
               onClick={() => handleMappingSelect(idx)}
@@ -206,14 +227,40 @@ export const MIDIMapper: React.FC = () => {
             <Label className="tw-text-xs">Input Type</Label>
             <Select value={selectedMapping?.type || 'note'} onChange={(v) => updateSelected(m => ({ ...m, type: v as any }))} options={inputTypeOptions} />
           </div>
-          <div className="tw-space-y-2">
-            <Label className="tw-text-xs">Channel</Label>
-            <Select value={String(selectedMapping?.channel || 1)} onChange={(v) => updateSelected(m => ({ ...m, channel: Number(v) }))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
-        </div>
-          <div className="tw-space-y-2">
-            <Label className="tw-text-xs">Note/CC Number</Label>
-            <Input value={selectedMapping?.number ?? 60} onChange={(e) => updateSelected(m => ({ ...m, number: Math.max(0, Math.min(127, Number(e.target.value) || 0)) }))} />
-          </div>
+          {selectedMapping?.type !== 'key' && (
+            <div className="tw-space-y-2">
+              <Label className="tw-text-xs">Channel</Label>
+              <Select value={String(selectedMapping?.channel || 1)} onChange={(v) => updateSelected(m => ({ ...m, channel: Number(v) }))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
+            </div>
+          )}
+          {selectedMapping?.type !== 'key' ? (
+            <div className="tw-space-y-2">
+              <Label className="tw-text-xs">Note/CC Number</Label>
+              <Input value={selectedMapping?.number ?? 60} onChange={(e) => updateSelected(m => ({ ...m, number: Math.max(0, Math.min(127, Number(e.target.value) || 0)) }))} />
+            </div>
+          ) : (
+            <div className="tw-space-y-2">
+              <Label className="tw-text-xs">Key Combo</Label>
+              <Input
+                value={getNoteChannelDisplay(selectedMapping)}
+                placeholder="Click and press a key"
+                onFocus={(e) => {
+                  const handler = (ev: KeyboardEvent) => {
+                    ev.preventDefault();
+                    updateSelected(m => ({ ...m, key: ev.key, ctrl: ev.ctrlKey, shift: ev.shiftKey, alt: ev.altKey, meta: ev.metaKey }));
+                  };
+                  const onBlur = () => {
+                    (e.target as HTMLInputElement).removeEventListener('keydown', handler as any);
+                    (e.target as HTMLInputElement).removeEventListener('blur', onBlur);
+                  };
+                  (e.target as HTMLInputElement).addEventListener('keydown', handler as any, { once: true } as any);
+                  (e.target as HTMLInputElement).addEventListener('blur', onBlur, { once: true } as any);
+                }}
+                onChange={() => {}}
+                readOnly
+              />
+            </div>
+          )}
           <div className="tw-space-y-2">
             <Label className="tw-text-xs">Action</Label>
             <Select value={selectedMapping && (selectedMapping.target as any)?.type || 'transport'} onChange={(v) => {

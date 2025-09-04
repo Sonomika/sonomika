@@ -156,6 +156,70 @@ export class MIDIProcessor {
       });
   }
 
+  handleKeyMessage(key: string, modifiers: { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean }): void {
+    const store = useStore.getState() as Store;
+    const normalizedKey = String(key || '').toLowerCase();
+
+    const matches = (m: MIDIMapping) => {
+      if (m.type !== 'key') return false;
+      const mk = String(m.key || '').toLowerCase();
+      const mctrl = !!m.ctrl;
+      const mshift = !!m.shift;
+      const malt = !!m.alt;
+      const mmeta = !!m.meta;
+      return mk === normalizedKey && mctrl === !!modifiers.ctrl && mshift === !!modifiers.shift && malt === !!modifiers.alt && mmeta === !!modifiers.meta;
+    };
+
+    this.mappings
+      .filter(matches)
+      .forEach(mapping => {
+        switch (mapping.target.type) {
+          case 'scene': {
+            store.setCurrentScene((mapping.target as any).id);
+            break;
+          }
+          case 'layer': {
+            const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
+            const layer = this.findLayer(layerTarget.id);
+            if (layer) {
+              if (layerTarget.param === 'opacity') {
+                store.updateLayer(layerTarget.id, { opacity: 1 });
+              } else if (layerTarget.param) {
+                // For key presses, set to max (1). Advanced mapping could be added later
+                store.updateLayer(layerTarget.id, {
+                  params: { ...(layer as any).params, [layerTarget.param]: 1 }
+                });
+              }
+            }
+            break;
+          }
+          case 'global': {
+            const globalTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'global' }>;
+            if (globalTarget.param === 'bpm') {
+              // Set to a default tempo on keypress; could be enhanced with UI later
+              store.setBpm(120);
+            }
+            break;
+          }
+          case 'transport': {
+            const action = (mapping.target as any).action as 'play' | 'pause' | 'stop';
+            if (action === 'play') store.globalPlay();
+            else if (action === 'pause') store.globalPause();
+            else if (action === 'stop') store.globalStop();
+            break;
+          }
+          case 'column': {
+            const idx = (mapping.target as any).index as number; // 1-based
+            const state = useStore.getState() as any;
+            const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+            const col = scene?.columns?.[Math.max(0, (idx || 1) - 1)];
+            if (col && typeof state.playColumn === 'function') state.playColumn(col.id);
+            break;
+          }
+        }
+      });
+  }
+
   private findLayer(layerId: string) {
     const store = useStore.getState();
     const currentScene = store.scenes.find(s => s.id === store.currentSceneId);

@@ -64,10 +64,16 @@ export interface Scene {
 }
 
 export interface MIDIMapping {
-  // Incoming MIDI type and addressing
-  type: 'note' | 'cc';
-  channel: number; // 1-16
-  number: number;  // note number (0-127) or CC number (0-127)
+  // Input type and addressing
+  // 'note' and 'cc' use channel+number; 'key' uses key/modifiers
+  type: 'note' | 'cc' | 'key';
+  channel?: number; // 1-16 for MIDI
+  number?: number;  // note number (0-127) or CC number (0-127)
+  key?: string;     // KeyboardEvent.key (case-sensitive from browser)
+  ctrl?: boolean;
+  shift?: boolean;
+  alt?: boolean;
+  meta?: boolean;
 
   // Target action for this mapping. We support multiple kinds of actions.
   target:
