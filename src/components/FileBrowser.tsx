@@ -45,6 +45,7 @@ const FileBrowser: React.FC = () => {
   const [pathInput, setPathInput] = useState<string>('');
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [filter, setFilter] = useState<string>('');
+  const [sortBy, setSortBy] = useState<string>('');
   const [favLabel, setFavLabel] = useState<string>('');
   const [fileMetadata, setFileMetadata] = useState<Map<string, { duration?: string; dimensions?: string }>>();
 
@@ -147,11 +148,42 @@ const FileBrowser: React.FC = () => {
     if (parent) loadDirectory(parent);
   };
 
-  const filteredEntries = useMemo(() => {
+  const filteredAndSortedEntries = useMemo(() => {
+    let filtered = entries;
+    
+    // Apply text filter if present
     const q = filter.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter(e => e.name.toLowerCase().includes(q));
-  }, [entries, filter]);
+    if (q) {
+      filtered = entries.filter(e => e.name.toLowerCase().includes(q));
+    }
+    
+    // Apply sorting
+    if (sortBy) {
+      filtered = [...filtered].sort((a, b) => {
+        switch (sortBy) {
+          case 'name-desc':
+            return b.name.localeCompare(a.name);
+          case 'size-asc':
+            return (a.size || 0) - (b.size || 0);
+          case 'size-desc':
+            return (b.size || 0) - (a.size || 0);
+          case 'date-asc':
+            return (a.mtimeMs || 0) - (b.mtimeMs || 0);
+          case 'date-desc':
+            return (b.mtimeMs || 0) - (a.mtimeMs || 0);
+          case 'type':
+            const aType = classifyType(a.name);
+            const bType = classifyType(b.name);
+            if (aType !== bType) return aType.localeCompare(bType);
+            return a.name.localeCompare(b.name);
+          default: // 'name-asc' or empty
+            return a.name.localeCompare(b.name);
+        }
+      });
+    }
+    
+    return filtered;
+  }, [entries, filter, sortBy]);
 
   const addFavorite = () => {
     const label = favLabel.trim() || currentPath;
@@ -361,7 +393,7 @@ const FileBrowser: React.FC = () => {
       )}
 
       {/* Path Input - Top Row */}
-      <div className="tw-flex tw-items-center tw-gap-2 tw-mb-3 tw-justify-center">
+      <div className="tw-flex tw-items-center tw-gap-2 tw-mb-3 tw-justify-start tw-flex-wrap">
         <input
           type="text"
           placeholder="Enter path..."
@@ -378,6 +410,7 @@ const FileBrowser: React.FC = () => {
           Go
         </button>
       </div>
+
 
       {/* Navigation Controls - Second Row */}
       <div className="tw-flex tw-items-center tw-gap-3 tw-mb-3">
@@ -401,23 +434,11 @@ const FileBrowser: React.FC = () => {
             </div>
           )}
         </div>
-
-        {/* Right side - Filter */}
-        <div className="tw-flex tw-items-center tw-gap-2 tw-ml-auto">
-          <input
-            type="text"
-            placeholder="Filter files..."
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="tw-w-40 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
-            style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
-          />
-        </div>
       </div>
 
       {/* Favorites and Breadcrumb - Second Row */}
-      <div className="tw-flex tw-items-center tw-justify-between tw-mb-3">
-        {/* Left side - Favorites */}
+      <div className="tw-flex tw-flex-col tw-gap-3 tw-mb-3">
+        {/* Favorites row */}
         <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
           {favorites.map((f) => (
             <div key={f.path} className="tw-inline-flex tw-items-center tw-gap-1">
@@ -439,14 +460,14 @@ const FileBrowser: React.FC = () => {
           ))}
         </div>
 
-        {/* Right side - Add new favorite */}
-        <div className="tw-flex tw-items-center tw-gap-2">
+        {/* Add new favorite row - wraps underneath when narrow */}
+        <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
           <input
             type="text"
             placeholder="Favorite label"
             value={favLabel}
             onChange={(e) => setFavLabel(e.target.value)}
-            className="tw-w-40 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
+            className="tw-w-40 tw-min-w-0 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
             style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
           />
           <button
@@ -470,79 +491,158 @@ const FileBrowser: React.FC = () => {
         </div>
       </div>
 
-             <div className="tw-flex-1 tw-min-h-0 tw-space-y-3">
+      <div className="tw-flex-1 tw-min-h-0 tw-space-y-3 tw-overflow-auto">
         {/* Folders for navigation */}
         <div>
-          {filteredEntries.filter(e => e.isDirectory).map((it) => (
+          {filteredAndSortedEntries.filter(e => e.isDirectory).map((it) => (
             <div
               key={it.path}
-              className="tw-grid tw-grid-cols-[1fr_120px_180px] tw-p-2 tw-cursor-default tw-items-center hover:tw-bg-neutral-800/40"
+              className="tw-flex tw-flex-wrap tw-gap-2 tw-p-2 tw-cursor-default tw-items-center hover:tw-bg-neutral-800/40 tw-rounded"
               onDoubleClick={() => loadDirectory(it.path)}
               title={it.path}
             >
-              <div className="tw-text-[#7fbfff]">{it.name}</div>
-              <div className="tw-text-[#ccc]">Folder</div>
-              <div className="tw-text-[#aaa]">{it.mtimeMs ? new Date(it.mtimeMs).toLocaleString() : ''}</div>
+              <div className="tw-text-[#7fbfff] tw-flex-1 tw-min-w-0 tw-truncate">{it.name}</div>
+              <div className="tw-text-[#ccc] tw-text-sm tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">Folder</div>
+              <div className="tw-text-[#aaa] tw-text-xs tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded tw-hidden sm:tw-block">
+                {it.mtimeMs ? new Date(it.mtimeMs).toLocaleString() : ''}
+              </div>
             </div>
           ))}
         </div>
 
         {/* Media list: only videos, images, audio */}
         <div className="tw-space-y-1">
-          {/* Column headers */}
-          <div className="tw-grid tw-grid-cols-[48px_1fr_80px_80px_100px] tw-gap-3 tw-px-3 tw-py-2 tw-text-xs tw-font-medium tw-text-neutral-400 tw-border-b tw-border-neutral-700">
-            <div>Preview</div>
-            <div>Name</div>
-            <div>Size</div>
-            <div>Duration</div>
-            <div>Dimensions</div>
+          {/* Sort dropdown */}
+          <div className="tw-flex tw-items-center tw-gap-2 tw-mb-3">
+            <label className="tw-text-sm tw-text-neutral-300">Sort by:</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 tw-text-sm focus:tw-ring-2 focus:tw-ring-purple-600"
+              style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+            >
+              <option value="">Name (A-Z)</option>
+              <option value="name-desc">Name (Z-A)</option>
+              <option value="size-asc">Size (Small to Large)</option>
+              <option value="size-desc">Size (Large to Small)</option>
+              <option value="date-asc">Date (Oldest First)</option>
+              <option value="date-desc">Date (Newest First)</option>
+              <option value="type">Type</option>
+            </select>
+          </div>
+
+          {/* Filter - Below Sort */}
+          <div className="tw-flex tw-items-center tw-gap-2 tw-mb-3">
+            <div className="tw-relative">
+              <input
+                type="text"
+                placeholder=""
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="tw-w-60 tw-min-w-0 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-pl-10 tw-pr-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
+                style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+              />
+              <div className="tw-absolute tw-left-3 tw-top-1/2 tw-transform tw--translate-y-1/2 tw-text-neutral-400 tw-pointer-events-none">
+                <svg className="tw-w-4 tw-h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
           </div>
           
-          {/* File rows */}
-          {filteredEntries.filter(e => !e.isDirectory && classifyType(e.name) !== 'other').map((it) => {
+          {/* File rows - responsive layout */}
+          {filteredAndSortedEntries.filter(e => !e.isDirectory && classifyType(e.name) !== 'other').map((it) => {
             const type = classifyType(it.name);
             const localSrc = it.path.startsWith('local-file://') ? it.path : `local-file://${it.path}`;
             const metadata = fileMetadata?.get(it.path) || {};
             return (
-                             <div
-                 key={it.path}
-                 className="tw-grid tw-grid-cols-[48px_1fr_80px_80px_100px] tw-gap-3 tw-items-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-px-3 tw-py-2 hover:tw-bg-neutral-800 tw-cursor-pointer tw-transition-colors"
-                 draggable
-                 onDragStart={(e) => handleFileDrag(e, it)}
-                 title={it.path}
-               >
-                 {/* Preview thumbnail */}
-                 <div className="tw-flex-shrink-0 tw-w-12 tw-h-9">
-                  {type === 'video' && <MemoInlineThumb path={it.path} />}
-                  {type === 'image' && (
-                    <MemoImageThumb path={localSrc} name={it.name} />
-                  )}
-                                     {type === 'audio' && (
-                     <div className="tw-w-12 tw-h-9 tw-bg-[#111] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-[6px] tw-text-[#999] tw-rounded-[2px]">
-                       AUDIO
-                     </div>
-                   )}
+              <div
+                key={it.path}
+                className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-hover:tw-bg-neutral-800 tw-cursor-pointer tw-transition-colors"
+                draggable
+                onDragStart={(e) => handleFileDrag(e, it)}
+                title={it.path}
+              >
+                {/* Mobile layout - stacked */}
+                <div className="tw-flex tw-flex-col sm:tw-hidden tw-gap-2">
+                  <div className="tw-flex tw-items-center tw-gap-3">
+                    <div className="tw-flex-shrink-0 tw-w-12 tw-h-9">
+                      {type === 'video' && <MemoInlineThumb path={it.path} />}
+                      {type === 'image' && (
+                        <MemoImageThumb path={localSrc} name={it.name} />
+                      )}
+                      {type === 'audio' && (
+                        <div className="tw-w-12 tw-h-9 tw-bg-[#111] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-[6px] tw-text-[#999] tw-rounded-[2px]">
+                          AUDIO
+                        </div>
+                      )}
+                    </div>
+                    <div className="tw-min-w-0 tw-flex-1">
+                      <div className="tw-text-sm tw-font-medium tw-text-neutral-200 tw-truncate tw-max-w-48" title={it.name}>{it.name}</div>
+                      <div className="tw-text-xs tw-text-neutral-400 tw-mt-1">{type.toUpperCase()}</div>
+                    </div>
+                  </div>
+                  <div className="tw-flex tw-flex-wrap tw-gap-2 tw-text-xs">
+                    {it.size && (
+                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                        Size: {formatFileSize(it.size)}
+                      </div>
+                    )}
+                    {metadata.duration && (
+                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                        Duration: {metadata.duration}
+                      </div>
+                    )}
+                    {metadata.dimensions && (
+                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                        {metadata.dimensions}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                
-                {/* File name and type */}
-                <div className="tw-min-w-0">
-                  <div className="tw-text-sm tw-font-medium tw-text-neutral-200 tw-truncate" title={it.name}>{it.name}</div>
-                  <div className="tw-text-xs tw-text-neutral-400 tw-mt-1">{type.toUpperCase()}</div>
-                </div>
-                
-                {/* File size */}
-                <div className="tw-text-xs tw-text-neutral-300 tw-truncate">
-                  {it.size ? formatFileSize(it.size) : '-'}
-                </div>
-                
-                {/* Duration */}
-                <div className="tw-text-xs tw-text-neutral-300 tw-truncate">
-                  {metadata.duration || '-'}
-                </div>
-                
-                {/* Dimensions */}
-                <div className="tw-text-xs tw-text-neutral-300 tw-truncate">
-                  {metadata.dimensions || '-'}
+
+                {/* Desktop layout - two rows */}
+                <div className="tw-hidden sm:tw-block">
+                  {/* Top row - Preview and Name */}
+                  <div className="tw-flex tw-items-center tw-gap-3 tw-mb-2">
+                    {/* Preview thumbnail */}
+                    <div className="tw-flex-shrink-0 tw-w-12 tw-h-9">
+                      {type === 'video' && <MemoInlineThumb path={it.path} />}
+                      {type === 'image' && (
+                        <MemoImageThumb path={localSrc} name={it.name} />
+                      )}
+                      {type === 'audio' && (
+                        <div className="tw-w-12 tw-h-9 tw-bg-[#111] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-[6px] tw-text-[#999] tw-rounded-[2px]">
+                          AUDIO
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* File name and type */}
+                    <div className="tw-min-w-0 tw-flex-1">
+                      <div className="tw-text-sm tw-font-medium tw-text-neutral-200 tw-truncate tw-max-w-48" title={it.name}>{it.name}</div>
+                      <div className="tw-text-xs tw-text-neutral-400 tw-mt-1">{type.toUpperCase()}</div>
+                    </div>
+                  </div>
+                  
+                  {/* Bottom row - Metadata */}
+                  <div className="tw-flex tw-flex-wrap tw-gap-2 tw-text-xs">
+                    {it.size && (
+                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                        Size: {formatFileSize(it.size)}
+                      </div>
+                    )}
+                    {metadata.duration && (
+                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                        Duration: {metadata.duration}
+                      </div>
+                    )}
+                    {metadata.dimensions && (
+                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                        {metadata.dimensions}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
