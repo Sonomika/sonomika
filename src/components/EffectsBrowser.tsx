@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { HeartIcon } from '@radix-ui/react-icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent, Button } from './ui';
 
 interface EffectsBrowserProps {
@@ -19,11 +20,13 @@ type LightEffect = {
 };
 
 export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
+  const FAVORITES_KEY = 'vj-effect-favorites';
   const [isLoading, setIsLoading] = useState(true);
   const [loadingText, setLoadingText] = useState('Discovering effects...');
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'effects' | 'sources'>('effects');
+  const [activeTab, setActiveTab] = useState<'effects' | 'sources' | 'favorites'>('effects');
   const [effects, setEffects] = useState<LightEffect[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
   const refreshEffects = async () => {
     let mounted = true;
@@ -58,6 +61,32 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   useEffect(() => {
     refreshEffects();
   }, []);
+
+  // Load favorites from localStorage once
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(FAVORITES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setFavorites(parsed as string[]);
+      }
+    } catch {}
+  }, []);
+
+  const persistFavorites = (next: string[]) => {
+    setFavorites(next);
+    try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(next)); } catch {}
+  };
+
+  const effectKey = (e: LightEffect) => e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`;
+
+  const toggleFavorite = (e: LightEffect) => {
+    const key = effectKey(e);
+    if (!key) return;
+    const set = new Set(favorites);
+    if (set.has(key)) set.delete(key); else set.add(key);
+    persistFavorites(Array.from(set));
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -98,6 +127,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     }, new Map<string, LightEffect>()).values()
   );
 
+  const favoritedVisualEffects = visualEffects.filter((e) => favorites.includes(effectKey(e)));
+  const favoritedGenerativeSources = generativeSources.filter((e) => favorites.includes(effectKey(e)));
+
   if (isLoading) {
     return (
       <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
@@ -127,13 +159,17 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   return (
     <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
       <div className="tw-mb-2">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources' | 'favorites')}>
           <TabsList>
             <TabsTrigger value="effects">Visual Effects</TabsTrigger>
             <TabsTrigger value="sources">Generative Sources</TabsTrigger>
+            <TabsTrigger value="favorites" title="Favorites">
+              <HeartIcon className="tw-w-4 tw-h-4" />
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="effects" />
           <TabsContent value="sources" />
+          <TabsContent value="favorites" />
         </Tabs>
       </div>
       <div className="tw-px-3 tw-pb-2 tw-flex tw-gap-2">
@@ -154,7 +190,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
         </Button>
       </div>
       <div className="tw-flex-1 tw-overflow-auto tw-p-3">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources' | 'favorites')}>
           <TabsContent value="effects">
             <div className="tw-space-y-2">
               {visualEffects.map((e) => (
@@ -171,7 +207,18 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   }}
                   title={`${e.name}: ${e.description}`}
                 >
-                  <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                  <div className="tw-flex tw-items-center tw-justify-between">
+                    <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                      className={
+                        'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
+                      }
+                      title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -192,9 +239,96 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   }}
                   title={`${e.name}: ${e.description}`}
                 >
-                  <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                  <div className="tw-flex tw-items-center tw-justify-between">
+                    <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                      className={
+                        'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
+                      }
+                      title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                    </button>
+                  </div>
                 </div>
               ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="favorites">
+            <div className="tw-space-y-3">
+              <div>
+                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">Visual Effects</div>
+                <div className="tw-space-y-2">
+                  {favoritedVisualEffects.length === 0 && (
+                    <div className="tw-text-xs tw-text-neutral-500">No favorited visual effects yet.</div>
+                  )}
+                  {favoritedVisualEffects.map((e) => (
+                    <div
+                      key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
+                      className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
+                      draggable
+                      onDragStart={(ev) => {
+                        ev.dataTransfer.setData('application/json', JSON.stringify({
+                          type: 'effect', isEffect: true, id: e.id, name: e.name,
+                          description: e.description, category: e.category, icon: e.icon,
+                          metadata: e.metadata, assetType: 'effect', isSource: false,
+                        }));
+                      }}
+                      title={`${e.name}: ${e.description}`}
+                    >
+                      <div className="tw-flex tw-items-center tw-justify-between">
+                        <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                        <button
+                          onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                          className={
+                            'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
+                          }
+                          title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
+                        >
+                          <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">Generative Sources</div>
+                <div className="tw-space-y-2">
+                  {favoritedGenerativeSources.length === 0 && (
+                    <div className="tw-text-xs tw-text-neutral-500">No favorited sources yet.</div>
+                  )}
+                  {favoritedGenerativeSources.map((e) => (
+                    <div
+                      key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
+                      className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
+                      draggable
+                      onDragStart={(ev) => {
+                        ev.dataTransfer.setData('application/json', JSON.stringify({
+                          type: 'effect', isEffect: true, id: e.id, name: e.name,
+                          description: e.description, category: e.category, icon: e.icon,
+                          metadata: e.metadata, assetType: 'effect', isSource: true,
+                        }));
+                      }}
+                      title={`${e.name}: ${e.description}`}
+                    >
+                      <div className="tw-flex tw-items-center tw-justify-between">
+                        <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                        <button
+                          onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                          className={
+                            'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
+                          }
+                          title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
+                        >
+                          <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
