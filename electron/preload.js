@@ -62,6 +62,12 @@ try {
         saveFile: (filePath, content) => {
             return electron_1.ipcRenderer.invoke('save-file', filePath, content);
         },
+        saveBinaryFile: (filePath, data) => {
+            return electron_1.ipcRenderer.invoke('save-binary-file', filePath, data);
+        },
+        getSystemAudioStream: () => {
+            return electron_1.ipcRenderer.invoke('get-system-audio-stream');
+        },
         toggleAppFullscreen: () => {
             console.log('Preload: toggleAppFullscreen called');
             electron_1.ipcRenderer.send('toggle-app-fullscreen');

@@ -32,7 +32,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
       setLoadingText('Refreshing effects...');
       const { EffectDiscovery } = await import('../utils/EffectDiscovery');
       const discovery = EffectDiscovery.getInstance();
-      const light = await discovery.listAvailableEffectsLightweight();
+      // Prefer filesystem-based discovery in Electron for immediate detection of new files
+      const light = await discovery.listAvailableEffectsFromFilesystem();
       if (!mounted) return;
       const mapped: LightEffect[] = light.map((e: any) => ({
         id: e.id,

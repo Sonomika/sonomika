@@ -811,18 +811,88 @@ function App() {
           // Reuse the same startHandler logic inline
           (async () => {
             try {
-              if (isRecording && recorderRef.current) { try { recorderRef.current.stop(); } catch {} return; }
+              if (isRecording && recorderRef.current) { 
+                try { 
+                  recorderRef.current.stop(); 
+                  // Clean up any active audio streams
+                  const audioTracks = document.querySelectorAll('audio');
+                  audioTracks.forEach(audio => {
+                    if (audio.srcObject) {
+                      const stream = audio.srcObject as MediaStream;
+                      stream.getTracks().forEach(track => track.stop());
+                    }
+                  });
+                } catch {} 
+                return; 
+              }
               const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
               if (!canvas || !(canvas as any).captureStream) return;
               const fps = 30; // Fixed export FPS
-              const stream: MediaStream = (canvas as any).captureStream(fps);
+              const videoStream: MediaStream = (canvas as any).captureStream(fps);
+              
+              // Get audio stream based on settings
+              let audioStream: MediaStream | null = null;
+              const audioSource = recordSettings?.audioSource || 'none';
+              
+              if (audioSource === 'microphone') {
+                try {
+                  audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } catch (err) {
+                  console.warn('Failed to get microphone access:', err);
+                  toast({ description: 'Microphone access denied. Recording without audio.' });
+                }
+              } else if (audioSource === 'system') {
+                try {
+                  // Check if we're in Electron
+                  const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+                  if (!isElectron) {
+                    // Fallback to web getDisplayMedia for non-Electron environments
+                    audioStream = await navigator.mediaDevices.getDisplayMedia({ 
+                      audio: { 
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                      }, 
+                      video: false 
+                    });
+                  } else {
+                    // Use Electron's native desktop capturer for system audio
+                    const result = await (window as any).electron.getSystemAudioStream();
+                    if (result.success) {
+                      // Create a MediaStream from the desktop capturer source
+                      const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                          mandatory: {
+                            chromeMediaSource: 'desktop',
+                            chromeMediaSourceId: result.sourceId
+                          }
+                        } as any
+                      });
+                      audioStream = stream;
+                    } else {
+                      throw new Error(result.error || 'Failed to get system audio source');
+                    }
+                  }
+                } catch (err) {
+                  console.warn('Failed to get system audio access:', err);
+                  toast({ description: 'System audio access denied. Recording without audio.' });
+                }
+              }
+              
+              // Combine video and audio streams
+              const combinedStream = new MediaStream([...videoStream.getVideoTracks()]);
+              if (audioStream && audioStream.getAudioTracks().length > 0) {
+                combinedStream.addTrack(audioStream.getAudioTracks()[0]);
+              }
+              
               const useVp9 = (recordSettings?.codec === 'vp9');
               const supportsVP9 = (window as any).MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
               const mime = (useVp9 && supportsVP9) ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp8';
               // Bitrate by quality (rough defaults). Users can refine later.
               const quality = (recordSettings?.quality || 'medium') as 'low' | 'medium' | 'high';
               const bits = quality === 'high' ? 12_000_000 : quality === 'medium' ? 6_000_000 : 3_000_000;
-              const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bits, audioBitsPerSecond: 128_000 });
+              const audioBitrate = recordSettings?.audioBitrate || 128000;
+              const recorder = new MediaRecorder(combinedStream, { mimeType: mime, videoBitsPerSecond: bits, audioBitsPerSecond: audioBitrate });
               const chunks: BlobPart[] = [];
               recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
               recorder.onstop = async () => {
@@ -837,13 +907,18 @@ function App() {
                   const ok = await (window as any).electron.saveBinaryFile(filePath, buffer);
                   if (ok) toast({ description: 'Recording saved.' });
                 }
+                // Clean up audio streams
+                if (audioStream) {
+                  audioStream.getTracks().forEach(track => track.stop());
+                }
                 setIsRecording(false);
                 recorderRef.current = null;
               };
               recorder.start();
               recorderRef.current = recorder;
               const duration = Math.max(1, Number(recordSettings?.durationSec) || 5);
-              toast({ description: `Recording started (${duration}s @ 30fps, ${quality})...` });
+              const audioInfo = audioSource === 'none' ? 'no audio' : `${audioSource} @ ${audioBitrate/1000}kbps`;
+              toast({ description: `Recording started (${duration}s @ 30fps, ${quality}, ${audioInfo})...` });
               setIsRecording(true);
               if (!recordSettings?.untilStop) {
                 setTimeout(() => { try { recorder.stop(); } catch {} }, duration * 1000);

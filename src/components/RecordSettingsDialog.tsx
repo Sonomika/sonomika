@@ -14,6 +14,8 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
   const [codec, setCodec] = useState<'vp8' | 'vp9'>(recordSettings?.codec ?? 'vp8');
   const [quality, setQuality] = useState<'low' | 'medium' | 'high'>(recordSettings?.quality ?? 'medium');
   const [untilStop, setUntilStop] = useState<boolean>(!!recordSettings?.untilStop);
+  const [audioSource, setAudioSource] = useState<'none' | 'microphone' | 'system'>(recordSettings?.audioSource ?? 'none');
+  const [audioBitrate, setAudioBitrate] = useState<number>(recordSettings?.audioBitrate ?? 128000);
 
   useEffect(() => {
     if (open) {
@@ -22,6 +24,8 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       setCodec(recordSettings?.codec ?? 'vp8');
       setQuality(recordSettings?.quality ?? 'medium');
       setUntilStop(!!recordSettings?.untilStop);
+      setAudioSource(recordSettings?.audioSource ?? 'none');
+      setAudioBitrate(recordSettings?.audioBitrate ?? 128000);
     }
   }, [open]);
 
@@ -77,6 +81,33 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
               <option value="high">High (larger file)</option>
             </select>
           </div>
+          <div>
+            <label className="tw-block tw-text-xs tw-text-neutral-300 tw-mb-1">Audio Source</label>
+            <select
+              className="tw-w-full tw-bg-neutral-900 tw-text-neutral-100 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
+              value={audioSource}
+              onChange={(e) => setAudioSource((e.target.value as 'none' | 'microphone' | 'system') || 'none')}
+            >
+              <option value="none">No Audio</option>
+              <option value="microphone">Microphone</option>
+              <option value="system">System Audio (Electron native)</option>
+            </select>
+          </div>
+          {audioSource !== 'none' && (
+            <div>
+              <label className="tw-block tw-text-xs tw-text-neutral-300 tw-mb-1">Audio Bitrate (bps)</label>
+              <select
+                className="tw-w-full tw-bg-neutral-900 tw-text-neutral-100 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
+                value={audioBitrate}
+                onChange={(e) => setAudioBitrate(Number(e.target.value))}
+              >
+                <option value={64000}>64 kbps (low quality)</option>
+                <option value={128000}>128 kbps (medium quality)</option>
+                <option value={256000}>256 kbps (high quality)</option>
+                <option value={320000}>320 kbps (very high quality)</option>
+              </select>
+            </div>
+          )}
           <div className="tw-flex tw-justify-end tw-gap-2 tw-pt-2">
             <button
               className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-rounded tw-text-neutral-200 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-3"
@@ -86,7 +117,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
             </button>
             <button
               className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-rounded tw-text-white tw-bg-neutral-700 hover:tw-bg-neutral-600 tw-border tw-border-neutral-600 tw-px-3"
-              onClick={() => { setRecordSettings({ durationSec: duration, codec, quality, untilStop }); onOpenChange(false); }}
+              onClick={() => { setRecordSettings({ durationSec: duration, codec, quality, untilStop, audioSource, audioBitrate }); onOpenChange(false); }}
             >
               Save
             </button>

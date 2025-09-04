@@ -189,14 +189,21 @@ export const MIDIMapper: React.FC = () => {
                 const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
                 if (isElectron) {
                   (async () => {
-                    const result = await (window as any).electron.showOpenDialog({ title: 'Load Set', properties: ['openFile'], filters: [{ name: 'VJ Preset', extensions: ['vjpreset', 'json'] }] });
+                    const result = await (window as any).electron.showOpenDialog({ title: 'Load MIDI Mapping', properties: ['openFile'], filters: [{ name: 'MIDI Mapping', extensions: ['json'] }] });
                     if (!result.canceled && result.filePaths && result.filePaths[0]) {
                       const content = await (window as any).electron.readFileText(result.filePaths[0]);
                       if (content) {
-                        const blob = new Blob([content], { type: 'application/json' });
-                        const file = new File([blob], result.filePaths[0]);
-                        const { loadPreset } = useStore.getState() as any;
-                        await loadPreset(file);
+                        try {
+                          const parsed = JSON.parse(content);
+                          const mappingsOnly = parsed?.data?.midiMappings || parsed?.midiMappings || parsed;
+                          if (Array.isArray(mappingsOnly)) {
+                            setMIDIMappings(mappingsOnly as any);
+                          } else {
+                            console.warn('Selected file did not contain midiMappings array');
+                          }
+                        } catch (e) {
+                          console.warn('Failed to parse MIDI mapping file:', e);
+                        }
                       }
                     }
                   })();
@@ -312,14 +319,24 @@ export const MIDIMapper: React.FC = () => {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".vjpreset,.json,application/json"
+        accept=".json,application/json"
         className="tw-hidden"
         onChange={async (e) => {
           try {
             const file = e.target.files?.[0];
             if (!file) return;
-            const { loadPreset } = useStore.getState() as any;
-            await loadPreset(file);
+            const text = await file.text();
+            try {
+              const parsed = JSON.parse(text);
+              const mappingsOnly = parsed?.data?.midiMappings || parsed?.midiMappings || parsed;
+              if (Array.isArray(mappingsOnly)) {
+                setMIDIMappings(mappingsOnly as any);
+              } else {
+                console.warn('Selected file did not contain midiMappings array');
+              }
+            } catch (err) {
+              console.warn('Failed to parse MIDI mapping file:', err);
+            }
             // reset input value to allow re-selecting same file later
             (e.target as HTMLInputElement).value = '';
           } catch {}
@@ -330,8 +347,8 @@ export const MIDIMapper: React.FC = () => {
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save Preset</DialogTitle>
-            <DialogDescription>Save the current set, including MIDI mappings.</DialogDescription>
+            <DialogTitle>Save MIDI Mapping</DialogTitle>
+            <DialogDescription>Save only the MIDI mappings to a preset file.</DialogDescription>
           </DialogHeader>
           <div className="tw-space-y-2">
             <Label className="tw-text-xs">Name</Label>
@@ -344,43 +361,44 @@ export const MIDIMapper: React.FC = () => {
               const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showSaveDialog;
               if (isElectron) {
                 (async () => {
-                  const presetName = `preset-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.vjpreset`;
-                  const result = await (window as any).electron.showSaveDialog({ title: 'Save Set', defaultPath: presetName, filters: [{ name: 'VJ Preset', extensions: ['vjpreset', 'json'] }] });
+                  const defaultPath = `midi-mapping-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+                  const result = await (window as any).electron.showSaveDialog({ title: 'Save MIDI Mapping', defaultPath, filters: [{ name: 'JSON', extensions: ['json'] }] });
                   if (!result.canceled && result.filePath) {
-                    const { savePreset } = useStore.getState() as any;
-                    const key = savePreset(name.replace(/\.(vjpreset|json)$/i, ''));
-                    if (key) {
-                      const state = useStore.getState() as any;
-                      const preset = {
-                        name: key,
-                        displayName: key,
-                        timestamp: Date.now(),
-                        version: '1.0.0',
-                        description: `VJ Preset: ${key}`,
-                        data: {
-                          scenes: state.scenes,
-                          currentSceneId: state.currentSceneId,
-                          playingColumnId: state.playingColumnId,
-                          bpm: state.bpm,
-                          sidebarVisible: state.sidebarVisible,
-                          midiMappings: state.midiMappings,
-                          selectedLayerId: state.selectedLayerId,
-                          previewMode: state.previewMode,
-                          transitionType: state.transitionType,
-                          transitionDuration: state.transitionDuration,
-                          compositionSettings: state.compositionSettings,
-                          assets: state.assets,
-                        }
-                      } as any;
-                      await (window as any).electron.saveFile(result.filePath, JSON.stringify(preset, null, 2));
-                    }
+                    const state = useStore.getState() as any;
+                    const payload = {
+                      type: 'midi-mapping',
+                      name,
+                      timestamp: Date.now(),
+                      version: '1.0.0',
+                      data: {
+                        midiMappings: state.midiMappings,
+                      }
+                    } as any;
+                    await (window as any).electron.saveFile(result.filePath, JSON.stringify(payload, null, 2));
                   }
                   setSaveOpen(false);
                 })();
               } else {
                 try {
-                  const { savePreset } = useStore.getState() as any;
-                  savePreset(name);
+                  const state = useStore.getState() as any;
+                  const payload = {
+                    type: 'midi-mapping',
+                    name,
+                    timestamp: Date.now(),
+                    version: '1.0.0',
+                    data: {
+                      midiMappings: state.midiMappings,
+                    }
+                  } as any;
+                  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${name.replace(/\s+/g, '-')}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
                 } catch {}
                 setSaveOpen(false);
               }

@@ -774,6 +774,35 @@ app.whenReady().then(() => {
     }
   });
 
+  // System audio capture for recording
+  ipcMain.handle('get-system-audio-stream', async () => {
+    try {
+      const { desktopCapturer } = require('electron');
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1, height: 1 }
+      });
+      
+      if (sources.length === 0) {
+        throw new Error('No screen sources available');
+      }
+
+      // Get the primary display source
+      const primarySource = sources.find(source => source.name === 'Entire Screen') || sources[0];
+      
+      return {
+        success: true,
+        sourceId: primarySource.id
+      };
+    } catch (e) {
+      console.error('Failed to get system audio stream:', e);
+      return {
+        success: false,
+        error: String(e)
+      };
+    }
+  });
+
   ipcMain.handle('read-file-text', async (event, filePath: string) => {
     try {
       const data = await fs.promises.readFile(filePath, 'utf8');

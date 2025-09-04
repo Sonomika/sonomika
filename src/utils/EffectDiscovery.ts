@@ -189,6 +189,76 @@ export class EffectDiscovery {
   }
 
   /**
+   * Electron-first lightweight listing using real filesystem scan.
+   * Falls back to browser lightweight discovery when fs is unavailable.
+   */
+  async listAvailableEffectsFromFilesystem(): Promise<Array<{
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    icon: string;
+    author: string;
+    version: string;
+    metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean };
+    fileKey: string;
+  }>> {
+    // If Electron/Node APIs are present, prefer true filesystem scan for immediate detection
+    const isElectron = typeof window !== 'undefined' && (window as any).require;
+    if (!isElectron) {
+      return this.listAvailableEffectsLightweight();
+    }
+
+    const results: Array<{
+      id: string;
+      name: string;
+      description: string;
+      category: string;
+      icon: string;
+      author: string;
+      version: string;
+      metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean };
+      fileKey: string;
+    }> = [];
+
+    try {
+      const files = await this.getEffectFiles();
+      for (const fileKey of files) {
+        const normalized = fileKey.replace(/\\/g, '/');
+        const folder = this.getFolderCategory(normalized);
+        const baseFileName = normalized.split('/').pop() || normalized;
+        const id = this.generateEffectId(baseFileName);
+        const name = this.generateEffectName(baseFileName);
+        const category = folder === 'sources' ? 'Sources' : 'Effects';
+        const isSource = folder === 'sources';
+
+        results.push({
+          id,
+          name,
+          description: `${name} effect`,
+          category,
+          icon: '',
+          author: 'VJ System',
+          version: '1.0.0',
+          metadata: {
+            parameters: [],
+            category,
+            type: 'react-component',
+            folder,
+            isSource,
+          },
+          fileKey: normalized,
+        });
+      }
+    } catch (error) {
+      console.warn('Filesystem effect listing failed, falling back to browser listing:', error);
+      return this.listAvailableEffectsLightweight();
+    }
+
+    return results;
+  }
+
+  /**
    * Get all effect files from the effects folder
    * This is a REAL filesystem scanner, not a hardcoded list!
    */

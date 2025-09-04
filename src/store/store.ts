@@ -97,12 +97,16 @@ export type RecordSettings = {
   codec: 'vp8' | 'vp9';
   quality: 'low' | 'medium' | 'high';
   untilStop?: boolean;
+  audioSource: 'none' | 'microphone' | 'system';
+  audioBitrate: number;
 };
 
 const initialRecordSettings: RecordSettings = {
   durationSec: 5,
   codec: 'vp8',
   quality: 'medium',
+  audioSource: 'none',
+  audioBitrate: 128000,
   untilStop: false
 };
 
