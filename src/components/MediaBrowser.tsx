@@ -476,7 +476,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                     onChange={(e) => setPathInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && pathInput) loadDirectory(pathInput); }}
                     className="tw-min-w-[280px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2"
-                    style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+                    style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
                   />
                   <button
                     className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800"
@@ -490,7 +490,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="tw-min-w-[140px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2"
-                    style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+                    style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
                   />
                 </div>
               </div>
@@ -550,7 +550,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="tw-min-w-[240px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2"
-                style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+                style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
               />
             </div>
             <div className="tw-space-y-4">
@@ -585,7 +585,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="tw-min-w-[240px] tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2"
-                style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+                style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
               />
             </div>
             <div className="tw-space-y-4">

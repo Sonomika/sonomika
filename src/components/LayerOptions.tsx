@@ -855,29 +855,29 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               <div>
                 <div className="tw-flex tw-flex-wrap tw-gap-2">
                   <button
-                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.NONE ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                    style={loopMode === LOOP_MODES.NONE ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                    className={`tw-rounded tw-border tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.NONE ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    
                     onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
                   >
                     None
                   </button>
                   <button
-                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.LOOP ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                    style={loopMode === LOOP_MODES.LOOP ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                    className={`tw-rounded tw-border tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.LOOP ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    
                     onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
                   >
                     Loop
                   </button>
                   <button
-                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.REVERSE ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                    style={loopMode === LOOP_MODES.REVERSE ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                    className={`tw-rounded tw-border tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.REVERSE ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    
                     onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
                   >
                     Reverse
                   </button>
                   <button
-                    className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.PING_PONG ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                    style={loopMode === LOOP_MODES.PING_PONG ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                    className={`tw-rounded tw-border tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.PING_PONG ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    
                     onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
                   >
                     Ping-Pong

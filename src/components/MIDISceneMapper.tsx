@@ -149,7 +149,7 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
                 <div className="tw-mt-2 tw-flex tw-items-center tw-gap-2 tw-justify-between">
                   <button
                     className={`tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${mapping.midiNote !== null ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'} ${listeningSceneId === mapping.sceneId ? 'tw-ring-2' : ''}`}
-                    style={{ ...(mapping.midiNote !== null ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : {}), ...(listeningSceneId === mapping.sceneId ? ({ ['--tw-ring-color' as any]: 'var(--accent)' } as any) : {}) }}
+                    style={{ ...(listeningSceneId === mapping.sceneId ? ({ ['--tw-ring-color' as any]: 'var(--accent-color)' } as any) : {}) }}
                     onClick={() => handleStartListening(mapping.sceneId)}
                     disabled={isListening && listeningSceneId !== mapping.sceneId}
                   >

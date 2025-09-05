@@ -223,7 +223,7 @@ export const LayerScreen: React.FC<LayerScreenProps> = ({
 		ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
 		ctx.fillRect(0, 0, width, height);
 		ctx.fillStyle = 'white';
-		ctx.font = '16px Arial';
+		ctx.font = '16px Inter, sans-serif';
 		ctx.textAlign = 'center';
 		ctx.fillText('Video Layer', width / 2, height / 2);
 	};
@@ -239,7 +239,7 @@ export const LayerScreen: React.FC<LayerScreenProps> = ({
 		ctx.fillStyle = 'rgba(255, 0, 255, 0.3)';
 		ctx.fillRect(0, 0, width, height);
 		ctx.fillStyle = 'white';
-		ctx.font = '16px Arial';
+		ctx.font = '16px Inter, sans-serif';
 		ctx.textAlign = 'center';
 		ctx.fillText('Shader Layer', width / 2, height / 2);
 	};
@@ -255,7 +255,7 @@ export const LayerScreen: React.FC<LayerScreenProps> = ({
 		ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
 		ctx.fillRect(0, 0, width, height);
 		ctx.fillStyle = 'white';
-		ctx.font = '16px Arial';
+		ctx.font = '16px Inter, sans-serif';
 		ctx.textAlign = 'center';
 		ctx.fillText('p5.js Layer', width / 2, height / 2);
 	};
@@ -271,7 +271,7 @@ export const LayerScreen: React.FC<LayerScreenProps> = ({
 		ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
 		ctx.fillRect(0, 0, width, height);
 		ctx.fillStyle = 'white';
-		ctx.font = '16px Arial';
+		ctx.font = '16px Inter, sans-serif';
 		ctx.textAlign = 'center';
 		ctx.fillText('Three.js Layer', width / 2, height / 2);
 	};

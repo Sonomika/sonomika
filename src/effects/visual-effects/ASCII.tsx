@@ -165,7 +165,7 @@ export const ASCII: React.FC<ASCIIProps> = React.memo(({
     }
 
     context.clearRect(0, 0, SIZE, SIZE);
-    context.font = `${fontSize}px arial`;
+    context.font = `${fontSize}px Inter, sans-serif`;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillStyle = '#fff';

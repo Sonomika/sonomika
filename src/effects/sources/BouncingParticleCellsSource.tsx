@@ -27,7 +27,7 @@ const BouncingParticleCellsSource: React.FC<BouncingParticleCellsSourceProps> = 
   randomSeed = 0,
   shape = 'square',
   glyphs = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-  fontFamily = 'Arial Black, Arial, Helvetica, sans-serif',
+  fontFamily = 'Inter, Helvetica, sans-serif',
   fontSize = 64,
   glyphPadding = 8,
   glyphOpacity = 1.0
@@ -281,7 +281,7 @@ const BouncingParticleCellsSource: React.FC<BouncingParticleCellsSourceProps> = 
     { name: 'randomSeed', type: 'number', value: 0, min: 0, max: 999999, step: 1 },
     { name: 'shape', type: 'select', value: 'square', options: ['square', 'circle', 'glyph'] },
     { name: 'glyphs', type: 'string', value: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
-    { name: 'fontFamily', type: 'string', value: 'Arial Black, Arial, Helvetica, sans-serif' },
+    { name: 'fontFamily', type: 'string', value: 'Inter, Helvetica, sans-serif' },
     { name: 'fontSize', type: 'number', value: 64, min: 16, max: 256, step: 2 },
     { name: 'glyphPadding', type: 'number', value: 8, min: 0, max: 32, step: 1 },
     { name: 'glyphOpacity', type: 'number', value: 1.0, min: 0.0, max: 1.0, step: 0.05 }

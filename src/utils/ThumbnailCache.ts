@@ -376,10 +376,10 @@ async function generateVideoThumbnailInternal(
       ctx.fillStyle = '#333';
       ctx.fillRect(0, 0, targetWidth, targetHeight);
       ctx.fillStyle = '#ff6b6b';
-      ctx.font = '12px Arial';
+      ctx.font = '12px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('VIDEO', targetWidth / 2, targetHeight / 2 - 5);
-      ctx.font = '8px Arial';
+      ctx.font = '8px Inter, sans-serif';
       ctx.fillText('ERROR', targetWidth / 2, targetHeight / 2 + 5);
       
       const fallbackDataUrl = canvas.toDataURL('image/jpeg', 0.7);

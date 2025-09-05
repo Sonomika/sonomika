@@ -91,7 +91,7 @@ export const LayerEditor: React.FC<LayerEditorProps> = ({ layer, onClose }) => {
 						value={layer.name || 'Unnamed Layer'}
 						onChange={(e) => handleLayerUpdate({ name: e.target.value })}
 						className="tw-w-full tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2"
-						style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+						style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
 					/>
 				</div>
 

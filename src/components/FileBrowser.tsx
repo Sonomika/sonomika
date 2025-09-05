@@ -401,7 +401,7 @@ const FileBrowser: React.FC = () => {
           onChange={(e) => setPathInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && pathInput) loadDirectory(pathInput); }}
           className="tw-w-96 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
-          style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+          style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
         />
         <button
           className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-3 tw-py-2 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800 tw-rounded"
@@ -468,7 +468,7 @@ const FileBrowser: React.FC = () => {
             value={favLabel}
             onChange={(e) => setFavLabel(e.target.value)}
             className="tw-w-40 tw-min-w-0 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
-            style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+            style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
           />
           <button
             onClick={addFavorite}
@@ -519,7 +519,7 @@ const FileBrowser: React.FC = () => {
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 tw-text-sm focus:tw-ring-2 focus:tw-ring-purple-600"
-              style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+              style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
             >
               <option value="">Name (A-Z)</option>
               <option value="name-desc">Name (Z-A)</option>
@@ -540,7 +540,7 @@ const FileBrowser: React.FC = () => {
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 className="tw-w-60 tw-min-w-0 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-pl-10 tw-pr-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
-                style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+                style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
               />
               <div className="tw-absolute tw-left-3 tw-top-1/2 tw-transform tw--translate-y-1/2 tw-text-neutral-400 tw-pointer-events-none">
                 <svg className="tw-w-4 tw-h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { preloadInterFonts } from './lib/fontLoader';
 import './index.css';
 import './tw.css';
 
@@ -10,6 +11,7 @@ const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
 
 const mount = async () => {
   const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
+  try { await preloadInterFonts(); } catch {}
   if (isElectron) {
     // Attempt silent session bootstrap before rendering
     try {

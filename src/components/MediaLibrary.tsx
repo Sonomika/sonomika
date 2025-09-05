@@ -638,7 +638,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
               </div>
 
               {isElectronEnv && (
-                <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
+                <button className="import-button tw-text-neutral-200 tw-px-3 tw-py-1.5 tw-bg-neutral-800 tw-border tw-border-neutral-800 hover:tw-bg-neutral-700" onClick={handleImportClick}>Import</button>
               )}
               <button className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700" onClick={() => setShowDropbox(true)}>Dropbox</button>
               
@@ -754,7 +754,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                 </div>
 
                 {isElectronEnv && (
-                  <button className="import-button tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }} onClick={handleImportClick}>Import</button>
+                  <button className="import-button tw-text-neutral-200 tw-px-3 tw-py-1.5 tw-bg-neutral-800 tw-border tw-border-neutral-800 hover:tw-bg-neutral-700" onClick={handleImportClick}>Import</button>
                 )}
                 <button className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700" onClick={() => setShowDropbox(true)}>Dropbox</button>
                 

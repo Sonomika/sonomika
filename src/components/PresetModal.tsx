@@ -71,7 +71,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
               placeholder={placeholder}
               autoFocus
               className="tw-w-full tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2.5 tw-py-1.5 tw-text-neutral-100 placeholder:tw-text-neutral-500 focus:tw-outline-none focus:tw-ring-2"
-              style={{ ['--tw-ring-color' as any]: 'var(--accent)' }}
+              style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
             />
           )}
           <div className="tw-flex tw-justify-end tw-gap-2 tw-pt-2">
@@ -83,7 +83,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
             <button className="tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={onClose}>
               {cancelText}
             </button>
-            <button className="tw-px-3 tw-py-1.5 tw-text-white" style={{ backgroundColor: 'var(--accent)' }} onClick={handleConfirm}>
+            <button className="tw-px-3 tw-py-1.5 tw-text-neutral-200 tw-bg-neutral-800 tw-border tw-border-neutral-800 hover:tw-bg-neutral-700" onClick={handleConfirm}>
               {confirmText}
             </button>
           </div>

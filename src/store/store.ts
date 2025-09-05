@@ -3,6 +3,35 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { AppState, Scene, Column, Layer, MIDIMapping, Asset, CompositionSettings, TransitionType } from './types';
 
+// Helper: convert hex color (e.g., #00bcd4) to HSL components for CSS variables
+const hexToHslComponents = (hex: string): { h: number; s: number; l: number } => {
+  const normalized = hex.startsWith('#') ? hex : `#${hex}`;
+  const r = parseInt(normalized.slice(1, 3), 16) / 255;
+  const g = parseInt(normalized.slice(3, 5), 16) / 255;
+  const b = parseInt(normalized.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d !== 0) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0);
+        break;
+      case g:
+        h = (b - r) / d + 2;
+        break;
+      default:
+        h = (r - g) / d + 4;
+    }
+    h /= 6;
+  }
+  return { h: h * 360, s: s * 100, l: l * 100 };
+};
+
 // Synchronously read persisted composition settings for initial render (before hydration)
 const getPersistedCompositionSettings = (): CompositionSettings | null => {
   try {
@@ -238,9 +267,13 @@ export const useStore = createWithEqualityFn<AppState & {
 
       setAccentColor: (hex: string) => set((state) => {
         const color = /^#?[0-9a-fA-F]{6}$/.test(hex) ? (hex.startsWith('#') ? hex : `#${hex}`) : state.accentColor || '#00bcd4';
-        // Apply to CSS var for global theming
+        // Apply to CSS vars for global theming
         try {
-          document.documentElement.style.setProperty('--accent', color);
+          // Absolute color for direct usages
+          document.documentElement.style.setProperty('--accent-color', color);
+          // HSL components for Tailwind and hsl(var(--accent)) usages
+          const { h, s, l } = hexToHslComponents(color);
+          document.documentElement.style.setProperty('--accent', `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%`);
         } catch {}
         return { accentColor: color } as any;
       }),
@@ -848,6 +881,7 @@ export const useStore = createWithEqualityFn<AppState & {
            // Persist all critical application state (sanitized)
            scenes: sanitizedScenes,
            currentSceneId: state.currentSceneId,
+           currentPresetName: (state as any).currentPresetName,
            playingColumnId: state.playingColumnId,
            bpm: state.bpm,
            sidebarVisible: state.sidebarVisible,

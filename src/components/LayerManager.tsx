@@ -23,7 +23,23 @@ import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { ScrollArea as AppScrollArea } from './ui';
 import { Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
 import { GlobalEffectsTab } from './GlobalEffectsTab';
-import { PlayIcon, PauseIcon, StopIcon } from '@radix-ui/react-icons';
+// Solid media control icons (fill uses currentColor)
+const PlaySolidIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M8 5v14l11-7-11-7z" />
+  </svg>
+);
+const PauseSolidIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <rect x="6" y="5" width="4" height="14" rx="1" />
+    <rect x="14" y="5" width="4" height="14" rx="1" />
+  </svg>
+);
+const StopSolidIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <rect x="6" y="6" width="12" height="12" rx="2" />
+  </svg>
+);
 import TimelineControls from './TimelineControls';
 import FileBrowser from './FileBrowser';
 import { debounce } from '../utils/debounce';
@@ -966,9 +982,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         console.log('🎨 No layers with content, showing empty column message');
         return (
           <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden">
-            <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
-              <h4 className="tw-text-sm tw-text-white">Column Preview</h4>
-              <span className="tw-text-xs tw-text-neutral-400">Empty</span>
+            <div className="tw-flex tw-items-center tw-gap-3 tw-h-10 tw-px-3 tw-bg-neutral-800 tw-border-b tw-border-neutral-800">
+              <h4 className="tw-text-sm tw-text-neutral-200">Column Preview</h4>
+              <span className="tw-text-xs tw-text-neutral-400 tw-ml-auto">Empty</span>
             </div>
             <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-1 tw-p-4">
               <p className="tw-text-neutral-300">No media content</p>
@@ -1032,9 +1048,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     if (previewContent.type === 'layer') {
       return (
         <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden tw-w-full">
-          <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
-            <h4 className="tw-text-sm tw-text-white">Layer Preview</h4>
-            <span className="tw-text-xs tw-text-neutral-400">{isPlaying ? 'Playing' : 'Stopped'}</span>
+          <div className="tw-flex tw-items-center tw-gap-3 tw-h-10 tw-px-3 tw-bg-neutral-800 tw-border-b tw-border-neutral-800">
+            <h4 className="tw-text-sm tw-text-neutral-200">Layer Preview</h4>
+            <span className="tw-text-xs tw-text-neutral-400 tw-ml-auto">{isPlaying ? 'Playing' : 'Stopped'}</span>
           </div>
           <div className="tw-p-2">
             <div className="tw-text-sm tw-text-neutral-200 tw-mb-2">{previewContent.layer.name}</div>
@@ -1064,9 +1080,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       
       return (
         <div className="tw-h-full tw-flex tw-flex-col">
-          <div className="tw-flex tw-items-center tw-gap-3 tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
-            <h4 className="tw-text-sm tw-text-white">Timeline Preview</h4>
-            <span className="tw-text-xs tw-text-neutral-400">{isPlaying ? 'Playing' : 'Stopped'}</span>
+          <div className="tw-flex tw-items-center tw-gap-3 tw-h-10 tw-px-3 tw-bg-neutral-800 tw-border-b tw-border-neutral-800">
+            <h4 className="tw-text-sm tw-text-neutral-200">Timeline Preview</h4>
+            <span className="tw-text-xs tw-text-neutral-400 tw-ml-auto">{isPlaying ? 'Playing' : 'Stopped'}</span>
             <div className="tw-text-xs tw-text-neutral-400">
               Time: {Math.floor(previewContent.currentTime)}s / {Math.floor(previewContent.duration)}s
             </div>
@@ -1137,7 +1153,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="tw-text-center tw-space-y-2">
               <h3 className="tw-text-lg">Welcome to VJ</h3>
               <p className="tw-text-sm tw-text-neutral-300">Create your first scene to get started</p>
-              <button onClick={addScene} className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-text-white tw-px-3 tw-py-1.5" style={{ backgroundColor: 'var(--accent)' }}>Create New Scene</button>
+              <button onClick={addScene} className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-px-3 tw-py-1.5 tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-800 hover:tw-bg-neutral-700">Create New Scene</button>
             </div>
           </div>
         </div>
@@ -1335,7 +1351,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   >
                     <span
                       className={`tw-block tw-rounded-full tw-w-2 tw-h-2 tw-transition-transform tw-duration-150 tw-ease-out ${isBeatPulse ? 'tw-scale-125' : 'tw-scale-100'}`}
-                      style={{ backgroundColor: 'var(--accent)' }}
+                      style={{ backgroundColor: 'var(--accent-color)' }}
                       aria-hidden="true"
                     />
                   </button>
@@ -1371,38 +1387,46 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 
                 {/* Global playback controls */}
                 {!showTimeline && (
-                  <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-my-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
+                  <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-my-2 tw-mr-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
                     <button
                       onClick={globalPlay}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${isGlobalPlaying ? 'tw-bg-blue-600 tw-text-white tw-border-blue-600' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'} hover:tw-bg-blue-600 hover:tw-text-white`}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${isGlobalPlaying ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       title="Play - Resume all videos"
                     >
-                      <PlayIcon className="tw-w-4 tw-h-4" />
+                      <PlaySolidIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
                       onClick={globalPause}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${!isGlobalPlaying ? 'tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700'}`}
-                      style={!isGlobalPlaying ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${!isGlobalPlaying ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       title="Pause - Pause all videos"
                     >
-                      <PauseIcon className="tw-w-4 tw-h-4" />
+                      <PauseSolidIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
                       onClick={globalStop}
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-red-600 hover:tw-text-white hover:tw-border-red-600"
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700"
                       title="Stop - Stop all videos"
                     >
-                      <StopIcon className="tw-w-4 tw-h-4" />
+                      <StopSolidIcon className="tw-w-4 tw-h-4" />
                     </button>
                   </div>
                 )}
+                {/* Mobile hamburger aligned to right of the row (same line) */}
+                <button
+                  className="tw-ml-auto tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-text-neutral-200 tw-bg-transparent tw-border tw-border-neutral-700 tw-rounded"
+                  aria-label="Open menu"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); try { (window as any).__openMobileMenu?.(); } catch {} }}
+                  title="Menu"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
+                </button>
                 {showTimeline && (
                   <div className="tw-mr-3">
                     <TimelineControls />
                   </div>
                 )}
                 {/* Unified scene navigator: desktop shows list; mobile centers current scene with arrows */}
-                <div className="tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last lg:tw-order-none lg:tw-basis-auto tw-mt-2 lg:tw-mt-0 tw-w-full lg:tw-w-auto tw-justify-between lg:tw-justify-start">
+                <div className="tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last lg:tw-order-none lg:tw-basis-auto tw-mt-2 tw-mb-2 lg:tw-mt-0 lg:tw-mb-0 tw-w-full lg:tw-w-auto tw-justify-between lg:tw-justify-start">
                 <button
                   onClick={() => {
                     const currentIndex = scenes.findIndex((s: any) => s.id === currentSceneId);
@@ -1418,21 +1442,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 {/* Mobile: single current scene label centered */}
                 <div className="tw-flex-1 tw-flex tw-justify-center lg:tw-hidden">
                   <button
-                    className={`tw-text-xs tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${'tw-text-white'}`}
-                    style={{ backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' }}
+                    className={`tw-text-xs tw-rounded tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${'tw-text-white'}`}
                     title={currentScene?.name || 'Current scene'}
                   >
                     {currentScene?.name || 'Scene'}
                   </button>
                 </div>
 
+                
+
                 <div className="tw-hidden lg:tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last lg:tw-order-none lg:tw-basis-auto tw-mt-2 lg:tw-mt-0">
                   {scenes.map((scene: any, index: number) => (
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>
                         <button
-                          className={`tw-text-xs tw-rounded tw-bg-neutral-900 tw-text-neutral-200 hover:tw-bg-neutral-800 tw-border tw-border-neutral-800 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-text-white' : ''}`}
-                          style={scene.id === currentSceneId ? { backgroundColor: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-text-white tw-bg-neutral-700 tw-border-neutral-700' : ''}`}
                           onClick={() => setCurrentScene(scene.id)}
                           draggable
                           onDragStart={(e) => {
@@ -1478,6 +1502,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   title="Next scene"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+                </button>
+                {/* Mobile: add new scene button to the right of the right arrow */}
+                <button
+                  onClick={addScene}
+                  className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-rounded hover:tw-bg-neutral-800"
+                  title="Add new scene"
+                >
+                  +
                 </button>
                 </div>
               </div>
@@ -1565,7 +1597,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                    return (
                      <div
                        key={cellId}
-                       style={{ height: CELL_HEIGHT_PX, ...(hasAsset && isColumnPlaying ? { boxShadow: 'inset 0 0 0 2px var(--accent)' } : {}) }}
+                       style={{ height: CELL_HEIGHT_PX, ...(hasAsset && isColumnPlaying ? { boxShadow: 'inset 0 0 0 2px var(--accent-color)' } : {}) }}
                                                  className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? (isColumnPlaying ? 'tw-border-2 tw-border-purple-500 tw-bg-neutral-900 !tw-border-purple-500' : 'tw-border tw-border-neutral-800 tw-bg-neutral-900') : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${(isDragOver || isDragOverLayer) ? 'tw-ring-2 tw-ring-sky-600' : ''} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
                        data-system-files={isDragOver && (() => {
                          const dragData = (window as any).currentDragData;
@@ -1678,7 +1710,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              )}
                            </div>
                            <div 
-                              className="tw-text-xs tw-text-neutral-200 tw-cursor-grab tw-truncate tw-whitespace-nowrap tw-overflow-hidden"
+                              className="tw-text-xs tw-text-neutral-200 tw-cursor-grab tw-truncate tw-whitespace-nowrap tw-overflow-hidden tw-transition-colors tw-duration-200 cell-name-hover"
                               draggable={true}
                               onDragStart={(e) => {
                                 e.stopPropagation();
@@ -1770,14 +1802,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           >
             {/* Preview Window - Bottom Left */}
             <div 
-              className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden lg:tw-basis-[30%] lg:tw-flex-none tw-min-w-[200px] tw-w-full"
+              className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-border-t-0 tw-rounded-md tw-rounded-t-none tw-overflow-hidden lg:tw-basis-[30%] lg:tw-flex-none tw-min-w-[200px] tw-w-full"
               ref={previewContainerRef}
               style={fsFallbackActive ? { position: 'fixed', inset: 0, zIndex: 9999, width: '100vw', height: '100dvh' as any } : undefined}
             >
               {!(isPreviewFullscreen || fsFallbackActive) && (
-                <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800" ref={previewHeaderRef}>
-                  <h3>Preview</h3>
-                  <div className="tw-flex tw-items-center tw-gap-2">
+                <div className="tw-border-b tw-border-neutral-800 tw-py-2 tw-pl-3 tw-pr-3 lg:tw-pl-0 lg:tw-pr-0" ref={previewHeaderRef}>
+                  <div className="tw-inline-flex tw-items-center tw-h-10 tw-w-full tw-bg-secondary tw-rounded-none">
+                    <h4 className="tw-text-[14px] tw-leading-[14px] tw-font-medium tw-text-foreground tw-pl-2">Preview</h4>
+                    <div className="tw-flex tw-items-center tw-gap-2 tw-ml-auto tw-pr-3">
                     <button
                       className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
                       onClick={() => {
@@ -1821,6 +1854,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         <path d="M7 3H3v4h2V5h2V3zm12 0h-4v2h2v2h2V3zM5 17H3v4h4v-2H5v-2zm14 0h-2v2h-2v2h4v-4z"/>
                       </svg>
                     </button>
+                    </div>
                   </div>
                 </div>
               )}

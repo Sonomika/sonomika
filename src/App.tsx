@@ -124,6 +124,35 @@ function App() {
   const { toast } = useToast();
   const { recordSettings, setRecordSettings } = useStore() as any;
 
+  // Convert a hex color (e.g., #00bcd4) to HSL components for CSS var usage
+  const hexToHslComponents = (hex: string): { h: number; s: number; l: number } => {
+    const normalized = hex.startsWith('#') ? hex : `#${hex}`;
+    const r = parseInt(normalized.slice(1, 3), 16) / 255;
+    const g = parseInt(normalized.slice(3, 5), 16) / 255;
+    const b = parseInt(normalized.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0;
+    let s = 0;
+    const l = (max + min) / 2;
+    const d = max - min;
+    if (d !== 0) {
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r:
+          h = (g - b) / d + (g < b ? 6 : 0);
+          break;
+        case g:
+          h = (b - r) / d + 2;
+          break;
+        default:
+          h = (r - g) / d + 4;
+      }
+      h /= 6;
+    }
+    return { h: h * 360, s: s * 100, l: l * 100 };
+  };
+
   useEffect(() => {
     // Mark Electron environment for CSS targeting (e.g., scrollbar styling)
     try {
@@ -230,11 +259,15 @@ function App() {
     } catch {}
   }, []);
 
-  // Apply accent color to CSS var on mount and when it changes
+  // Apply accent color to CSS vars on mount and when it changes
   useEffect(() => {
     try {
       const color = accentColor || '#00bcd4';
-      document.documentElement.style.setProperty('--accent', color);
+      // Absolute color for direct usages
+      document.documentElement.style.setProperty('--accent-color', color);
+      // HSL components for Tailwind and hsl(var(--accent)) usages
+      const { h, s, l } = hexToHslComponents(color);
+      document.documentElement.style.setProperty('--accent', `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%`);
     } catch {}
   }, [accentColor]);
 
@@ -394,7 +427,7 @@ function App() {
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#ffffff';
-            ctx.font = '48px Arial';
+            ctx.font = '48px Inter, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText('Waiting for content...', canvas.width / 2, canvas.height / 2);
           }
@@ -498,7 +531,9 @@ function App() {
           });
           if (!result.canceled && result.filePath) {
             const { savePreset } = useStore.getState();
-            const key = savePreset(presetName.replace(/\.(vjpreset|json)$/i, ''));
+            const base = String(result.filePath).split(/[\\\/]/).pop() || presetName;
+            const chosenName = base.replace(/\.(vjpreset|json)$/i, '');
+            const key = savePreset(chosenName);
             if (key) {
               // regenerate content using current store for reliable save
               const state = useStore.getState() as any;
@@ -621,7 +656,9 @@ function App() {
               });
               if (!result.canceled && result.filePath) {
                 const { savePreset } = useStore.getState();
-                const key = savePreset(presetName.replace(/\.(vjpreset|json)$/i, ''));
+                const base = String(result.filePath).split(/[\\\/]/).pop() || presetName;
+                const chosenName = base.replace(/\.(vjpreset|json)$/i, '');
+                const key = savePreset(chosenName);
                 if (key) {
                   const state = useStore.getState() as any;
                   const preset = {

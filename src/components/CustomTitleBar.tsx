@@ -66,6 +66,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   // Radix Popover handles outside clicks when controlled via open/onOpenChange
   // so we avoid manual document listeners that could intercept item clicks
 
+  // Expose mobile menu opener globally so toolbar can trigger it (mobile)
+  useEffect(() => {
+    (window as any).__openMobileMenu = () => setMobileMenuOpen(true);
+    return () => { try { delete (window as any).__openMobileMenu; } catch {} };
+  }, []);
+
   const handleMenuItemClick = (action: (() => void) | undefined) => {
     setFileMenuOpen(false);
     if (action) {
@@ -76,12 +82,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   return (
     <div className="tw-fixed tw-top-0 tw-left-0 tw-right-0 tw-h-16 tw-z-[5000] tw-select-none">
       {/* Top system bar: logo + window controls */}
-      <div className="tw-h-8 tw-flex tw-items-center tw-justify-between tw-px-2 tw-cursor-grab app-drag-region" style={{ backgroundColor: '#111' }}>
+      <div className="tw-h-8 tw-flex tw-items-center tw-justify-between tw-pl-0 tw-pr-2 tw-cursor-grab app-drag-region" style={{ backgroundColor: '#111' }}>
         <div className="tw-flex tw-items-center tw-flex-none tw-min-w-[120px]">
-          <div className="tw-text-white tw-text-[14px] tw-font-bold tw-ml-2 tw-px-3 tw-py-2 tw-rounded tw-transition-colors app-no-drag">sonomika</div>
+          <div className="tw-text-white tw-text-[14px] tw-font-bold tw-ml-[3px] tw-px-3 tw-py-2 tw-rounded tw-transition-colors app-no-drag">sonomika</div>
           {currentPresetName && (
             <>
-              <div className="tw-text-neutral-500 tw-px-2 app-no-drag">/</div>
+              <div className="tw-text-neutral-500 tw-pl-[2px] tw-pr-2 app-no-drag">/</div>
               <div className="tw-text-xs tw-text-neutral-300 app-no-drag tw-truncate tw-max-w-[40vw]">
                 {currentPresetName}
               </div>
@@ -137,13 +143,13 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
 
       {/* Secondary app bar: menus and controls */}
       <div className="tw-h-8 tw-flex tw-items-center tw-justify-start tw-px-2 tw-cursor-grab app-drag-region" style={{ backgroundColor: '#111' }}>
-        {/* Mobile hamburger */}
+        {/* Mobile hamburger (hidden; toolbar provides one near Stop) */}
         <button
-          className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-text-neutral-200 tw-bg-transparent tw-border-0 app-no-drag"
+          className="tw-hidden lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-text-neutral-200 tw-bg-transparent tw-border-0 app-no-drag"
           aria-label="Open menu"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMobileMenuOpen(true); }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
         </button>
 
         <div className="tw-flex tw-items-center tw-gap-5 tw-hidden lg:tw-flex">
