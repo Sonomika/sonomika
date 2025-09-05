@@ -413,7 +413,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300 xl:tw-col-span-2 tw-min-w-0 tw-pr-2 tw-truncate">
                 Effect Parameters{effectId ? ` · ${String(effectId)}` : ''}
               </h4>
-              <div className="tw-flex tw-justify-end tw-items-center tw-gap-2 tw-mt-1 xl:tw-mt-0">
+              <div className="tw-flex tw-justify-end tw-items-center tw-gap-1 tw-mt-1 xl:tw-mt-0">
                 {/* Smoothing (0..1) */}
                 <div className="tw-flex tw-items-center tw-gap-1" title="Smoothing (0 = instant, 1 = full tween)">
                   <span className="tw-text-[10px] tw-text-neutral-400">Smooth</span>
@@ -484,7 +484,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
 
                       {/* Numeric inline: value, +/- and slider in one row */}
                       {param.type === 'number' && (
-                        <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
+                        <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap tw-min-w-0">
                           <div className="tw-flex-1 tw-min-w-0">
                             <ParamRow
                               key={param.name}
@@ -607,8 +607,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                         </div>
                       )}
                       {param.type === 'select' && (
-                        <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
-                          <div className="tw-w-full sm:tw-w-[240px]">
+                        <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap tw-min-w-0">
+                          <div className="tw-w-full sm:tw-w-auto sm:tw-min-w-[160px] tw-min-w-0">
                             <Select
                               value={String(uiValue)}
                               onChange={(val) => {

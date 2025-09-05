@@ -977,31 +977,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       const layersWithContent = (liveColumn?.layers || []).filter((layer: any) => layer.asset);
       console.log('🎨 Layers with content (live):', layersWithContent);
       
-      // Check if this is an empty column
-      if (previewContent.isEmpty || layersWithContent.length === 0) {
-        console.log('🎨 No layers with content, showing empty column message');
-        return (
-          <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden">
-            <div className="tw-flex tw-items-center tw-gap-3 tw-h-10 tw-px-3 tw-bg-neutral-800 tw-border-b tw-border-neutral-800">
-              <h4 className="tw-text-sm tw-text-neutral-200">Column Preview</h4>
-              <span className="tw-text-xs tw-text-neutral-400 tw-ml-auto">Empty</span>
-            </div>
-            <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-gap-1 tw-p-4">
-              <p className="tw-text-neutral-300">No media content</p>
-              <small className="tw-text-neutral-500">Drag assets from the Media Library to layers to see preview</small>
-              <div className="tw-mt-2 tw-text-neutral-400 tw-text-xs tw-space-y-1">
-                <p className="tw-font-semibold">How to add content:</p>
-                <ol className="tw-list-decimal tw-list-inside tw-space-y-0.5">
-                  <li>Open the Media Library (bottom right)</li>
-                  <li>Import or drag media files</li>
-                  <li>Drag assets from Media Library to layer cells</li>
-                  <li>Click the play button to preview</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-        );
-      }
+      // If empty, still render the preview canvas area (no instructional text)
 
         // Use the ColumnPreview component with the live column for combined layer rendering
       console.log('🎨 Rendering combined column preview with p5.js');
@@ -1811,39 +1787,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <div className="tw-inline-flex tw-items-center tw-h-10 tw-w-full tw-bg-secondary tw-rounded-none">
                     <h4 className="tw-text-[14px] tw-leading-[14px] tw-font-medium tw-text-foreground tw-pl-2">Preview</h4>
                     <div className="tw-flex tw-items-center tw-gap-2 tw-ml-auto tw-pr-3">
-                    <button
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
-                      onClick={() => {
-                        try {
-                          if (isPreviewMirrorOpen) {
-                            // Close mirror window
-                            if (mirrorStreamRef.current) {
-                              mirrorStreamRef.current.closeMirrorWindow();
-                              mirrorStreamRef.current = null;
-                            }
-                            setIsPreviewMirrorOpen(false);
-                          } else {
-                            // Open mirror window
-                            const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-                            if (!canvas) return;
-                            if (!mirrorStreamRef.current) {
-                              mirrorStreamRef.current = new CanvasStreamManager(canvas);
-                            } else {
-                              mirrorStreamRef.current.updateCanvas(canvas);
-                            }
-                            mirrorStreamRef.current.openMirrorWindow().then(() => {
-                              setIsPreviewMirrorOpen(true);
-                            }).catch(() => {});
-                          }
-                        } catch {}
-                      }}
-                      title="Mirror"
-                      aria-label="Mirror"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M4 6h8v2H4V6zm0 4h8v2H4v-2zm0 4h8v2H4v-2zm10-8h6v2h-6V6zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z"/>
-                      </svg>
-                    </button>
+                    {/* Mirror button removed per request to hide R3F icon */}
                     <button
                       className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
                       onClick={togglePreviewFullscreen}

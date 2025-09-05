@@ -1106,10 +1106,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               {maskVisible && (
                 <div className="tw-absolute tw-inset-0 tw-bg-black tw-z-[5] tw-pointer-events-none" />
               )}
-              {/* Debug indicator */}
-             <div className="tw-absolute tw-top-2 tw-right-2 tw-text-white/60 tw-text-[10px] tw-font-normal tw-z-[1] tw-pointer-events-none tw-bg-black/30 tw-px-1.5 tw-py-0.5 tw-rounded">
-               R3F
-              </div>
+              {/* Debug indicator removed */}
               
               {/* Background is provided by wrapper via compositionBg; keep this layer transparent */}
              <div className="tw-absolute tw-inset-0 tw-bg-transparent tw-pointer-events-none" />

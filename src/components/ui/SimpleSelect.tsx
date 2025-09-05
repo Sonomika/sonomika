@@ -21,11 +21,11 @@ export const SimpleSelect: React.FC<SimpleSelectProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`tw-relative tw-w-full`}>
+    <div className={`tw-relative tw-w-full tw-min-w-0`}>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`tw-w-full tw-pr-8 tw-pl-3 tw-py-2 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-rounded-md tw-text-sm tw-appearance-none focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-sky-600 focus:tw-ring-offset-0 ${className}`}
+        className={`tw-block tw-w-full tw-min-w-0 tw-pr-8 tw-pl-3 tw-py-2 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-rounded-md tw-text-sm tw-appearance-none tw-truncate focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-sky-600 focus:tw-ring-offset-0 ${className}`}
       >
         {placeholder && (
           <option value="" disabled>

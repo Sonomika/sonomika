@@ -292,7 +292,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
   return (
     <div className="tw-space-y-3">
       {/* Toolbar: Randomize all unlocked + Lock/Unlock all */}
-      <div className="tw-flex tw-flex-wrap tw-justify-end tw-items-center tw-gap-2">
+      <div className="tw-flex tw-flex-wrap tw-justify-end tw-items-center tw-gap-1">
         {/* Smoothing (0..1) */}
         <div className="tw-flex tw-items-center tw-gap-1" title="Smoothing (0 = instant, 1 = full tween)">
           <span className="tw-text-[10px] tw-text-neutral-400">Smooth</span>
