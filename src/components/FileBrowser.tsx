@@ -310,7 +310,7 @@ const FileBrowser: React.FC = () => {
     const [loaded, setLoaded] = React.useState(false);
     return (
       <div className="tw-relative tw-w-12 tw-h-9">
-        <div className="tw-absolute tw-inset-0 tw-bg-[#111] tw-border tw-border-[#222]" />
+        <div className="tw-absolute tw-inset-0 tw-bg-[#0d0d0d] tw-border tw-border-[#222]" />
         <img
           src={path}
           alt={name}
@@ -572,7 +572,7 @@ const FileBrowser: React.FC = () => {
                         <MemoImageThumb path={localSrc} name={it.name} />
                       )}
                       {type === 'audio' && (
-                        <div className="tw-w-12 tw-h-9 tw-bg-[#111] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-[6px] tw-text-[#999] tw-rounded-[2px]">
+                        <div className="tw-w-12 tw-h-9 tw-bg-[#0d0d0d] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-xs tw-text-[#999] tw-rounded-[2px]">
                           AUDIO
                         </div>
                       )}
@@ -612,7 +612,7 @@ const FileBrowser: React.FC = () => {
                         <MemoImageThumb path={localSrc} name={it.name} />
                       )}
                       {type === 'audio' && (
-                        <div className="tw-w-12 tw-h-9 tw-bg-[#111] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-[6px] tw-text-[#999] tw-rounded-[2px]">
+                        <div className="tw-w-12 tw-h-9 tw-bg-[#0d0d0d] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-xs tw-text-[#999] tw-rounded-[2px]">
                           AUDIO
                         </div>
                       )}

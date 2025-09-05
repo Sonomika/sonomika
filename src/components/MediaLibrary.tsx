@@ -600,7 +600,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
           <div className="tw-w-full tw-h-full"><VideoThumb asset={item} /></div>
         )}
         {item.type !== 'image' && item.type !== 'video' && (
-          <div className="asset-placeholder tw-text-[10px] tw-text-neutral-400">{item.type.toUpperCase()}</div>
+          <div className="asset-placeholder tw-text-xs tw-text-neutral-400">{item.type.toUpperCase()}</div>
         )}
       </div>
       <div className="tw-text-neutral-200 tw-truncate">{item.name}</div>
@@ -626,11 +626,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)
                   }
-                  className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                  className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-0 focus:tw-outline-none tw-shadow-none"
                 />
               </div>
               <div className="filter-controls">
-                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1">
+                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 tw-shadow-none focus:tw-ring-0 focus:tw-outline-none">
                   <option value="all">All Types</option>
                   <option value="image">Images</option>
                   <option value="video">Videos</option>
@@ -694,7 +694,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                 <>
                   {/* Performance hint for large asset lists */}
                   {filteredAssets.length > 50 && (
-                    <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-300 tw-text-[12px] tw-px-3 tw-py-2 tw-my-2">
+                    <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-300 tw-text-sm tw-px-3 tw-py-2 tw-my-2">
                       <strong>Performance Tip:</strong> Large asset lists ({filteredAssets.length} items) are optimized with lazy thumbnail generation. 
                       Only visible items generate thumbnails to improve performance. <strong>Thumbnails are now persistent and won't be lost on refresh!</strong>
                     </div>
@@ -742,7 +742,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)
                     }
-                    className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                    className="tw-w-64 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-0 focus:tw-outline-none tw-shadow-none"
                   />
                 </div>
                 <div className="filter-controls">
@@ -810,7 +810,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ onClose, isEmbedded 
                   <>
                     {/* Performance hint for large asset lists */}
                     {filteredAssets.length > 50 && (
-                      <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-300 tw-text-[12px] tw-px-3 tw-py-2 tw-my-2">
+                      <div className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-300 tw-text-sm tw-px-3 tw-py-2 tw-my-2">
                         <strong>Performance Tip:</strong> Large asset lists ({filteredAssets.length} items) are optimized with lazy thumbnail generation. 
                         Only visible items generate thumbnails to improve performance. <strong>Thumbnails are now persistent and won't be lost on refresh!</strong>
                       </div>

@@ -332,7 +332,7 @@ function createMirrorWindow() {
         .no-stream {
           color: #fff;
           text-align: center;
-          font-size: 16px;
+          font-size: 14px;
           -webkit-app-region: no-drag; /* Don't drag when clicking text */
           position: relative;
           z-index: 1;

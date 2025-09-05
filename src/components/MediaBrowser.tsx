@@ -103,7 +103,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
     ) : (
       <div 
         ref={thumbRef}
-        className="tw-w-20 tw-h-[45px] tw-bg-[#111] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-[8px] tw-text-[#666]"
+        className="tw-w-20 tw-h-[45px] tw-bg-[#0d0d0d] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-xs tw-text-[#666]"
         title={isGenerating ? 'Generating thumbnail...' : 'Waiting to generate...'}
       >
         {isGenerating ? 'GEN...' : 'WAIT...'}
@@ -689,7 +689,7 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
             <button onClick={handlePreview} className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700">
               Preview
             </button>
-            <button onClick={handleAddToLayer} className="tw-border tw-border-neutral-700 tw-bg-neutral-700 tw-text-white tw-px-3 tw-py-1.5 hover:tw-bg-neutral-600">
+            <button onClick={handleAddToLayer} className="tw-border tw-border-neutral-700 tw-bg-graphite tw-text-white tw-px-3 tw-py-1.5 hover:tw-bg-neutral-600">
               Add to Layer
             </button>
           </div>

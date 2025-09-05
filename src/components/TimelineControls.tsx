@@ -119,7 +119,7 @@ const TimelineControls: React.FC = () => {
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13H5v-2h14v2z"/></svg>
         </button>
-        <span className="tw-text-white tw-text-[11px] tw-font-semibold tw-min-w-[30px] tw-text-center">{timelineZoom.toFixed(1)}x</span>
+        <span className="tw-text-white tw-text-xs tw-font-semibold tw-min-w-[30px] tw-text-center">{timelineZoom.toFixed(1)}x</span>
         <button
           onClick={() => setTimelineZoom(Math.min(5, timelineZoom + 0.1))}
           className="tw-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded-[3px] tw-text-white hover:tw-bg-neutral-700"
@@ -130,7 +130,7 @@ const TimelineControls: React.FC = () => {
       </div>
 
       <div className="tw-flex tw-items-center tw-gap-2 tw-bg-black/30 tw-px-2 tw-py-1.5 tw-rounded tw-border tw-border-neutral-700">
-        <label className="tw-text-neutral-300 tw-text-[11px] tw-font-semibold">Duration:</label>
+        <label className="tw-text-neutral-300 tw-text-xs tw-font-semibold">Duration:</label>
         <input
           type="number"
           min={1}
@@ -144,13 +144,13 @@ const TimelineControls: React.FC = () => {
           className="tw-w-[50px] tw-h-7 tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-rounded tw-text-white tw-text-center tw-text-xs tw-font-semibold hover:tw-border-neutral-600 focus:tw-ring-1 focus:tw-ring-sky-600 focus:tw-border-sky-600"
           title="Timeline duration in seconds"
         />
-        <span className="tw-text-neutral-300 tw-text-[11px] tw-font-semibold">s</span>
+        <span className="tw-text-neutral-300 tw-text-xs tw-font-semibold">s</span>
         <div className="tw-flex tw-gap-0.5">
           {[30, 60, 120, 300].map((preset) => (
             <button
               key={preset}
               onClick={() => setTimelineDuration(preset)}
-              className="tw-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded-[3px] tw-text-neutral-300 tw-text-[10px] tw-font-semibold hover:tw-bg-neutral-700 hover:tw-border-neutral-600 hover:tw-text-white"
+              className="tw-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded-[3px] tw-text-neutral-300 tw-text-xs tw-font-semibold hover:tw-bg-neutral-700 hover:tw-border-neutral-600 hover:tw-text-white"
               title={`${preset >= 60 ? preset/60 + 'm' : preset + 's'}`}
             >
               {preset >= 60 ? `${preset/60}m` : `${preset}s`}

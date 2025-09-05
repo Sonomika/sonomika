@@ -1739,7 +1739,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
            .timeline-title h2 {
              margin: 0;
              color: #fff;
-             font-size: 18px;
+             font-size: 14px;
              font-weight: 600;
            }
            
@@ -1841,7 +1841,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
            .timeline-title h2 {
              margin: 0;
              color: #fff;
-             font-size: 18px;
+             font-size: 14px;
              font-weight: 600;
              white-space: nowrap;
            }
@@ -2078,7 +2078,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
            /* Ruler */
            .timeline-ruler { position: sticky; top: 0; height: 24px; pointer-events: none; z-index: 3; }
            .timeline-mark { position: absolute; top: 0; height: 24px; border-left: 1px solid #555; }
-           .timeline-mark .timeline-label { position: absolute; top: 6px; left: 4px; font-size: 10px; color: #aaa; pointer-events: none; }
+           .timeline-mark .timeline-label { position: absolute; top: 6px; left: 4px; font-size: 12px; color: #aaa; pointer-events: none; }
 
            /* Playhead */
            /* .timeline-playhead migrated to Tailwind */
@@ -2186,7 +2186,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
              border-radius: 3px;
              color: #ccc;
              cursor: pointer;
-             font-size: 10px;
+             font-size: 12px;
              font-weight: 600;
              transition: all 0.2s ease;
            }
@@ -2225,7 +2225,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               for (let i = start; i <= end; i++) marks.push(i);
               return marks.map((sec) => (
                 <div key={`major-${sec}`} className="tw-absolute tw-top-0 tw-h-6 tw-border-l tw-border-neutral-600 tw-w-px" style={{ left: `${sec * pixelsPerSecond}px` }}>
-                  <span className="tw-absolute tw-top-1.5 tw-left-1 tw-text-[10px] tw-text-neutral-400 tw-pointer-events-none">{sec}s</span>
+                  <span className="tw-absolute tw-top-1.5 tw-left-1 tw-text-xs tw-text-neutral-400 tw-pointer-events-none">{sec}s</span>
                 </div>
               ));
             })()}
@@ -2235,7 +2235,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             {tracks.map((track) => (
               <div key={track.id} className="tw-flex tw-flex-col tw-gap-1">
                 <div className="tw-flex tw-items-center tw-gap-2 tw-text-neutral-300 tw-text-xs tw-px-1.5 tw-py-0.5">
-                  <span className="tw-inline-flex tw-items-center tw-justify-center tw-px-1.5 tw-py-0.5 tw-rounded tw-font-semibold tw-text-[10px] tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-text-white">{track.type.toUpperCase()}</span>
+                  <span className="tw-inline-flex tw-items-center tw-justify-center tw-px-1.5 tw-py-0.5 tw-rounded tw-font-semibold tw-text-xs tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-text-white">{track.type.toUpperCase()}</span>
                   <span>{track.name}</span>
                 </div>
                 <div 

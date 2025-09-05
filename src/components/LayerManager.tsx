@@ -1351,7 +1351,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       }
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                    className="tw-w-16 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
+                    className="tw-w-16 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-0 focus:tw-outline-none"
                     placeholder="120"
                   />
                 </div>
@@ -1361,14 +1361,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-my-2 tw-mr-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
                     <button
                       onClick={globalPlay}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${isGlobalPlaying ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${isGlobalPlaying ? 'tw-bg-graphite tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       title="Play - Resume all videos"
                     >
                       <PlaySolidIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
                       onClick={globalPause}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${!isGlobalPlaying ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${!isGlobalPlaying ? 'tw-bg-graphite tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       title="Pause - Pause all videos"
                     >
                       <PauseSolidIcon className="tw-w-4 tw-h-4" />
@@ -1427,7 +1427,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>
                         <button
-                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-text-white tw-bg-neutral-700 tw-border-neutral-700' : ''}`}
+                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-text-white tw-bg-graphite tw-border-neutral-700' : ''}`}
                           onClick={() => setCurrentScene(scene.id)}
                           draggable
                           onDragStart={(e) => {
@@ -1458,7 +1458,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       </ContextMenuContent>
                     </ContextMenu>
                   ))}
-                  <button onClick={addScene} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 hover:tw-bg-neutral-800" title="Add new scene">
+                  <button onClick={addScene} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 hover:tw-bg-neutral-800" title="Add new scene">
                     +
                   </button>
                 </div>
@@ -1731,7 +1731,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                            }}
                          >
                            <div className="tw-h-6 tw-w-full tw-rounded tw-border tw-border-dashed tw-border-neutral-700"></div>
-                           <div className="tw-text-[10px] tw-text-neutral-500"></div>
+                           <div className="tw-text-xs tw-text-neutral-500"></div>
                          </div>
                        )}
                      </div>
@@ -1780,7 +1780,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               {!(isPreviewFullscreen || fsFallbackActive) && (
                 <div className="tw-border-b tw-border-neutral-800 tw-py-2 tw-pl-3 tw-pr-3 lg:tw-pl-0 lg:tw-pr-0" ref={previewHeaderRef}>
                   <div className="tw-inline-flex tw-items-center tw-h-10 tw-w-full tw-bg-secondary tw-rounded-none">
-                    <h4 className="tw-text-[14px] tw-leading-[14px] tw-font-medium tw-text-foreground tw-pl-2">Preview</h4>
+                    <h4 className="tw-text-sm tw-leading-[14px] tw-font-medium tw-text-foreground tw-pl-2">Preview</h4>
                     <div className="tw-flex tw-items-center tw-gap-2 tw-ml-auto tw-pr-3">
                     {/* Mirror button removed per request to hide R3F icon */}
                     <button

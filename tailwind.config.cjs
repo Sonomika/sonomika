@@ -16,11 +16,41 @@ module.exports = {
       '3xl': '1.5rem',
       full: '9999px',
     },
+    fontSize: {
+      xs: ['12px', { lineHeight: '16px' }],
+      sm: ['14px', { lineHeight: '20px' }],
+      base: ['14px', { lineHeight: '20px' }],
+      lg: ['14px', { lineHeight: '20px' }],
+      xl: ['14px', { lineHeight: '20px' }],
+      '2xl': ['14px', { lineHeight: '20px' }],
+      '3xl': ['14px', { lineHeight: '20px' }],
+      '4xl': ['14px', { lineHeight: '20px' }],
+      '5xl': ['14px', { lineHeight: '20px' }],
+      '6xl': ['14px', { lineHeight: '20px' }],
+      '7xl': ['14px', { lineHeight: '20px' }],
+      '8xl': ['14px', { lineHeight: '20px' }],
+      '9xl': ['14px', { lineHeight: '20px' }],
+    },
     extend: {
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'sans-serif'],
       },
       colors: {
+        // Collapse neutral scale to 4 greys
+        neutral: {
+          50: '#f5f5f5',
+          100: '#f5f5f5',
+          200: '#aaaaaa',
+          300: '#aaaaaa',
+          400: '#aaaaaa',
+          500: '#aaaaaa',
+          600: '#262626',
+          700: '#262626',
+          800: '#1f1f1f',
+          900: '#141414',
+          950: '#141414'
+        },
+        graphite: '#333232',
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -54,10 +84,6 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-      },
-      fontSize: {
-        'xs': ['12px', { lineHeight: '16px' }],
-        'sm': ['14px', { lineHeight: '20px' }],
       },
     },
   },

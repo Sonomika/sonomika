@@ -295,7 +295,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
       <div className="tw-flex tw-flex-wrap tw-justify-end tw-items-center tw-gap-1">
         {/* Smoothing (0..1) */}
         <div className="tw-flex tw-items-center tw-gap-1" title="Smoothing (0 = instant, 1 = full tween)">
-          <span className="tw-text-[10px] tw-text-neutral-400">Smooth</span>
+          <span className="tw-text-xs tw-text-neutral-400">Smooth</span>
           <input
             type="number"
             step={0.1}

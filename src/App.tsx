@@ -1068,7 +1068,7 @@ function App() {
       
       <div className="tw-bg-black tw-text-white tw-min-h-screen lg:tw-h-screen tw-flex tw-flex-col">
 
-        <div className="vj-app-content tw-flex-1 tw-pt-16 tw-overflow-y-auto lg:tw-min-h-0 lg:tw-overflow-y-auto">
+        <div className="vj-app-content tw-flex-1 tw-pt-8 lg:tw-pt-16 tw-overflow-y-auto lg:tw-min-h-0 lg:tw-overflow-y-auto">
           {showUIDemo ? (
             <UIDemo onClose={() => setShowUIDemo(false)} />
           ) : (

@@ -49,6 +49,9 @@
 
 html { background-color: #141414; height: auto; min-height: 100%; }
 
+/* Remove any default page edge spacing */
+html { margin: 0; padding: 0; }
+
 body {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
@@ -58,9 +61,12 @@ body {
 	min-height: 100%;
 	overflow-y: auto;
 	padding-bottom: env(safe-area-inset-bottom, 0px);
+  font-size: 14px;
+  line-height: 20px;
+  margin: 0;
 }
 
-#root { min-height: 100%; background-color: #141414; padding-bottom: env(safe-area-inset-bottom, 0px); }
+#root { min-height: 100%; background-color: #141414; margin: 0; padding-left: 0; padding-right: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
 
 /* ScrollArea helpers */
 .vj-scroll-root { position: relative; }
@@ -177,6 +183,8 @@ input[type="reset"],
 	-webkit-appearance: none;
 	-moz-appearance: none;
 	box-shadow: none !important;
+	border: none !important; /* remove UA default 1px border */
+	background-image: none !important;
 	text-shadow: none !important;
 }
 
@@ -188,6 +196,11 @@ select {
 	-webkit-appearance: none;
 	-moz-appearance: none;
 	box-shadow: none !important;
+	--tw-ring-shadow: 0 0 #0000 !important; /* kill Tailwind ring */
+	--tw-ring-offset-shadow: 0 0 #0000 !important;
+	/* Force uniform 1px border colour */
+	border: 1px solid #333232 !important;
+	background-image: none !important;
 	color: #ffffff !important;
 }
 
@@ -215,6 +228,9 @@ textarea:focus, textarea:focus-visible,
 select:focus, select:focus-visible {
 	outline: none !important;
 	box-shadow: none !important;
+	--tw-ring-shadow: 0 0 #0000 !important;
+	--tw-ring-offset-shadow: 0 0 #0000 !important;
+	border-color: #333232 !important; /* keep same on focus */
 }
 
 /* Remove any focus/active outlines/borders on buttons in non-a11y mode */

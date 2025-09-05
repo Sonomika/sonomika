@@ -19,6 +19,20 @@
 - NEVER use emoji anywhere in the code or UI
 - Prioritize functionality over decorative elements
 
+## Design Tokens
+- GREY palette is restricted to FOUR shades only (Tailwind neutral mapped accordingly):
+  - 900 (surface): #141414
+  - 800 (panel): #1f1f1f
+  - 600/700 (borders/controls): #262626
+  - 200–500 (muted text): #aaaaaa
+- DO NOT use other grey hex values (e.g., #111, #333, #444, #555, #666, #888, #ccc). Replace with the allowed shades.
+- Prefer Tailwind `tw-*-neutral-*` utilities; no inline grey hex in components (effects may define their own colors).
+
+- Font sizes are limited to TWO sizes only:
+  - 12px: use `tw-text-xs`
+  - 14px: use `tw-text-sm` (default body size)
+- DO NOT use other `tw-text-*` sizes or arbitrary `tw-text-[…]` font sizes.
+
 ## UI Component Governance
 - BEFORE adding any new UI component, FIRST check `src/components/ui` for an existing equivalent (Button, Input, Select, Dialog, etc.) and reuse it.
 - If a required component exists but needs small tweaks, extend via props or minimal wrapper instead of creating a new component.

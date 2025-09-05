@@ -416,7 +416,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               <div className="tw-flex tw-justify-end tw-items-center tw-gap-1 tw-mt-1 xl:tw-mt-0">
                 {/* Smoothing (0..1) */}
                 <div className="tw-flex tw-items-center tw-gap-1" title="Smoothing (0 = instant, 1 = full tween)">
-                  <span className="tw-text-[10px] tw-text-neutral-400">Smooth</span>
+                  <span className="tw-text-xs tw-text-neutral-400">Smooth</span>
                   <input
                     type="number"
                     step={0.1}
@@ -644,7 +644,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                         <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
                           <button
                             type="button"
-                            className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] tw-appearance-none tw-border tw-border-neutral-700 tw-shadow-none tw-outline-none focus:tw-outline-none focus:tw-ring-0 focus:tw-shadow-none ${Boolean(currentValue) ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
+                            className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[60px] tw-appearance-none tw-border tw-border-neutral-700 tw-shadow-none tw-outline-none focus:tw-outline-none focus:tw-ring-0 focus:tw-shadow-none ${Boolean(currentValue) ? 'tw-bg-graphite tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300'} ${isLocked ? 'tw-opacity-50' : ''}`}
                             onClick={() => {
                               if (isLocked) return;
                               const newValue = !Boolean(currentValue);
@@ -855,28 +855,28 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               <div>
                 <div className="tw-flex tw-flex-wrap tw-gap-2">
                   <button
-                    className={`tw-rounded tw-border tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.NONE ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.NONE ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
                     
                     onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
                   >
                     None
                   </button>
                   <button
-                    className={`tw-rounded tw-border tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.LOOP ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.LOOP ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
                     
                     onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
                   >
                     Loop
                   </button>
                   <button
-                    className={`tw-rounded tw-border tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.REVERSE ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.REVERSE ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
                     
                     onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
                   >
                     Reverse
                   </button>
                   <button
-                    className={`tw-rounded tw-border tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.PING_PONG ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.PING_PONG ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
                     
                     onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
                   >
@@ -886,7 +886,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               </div>
               
               <div>
-                <label>Play Mode:</label>
+                <label className="tw-text-sm">Play Mode:</label>
                 <ButtonGroup
                   options={[
                     { value: 'restart', label: 'Restart' },
@@ -908,7 +908,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
             <div>
               <div className="tw-inline-flex tw-items-center tw-gap-2">
                 <button
-                  className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700 disabled:tw-opacity-50"
+                  className="tw-rounded tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700 disabled:tw-opacity-50"
                   onClick={() => handleLoopCountChange(Math.max(1, loopCount - 1))}
                   disabled={loopCount <= 1}
                 >
@@ -916,7 +916,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 </button>
                 <span className="tw-min-w-[2ch] tw-text-center">{loopCount}</span>
                 <button
-                  className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700"
+                  className="tw-rounded tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700"
                   onClick={() => handleLoopCountChange(loopCount + 1)}
                 >
                   +
@@ -931,35 +931,35 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           <div>
             <div className="tw-flex tw-flex-wrap tw-gap-2">
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'add' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'add' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('add')}
                 title="Add - Brightens overlapping areas"
               >
                 Add
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'multiply' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'multiply' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('multiply')}
                 title="Multiply - Darkens overlapping areas"
               >
                 Multiply
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'screen' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'screen' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('screen')}
                 title="Screen - Lightens overlapping areas"
               >
                 Screen
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'overlay' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'overlay' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('overlay')}
                 title="Overlay - Combines multiply and screen"
               >
                 Overlay
               </button>
               <button
-                className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'difference' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
+                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'difference' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
                 onClick={() => handleBlendModeChange('difference')}
                 title="Difference - Shows differences between layers"
               >
