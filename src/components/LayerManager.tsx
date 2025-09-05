@@ -93,7 +93,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false);
   const gridWrapperRef = useRef<HTMLDivElement>(null);
-  const [columnWidth, setColumnWidth] = useState<number>(160);
+  const [columnWidth, setColumnWidth] = useState<number>(96);
   const [gridHasOverflowX, setGridHasOverflowX] = useState<boolean>(false);
   const [gridHasOverflowY, setGridHasOverflowY] = useState<boolean>(false);
   // Ensure consistent cell height across all layer cells, even when empty
@@ -154,18 +154,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     }
   }, []);
 
-  // Compute fixed per-column width so exactly 20 columns fit the visible area
+  // Keep a fixed per-column width across all breakpoints (desktop-sized columns)
   useEffect(() => {
     const el = gridWrapperRef.current;
     if (!el) return;
     const compute = () => {
       try {
-        const style = window.getComputedStyle(el);
-        const gapStr = style.columnGap || style.gap || '8px';
-        const gap = parseFloat(gapStr) || 8;
-        const totalGap = gap * 19; // gaps between 20 columns
-        const available = el.clientWidth - totalGap;
-        const next = Math.max(80, Math.floor(available / 20));
+        const next = 96;
         setColumnWidth(next);
         // Update overflow states
         try {
