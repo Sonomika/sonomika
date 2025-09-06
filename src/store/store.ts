@@ -93,6 +93,7 @@ const initialState: AppState = {
   currentSceneId: '',
   playingColumnId: null, // No column playing initially
   isGlobalPlaying: false, // Global play/pause state
+  activeLayerOverrides: {},
   bpm: 120,
   sidebarVisible: true,
   accessibilityEnabled: false,
@@ -361,8 +362,21 @@ export const useStore = createWithEqualityFn<AppState & {
 
       setTransitionDuration: (duration: number) => set({ transitionDuration: duration }),
 
-             // Column playback control
-       setPlayingColumn: (columnId: string | null) => {
+      // Resolume-style per-layer active cell overrides
+      setActiveLayerOverride: (layerNum: number, columnId: string | null) => set((state) => {
+        const current = state.activeLayerOverrides || {};
+        const next: Record<number, string> = { ...(current as any) };
+        if (!columnId) {
+          delete next[layerNum];
+        } else {
+          next[layerNum] = columnId;
+        }
+        return { activeLayerOverrides: next } as any;
+      }),
+      clearActiveLayerOverrides: () => set({ activeLayerOverrides: {} as any }),
+
+      // Column playback control
+      setPlayingColumn: (columnId: string | null) => {
          try {
            set({ playingColumnId: columnId });
          } catch (error) {

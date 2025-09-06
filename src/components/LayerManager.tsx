@@ -83,7 +83,7 @@ const MemoMediaLibrary = React.memo(MediaLibrary);
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   // console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId } = useStore() as any;
+  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides } = useStore() as any;
   
   // Debug logging for playingColumnId
   useEffect(() => {
@@ -313,6 +313,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   // Handle column play button
   const handleColumnPlayWrapper = (columnId: string) => {
+    try {
+      const clear = (useStore as any).getState?.().clearActiveLayerOverrides as () => void;
+      if (clear) clear();
+    } catch {}
     handleColumnPlay(columnId, currentScene, setPreviewContent, setIsPlaying, playColumn);
   };
 
@@ -966,7 +970,28 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     if (previewContent.type === 'column') {
       console.log('🎨 Rendering column preview');
       // Always resolve the latest column from the store so updates are live
-      const liveColumn = currentScene?.columns?.find((col: any) => col.id === previewContent.columnId) || previewContent.column;
+      const baseColumn = currentScene?.columns?.find((col: any) => col.id === previewContent.columnId) || previewContent.column;
+      // Apply Resolume-style per-layer overrides from store
+      let liveColumn = baseColumn;
+      try {
+        const st: any = (useStore as any).getState?.();
+        const overrides: Record<number, string> = (st?.activeLayerOverrides || {}) as any;
+        if (overrides && Object.keys(overrides).length > 0 && currentScene) {
+          const byId: Record<string, any> = {};
+          for (const c of currentScene.columns || []) byId[c.id] = c;
+          const replacedLayers = (baseColumn?.layers || []).map((layer: any) => {
+            const layerNum = layer?.layerNum || (layer?.name && layer.name.startsWith('Layer ') ? Number(layer.name.split(' ')[1]) : undefined);
+            if (!layerNum) return layer;
+            const overrideColId = overrides[layerNum];
+            if (!overrideColId) return layer;
+            const srcCol = byId[overrideColId];
+            if (!srcCol) return layer;
+            const replacement = (srcCol.layers || []).find((l: any) => l.layerNum === layerNum || l.name === `Layer ${layerNum}`);
+            return replacement || layer;
+          });
+          liveColumn = { ...baseColumn, layers: replacedLayers };
+        }
+      } catch {}
 
       // Show the first layer with content as the main preview
       const layersWithContent = (liveColumn?.layers || []).filter((layer: any) => layer.asset);
@@ -1559,22 +1584,33 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                       const isDragOver = dragOverCell === cellId;
                    const isDragOverLayer = dragOverLayer === cellId;
                    const isColumnPlaying = playingColumnId === column.id;
+                   const overrideColId = (activeLayerOverrides && activeLayerOverrides[layerNum]) || null;
+                   const isOverriddenActive = !!overrideColId && overrideColId === column.id;
+                   const isCellActive = isOverriddenActive || (!overrideColId && isColumnPlaying);
                    
                    // Debug logging
-                   if (hasAsset && isColumnPlaying) {
-                     console.log('🎯 Active cell detected:', { cellId, columnId: column.id, playingColumnId, isColumnPlaying });
+                   if (hasAsset && isCellActive) {
+                     console.log('🎯 Active cell detected:', { cellId, columnId: column.id, playingColumnId, isColumnPlaying, isOverriddenActive });
                    }
  
                    return (
                      <div
                        key={cellId}
-                       style={{ height: CELL_HEIGHT_PX, ...(hasAsset && isColumnPlaying ? { boxShadow: 'inset 0 0 0 2px var(--accent-color)' } : {}) }}
-                                                 className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? (isColumnPlaying ? 'tw-border-2 tw-border-purple-500 tw-bg-neutral-900 !tw-border-purple-500' : 'tw-border tw-border-neutral-800 tw-bg-neutral-900') : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${(isDragOver || isDragOverLayer) ? 'tw-ring-2 tw-ring-sky-600' : ''} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
+                       style={{ height: CELL_HEIGHT_PX, ...(isCellActive ? { boxShadow: 'inset 0 0 0 2px var(--accent-color)' } : {}) }}
+                       className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? (isCellActive ? 'tw-border-2 tw-border-purple-500 tw-bg-neutral-900 !tw-border-purple-500' : 'tw-border tw-border-neutral-800 tw-bg-neutral-900') : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${isDragOver || isDragOverLayer ? 'tw-ring-2 tw-ring-sky-600' : (isCellActive ? 'tw-ring-2 tw-ring-[hsl(var(--accent))]' : '')} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
                        data-system-files={isDragOver && (() => {
                          const dragData = (window as any).currentDragData;
                          return dragData && dragData.files && dragData.files.length > 0 ? 'true' : 'false';
                        })()}
                        onClick={() => hasAsset && handleLayerClickWrapper(layer, column.id)}
+                       onDoubleClick={() => {
+                         try {
+                           const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
+                           if (setOverride) {
+                             setOverride(layerNum, column.id);
+                           }
+                         } catch {}
+                       }}
                        onContextMenu={(e) => {
                          if (hasAsset) {
                            handleCellRightClick(e, layer, column.id);
@@ -1716,6 +1752,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              } catch {
                                handleDropWrapper(e, column.id, layerNum);
                              }
+                           }}
+                           onDoubleClick={() => {
+                             try {
+                               const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
+                               if (setOverride) {
+                                 setOverride(layerNum, column.id);
+                               }
+                             } catch {}
                            }}
                            onContextMenu={(e) => {
                              e.preventDefault();

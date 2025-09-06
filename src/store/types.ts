@@ -150,4 +150,6 @@ export interface AppState {
   mirrorKeepPreview?: boolean;
   // Global default fit mode for video sources
   defaultVideoFitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
+  // Per-layer active cell overrides (Resolume-style): map layerNum -> columnId
+  activeLayerOverrides?: Record<number, string>;
 } 

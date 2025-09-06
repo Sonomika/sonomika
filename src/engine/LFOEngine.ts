@@ -153,7 +153,7 @@ class LFOEngineImpl {
     // Determine active layers: timeline first (if playing), else currently playing column
     try {
       const state = useStore.getState() as any;
-      const { scenes, currentSceneId, playingColumnId, selectedTimelineClip } = state;
+      const { scenes, currentSceneId, playingColumnId } = state;
       // If timeline is playing, synthesize active layers from timeline preview
       const timelineIsPlaying = (window as any).__vj_timeline_is_playing__ === true;
       const timelineActiveLayers: LayerLike[] | null = (window as any).__vj_timeline_active_layers__ || null;
@@ -163,8 +163,25 @@ class LFOEngineImpl {
       const scene = scenes?.find((s: any) => s.id === currentSceneId);
       if (!scene) return [];
       if (!playingColumnId) return [];
-      const col = scene.columns?.find((c: any) => c.id === playingColumnId);
-      const layers: any[] = (col?.layers || []).filter(Boolean);
+      const baseCol = scene.columns?.find((c: any) => c.id === playingColumnId);
+      let layers: any[] = (baseCol?.layers || []).filter(Boolean);
+      // Apply per-layer overrides: replace layer at given layerNum with the same-numbered layer from another column
+      const overrides: Record<number, string> = (state.activeLayerOverrides || {}) as any;
+      if (overrides && Object.keys(overrides).length > 0) {
+        // Build a lookup of columns by id
+        const byId: Record<string, any> = {};
+        for (const c of scene.columns || []) byId[c.id] = c;
+        layers = layers.map((layer: any) => {
+          const layerNum = layer?.layerNum || layer?.name?.match(/Layer\s+(\d+)/i)?.[1] ? Number(layer.name.match(/Layer\s+(\d+)/i)![1]) : undefined;
+          if (!layerNum) return layer;
+          const overrideColId = overrides[layerNum];
+          if (!overrideColId) return layer;
+          const srcCol = byId[overrideColId];
+          if (!srcCol) return layer;
+          const replacement = (srcCol.layers || []).find((l: any) => l.layerNum === layerNum || l.name === `Layer ${layerNum}`);
+          return replacement || layer;
+        });
+      }
       return layers as LayerLike[];
     } catch {
       return [];
