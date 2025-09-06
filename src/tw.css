@@ -88,6 +88,16 @@
 		--border: 0 0% 14.9%; /* #262626 */
 		--input: 0 0% 14.9%; /* #262626 */
 		--ring: 0 0% 83.1%;
+
+		/* Neutral grey HSL components (overridable by settings) */
+		--neutral-900: 0 0% 8%;  /* #141414 */
+		--neutral-800: 0 0% 12%; /* #1f1f1f */
+		--neutral-700: 0 0% 15%; /* #262626 */
+		--neutral-600: 0 0% 15%; /* #262626 */
+		--neutral-500: 0 0% 67%; /* #aaaaaa */
+		--neutral-400: 0 0% 67%; /* #aaaaaa */
+		--neutral-300: 0 0% 67%; /* #aaaaaa */
+		--neutral-200: 0 0% 67%; /* #aaaaaa */
 		
 		--radius: 0.5rem;
 	}
@@ -122,6 +132,16 @@
 		--border: 0 0% 14.9%; /* #262626 */
 		--input: 0 0% 14.9%; /* #262626 */
 		--ring: 0 0% 83.1%;
+
+		/* Neutral grey HSL components (overridable by settings) */
+		--neutral-900: 0 0% 8%;  /* #141414 */
+		--neutral-800: 0 0% 12%; /* #1f1f1f */
+		--neutral-700: 0 0% 15%; /* #262626 */
+		--neutral-600: 0 0% 15%; /* #262626 */
+		--neutral-500: 0 0% 67%; /* #aaaaaa */
+		--neutral-400: 0 0% 67%; /* #aaaaaa */
+		--neutral-300: 0 0% 67%; /* #aaaaaa */
+		--neutral-200: 0 0% 67%; /* #aaaaaa */
 		
 		--radius: 0.5rem;
 	}
@@ -149,5 +169,33 @@ div.cell-name-hover:hover {
 	color: var(--accent-color) !important;
 	transition: color 0.2s ease !important;
 }
+
+/* Override Tailwind neutral utilities to use adjustable variables */
+.tw-bg-neutral-900 { background-color: hsl(var(--neutral-900)) !important; }
+.tw-bg-neutral-800 { background-color: hsl(var(--neutral-800)) !important; }
+.tw-bg-neutral-700 { background-color: hsl(var(--neutral-700)) !important; }
+.tw-bg-neutral-600 { background-color: hsl(var(--neutral-600)) !important; }
+.tw-bg-neutral-500 { background-color: hsl(var(--neutral-500)) !important; }
+.tw-bg-neutral-400 { background-color: hsl(var(--neutral-400)) !important; }
+.tw-bg-neutral-300 { background-color: hsl(var(--neutral-300)) !important; }
+.tw-bg-neutral-200 { background-color: hsl(var(--neutral-200)) !important; }
+
+.tw-text-neutral-900 { color: hsl(var(--neutral-900)) !important; }
+.tw-text-neutral-800 { color: hsl(var(--neutral-800)) !important; }
+.tw-text-neutral-700 { color: hsl(var(--neutral-700)) !important; }
+.tw-text-neutral-600 { color: hsl(var(--neutral-600)) !important; }
+.tw-text-neutral-500 { color: hsl(var(--neutral-500)) !important; }
+.tw-text-neutral-400 { color: hsl(var(--neutral-400)) !important; }
+.tw-text-neutral-300 { color: hsl(var(--neutral-300)) !important; }
+.tw-text-neutral-200 { color: hsl(var(--neutral-200)) !important; }
+
+.tw-border-neutral-900 { border-color: hsl(var(--neutral-900)) !important; }
+.tw-border-neutral-800 { border-color: hsl(var(--neutral-800)) !important; }
+.tw-border-neutral-700 { border-color: hsl(var(--neutral-700)) !important; }
+.tw-border-neutral-600 { border-color: hsl(var(--neutral-600)) !important; }
+.tw-border-neutral-500 { border-color: hsl(var(--neutral-500)) !important; }
+.tw-border-neutral-400 { border-color: hsl(var(--neutral-400)) !important; }
+.tw-border-neutral-300 { border-color: hsl(var(--neutral-300)) !important; }
+.tw-border-neutral-200 { border-color: hsl(var(--neutral-200)) !important; }
 
 

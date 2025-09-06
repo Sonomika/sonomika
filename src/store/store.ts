@@ -97,6 +97,7 @@ const initialState: AppState = {
   sidebarVisible: true,
   accessibilityEnabled: false,
   accentColor: '#00bcd4',
+  neutralContrast: 1,
   midiMappings: [],
   midiForceChannel1: false,
   selectedLayerId: null,
@@ -159,6 +160,7 @@ export const useStore = createWithEqualityFn<AppState & {
   setMIDIForceChannel1: (forced: boolean) => void;
   setTransitionType: (type: TransitionType) => void;
   setTransitionDuration: (duration: number) => void;
+  setNeutralContrast: (factor: number) => void;
   setPlayingColumn: (columnId: string | null) => void;
   playColumn: (columnId: string) => void;
   stopColumn: () => void;
@@ -195,6 +197,39 @@ export const useStore = createWithEqualityFn<AppState & {
   persist(
     (set, get) => ({
       ...initialState,
+      // Apply neutral contrast to CSS variables for grey tokens
+      // factor: 0.5–1.5; 1 = base palette
+      setNeutralContrast: (factor: number) => set((state) => {
+        const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+        const safe = clamp(Number(factor) || 1, 0.5, 1.5);
+        try {
+          const apply = (l: number) => clamp(l * safe, 0, 100);
+          // Base lightness values for our four greys (in HSL L%)
+          const L900 = 8;   // #141414
+          const L800 = 12;  // #1f1f1f
+          const L700 = 15;  // #262626
+          const L600 = 15;  // #262626 (same)
+          const L200_500 = 67; // #aaaaaa
+          // Update HSL component vars used by Tailwind override rules
+          document.documentElement.style.setProperty('--neutral-900', `0 0% ${apply(L900)}%`);
+          document.documentElement.style.setProperty('--neutral-800', `0 0% ${apply(L800)}%`);
+          document.documentElement.style.setProperty('--neutral-700', `0 0% ${apply(L700)}%`);
+          document.documentElement.style.setProperty('--neutral-600', `0 0% ${apply(L600)}%`);
+          document.documentElement.style.setProperty('--neutral-500', `0 0% ${apply(L200_500)}%`);
+          document.documentElement.style.setProperty('--neutral-400', `0 0% ${apply(L200_500)}%`);
+          document.documentElement.style.setProperty('--neutral-300', `0 0% ${apply(L200_500)}%`);
+          document.documentElement.style.setProperty('--neutral-200', `0 0% ${apply(L200_500)}%`);
+          // Also sync shadcn tokens mapped to our greys for consistency
+          document.documentElement.style.setProperty('--background', `0 0% ${apply(L900)}%`);
+          document.documentElement.style.setProperty('--card', `0 0% ${apply(L900)}%`);
+          document.documentElement.style.setProperty('--popover', `0 0% ${apply(L900)}%`);
+          document.documentElement.style.setProperty('--secondary', `0 0% ${apply(L800)}%`);
+          document.documentElement.style.setProperty('--muted', `0 0% ${apply(L800)}%`);
+          document.documentElement.style.setProperty('--border', `0 0% ${apply(L700)}%`);
+          document.documentElement.style.setProperty('--input', `0 0% ${apply(L700)}%`);
+        } catch {}
+        return { neutralContrast: safe } as any;
+      }),
       currentPresetName: null as any,
       setCurrentPresetName: (name: string | null) => set({ currentPresetName: name } as any),
       recordSettings: initialRecordSettings,
@@ -895,6 +930,7 @@ export const useStore = createWithEqualityFn<AppState & {
            transitionType: state.transitionType,
            transitionDuration: state.transitionDuration,
            compositionSettings: state.compositionSettings,
+           neutralContrast: (state as any).neutralContrast,
            defaultVideoRenderScale: (state as any).defaultVideoRenderScale,
            defaultVideoFitMode: state.defaultVideoFitMode,
            timelineSnapEnabled: state.timelineSnapEnabled,

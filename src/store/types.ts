@@ -123,6 +123,8 @@ export interface AppState {
   sidebarVisible: boolean; // Global accessibility mode
   accessibilityEnabled: boolean; // Global accessibility mode
   accentColor?: string;
+  // Multiplier to adjust brightness of neutral greys (0.5–1.5, default 1)
+  neutralContrast?: number;
   midiMappings: MIDIMapping[];
   // MIDI options
   midiForceChannel1?: boolean; // If true, remap incoming MIDI events to channel 1
