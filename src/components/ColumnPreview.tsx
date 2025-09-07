@@ -977,8 +977,9 @@ const ColumnScene: React.FC<{
               __uniqueKey: `effect-${layer.id}`
             });
               } else {
-            // Unknown layer: break chain
-            finalize();
+            // Unknown/empty layer: skip without breaking the chain so effects across gaps still apply
+            // (was: finalize())
+            // no-op
           }
         }
         finalize();

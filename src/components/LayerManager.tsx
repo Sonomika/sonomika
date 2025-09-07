@@ -971,26 +971,26 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       console.log('🎨 Rendering column preview');
       // Always resolve the latest column from the store so updates are live
       const baseColumn = currentScene?.columns?.find((col: any) => col.id === previewContent.columnId) || previewContent.column;
-      // Apply Resolume-style per-layer overrides from store
+      // Apply Resolume-style per-layer overrides from store (row-wise),
+      // so overrides work even if base column lacks that row
       let liveColumn = baseColumn;
       try {
         const st: any = (useStore as any).getState?.();
         const overrides: Record<number, string> = (st?.activeLayerOverrides || {}) as any;
-        if (overrides && Object.keys(overrides).length > 0 && currentScene) {
-          const byId: Record<string, any> = {};
-          for (const c of currentScene.columns || []) byId[c.id] = c;
-          const replacedLayers = (baseColumn?.layers || []).map((layer: any) => {
-            const layerNum = layer?.layerNum || (layer?.name && layer.name.startsWith('Layer ') ? Number(layer.name.split(' ')[1]) : undefined);
-            if (!layerNum) return layer;
-            const overrideColId = overrides[layerNum];
-            if (!overrideColId) return layer;
-            const srcCol = byId[overrideColId];
-            if (!srcCol) return layer;
-            const replacement = (srcCol.layers || []).find((l: any) => l.layerNum === layerNum || l.name === `Layer ${layerNum}`);
-            return replacement || layer;
-          });
-          liveColumn = { ...baseColumn, layers: replacedLayers };
-        }
+        const byId: Record<string, any> = {};
+        for (const c of currentScene?.columns || []) byId[c.id] = c;
+        const getLayerFor = (col: any, ln: number) => (col?.layers || []).find((l: any) => l.layerNum === ln || l.name === `Layer ${ln}`) || null;
+        const rowNums = [1, 2, 3];
+        const finalLayers = rowNums.map((ln) => {
+          const overrideColId = overrides ? overrides[ln] : null;
+          if (overrideColId && byId[overrideColId]) {
+            const src = getLayerFor(byId[overrideColId], ln);
+            if (src) return src;
+          }
+          const base = getLayerFor(baseColumn, ln);
+          return base || { id: `placeholder-${ln}`, name: `Layer ${ln}`, layerNum: ln, type: 'effect', opacity: 1, blendMode: 'normal', solo: false, mute: false, locked: false, params: {} } as any;
+        });
+        liveColumn = { ...baseColumn, layers: finalLayers };
       } catch {}
 
       // Show the first layer with content as the main preview
@@ -1587,7 +1587,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                    const overrideColId = (activeLayerOverrides && activeLayerOverrides[layerNum]) || null;
                    const isOverriddenActive = !!overrideColId && overrideColId === column.id;
                    const isCellActive = isOverriddenActive || (!overrideColId && isColumnPlaying);
-                   
+                   const playingCol = columns.find((c: any) => c.id === playingColumnId);
+                   const playingRowLayer = playingCol ? playingCol.layers.find((l: any) => l.layerNum === layerNum || l.name === `Layer ${layerNum}`) : null;
+                   const rowEmptyInPlaying = !playingRowLayer || !playingRowLayer.asset;
+ 
                    // Debug logging
                    if (hasAsset && isCellActive) {
                      console.log('🎯 Active cell detected:', { cellId, columnId: column.id, playingColumnId, isColumnPlaying, isOverriddenActive });
@@ -1597,12 +1600,22 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      <div
                        key={cellId}
                        style={{ height: CELL_HEIGHT_PX, ...(isCellActive ? { boxShadow: 'inset 0 0 0 2px var(--accent-color)' } : {}) }}
-                       className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? (isCellActive ? 'tw-border-2 tw-border-purple-500 tw-bg-neutral-900 !tw-border-purple-500' : 'tw-border tw-border-neutral-800 tw-bg-neutral-900') : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50'} ${isDragOver || isDragOverLayer ? 'tw-ring-2 tw-ring-sky-600' : (isCellActive ? 'tw-ring-2 tw-ring-[hsl(var(--accent))]' : '')} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
+                                                 className={`tw-rounded-md tw-overflow-hidden ${hasAsset ? (isCellActive ? 'tw-border-2 tw-border-purple-500 tw-bg-neutral-900 !tw-border-purple-500' : 'tw-border tw-border-neutral-800 tw-bg-neutral-900') : (isCellActive ? 'tw-border-2 tw-border-purple-500 tw-bg-neutral-900' : 'tw-border tw-border-dashed tw-border-neutral-800 tw-bg-neutral-900/50')} ${isDragOver || isDragOverLayer ? 'tw-ring-2 tw-ring-sky-600' : (isCellActive ? 'tw-ring-2 tw-ring-[hsl(var(--accent))]' : '')} ${contextHighlightedCell === cellId ? 'tw-bg-neutral-800/60' : ''}`}
                        data-system-files={isDragOver && (() => {
                          const dragData = (window as any).currentDragData;
                          return dragData && dragData.files && dragData.files.length > 0 ? 'true' : 'false';
                        })()}
-                       onClick={() => hasAsset && handleLayerClickWrapper(layer, column.id)}
+                       onClick={() => {
+                         if (!hasAsset) return;
+                         if (rowEmptyInPlaying) {
+                           try {
+                             const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
+                             if (setOverride) setOverride(layerNum, column.id);
+                           } catch {}
+                         } else {
+                           handleLayerClickWrapper(layer, column.id);
+                         }
+                       }}
                        onDoubleClick={() => {
                          try {
                            const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
@@ -1677,7 +1690,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              }
                            }}
                          >
-                           <div className="tw-mb-1" onClick={(e) => { e.stopPropagation(); setMiddlePanelTab('layer'); handleLayerClickWrapper(layer, column.id); }}>
+                           <div className="tw-mb-1" onClick={(e) => { e.stopPropagation(); try { const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void; if (setOverride) setOverride(layerNum, column.id); } catch {} setMiddlePanelTab('layer'); handleLayerClickWrapper(layer, column.id); }}>
                              {layer.asset.type === 'image' && (
                                <img
                                  src={getAssetPath(layer.asset)}

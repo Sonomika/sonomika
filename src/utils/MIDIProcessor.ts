@@ -13,6 +13,8 @@ type Store = AppState & StoreActions;
 export class MIDIProcessor {
   private static instance: MIDIProcessor;
   private mappings: MIDIMapping[];
+  private lastColumnTriggerAt: number = 0;
+  private columnTriggerLock: boolean = false;
 
   private constructor() {
     this.mappings = [];
@@ -27,6 +29,23 @@ export class MIDIProcessor {
 
   setMappings(mappings: MIDIMapping[]): void {
     this.mappings = mappings;
+  }
+
+  private tryTriggerColumn(columnId: string | null | undefined) {
+    if (!columnId) return;
+    const now = Date.now();
+    // Throttle rapid triggers within 30ms
+    if (now - this.lastColumnTriggerAt < 30) return;
+    if (this.columnTriggerLock) return;
+    this.columnTriggerLock = true;
+    this.lastColumnTriggerAt = now;
+    try {
+      const state = useStore.getState() as any;
+      if (typeof state.playColumn === 'function') state.playColumn(columnId);
+    } finally {
+      // Release lock quickly to allow fast changes
+      setTimeout(() => { this.columnTriggerLock = false; }, 10);
+    }
   }
 
   handleNoteMessage(note: number, velocity: number, channel: number): void {
@@ -91,7 +110,7 @@ export class MIDIProcessor {
             const state = useStore.getState() as any;
             const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
             const col = scene?.columns?.[Math.max(0, idx - 1)];
-            if (col && typeof state.playColumn === 'function') state.playColumn(col.id);
+            if (col) this.tryTriggerColumn(col.id);
             break;
           }
         }
@@ -157,7 +176,7 @@ export class MIDIProcessor {
             const state = useStore.getState() as any;
             const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
             const col = scene?.columns?.[Math.max(0, idx - 1)];
-            if (col && typeof state.playColumn === 'function') state.playColumn(col.id);
+            if (col) this.tryTriggerColumn(col.id);
             break;
           }
         }
@@ -221,7 +240,7 @@ export class MIDIProcessor {
             const state = useStore.getState() as any;
             const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
             const col = scene?.columns?.[Math.max(0, (idx || 1) - 1)];
-            if (col && typeof state.playColumn === 'function') state.playColumn(col.id);
+            if (col) this.tryTriggerColumn(col.id);
             break;
           }
         }
