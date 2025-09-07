@@ -237,6 +237,39 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     layerId: string | null;
     columnId: string | null;
   }>({ visible: false, x: 0, y: 0, layerId: null, columnId: null });
+  // Number of visible layer rows in the grid (top-to-bottom). Persisted per scene. Clamp 3..6.
+  const [numRows, setNumRows] = useState<number>(() => {
+    try {
+      const sc = (useStore as any).getState?.().scenes?.find((s: any) => s.id === currentSceneId);
+      const initial = Number(sc?.numRows ?? 3);
+      return Math.min(6, Math.max(3, initial));
+    } catch { return 3; }
+  });
+
+  // Keep scene.numRows in sync when numRows changes
+  useEffect(() => {
+    try {
+      if (!currentSceneId) return;
+      const sc = scenes.find((s: any) => s.id === currentSceneId);
+      if (!sc) return;
+      const clamped = Math.min(6, Math.max(3, numRows));
+      if (sc.numRows !== clamped) {
+        updateScene(currentSceneId, { numRows: clamped });
+      }
+    } catch {}
+  }, [numRows, currentSceneId, scenes]);
+
+  // When scene changes, load its persisted numRows
+  useEffect(() => {
+    try {
+      const sc = scenes.find((s: any) => s.id === currentSceneId);
+      if (sc && typeof sc.numRows === 'number') {
+        setNumRows(Math.min(6, Math.max(3, sc.numRows)));
+      } else {
+        setNumRows(3);
+      }
+    } catch {}
+  }, [currentSceneId]);
 
   // Clipboard state for copy/paste columns, cells, and clips
   const [clipboard, setClipboard] = useState<{
@@ -1056,7 +1089,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         const byId: Record<string, any> = {};
         for (const c of currentScene?.columns || []) byId[c.id] = c;
         const getLayerFor = (col: any, ln: number) => (col?.layers || []).find((l: any) => l.layerNum === ln || l.name === `Layer ${ln}`) || null;
-        const rowNums = [1, 2, 3];
+        const rowCount = Math.min(6, Math.max(3, Number(currentScene?.numRows) || numRows || 3));
+        const rowNums = Array.from({ length: rowCount }, (_, i) => i + 1);
         const finalLayers = rowNums.map((ln) => {
           const overrideColId = overrides ? overrides[ln] : null;
           if (overrideColId && byId[overrideColId]) {
@@ -1602,7 +1636,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
             {/* Columns + Layers: fixed column width; custom scroll (horizontal) */}
             <ScrollArea.Root className="vj-scroll-root tw-w-full" type="always">
-              <ScrollArea.Viewport className="vj-scroll-viewport tw-w-full tw-pr-3 tw-pb-3" ref={gridWrapperRef}>
+              <ScrollArea.Viewport className="vj-scroll-viewport tw-w-full tw-pr-3 tw-pb-3 tw-pt-2" ref={gridWrapperRef}>
               <div className="tw-space-y-2">
                 {/* Composition Row */}
                 <div className="tw-grid tw-gap-2" style={{ gridTemplateColumns: columnWidth ? `repeat(${columns.length}, ${columnWidth}px)` : undefined }}>
@@ -1648,8 +1682,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               })}
                 </div>
 
-                {/* Layer Rows */}
-                {[3, 2, 1].map((layerNum) => (
+                {/* Layer Rows (dynamic) */}
+                {Array.from({ length: numRows }, (_, i) => numRows - i).map((layerNum) => (
                   <div key={layerNum} className="tw-grid tw-gap-2" style={{ gridTemplateColumns: columnWidth ? `repeat(${columns.length}, ${columnWidth}px)` : undefined }}>
                   {columns.map((column: any) => {
                    // Find layer by layer number or name fallback
@@ -2141,6 +2175,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             onClick={(e) => e.stopPropagation()}
           >
             <div className="tw-min-w-[160px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg">
+            {/* Add/remove layer rows across all columns (persisted, clamped 3..6) */}
+            <div className={"context-menu-item tw-select-none tw-text-sm tw-font-medium tw-bg-transparent tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5 " + (numRows < 6 ? "tw-cursor-pointer tw-text-white hover:tw-bg-neutral-700" : "tw-cursor-default tw-text-neutral-500 tw-opacity-50")} onClick={numRows < 6 ? () => { setNumRows((n) => Math.min(6, n + 1)); handleContextMenuClose(); } : undefined}>Add Row</div>
+            <div className={"context-menu-item tw-select-none tw-text-sm tw-font-medium tw-bg-transparent tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5 " + (numRows > 3 ? "tw-cursor-pointer tw-text-white hover:tw-bg-neutral-700" : "tw-cursor-default tw-text-neutral-500 tw-opacity-50")} onClick={numRows > 3 ? () => { setNumRows((n) => Math.max(3, n - 1)); handleContextMenuClose(); } : undefined}>Remove Row</div>
             {/* Clip options for layers */}
             {contextMenu.layerId && !contextMenu.layerId.startsWith('empty-') && (
               <>

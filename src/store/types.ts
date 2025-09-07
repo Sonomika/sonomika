@@ -61,6 +61,8 @@ export interface Scene {
   name: string;
   columns: Column[];
   globalEffects: GlobalEffectSlot[];
+  // UI: number of visible rows in the column grid
+  numRows?: number;
 }
 
 export interface MIDIMapping {

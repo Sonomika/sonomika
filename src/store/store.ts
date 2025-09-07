@@ -76,6 +76,7 @@ const createEmptyScene = (): Scene => ({
   name: 'New Scene',
   columns: Array.from({ length: 20 }, () => createEmptyColumn()),
   globalEffects: [],
+  numRows: 3,
 });
 
 const createDefaultScenes = (): Scene[] => {
@@ -85,6 +86,7 @@ const createDefaultScenes = (): Scene[] => {
     name: '1',
     columns: Array.from({ length: 20 }, () => createEmptyColumn()),
     globalEffects: [],
+    numRows: 3,
   }];
 };
 
