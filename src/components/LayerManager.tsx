@@ -294,6 +294,82 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     handleLayerClick(layer, columnId, setSelectedLayer, () => {});
   };
 
+  // Function to move asset between columns on double-click
+  const handleDoubleClickMove = (sourceLayer: any, sourceColumnId: string, targetColumnId: string, targetLayerNum: number) => {
+    console.log('handleDoubleClickMove called with:', { sourceLayer, sourceColumnId, targetColumnId, targetLayerNum });
+    try {
+      if (!sourceLayer || !sourceLayer.asset) {
+        console.log('No source layer or asset');
+        return;
+      }
+      
+      const currentScene = scenes.find((s: any) => s.id === currentSceneId);
+      if (!currentScene) {
+        console.log('No current scene found');
+        return;
+      }
+
+      const sourceColumn = currentScene.columns.find((col: any) => col.id === sourceColumnId);
+      const targetColumn = currentScene.columns.find((col: any) => col.id === targetColumnId);
+      
+      console.log('Source column:', sourceColumn);
+      console.log('Target column:', targetColumn);
+      
+      if (!sourceColumn || !targetColumn) {
+        console.log('Source or target column not found');
+        return;
+      }
+
+      // Find the source layer index
+      const sourceLayerIndex = sourceColumn.layers.findIndex((layer: any) => layer.id === sourceLayer.id);
+      console.log('Source layer index:', sourceLayerIndex);
+      if (sourceLayerIndex === -1) {
+        console.log('Source layer not found in source column');
+        return;
+      }
+
+      // Find the target layer index (or create a new layer if none exists)
+      let targetLayerIndex = targetColumn.layers.findIndex((layer: any) => layer.layerNum === targetLayerNum);
+      console.log('Target layer index:', targetLayerIndex);
+      
+      if (targetLayerIndex === -1) {
+        // Create a new layer at the target position
+        const newLayer = {
+          ...sourceLayer,
+          id: `layer-${targetColumnId}-${targetLayerNum}-${Date.now()}`,
+          columnId: targetColumnId,
+          layerNum: targetLayerNum
+        };
+        
+        // Insert at the correct position based on layerNum
+        const insertIndex = targetColumn.layers.filter((l: any) => l.layerNum < targetLayerNum).length;
+        targetColumn.layers.splice(insertIndex, 0, newLayer);
+        console.log('Created new layer at index:', insertIndex);
+      } else {
+        // Replace existing layer
+        const newLayer = {
+          ...sourceLayer,
+          id: `layer-${targetColumnId}-${targetLayerNum}-${Date.now()}`,
+          columnId: targetColumnId,
+          layerNum: targetLayerNum
+        };
+        targetColumn.layers[targetLayerIndex] = newLayer;
+        console.log('Replaced existing layer at index:', targetLayerIndex);
+      }
+
+      // Remove the source layer
+      sourceColumn.layers.splice(sourceLayerIndex, 1);
+      console.log('Removed source layer from index:', sourceLayerIndex);
+
+      // Update the scene
+      updateScene(currentSceneId, currentScene);
+      
+      console.log(`Successfully moved asset from column ${sourceColumnId} to column ${targetColumnId} at layer ${targetLayerNum}`);
+    } catch (error) {
+      console.error('Error in handleDoubleClickMove:', error);
+    }
+  };
+
   // Hydrate local selectedLayer from persisted store selection when in column view
   useEffect(() => {
     if (showTimeline) return;
@@ -1538,7 +1614,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 return (
                   <div key={column.id} className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-overflow-hidden">
                     <div 
-                      className={`tw-flex tw-items-center tw-justify-between tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 ${isColumnPlaying ? 'tw-bg-[hsl(var(--accent))/0.18]' : 'tw-bg-neutral-800'} ${hasClips ? 'tw-cursor-pointer' : 'tw-cursor-default'} ${!hasClips ? 'tw-opacity-60' : ''}`}
+                      className={`tw-flex tw-items-center tw-justify-between tw-px-2 tw-border-b tw-border-neutral-800 ${isColumnPlaying ? 'tw-bg-[hsl(var(--accent))/0.18]' : 'tw-bg-neutral-800'} ${hasClips ? 'tw-cursor-pointer' : 'tw-cursor-default'} ${!hasClips ? 'tw-opacity-60' : ''}`}
+                      style={{ height: '45px' }}
                       onClick={() => {
                         // Only allow play functionality if column has clips
                         if (hasClips) {
@@ -1617,12 +1694,48 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                          }
                        }}
                        onDoubleClick={() => {
-                         try {
-                           const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
-                           if (setOverride) {
-                             setOverride(layerNum, column.id);
+                         console.log('Double-click detected!', { hasAsset, layer, columnId: column.id, layerNum });
+                         if (hasAsset && layer) {
+                           // Find the source column ID by searching through all columns
+                           const currentScene = scenes.find((s: any) => s.id === currentSceneId);
+                           console.log('Current scene:', currentScene);
+                           if (currentScene) {
+                             const sourceColumn = currentScene.columns.find((col: any) => 
+                               col.id !== column.id && col.layers.some((l: any) => l.id === layer.id)
+                             );
+                             console.log('Source column found:', sourceColumn);
+                             if (sourceColumn) {
+                               console.log('Moving asset from', sourceColumn.id, 'to', column.id, 'at layer', layerNum);
+                               // Move asset to the target column and layer
+                               handleDoubleClickMove(layer, sourceColumn.id, column.id, layerNum);
+                             } else {
+                               console.log('No source column found - layer might already be in target column');
+                               // If no source found, try to move within the same column to a different layer
+                               if (layerNum !== layer.layerNum) {
+                                 console.log('Moving within same column to different layer');
+                                 handleDoubleClickMove(layer, column.id, column.id, layerNum);
+                               } else {
+                                 console.log('Layer is already in the target position - no move needed');
+                                 // For occupied cells, just set the active layer override to switch focus
+                                 try {
+                                   const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
+                                   if (setOverride) {
+                                     setOverride(layerNum, column.id);
+                                   }
+                                 } catch {}
+                               }
+                             }
                            }
-                         } catch {}
+                         } else {
+                           console.log('Empty cell - setting active layer override');
+                           // For empty cells, just set the active layer override
+                           try {
+                             const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
+                             if (setOverride) {
+                               setOverride(layerNum, column.id);
+                             }
+                           } catch {}
+                         }
                        }}
                        onContextMenu={(e) => {
                          if (hasAsset) {
@@ -1690,7 +1803,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              }
                            }}
                          >
-                           <div className="tw-mb-1" onClick={(e) => { e.stopPropagation(); try { const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void; if (setOverride) setOverride(layerNum, column.id); } catch {} setMiddlePanelTab('layer'); handleLayerClickWrapper(layer, column.id); }}>
+                           <div className="tw-mb-1" onClick={(e) => { e.stopPropagation(); setMiddlePanelTab('layer'); handleLayerClickWrapper(layer, column.id); }}>
                              {layer.asset.type === 'image' && (
                                <img
                                  src={getAssetPath(layer.asset)}
@@ -1767,6 +1880,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              }
                            }}
                            onDoubleClick={() => {
+                             // For empty cells, set the active layer override
                              try {
                                const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
                                if (setOverride) {
