@@ -1,8 +1,8 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
 import { useStore } from '../store/store';
 import { Layer } from '../store/types';
 import { useLFOStore, type LFOMapping } from '../store/lfoStore';
-import { ParamRow, Select, Tabs, TabsList, TabsTrigger, TabsContent, Checkbox } from './ui';
+import { ParamRow, Select, Tabs, TabsList, TabsTrigger, TabsContent, Switch, Slider } from './ui';
 import { getClock } from '../engine/Clock';
 import { getEffect } from '../utils/effectRegistry';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
@@ -27,7 +27,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const randomHoldRef = useRef<{ step: number; value: number }>({ step: -1, value: 0 });
-  const [activeTab, setActiveTab] = useState<'lfo' | 'random'>('random');
+  const [activeTab, setActiveTab] = useState<'lfo'>('lfo');
   const { playingColumnId, isGlobalPlaying } = useStore() as any;
   const [transportPlaying, setTransportPlaying] = useState<boolean>(false);
 
@@ -62,6 +62,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   const lfoStateByLayer = useLFOStore((state) => state.lfoStateByLayer);
   const mappingsByLayer = useLFOStore((state) => state.mappingsByLayer);
   const setLFOForLayer = useLFOStore((state) => state.setLFOStateForLayer);
+  const ensureLFOForLayer = useLFOStore((state) => state.ensureLFOStateForLayer);
   const addMappingForLayer = useLFOStore((state) => state.addMappingForLayer);
   const removeMappingForLayer = useLFOStore((state) => state.removeMappingForLayer);
   const updateMappingForLayer = useLFOStore((state) => state.updateMappingForLayer);
@@ -73,11 +74,13 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     return lid ? (lfoStateByLayer[lid]?.mode as any) : undefined;
   })();
   useEffect(() => {
-    if (currentMode && currentMode !== activeTab) {
-      setActiveTab(currentMode as 'lfo' | 'random');
-    }
+    // Force UI to LFO tab only
+    if (activeTab !== 'lfo') setActiveTab('lfo');
+    // Coerce any non-lfo mode back to 'lfo'
+    const lid = selectedLayer?.id;
+    if (lid && currentMode && currentMode !== 'lfo') setLFOForLayer(lid, { mode: 'lfo' as any });
     // Only depend on the computed mode to avoid re-running on unrelated per-layer state updates (e.g., currentValue)
-  }, [currentMode, activeTab]);
+  }, [currentMode, activeTab, selectedLayer?.id]);
 
   // Refs to avoid dependencies
   const selectedLayerRef = useRef(selectedLayer);
@@ -86,25 +89,29 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   const prevNormByMappingRef = useRef<Record<string, number>>({});
 
   useEffect(() => { selectedLayerRef.current = selectedLayer; }, [selectedLayer]);
+  useLayoutEffect(() => {
+    const lid = selectedLayer?.id;
+    if (lid) {
+      try { ensureLFOForLayer(lid); } catch {}
+    }
+  }, [selectedLayer?.id]);
   useEffect(() => {
     const lid = selectedLayerRef.current?.id;
     mappingsRef.current = lid ? (mappingsByLayer[lid] || []) : [];
   }, [mappingsByLayer, selectedLayer?.id]);
   useEffect(() => { onUpdateLayerRef.current = onUpdateLayer; }, [onUpdateLayer]);
 
-  // Initialize newly selected layers with Random mode defaults so UI opens on Random
+  // Debug selection (always log to console)
   useEffect(() => {
-    const lid = selectedLayer?.id;
-    if (!lid) return;
-    const existing = lfoStateByLayer[lid];
-    if (!existing) {
-      setLFOForLayer(lid, { mode: 'random', randomTimingMode: 'sync', randomDivision: '1/8', randomDivisionIndex: 2 } as any);
-      setActiveTab('random');
-    }
-  }, [selectedLayer?.id, lfoStateByLayer, setLFOForLayer]);
+    try {
+      const lid = selectedLayer?.id;
+      const st = (useLFOStore as any).getState?.().lfoStateByLayer?.[lid || ''];
+      console.log('[LFO] select', lid, { hasState: !!st, state: st });
+    } catch {}
+  }, [selectedLayer?.id]);
 
   const lastUpdateTime = useRef(0);
-  const updateThrottleMs = 50;
+  const updateThrottleMs = 16; // ~60 FPS for tighter sync at fast divisions
 
   // Waveform helpers
   const waveValue = (t: number, type: string, timeSec?: number, rateHz?: number): number => {
@@ -151,35 +158,71 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     }
   };
 
-  // Parse musical division strings like "1/4", "1/8.", "1/8T" to an interval in ms
+  // Parse musical division strings like "1/64", "1/4", "2", "8" to an interval in ms
   const parseDivisionToMs = (bpm: number, division: string | undefined): number => {
     const div = (division || '1/4').trim();
     const dotted = div.endsWith('.') || div.endsWith('d');
     const triplet = /t$/i.test(div);
     const core = div.replace(/[.d]|t$/i, '');
-    const match = core.match(/^\s*1\s*\/\s*(\d+)\s*$/);
-    const denom = match ? Math.max(1, parseInt(match[1], 10)) : 4;
+    
+    // Handle fractions like "1/64", "1/4", etc.
+    const fractionMatch = core.match(/^\s*1\s*\/\s*(\d+)\s*$/);
+    if (fractionMatch) {
+      const denom = Math.max(1, parseInt(fractionMatch[1], 10));
+      const quarterMs = (60 / Math.max(1, bpm)) * 1000;
+      let ms = quarterMs * (4 / denom);
+      if (dotted) ms *= 1.5;
+      if (triplet) ms *= 2 / 3;
+      return ms;
+    }
+    
+    // Handle whole numbers like "1", "2", "4", "8", "16", "32"
+    const wholeMatch = core.match(/^\s*(\d+)\s*$/);
+    if (wholeMatch) {
+      const bars = Math.max(1, parseInt(wholeMatch[1], 10));
+      const quarterMs = (60 / Math.max(1, bpm)) * 1000;
+      let ms = quarterMs * 4 * bars; // 4 quarter notes per bar
+      if (dotted) ms *= 1.5;
+      if (triplet) ms *= 2 / 3;
+      return ms;
+    }
+    
+    // Fallback to 1/4 note
     const quarterMs = (60 / Math.max(1, bpm)) * 1000;
-    // duration in quarter notes is 4/denom
-    let ms = quarterMs * (4 / denom);
-    if (dotted) ms *= 1.5;
-    if (triplet) ms *= 2 / 3;
-    return ms;
+    return quarterMs;
   };
 
   const normalizeDivision = (division: string | undefined): string => {
-    const allowedDenoms = [2, 4, 8, 16, 32, 64];
-    const m = String(division || '1/4').match(/\d+/);
-    const d = m ? Number(m[0]) : 4;
-    if (allowedDenoms.includes(d)) return `1/${d}`;
-    // pick nearest allowed denominator
-    let best = 4;
-    let bestDiff = Infinity;
-    for (const a of allowedDenoms) {
-      const diff = Math.abs(a - d);
-      if (diff < bestDiff) { bestDiff = diff; best = a; }
+    const allowedDivisions = ['1/64', '1/32', '1/16', '1/8', '1/4', '1/2', '1', '2', '4', '8', '16', '32'];
+    const div = String(division || '1/4').trim();
+    if (allowedDivisions.includes(div)) return div;
+    
+    // Handle legacy format like "1/4" and convert to new format
+    const match = div.match(/^1\/(\d+)$/);
+    if (match) {
+      const denom = Number(match[1]);
+      if (denom === 64) return '1/64';
+      if (denom === 32) return '1/32';
+      if (denom === 16) return '1/16';
+      if (denom === 8) return '1/8';
+      if (denom === 4) return '1/4';
+      if (denom === 2) return '1/2';
     }
-    return `1/${best}`;
+    
+    // Handle whole numbers
+    const wholeMatch = div.match(/^(\d+)$/);
+    if (wholeMatch) {
+      const num = Number(wholeMatch[1]);
+      if (num === 1) return '1';
+      if (num === 2) return '2';
+      if (num === 4) return '4';
+      if (num === 8) return '8';
+      if (num === 16) return '16';
+      if (num === 32) return '32';
+    }
+    
+    // Default fallback
+    return '1/4';
   };
 
   const applyLFOModulation = useCallback((currentValue: number) => {
@@ -198,17 +241,35 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     let pendingOpacity: number | undefined = undefined;
     let anyChanged = false;
 
+    // Resolve effect metadata for default min/max mapping if available
+    const effectId: string | undefined = (currentSelectedLayer as any)?.asset?.id || (currentSelectedLayer as any)?.asset?.name;
+    const isEffect = (currentSelectedLayer as any)?.type === 'effect' || (currentSelectedLayer as any)?.asset?.isEffect;
+    const effectComponent = isEffect && effectId ? (getEffect(effectId) || getEffect(`${effectId}Effect`) || null) : null;
+    const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
+
     currentMappings.forEach(mapping => {
       if (!mapping.enabled || mapping.parameter === 'Select Parameter') return;
 
-      const minVal = Number.isFinite(Number(mapping.min)) ? Number(mapping.min) : 0;
-      const maxVal = Number.isFinite(Number(mapping.max)) ? Number(mapping.max) : 100;
-      const range = maxVal - minVal;
-      const normalizedLFO = (currentValue + 1) / 2;
-      const modulatedValue = minVal + (range * normalizedLFO);
-
+      // Resolve to actual param key on the layer
       const parts = mapping.parameter.split(' - ');
       const rawName = parts.length > 1 ? parts[1] : (parts[0].toLowerCase().includes('opacity') ? 'opacity' : undefined);
+
+      // Default to parameter metadata min/max if mapping values are not set
+      let defaultMin = 0;
+      let defaultMax = 100;
+      if (metadata?.parameters && rawName) {
+        const def = (metadata.parameters as any[]).find((p: any) => p?.name === rawName);
+        if (def) {
+          if (typeof def.min === 'number' && Number.isFinite(def.min)) defaultMin = def.min as number;
+          if (typeof def.max === 'number' && Number.isFinite(def.max)) defaultMax = def.max as number;
+        }
+      }
+      const minVal = Number.isFinite(Number(mapping.min)) ? Number(mapping.min) : defaultMin;
+      const maxVal = Number.isFinite(Number(mapping.max)) ? Number(mapping.max) : defaultMax;
+      const range = maxVal - minVal;
+      const normalizedLFO = (currentValue + 1) / 2;
+      const modulatedValue = Math.max(Math.min(minVal, maxVal), Math.min(Math.max(minVal, maxVal), minVal + (range * normalizedLFO)));
+
       if (!rawName) return;
 
       // Detect randomize triggers
@@ -339,25 +400,31 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
         anyChanged = true;
       } else {
         const currentParams = pendingParams;
-        const currentVal = currentParams[actualParamName]?.value;
-        if (!isNumber(currentVal)) {
-          // If param exists but is non-number, skip
-        } else {
-          pendingParams = { 
-            ...currentParams, 
-            [actualParamName]: { 
-              ...currentParams[actualParamName], 
-              value: modulatedValue 
-            } 
-          };
-          anyChanged = true;
+        // Allow creating numeric params even if not present yet by consulting metadata
+        const paramDefMeta = metadata?.parameters?.find((p: any) => p?.name === actualParamName);
+        let nextValue = modulatedValue;
+        if (paramDefMeta) {
+          const metaMin = typeof paramDefMeta.min === 'number' ? paramDefMeta.min : undefined;
+          const metaMax = typeof paramDefMeta.max === 'number' ? paramDefMeta.max : undefined;
+          if (typeof metaMin === 'number' && typeof metaMax === 'number') {
+            nextValue = Math.max(metaMin, Math.min(metaMax, nextValue));
+          }
         }
+        pendingParams = {
+          ...currentParams,
+          [actualParamName]: {
+            ...currentParams[actualParamName],
+            value: nextValue,
+          },
+        };
+        anyChanged = true;
       }
 
       const key = `${currentSelectedLayer.id}-${actualParamName}`;
-      const baseValueNum = actualParamName === 'opacity'
-        ? (currentSelectedLayer.opacity || 1) * 100
-        : (isNumber((currentSelectedLayer.params || {})[actualParamName]?.value) ? Number((currentSelectedLayer.params as any)[actualParamName].value) : 0);
+      // Base value display uses metadata min/max defaults too for consistency
+      let baseValueNum = 0;
+      if (actualParamName === 'opacity') baseValueNum = (currentSelectedLayer.opacity || 1) * 100;
+      else baseValueNum = isNumber((currentSelectedLayer.params || {})[actualParamName]?.value) ? Number((currentSelectedLayer.params as any)[actualParamName].value) : (typeof defaultMin === 'number' ? defaultMin : 0);
       setLFOModulatedValue(key, {
         layerId: currentSelectedLayer.id,
         parameterName: actualParamName,
@@ -400,16 +467,23 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     ctx.strokeStyle = 'hsl(var(--accent))';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    const points = 200;
+    const points = 400; // finer resolution for fast divisions like 1/64
     // Compute effective Hz from timing mode
     const clock = getClock();
     const bpm = (clock.smoothedBpm || clock.bpm || 120) as number;
     const timingMode = String(((lfo as any)?.lfoTimingMode || 'hz')).toLowerCase();
     const division = (lfo as any)?.lfoDivision || '1/4';
     const periodMs = timingMode === 'sync' ? parseDivisionToMs(bpm, division) : undefined;
-    const effectiveHz = timingMode === 'sync' ? Math.max(0.01, 1000 / Math.max(1, periodMs || 1000)) : Number((lfo as any)?.lfoHz || (lfo as any)?.rate || 1);
-    const amplitude = (Number((lfo as any)?.depth || 100) / 100) * (height / 2 - 10);
-    const offsetY = centerY + (Number((lfo as any)?.offset || 0) / 100) * (height / 2 - 10);
+    const effectiveHz = timingMode === 'sync'
+      ? Math.max(0.01, 1000 / Math.max(0.001, periodMs || 1000))
+      : Number((lfo as any)?.lfoHz || (lfo as any)?.rate || 1);
+    const lfoStateAny: any = (lfo as any) || {};
+    const minPctPrev = Math.max(0, Math.min(100, Number(lfoStateAny.lfoMin ?? 0)));
+    const maxPctPrev = Math.max(0, Math.min(100, Number(lfoStateAny.lfoMax ?? 100)));
+    const loPrev = Math.min(minPctPrev, maxPctPrev) / 100;
+    const hiPrev = Math.max(minPctPrev, maxPctPrev) / 100;
+    const amplitude = (height / 2 - 10);
+    const offsetY = centerY;
     // Simple hash for deterministic preview noise 0..1
     const hash01 = (n: number) => {
       const s = Math.sin(n) * 43758.5453123;
@@ -418,7 +492,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
     for (let i = 0; i <= points; i++) {
       const x = (width / points) * i;
-      const t = (i / points) * 4 * Math.PI * effectiveHz + (Number((lfo as any)?.phase || 0) / 100) * 2 * Math.PI;
+      const t = (i / points) * 4 * Math.PI * effectiveHz;
       let y: number;
       const wf = (String((lfo as any)?.waveform || 'sine')).toLowerCase();
       if (wf === 'random') {
@@ -436,13 +510,17 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       } else {
         y = waveValue(t, String((lfo as any)?.waveform || 'sine'));
       }
-      const plotY = offsetY - y * amplitude;
+      // Apply same shaping as runtime: map to [lo..hi] percent, then to [-1,1]
+      const base01Prev = (y + 1) / 2;
+      const shaped01Prev = loPrev + (hiPrev - loPrev) * base01Prev;
+      const yShaped = shaped01Prev * 2 - 1;
+      const plotY = offsetY - yShaped * amplitude;
       if (i === 0) ctx.moveTo(x, plotY); else ctx.lineTo(x, plotY);
     }
     ctx.stroke();
   };
 
-  // LFO animation loop (only when per-layer mode === 'lfo' and transport is playing)
+  // LFO animation loop (UI preview only; runtime modulation handled by engine)
   useEffect(() => {
     const lid = selectedLayerRef.current?.id;
     const lfo = lid ? lfoStateByLayer[lid] : undefined;
@@ -455,12 +533,20 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       const timingMode = String(((lfo as any)?.lfoTimingMode || 'hz')).toLowerCase();
       const division = (lfo as any)?.lfoDivision || '1/4';
       const periodMs = timingMode === 'sync' ? parseDivisionToMs(bpm, division as any) : undefined;
-      const effectiveHz = timingMode === 'sync' ? Math.max(0.01, 1000 / Math.max(1, periodMs || 1000)) : Number((lfo as any)?.lfoHz || (lfo as any)?.rate || 1);
-      let value = waveValue(time * effectiveHz * 2 * Math.PI + (lfo.phase || 0) * 0.01 * 2 * Math.PI, lfo.waveform || 'sine', time, effectiveHz);
-      value = value * ((lfo.depth || 100) / 100) + ((lfo.offset || 0) / 100);
-      value = Math.max(-1, Math.min(1, value));
-      // Apply modulation to the currently selected layer (timeline or column) at ~rAF cadence
-      applyLFOModulation(value);
+      const effectiveHz = timingMode === 'sync'
+        ? Math.max(0.01, 1000 / Math.max(0.001, periodMs || 1000))
+        : Number((lfo as any)?.lfoHz || (lfo as any)?.rate || 1);
+      let value = waveValue(time * effectiveHz * 2 * Math.PI, lfo.waveform || 'sine', time, effectiveHz);
+      // Depth removed; raw waveform is used and then clamped by lfoMin/lfoMax
+      // LFO shaping: amplitude is width of range (hi-lo) as percent; centered around 0
+      const minPct = Math.max(0, Math.min(100, Number((lfo as any)?.lfoMin ?? 0)));
+      const maxPct = Math.max(0, Math.min(100, Number((lfo as any)?.lfoMax ?? 100)));
+      const loPct = Math.min(minPct, maxPct);
+      const hiPct = Math.max(minPct, maxPct);
+      const ampPct = Math.max(0, hiPct - loPct) / 100;   // 0..1
+      value = value * ampPct;                             // keep centered, scale movement
+      const skip = Math.random() * 100 < (Number((lfo as any)?.lfoSkipPercent || 0));
+      // Runtime modulation is performed by LFOEngine; here we only render the preview
       drawWaveform();
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -468,205 +554,9 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
   }, [lfoStateByLayer, selectedLayer?.id, transportPlaying]);
 
-  // Random generators: run for all layers in random mode, independent of selection
+  // Random generators are driven by LFOEngine; disable UI-side generators
   useEffect(() => {
-    if (!transportPlaying) return;
-    const clock = getClock();
-    const timers: Record<string, number> = {};
-
-    const isLayerInActiveColumn = (lid: string) => {
-      try {
-        const state = (useStore as any).getState();
-        const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
-        const col = scene?.columns?.find((c: any) => c.id === state.playingColumnId);
-        return Boolean(col?.layers?.some((ly: any) => ly?.id === lid));
-      } catch { return false; }
-    };
-
-    const fireRandomForLayer = (layerId: string, lfoState: any) => {
-      // Gate: only update if this layer is in the currently playing column
-      if (!isLayerInActiveColumn(layerId)) return;
-
-      // Skip based on percentage
-      const skip = Math.random() * 100 < (Number(lfoState.skipPercent || 0));
-      if (skip) return;
-
-      // Generate value in -1..1 from randomMin/Max scaled -100..100
-      const min = Math.min(Number(lfoState.randomMin || -100), Number(lfoState.randomMax || 100)) / 100;
-      const max = Math.max(Number(lfoState.randomMin || -100), Number(lfoState.randomMax || 100)) / 100;
-      const rand = min + Math.random() * (max - min);
-      const clamped = Math.max(-1, Math.min(1, rand));
-
-      const state = (useStore as any).getState();
-      const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
-      const col = scene?.columns?.find((c: any) => c.id === state.playingColumnId);
-      const layer = col?.layers?.find((ly: any) => ly?.id === layerId);
-      if (!layer) return;
-
-      const updateLayer = onUpdateLayerRef.current;
-      const mps = (mappingsByLayer as any)[layerId] || [];
-
-      // Check if we have any enabled randomize mappings
-      const hasRandomizeMappings = mps.some((mapping: any) => {
-        if (!mapping.enabled || mapping.parameter === 'Select Parameter') return false;
-        const parts = mapping.parameter.split(' - ');
-        const rawName = parts.length > 1 ? parts[1] : undefined;
-        return rawName && (rawName === RANDOMIZE_ALL || rawName.endsWith(RANDOMIZE_SUFFIX));
-      });
-
-      // Apply continuous modulation only for the currently selected layer and only when
-      // there are no randomize mappings to avoid conflicts
-      if (!hasRandomizeMappings && selectedLayerRef.current?.id === layerId) {
-        applyLFOModulation(clamped);
-      }
-
-      const effectId: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name;
-      const isEffect = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;
-      const effectComponent = isEffect && effectId ? (getEffect(effectId) || getEffect(`${effectId}Effect`) || null) : null;
-      const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
-
-      mps.forEach((mapping: any) => {
-        if (!mapping.enabled || mapping.parameter === 'Select Parameter') return;
-        const parts = mapping.parameter.split(' - ');
-        const rawName = parts.length > 1 ? parts[1] : undefined;
-        if (!rawName) return;
-
-        // Global randomize-all
-        if (rawName === RANDOMIZE_ALL) {
-          if (metadata?.parameters) {
-            const unlockedDefs = (metadata.parameters as any[]).filter((p: any) => !(layer.params as any)?.[p.name]?.locked);
-            const randomized = globalRandomize(unlockedDefs, layer.params);
-            if (randomized && Object.keys(randomized).length > 0) {
-              const gs: any = (window as any).__vj_rand_smoothing;
-              const smoothing = Math.max(0, Math.min(1, typeof gs === 'number' && Number.isFinite(gs) ? gs : 0.1));
-              if (smoothing > 0) {
-                const targets: Record<string, number> = {};
-                const starts: Record<string, number> = {};
-                const immediateNonNumeric: Record<string, any> = {};
-                (unlockedDefs as any[]).forEach((def: any) => {
-                  const name = def.name;
-                  const randomizedObj = (randomized as any)[name];
-                  const randomTarget = randomizedObj ? randomizedObj.value : (layer.params as any)?.[name]?.value ?? def.value;
-                  if (def.type === 'number') {
-                    const metaMin = typeof def.min === 'number' ? def.min : 0;
-                    const metaMax = typeof def.max === 'number' ? def.max : 1;
-                    const currentVal: number = Number((layer.params as any)?.[name]?.value ?? def.value);
-                    targets[name] = Math.max(metaMin, Math.min(metaMax, Number(randomTarget)));
-                    starts[name] = currentVal;
-                  } else {
-                    immediateNonNumeric[name] = { ...((layer.params as any)[name] || {}), value: randomTarget };
-                  }
-                });
-                const baseDuration = 2000;
-                const duration = baseDuration * smoothing;
-                const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-                let startTime: number | null = null;
-                const step = (ts: number) => {
-                  if (startTime == null) startTime = ts;
-                  const frameParams = { ...(layer.params || {}), ...immediateNonNumeric } as Record<string, any>;
-                  Object.keys(targets).forEach((name) => {
-                    const from = starts[name];
-                    const to = targets[name];
-                    const elapsed = ts - startTime!;
-                    const pLin = Math.max(0, Math.min(1, duration > 0 ? elapsed / duration : 1));
-                    const p = easeInOut(pLin);
-                    frameParams[name] = { ...(frameParams[name] || {}), value: from + (to - from) * p };
-                  });
-                  updateLayer(layer.id, { params: frameParams });
-                  if ((ts - startTime!) < duration) {
-                    requestAnimationFrame(step);
-                  }
-                };
-                requestAnimationFrame(step);
-              } else {
-                const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
-                Object.entries(randomized).forEach(([n, obj]) => {
-                  updatedParams[n] = { ...(updatedParams[n] || {}), value: (obj as any).value };
-                });
-                updateLayer(layer.id, { params: updatedParams });
-              }
-            }
-          }
-          return;
-        }
-
-        // Per-parameter randomize
-        const isRandomizeTarget = rawName.endsWith(RANDOMIZE_SUFFIX);
-        if (isRandomizeTarget) {
-          const targetName = rawName.slice(0, -RANDOMIZE_SUFFIX.length);
-          let actualParamName = targetName;
-          const paramKeys = Object.keys((layer.params || {}));
-          if (!(layer.params || {})[actualParamName]) {
-            const norm = normalizeKey(targetName);
-            const found = paramKeys.find((k) => normalizeKey(k) === norm);
-            if (found) actualParamName = found;
-          }
-          if (!actualParamName) return;
-
-          if (metadata?.parameters) {
-            const paramDef = (metadata.parameters as any[]).find((p: any) => p?.name === actualParamName);
-            if (paramDef) {
-              const randomized = globalRandomize([paramDef], layer.params);
-              if (randomized && randomized[actualParamName]) {
-                const gs: any = (window as any).__vj_rand_smoothing;
-                const smoothing = Math.max(0, Math.min(1, typeof gs === 'number' && Number.isFinite(gs) ? gs : 0.1));
-                if (smoothing > 0 && paramDef.type === 'number') {
-                  const baseDuration = 2000;
-                  const duration = baseDuration * smoothing;
-                  const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-                  const start = Number((layer.params as any)?.[actualParamName]?.value ?? paramDef.value);
-                  const target = Number((randomized as any)[actualParamName].value);
-                  let startTime: number | null = null;
-                  const step = (ts: number) => {
-                    if (startTime == null) startTime = ts;
-                    const pLin = Math.max(0, Math.min(1, duration > 0 ? (ts - startTime) / duration : 1));
-                    const p = easeInOut(pLin);
-                    const v = start + (target - start) * p;
-                    const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
-                    updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: v };
-                    updateLayer(layer.id, { params: updatedParams });
-                    if ((ts - startTime) < duration) requestAnimationFrame(step);
-                  };
-                  requestAnimationFrame(step);
-                } else {
-                  const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
-                  updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: (randomized as any)[actualParamName].value };
-                  updateLayer(layer.id, { params: updatedParams });
-                }
-              }
-            }
-          }
-        }
-      });
-    };
-
-    // Create random generators for all layers with random mode enabled
-    Object.entries(lfoStateByLayer).forEach(([layerId, lfoState]) => {
-      if (!lfoState || (lfoState as any).mode !== 'random') return;
-
-      if ((((lfoState as any).randomTimingMode) || 'sync') === 'sync') {
-        let currentBpm = (clock.smoothedBpm || clock.bpm || 120) as number;
-        const restart = () => {
-          if (timers[layerId]) clearInterval(timers[layerId]);
-          const ms = parseDivisionToMs(currentBpm, ((lfoState as any).randomDivision as any) || '1/4');
-          timers[layerId] = window.setInterval(() => fireRandomForLayer(layerId, lfoState), ms);
-        };
-        const onBeatOrBpm = () => { currentBpm = (clock.smoothedBpm || clock.bpm || 120) as number; restart(); };
-        try { clock.onBpmChangeListener(() => onBeatOrBpm()); } catch {}
-        try { clock.onNewBeatListener(() => onBeatOrBpm()); } catch {}
-        restart();
-      } else {
-        const hz = Math.max(0.1, Math.min(20, Number((((lfoState as any).randomHz) as any) || 2)));
-        const intervalMs = 1000 / hz;
-        timers[layerId] = window.setInterval(() => fireRandomForLayer(layerId, lfoState), intervalMs);
-      }
-    });
-
-    return () => {
-      Object.values(timers).forEach((t) => clearInterval(t));
-      try { clock.onBpmChangeListener(undefined); } catch {}
-      try { clock.onNewBeatListener(undefined); } catch {}
-    };
+    return;
   }, [lfoStateByLayer, transportPlaying, mappingsByLayer, selectedLayer?.id]);
 
   const addMappingHandler = () => {
@@ -725,14 +615,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
   return (
     <div className="ableton-lfo">
-
-      <Tabs value={activeTab} onValueChange={(v) => {
-        setActiveTab(v as 'lfo' | 'random');
-        const lid2 = selectedLayerRef.current?.id;
-        if (lid2) setLFOForLayer(lid2, { mode: v as any });
-      }}>
+      <Tabs value={activeTab}>
         <TabsList>
-          <TabsTrigger value="random">Random</TabsTrigger>
           <TabsTrigger value="lfo">LFO</TabsTrigger>
         </TabsList>
 
@@ -781,28 +665,27 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                 {(((lfo.lfoTimingMode as any) || 'hz') as string) === 'sync' ? (
                   <div className="param-row">
                     {(() => {
-                      const allowedDenoms = [2, 4, 8, 16, 32, 64];
+                      const allowedDivisions = ['1/64', '1/32', '1/16', '1/8', '1/4', '1/2', '1', '2', '4', '8', '16', '32'];
                       const normDiv = normalizeDivision((lfo.lfoDivision as any));
-                      const currentDenom = Number(normDiv?.match(/\d+/)?.[0] || 4);
                       const currentIndex = Number.isFinite(lfo.lfoDivisionIndex as any) && (lfo.lfoDivisionIndex as any) != null
-                        ? Math.max(0, Math.min(allowedDenoms.length - 1, Math.round(Number(lfo.lfoDivisionIndex as any))))
-                        : Math.max(0, allowedDenoms.indexOf(currentDenom));
+                        ? Math.max(0, Math.min(allowedDivisions.length - 1, Math.round(Number(lfo.lfoDivisionIndex as any))))
+                        : Math.max(0, allowedDivisions.indexOf(normDiv));
                       const setByIndex = (idx: number) => {
-                        const clamped = Math.max(0, Math.min(allowedDenoms.length - 1, Math.round(idx)));
-                        const denom = allowedDenoms[clamped];
-                        if (lid) setLFOForLayer(lid, { lfoDivision: `1/${denom}` as any, lfoDivisionIndex: clamped as any });
+                        const clamped = Math.max(0, Math.min(allowedDivisions.length - 1, Math.round(idx)));
+                        const division = allowedDivisions[clamped];
+                        if (lid) setLFOForLayer(lid, { lfoDivision: division as any, lfoDivisionIndex: clamped as any });
                       };
                       return (
                         <ParamRow
                           label="Division"
                           value={currentIndex}
                           min={0}
-                          max={allowedDenoms.length - 1}
+                          max={allowedDivisions.length - 1}
                           step={1}
                           onChange={setByIndex}
                           onIncrement={() => setByIndex(currentIndex + 1)}
                           onDecrement={() => setByIndex(currentIndex - 1)}
-                          valueDisplay={`1/${allowedDenoms[currentIndex]}`}
+                          valueDisplay={allowedDivisions[currentIndex]}
                         />
                       );
                     })()}
@@ -822,126 +705,36 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                   </div>
                 )}
                 <div className="param-row">
-                  <ParamRow label="Depth" value={Number(lfo.depth || 100)} min={0} max={100} step={1} buttonsAfter
-                    onChange={(value) => lid && setLFOForLayer(lid, { depth: value })}
-                    onIncrement={() => lid && setLFOForLayer(lid, { depth: Math.min(100, Number(lfo.depth || 100) + 1) })}
-                    onDecrement={() => lid && setLFOForLayer(lid, { depth: Math.max(0, Number(lfo.depth || 100) - 1) })}
-                  />
-                </div>
-            <div className="param-row">
-                  <ParamRow label="Depth" value={Number(lfo.depth || 100)} min={0} max={100} step={1} buttonsAfter
-                onChange={(value) => lid && setLFOForLayer(lid, { depth: value })}
-                onIncrement={() => lid && setLFOForLayer(lid, { depth: Math.min(100, Number(lfo.depth || 100) + 1) })}
-                onDecrement={() => lid && setLFOForLayer(lid, { depth: Math.max(0, Number(lfo.depth || 100) - 1) })}
-              />
-            </div>
-            <div className="param-row">
-                  <ParamRow label="Offset" value={Number(lfo.offset || 0)} min={-100} max={100} step={1} buttonsAfter
-                onChange={(value) => lid && setLFOForLayer(lid, { offset: value })}
-                onIncrement={() => lid && setLFOForLayer(lid, { offset: Math.min(100, Number(lfo.offset || 0) + 1) })}
-                onDecrement={() => lid && setLFOForLayer(lid, { offset: Math.max(-100, Number(lfo.offset || 0) - 1) })}
-              />
-            </div>
-            <div className="param-row">
-                  <ParamRow label="Phase" value={Number(lfo.phase || 0)} min={0} max={100} step={1} buttonsAfter
-                onChange={(value) => lid && setLFOForLayer(lid, { phase: value })}
-                onIncrement={() => lid && setLFOForLayer(lid, { phase: Math.min(100, Number(lfo.phase || 0) + 1) })}
-                onDecrement={() => lid && setLFOForLayer(lid, { phase: Math.max(0, Number(lfo.phase || 0) - 1) })}
-              />
-            </div>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="random">
-          <div className="lfo-content-wrapper">
-            <div className="lfo-main">
-              <div className="lfo-parameters tw-space-y-3">
-                <div className="tw-flex tw-items-center tw-gap-2">
-                  <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Timing</label>
-                  <div className="tw-w-[240px] tw-flex tw-gap-2">
-                    <button
-                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.randomTimingMode as any) || 'sync') === 'sync' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
-                      onClick={() => lid && setLFOForLayer(lid, { randomTimingMode: 'sync' })}
-                    >
-                      Sync
-                    </button>
-                    <button
-                      className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.randomTimingMode as any) || 'sync') === 'hz' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
-                      onClick={() => lid && setLFOForLayer(lid, { randomTimingMode: 'hz' })}
-                    >
-                      Hz
-                    </button>
-                  </div>
-                </div>
-                {(((lfo.randomTimingMode as any) || 'sync') as string) === 'sync' ? (
-            <div className="param-row">
-                    {(() => {
-                      const allowedDenoms = [2, 4, 8, 16, 32, 64];
-                      const normDiv = normalizeDivision((lfo.randomDivision as any));
-                      const currentDenom = Number(normDiv.match(/\d+/)?.[0] || 4);
-                      const currentIndex = Number.isFinite(lfo.randomDivisionIndex as any) && (lfo.randomDivisionIndex as any) != null
-                        ? Math.max(0, Math.min(allowedDenoms.length - 1, Math.round(Number(lfo.randomDivisionIndex as any))))
-                        : Math.max(0, allowedDenoms.indexOf(currentDenom));
-                      const setByIndex = (idx: number) => {
-                        const clamped = Math.max(0, Math.min(allowedDenoms.length - 1, Math.round(idx)));
-                        const denom = allowedDenoms[clamped];
-                        if (lid) setLFOForLayer(lid, { randomDivision: `1/${denom}` as any, randomDivisionIndex: clamped as any });
-                      };
-                      return (
-              <ParamRow
-                          label="Division"
-                          value={currentIndex}
-                min={0}
-                          max={allowedDenoms.length - 1}
-                step={1}
-                          onChange={setByIndex}
-                          onIncrement={() => setByIndex(currentIndex + 1)}
-                          onDecrement={() => setByIndex(currentIndex - 1)}
-                          valueDisplay={`1/${allowedDenoms[currentIndex]}`}
+                  <div className="tw-flex tw-items-center tw-gap-2">
+                    <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Range</label>
+                    <div className="tw-flex-1 tw-flex tw-items-center tw-gap-3">
+                      <div className="tw-w-[240px]">
+                        <Slider
+                          value={[toNumberOr(Number((lfo.lfoMin as any) ?? 0), 0), toNumberOr(Number((lfo.lfoMax as any) ?? 100), 100)]}
+                          min={0}
+                          max={100}
+                          step={1}
+                          onValueChange={(vals: number[]) => {
+                            const a = Array.isArray(vals) ? vals[0] : toNumberOr(Number((lfo.lfoMin as any) ?? 0), 0);
+                            const b = Array.isArray(vals) ? vals[1] : toNumberOr(Number((lfo.lfoMax as any) ?? 100), 100);
+                            const lo = Math.max(0, Math.min(100, Math.min(a, b)));
+                            const hi = Math.max(0, Math.min(100, Math.max(a, b)));
+                            if (lid) setLFOForLayer(lid, { lfoMin: lo, lfoMax: hi });
+                          }}
                         />
-                      );
-                    })()}
-            </div>
-                ) : (
-            <div className="param-row">
-              <ParamRow
-                      label="Hz"
-                      value={Number((lfo.randomHz as any) || 2)}
-                      min={0.1}
-                      max={20}
-                      step={0.01}
-                      onChange={(value) => lid && setLFOForLayer(lid, { randomHz: value })}
-                      onIncrement={() => lid && setLFOForLayer(lid, { randomHz: Math.min(20, Number((lfo.randomHz as any) || 2) + 0.01) })}
-                      onDecrement={() => lid && setLFOForLayer(lid, { randomHz: Math.max(0.1, Number((lfo.randomHz as any) || 2) - 0.01) })}
-                    />
+                      </div>
+                      <div className="tw-text-xs tw-text-neutral-400">{toNumberOr(Number((lfo.lfoMin as any) ?? 0), 0)}% / {toNumberOr(Number((lfo.lfoMax as any) ?? 100), 100)}%</div>
+                    </div>
                   </div>
-                )}
+                </div>
                 <div className="param-row">
-                  <ParamRow label="Min" value={toNumberOr(Number((lfo.randomMin as any) ?? -100), -100)} min={-100} max={100} step={1}
-                    onChange={(value) => lid && setLFOForLayer(lid, { randomMin: value })}
-                    onIncrement={() => lid && setLFOForLayer(lid, { randomMin: Math.min(100, toNumberOr(Number((lfo.randomMin as any) ?? -100), -100) + 1) })}
-                    onDecrement={() => lid && setLFOForLayer(lid, { randomMin: Math.max(-100, toNumberOr(Number((lfo.randomMin as any) ?? -100), -100) - 1) })}
+                  <ParamRow label="Skip %" value={toNumberOr(Number((lfo.lfoSkipPercent as any) ?? 0), 0)} min={0} max={100} step={1}
+                    onChange={(value) => lid && setLFOForLayer(lid, { lfoSkipPercent: value })}
+                    onIncrement={() => lid && setLFOForLayer(lid, { lfoSkipPercent: Math.min(100, toNumberOr(Number((lfo.lfoSkipPercent as any) ?? 0), 0) + 1) })}
+                    onDecrement={() => lid && setLFOForLayer(lid, { lfoSkipPercent: Math.max(0, toNumberOr(Number((lfo.lfoSkipPercent as any) ?? 0), 0) - 1) })}
                   />
                 </div>
-            <div className="param-row">
-                  <ParamRow label="Max" value={toNumberOr(Number((lfo.randomMax as any) ?? 100), 100)} min={-100} max={100} step={1}
-                    onChange={(value) => lid && setLFOForLayer(lid, { randomMax: value })}
-                    onIncrement={() => lid && setLFOForLayer(lid, { randomMax: Math.min(100, toNumberOr(Number((lfo.randomMax as any) ?? 100), 100) + 1) })}
-                    onDecrement={() => lid && setLFOForLayer(lid, { randomMax: Math.max(-100, toNumberOr(Number((lfo.randomMax as any) ?? 100), 100) - 1) })}
-              />
-            </div>
-            <div className="param-row">
-                  <ParamRow label="Skip %" value={toNumberOr(Number((lfo.skipPercent as any) ?? 0), 0)} min={0} max={100} step={1}
-                    onChange={(value) => lid && setLFOForLayer(lid, { skipPercent: value })}
-                    onIncrement={() => lid && setLFOForLayer(lid, { skipPercent: Math.min(100, toNumberOr(Number((lfo.skipPercent as any) ?? 0), 0) + 1) })}
-                    onDecrement={() => lid && setLFOForLayer(lid, { skipPercent: Math.max(0, toNumberOr(Number((lfo.skipPercent as any) ?? 0), 0) - 1) })}
-                  />
-                </div>
-                <div className="tw-text-neutral-400 tw-text-xs">
-                  Random triggers on each beat (BPM-synced). Skip % reduces how often a new random value fires.
-                </div>
+                
               </div>
             </div>
           </div>
@@ -975,14 +768,14 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                         />
                       </div>
                       <div className="tw-flex tw-items-center tw-gap-2">
-                        <label className="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-text-neutral-200">
-                          <Checkbox
-                            checked={mapping.enabled}
+                        <label className="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-text-neutral-200" htmlFor={`map-enabled-${mapping.id}`}>
+                          <Switch
+                            id={`map-enabled-${mapping.id}`}
+                            checked={mapping.enabled === true}
                             onCheckedChange={(checked) => {
                               const lid = selectedLayerRef.current?.id;
-                              if (lid) updateMappingForLayer(lid, mapping.id, { enabled: Boolean(checked) });
+                              if (lid) updateMappingForLayer(lid, mapping.id, { enabled: checked === true });
                             }}
-                            className="tw-bg-neutral-800 tw-border tw-border-neutral-500 data-[state=checked]:tw-bg-neutral-200 data-[state=checked]:tw-text-neutral-900"
                             aria-label="Enable mapping"
                           />
                           Enabled

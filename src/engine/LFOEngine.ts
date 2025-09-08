@@ -63,10 +63,21 @@ function parseDivisionToMs(bpm: number, division?: string): number {
   const dotted = div.endsWith('.') || div.endsWith('d');
   const triplet = /t$/i.test(div);
   const core = div.replace(/[.d]|t$/i, '');
-  const match = core.match(/^\s*1\s*\/\s*(\d+)\s*$/);
-  const denom = match ? Math.max(1, parseInt(match[1], 10)) : 4;
+  // Support both fractional (e.g., 1/4) and whole-bar counts (e.g., 1, 2, 4 bars)
+  const frac = core.match(/^\s*1\s*\/\s*(\d+)\s*$/);
+  const whole = core.match(/^\s*(\d+)\s*$/);
   const quarterMs = (60 / Math.max(1, bpm)) * 1000;
-  let ms = quarterMs * (4 / denom);
+  let ms: number;
+  if (frac) {
+    const denom = Math.max(1, parseInt(frac[1], 10));
+    ms = quarterMs * (4 / denom);
+  } else if (whole) {
+    const bars = Math.max(1, parseInt(whole[1], 10));
+    ms = quarterMs * 4 * bars; // 4 quarter notes per bar
+  } else {
+    // Fallback to quarter note
+    ms = quarterMs;
+  }
   if (dotted) ms *= 1.5;
   if (triplet) ms *= 2 / 3;
   return ms;
@@ -208,7 +219,14 @@ class LFOEngineImpl {
     const bpm = (clock?.smoothedBpm || clock?.bpm || 120);
 
     for (const layer of layers) {
-      const lfo: LFOState | undefined = lfoState.lfoStateByLayer[layer.id];
+      let lfo: LFOState | undefined = lfoState.lfoStateByLayer[layer.id];
+      // Ensure per-layer LFO state exists so settings persist regardless of focus
+      if (!lfo) {
+        try {
+          const ensured = (useLFOStore.getState() as any).ensureLFOStateForLayer?.(layer.id);
+          if (ensured) lfo = ensured as any;
+        } catch {}
+      }
       const mappings: LFOMapping[] = lfoState.mappingsByLayer[layer.id] || [];
       if (!lfo || !mappings || mappings.length === 0) {
         // Clear any timer left from random mode
@@ -236,7 +254,8 @@ class LFOEngineImpl {
         const periodMs = timingMode === 'sync' ? parseDivisionToMs(bpm, division) : undefined;
         // Keep rate in sync with lfoHz for downstream users that read it
         const rate = timingMode === 'sync' ? Math.max(0.01, 1000 / Math.max(1, periodMs || 1000)) : Number((lfo as any).lfoHz || lfo.rate || 1);
-        if (timingMode === 'sync') {
+        // Only write rate if LFO state already exists to avoid creating defaults on inactive layers
+        if (timingMode === 'sync' && lfo) {
           try { useLFOStore.getState().setLFOStateForLayer(layer.id, { rate }); } catch {}
         }
         const phase = Number(lfo.phase || 0);
@@ -250,9 +269,28 @@ class LFOEngineImpl {
         value = value * (depth / 100) + (offset / 100);
         value = Math.max(-1, Math.min(1, value));
 
-        this.applyModulationToLayer(layer, mappings, value, nowMs, updateLayer);
-        // Persist current value
-        useLFOStore.getState().setLFOStateForLayer(layer.id, { currentValue: value });
+        // LFO shaping and skip, matching UI preview logic
+        const minPct = Math.max(0, Math.min(100, Number((lfo as any)?.lfoMin ?? 0)));
+        const maxPct = Math.max(0, Math.min(100, Number((lfo as any)?.lfoMax ?? 100)));
+        const loPct = Math.min(minPct, maxPct);
+        const hiPct = Math.max(minPct, maxPct);
+
+        const skip = Math.random() * 100 < Number((lfo as any)?.lfoSkipPercent || 0);
+        if (!skip) {
+          // Map raw waveform directly into [lo..hi] window so edges are reachable
+          const base01Raw = (value + 1) / 2; // 0..1
+          const lo01 = loPct / 100;
+          const hi01 = hiPct / 100;
+          let shaped01Out = lo01 + (hi01 - lo01) * base01Raw; // 0..1 in window
+          // Edge snapping to make min/max visibly reachable in UI sliders
+          const eps = 0.001;
+          if (Math.abs(shaped01Out - lo01) <= eps) shaped01Out = lo01;
+          if (Math.abs(shaped01Out - hi01) <= eps) shaped01Out = hi01;
+          const shapedOut = shaped01Out * 2 - 1; // back to [-1,1]
+          const finalVal = Math.max(-1, Math.min(1, shapedOut));
+          this.applyModulationToLayer(layer, mappings, finalVal, nowMs, updateLayer);
+        }
+        // Do not write currentValue into persistent LFO state; avoid creating defaults on selection
       } else if (lfo.mode === 'random') {
         // Random mode: ensure per-layer timer exists
         const timerKey = layer.id;
@@ -291,7 +329,7 @@ class LFOEngineImpl {
               const rand = min + Math.random() * (max - min);
               const clamped = Math.max(-1, Math.min(1, rand));
               this.applyModulationToLayer(layer, mappings, clamped, Date.now(), updateLayer, /*isRandomMode*/ true);
-              useLFOStore.getState().setLFOStateForLayer(layer.id, { currentValue: clamped });
+              // Avoid creating LFO state for layers that haven't been configured
             };
             let intervalMs = 500;
             if (timingMode === 'sync') {
@@ -353,7 +391,19 @@ class LFOEngineImpl {
         const prev = this.prevNormByMapping.get(mapping.id) ?? 0;
         this.prevNormByMapping.set(mapping.id, normalizedLFO);
         const threshold = 0.9;
-        const shouldFire = isRandomMode ? true : (prev <= threshold && normalizedLFO > threshold);
+        let shouldFire = isRandomMode ? true : (prev <= threshold && normalizedLFO > threshold);
+        // Apply LFO skip percent to randomize triggers in LFO mode; consume trigger when skipping
+        if (!isRandomMode && shouldFire) {
+          try {
+            const lfo = useLFOStore.getState().lfoStateByLayer[layer.id] as any;
+            const lfoSkip = Math.max(0, Math.min(100, Number(lfo?.lfoSkipPercent || 0)));
+            if (Math.random() * 100 < lfoSkip) {
+              // consume this edge so it won't immediately retrigger next frame
+              this.prevNormByMapping.set(mapping.id, normalizedLFO);
+              shouldFire = false;
+            }
+          } catch {}
+        }
         if (shouldFire) {
           const effectId: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name;
           const isEffect = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;
@@ -390,7 +440,17 @@ class LFOEngineImpl {
         const prev = this.prevNormByMapping.get(mapping.id) ?? 0;
         this.prevNormByMapping.set(mapping.id, normalizedLFO);
         const threshold = 0.9;
-        const shouldFire = isRandomMode ? true : (prev <= threshold && normalizedLFO > threshold);
+        let shouldFire = isRandomMode ? true : (prev <= threshold && normalizedLFO > threshold);
+        if (!isRandomMode && shouldFire) {
+          try {
+            const lfo = useLFOStore.getState().lfoStateByLayer[layer.id] as any;
+            const lfoSkip = Math.max(0, Math.min(100, Number(lfo?.lfoSkipPercent || 0)));
+            if (Math.random() * 100 < lfoSkip) {
+              this.prevNormByMapping.set(mapping.id, normalizedLFO);
+              shouldFire = false;
+            }
+          } catch {}
+        }
         if (shouldFire) {
           const effectId: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name;
           const isEffect = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;

@@ -56,8 +56,8 @@ interface LayerManagerProps {
   try {
     const originalLog = console.log.bind(console);
     const originalWarn = console.warn.bind(console);
-    const noisyPrefixRegex = /^(🎨|🎭|🎵|🔄|➕|🖱️)/;
-    const alsoNoisySubstrings = ['LayerManager', 'Current scene:'];
+    const noisyPrefixRegex = /^(🎨|🎭|🎵|🔄|➕|🖱️|🎯)/;
+    const alsoNoisySubstrings = ['LayerManager', 'Current scene:', 'Active cell detected', 'Updated layer options'];
     console.log = (...args: any[]) => {
       const first = args[0];
       if (typeof first === 'string') {
