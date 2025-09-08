@@ -14,6 +14,7 @@ interface MIDIDevice {
 
 export const MIDIMapper: React.FC = () => {
   const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1 } = useStore() as any;
+  const { scenes, currentSceneId } = useStore() as any;
   const [selectedDevice, setSelectedDevice] = useState<string>('Any device');
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const mappings = midiMappings as MIDIMapping[];
@@ -37,6 +38,7 @@ export const MIDIMapper: React.FC = () => {
 
   const actionTypeOptions = [
     { value: 'column', label: 'Trigger Column' },
+    { value: 'cell', label: 'Trigger Cell (Row x Column)' },
     { value: 'transport', label: 'Transport' },
     { value: 'scene', label: 'Switch Scene' },
   ];
@@ -329,6 +331,7 @@ export const MIDIMapper: React.FC = () => {
               const val = String(v);
               if (val === 'transport') updateSelected(m => ({ ...m, target: { type: 'transport', action: 'play' } as any }));
               else if (val === 'column') updateSelected(m => ({ ...m, target: { type: 'column', index: 1 } as any }));
+              else if (val === 'cell') updateSelected(m => ({ ...m, target: { type: 'cell', row: 1, column: 1 } as any }));
               else if (val === 'scene') updateSelected(m => ({ ...m, target: { type: 'scene', id: (useStore.getState() as any).currentSceneId } as any }));
             }} options={actionTypeOptions} />
         </div>
@@ -345,6 +348,34 @@ export const MIDIMapper: React.FC = () => {
               <Input value={(selectedMapping.target as any).index} onChange={(e) => updateSelected(m => ({ ...m, target: { type: 'column', index: Math.max(1, Number(e.target.value) || 1) } as any }))} />
         </div>
           )}
+          {selectedMapping?.target?.type === 'cell' && (() => {
+            const scene = (scenes || []).find((s: any) => s.id === currentSceneId);
+            const columns = scene?.columns || [];
+            const tgt: any = selectedMapping.target as any;
+            const derivedIndex = (() => {
+              if (typeof tgt.column === 'number') return Math.max(1, Number(tgt.column) || 1);
+              if (tgt.columnId) {
+                const idx = columns.findIndex((c: any) => c.id === tgt.columnId);
+                return idx >= 0 ? idx + 1 : 1;
+              }
+              return 1;
+            })();
+            return (
+              <>
+                <div className="tw-space-y-2">
+                  <Label className="tw-text-xs">Row (Layer Number)</Label>
+                  <Input value={tgt.row} onChange={(e) => updateSelected(m => ({ ...m, target: { type: 'cell', row: Math.max(1, Number(e.target.value) || 1), column: (m.target as any).column ?? derivedIndex, columnId: (m.target as any).columnId } as any }))} />
+                </div>
+                <div className="tw-space-y-2">
+                  <Label className="tw-text-xs">Column Index</Label>
+                  <Input value={derivedIndex} onChange={(e) => {
+                    const next = Math.max(1, Number(e.target.value) || 1);
+                    updateSelected(m => ({ ...m, target: { type: 'cell', row: (m.target as any).row, column: next } as any }));
+                  }} />
+                </div>
+              </>
+            );
+          })()}
           </div>
         </div>
 

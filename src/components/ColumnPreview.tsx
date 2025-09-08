@@ -637,7 +637,7 @@ const ColumnScene: React.FC<{
       const video = assets.videos.get(targetLayer.asset.id);
       if (video) {
         try { video.currentTime = 0; } catch {}
-        try { void video.play(); } catch {}
+        try { const p = video.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {}
       }
     };
 
@@ -648,7 +648,7 @@ const ColumnScene: React.FC<{
       if (!targetLayer || !targetLayer.asset) return;
       const video = assets.videos.get(targetLayer.asset.id);
       if (video && video.paused) {
-        try { void video.play(); } catch {}
+        try { const p = video.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {}
       }
     };
 
@@ -667,7 +667,7 @@ const ColumnScene: React.FC<{
           const v = assets.videos.get(l.asset.id);
           if (mode === 'restart' && v) {
             try { v.currentTime = 0; } catch {}
-            try { void v.play(); } catch {}
+            try { const p = v.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {}
             handledAny = true;
           }
         });
@@ -698,7 +698,7 @@ const ColumnScene: React.FC<{
       const v = assets.videos.get(l.asset.id);
       if (mode === 'restart' && v) {
         try { v.currentTime = 0; } catch {}
-        try { void v.play(); } catch {}
+        try { const p = v.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {}
         handledAny = true;
       }
     });

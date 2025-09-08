@@ -182,7 +182,7 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 		video.onloadeddata = () => {
 			setIsLoading(false);
 			if (layer.autoplay) {
-				video.play();
+				try { video.play().catch(() => {}); } catch {}
 			}
 		};
 

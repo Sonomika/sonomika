@@ -86,6 +86,14 @@ export interface MIDIMapping {
         param?: string; // parameter name (e.g., opacity or effect param)
       }
     | {
+        // Trigger a specific cell (row x column) in the current scene
+        // Prefer addressing by columnId for stability; fall back to 1-based column index
+        type: 'cell';
+        row: number;          // 1..numRows (layer number)
+        column?: number;      // 1..N columns in current scene
+        columnId?: string;    // Stable id of the column in the current scene
+      }
+    | {
         // Switch scenes by id
         type: 'scene';
         id: string; // sceneId

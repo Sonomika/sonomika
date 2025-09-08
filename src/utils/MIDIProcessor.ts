@@ -63,6 +63,22 @@ export class MIDIProcessor {
       )
       .forEach(mapping => {
         switch (mapping.target.type) {
+          case 'cell': {
+            if (velocity === 0) return; // trigger on note-on only
+            const row = (mapping.target as any).row as number; // 1-based
+            const colId = (mapping.target as any).columnId as string | undefined;
+            const colIndex = (mapping.target as any).column as number | undefined; // 1-based
+            const state = useStore.getState() as any;
+            const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+            const col = colId
+              ? scene?.columns?.find((c: any) => c.id === colId)
+              : scene?.columns?.[Math.max(0, ((colIndex || 1) - 1))];
+            if (col && typeof state.setActiveLayerOverride === 'function') {
+              try { state.setActiveLayerOverride(Math.max(1, Number(row) || 1), col.id); } catch {}
+              // Do not change the playing column; this is a per-row horizontal override
+            }
+            break;
+          }
           case 'scene': {
             store.setCurrentScene((mapping.target as any).id);
             break;
@@ -132,6 +148,23 @@ export class MIDIProcessor {
       )
       .forEach(mapping => {
         switch (mapping.target.type) {
+          case 'cell': {
+            const pressed = value > 63;
+            if (!pressed) return;
+            const row = (mapping.target as any).row as number; // 1-based
+            const colId = (mapping.target as any).columnId as string | undefined;
+            const colIndex = (mapping.target as any).column as number | undefined; // 1-based
+            const state = useStore.getState() as any;
+            const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+            const col = colId
+              ? scene?.columns?.find((c: any) => c.id === colId)
+              : scene?.columns?.[Math.max(0, ((colIndex || 1) - 1))];
+            if (col && typeof state.setActiveLayerOverride === 'function') {
+              try { state.setActiveLayerOverride(Math.max(1, Number(row) || 1), col.id); } catch {}
+              // Do not change the playing column; this is a per-row horizontal override
+            }
+            break;
+          }
           case 'layer': {
             const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
             const layer = this.findLayer(layerTarget.id);
@@ -201,6 +234,21 @@ export class MIDIProcessor {
       .filter(matches)
       .forEach(mapping => {
         switch (mapping.target.type) {
+          case 'cell': {
+            const row = (mapping.target as any).row as number; // 1-based
+            const colId = (mapping.target as any).columnId as string | undefined;
+            const colIndex = (mapping.target as any).column as number | undefined; // 1-based
+            const state = useStore.getState() as any;
+            const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
+            const col = colId
+              ? scene?.columns?.find((c: any) => c.id === colId)
+              : scene?.columns?.[Math.max(0, ((colIndex || 1) - 1))];
+            if (col && typeof state.setActiveLayerOverride === 'function') {
+              try { state.setActiveLayerOverride(Math.max(1, Number(row) || 1), col.id); } catch {}
+              // Do not change the playing column; this is a per-row horizontal override
+            }
+            break;
+          }
           case 'scene': {
             store.setCurrentScene((mapping.target as any).id);
             break;
