@@ -762,7 +762,34 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                           value={mapping.parameter as any}
                           onChange={(v) => {
                             const lid = selectedLayerRef.current?.id;
-                            if (lid) updateMappingForLayer(lid, mapping.id, { parameter: String(v) });
+                            const newParam = String(v);
+                            if (!lid) return;
+                            // Initialize mapping min/max from metadata for numeric params (or opacity)
+                            try {
+                              const layer = selectedLayerRef.current as any;
+                              const effectId: string | undefined = layer?.asset?.id || layer?.asset?.name;
+                              const isEffect = layer?.type === 'effect' || layer?.asset?.isEffect;
+                              const parts = newParam.split(' - ');
+                              const rawName = parts.length > 1 ? parts[1] : (parts[0].toLowerCase().includes('opacity') ? 'opacity' : undefined);
+                              if (rawName === 'opacity') {
+                                updateMappingForLayer(lid, mapping.id, { parameter: newParam, min: 0, max: 100 });
+                              } else if (isEffect && effectId && rawName) {
+                                const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
+                                const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
+                                const def = metadata?.parameters?.find((p: any) => p?.name === rawName);
+                                if (def && def.type === 'number') {
+                                  const defMin = typeof def.min === 'number' ? def.min : 0;
+                                  const defMax = typeof def.max === 'number' ? def.max : 100;
+                                  updateMappingForLayer(lid, mapping.id, { parameter: newParam, min: defMin, max: defMax });
+                                } else {
+                                  updateMappingForLayer(lid, mapping.id, { parameter: newParam });
+                                }
+                              } else {
+                                updateMappingForLayer(lid, mapping.id, { parameter: newParam });
+                              }
+                            } catch {
+                              updateMappingForLayer(lid, mapping.id, { parameter: newParam });
+                            }
                           }}
                           options={buildParameterOptions()}
                         />
@@ -791,41 +818,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                         </button>
                       </div>
                     </div>
-                    <div className="tw-flex tw-items-center tw-gap-2 tw-mt-2">
-                      <div className="tw-flex tw-items-center tw-gap-1">
-                        <label>Min:</label>
-                        <input
-                          type="number"
-                          value={Number(mapping.min) || 0}
-                          onChange={(e) => {
-                            const lid = selectedLayerRef.current?.id;
-                            if (lid) updateMappingForLayer(lid, mapping.id, { min: Number(e.target.value) });
-                          }}
-                          className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
-                        />
-                      </div>
-                      <div className="tw-relative tw-flex-1 tw-h-2 tw-rounded tw-bg-neutral-800 tw-overflow-hidden">
-                        <div 
-                          className="tw-absolute tw-top-0 tw-bottom-0 tw-bg-neutral-600/70"
-                          style={{ 
-                            left: `${((Number(mapping.min) / 100) * 100)}%`,
-                            width: `${((Number(mapping.max) - Number(mapping.min)) / 100) * 100}%`
-                          }}
-                        />
-                      </div>
-                      <div className="tw-flex tw-items-center tw-gap-1">
-                        <label>Max:</label>
-                        <input
-                          type="number"
-                          value={Number(mapping.max) || 0}
-                          onChange={(e) => {
-                            const lid = selectedLayerRef.current?.id;
-                            if (lid) updateMappingForLayer(lid, mapping.id, { max: Number(e.target.value) });
-                          }}
-                          className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
-                        />
-                      </div>
-                    </div>
+                    {/* Min/Max controls removed per design; mapping uses parameter metadata bounds */}
                   </div>
                 ))
               )}

@@ -288,7 +288,8 @@ class LFOEngineImpl {
           if (Math.abs(shaped01Out - hi01) <= eps) shaped01Out = hi01;
           const shapedOut = shaped01Out * 2 - 1; // back to [-1,1]
           const finalVal = Math.max(-1, Math.min(1, shapedOut));
-          this.applyModulationToLayer(layer, mappings, finalVal, nowMs, updateLayer);
+          // Provide normalized 0..1 value so downstream mapping clamps to [min..max] correctly
+          this.applyModulationToLayer(layer, mappings, finalVal, nowMs, updateLayer, /*isRandomMode*/ false, shaped01Out);
         }
         // Do not write currentValue into persistent LFO state; avoid creating defaults on selection
       } else if (lfo.mode === 'random') {
@@ -355,6 +356,7 @@ class LFOEngineImpl {
     now: number,
     updateLayer: (id: string, updates: Partial<LayerLike>) => void,
     isRandomMode: boolean = false,
+    normalized01Override?: number,
   ) {
     // Hard guard: never modulate a layer that isn't currently active
     if (!this.activeLayerIds.has(layer.id)) {
@@ -368,7 +370,14 @@ class LFOEngineImpl {
       return;
     }
     if (!mappings || mappings.length === 0) return;
-    const normalizedLFO = (currentValue + 1) / 2;
+    const normalizedLFO = typeof normalized01Override === 'number'
+      ? Math.max(0, Math.min(1, normalized01Override))
+      : (currentValue + 1) / 2;
+
+    // Accumulate updates so multiple mappings can be applied in the same frame
+    let pendingParams = { ...(layer.params || {}) } as Record<string, any>;
+    let pendingOpacity: number | undefined = undefined;
+    let anyChanged = false;
 
     mappings.forEach((mapping) => {
       if (!mapping.enabled || mapping.parameter === 'Select Parameter') return;
@@ -488,24 +497,25 @@ class LFOEngineImpl {
           const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
           dispatchToTimeline({ clipId, isOpacity: true, value: clampedValue });
         } else {
-          updateLayer(layer.id, { opacity: clampedValue });
+          pendingOpacity = clampedValue;
+          anyChanged = true;
         }
       } else {
-        const currentParams = layer.params || {};
+        const currentParams = pendingParams;
         const currentVal = currentParams[actualParamName]?.value;
         if (typeof currentVal !== 'number' || !Number.isFinite(currentVal)) return;
         if (isTimelinePlaying) {
           const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
           dispatchToTimeline({ clipId, paramName: actualParamName, value: modulatedValue });
         } else {
-          const newParams = {
+          pendingParams = {
             ...currentParams,
             [actualParamName]: {
               ...currentParams[actualParamName],
               value: modulatedValue,
             },
           };
-          updateLayer(layer.id, { params: newParams });
+          anyChanged = true;
         }
       }
 
@@ -519,6 +529,12 @@ class LFOEngineImpl {
         timestamp: now,
       });
     });
+
+    if (!(window as any).__vj_timeline_is_playing__ && anyChanged) {
+      const update: any = { params: pendingParams };
+      if (typeof pendingOpacity === 'number') update.opacity = pendingOpacity;
+      updateLayer(layer.id, update);
+    }
   }
 }
 
