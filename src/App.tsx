@@ -123,6 +123,7 @@ function App() {
 
   const { toast } = useToast();
   const { recordSettings, setRecordSettings } = useStore() as any;
+  const { showTimeline, setShowTimeline } = useStore() as any;
 
   // Convert a hex color (e.g., #00bcd4) to HSL components for CSS var usage
   const hexToHslComponents = (hex: string): { h: number; s: number; l: number } => {
@@ -861,6 +862,7 @@ function App() {
         onLoadPreset={handleLoadPreset}
         onCompositionSettings={handleCompositionSettings}
         onOpenSettings={() => setSettingsOpen(true)}
+        onToggleTimeline={() => setShowTimeline(!showTimeline)}
         onToggleUIDemo={handleToggleUIDemo}
         debugMode={debugMode}
         onToggleDebug={handleToggleDebug}

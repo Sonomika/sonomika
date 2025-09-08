@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useStore } from '../store/store';
-import TimelineComposer from '../components/TimelineComposer';
+import { CanvasRenderer } from '../components/CanvasRenderer';
 
 interface PreviewContent {
   type: 'column' | 'layer' | 'timeline';
@@ -209,6 +209,24 @@ export const usePreviewRenderer = () => {
 
     if (previewContent.type === 'timeline') {
       const activeClips = previewContent.activeClips || [];
+      // Map timeline clips to the same asset/layer model used by column rendering
+      const assets = activeClips.map((clip: any) => {
+        const type = clip?.asset?.type === 'image' ? 'image' : (clip?.asset?.type === 'video' ? 'video' : 'effect');
+        const opacity = (() => {
+          try {
+            const p = clip?.params?.opacity;
+            if (p && typeof p.value === 'number') return Math.max(0, Math.min(1, p.value));
+          } catch {}
+          return typeof clip?.opacity === 'number' ? Math.max(0, Math.min(1, clip.opacity)) : 1;
+        })();
+        const blendMode = (clip && (clip as any).blendMode) || 'add';
+        return {
+          type,
+          asset: clip.asset,
+          layer: { opacity, blendMode, params: clip.params || {} }
+        } as any;
+      });
+
       return (
         <div className="tw-h-full tw-flex tw-flex-col">
           <div className="tw-flex tw-items-center tw-gap-3 tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
@@ -219,7 +237,7 @@ export const usePreviewRenderer = () => {
             </div>
           </div>
           <div className="tw-flex tw-flex-col tw-gap-2 tw-flex-1 tw-p-2 tw-rounded-md tw-bg-neutral-900 tw-border tw-border-neutral-800">
-            {activeClips.length === 0 ? (
+            {assets.length === 0 ? (
               <div className="tw-flex tw-items-center tw-justify-center tw-h-48 tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded">
                 <div className="tw-text-center tw-text-neutral-300">
                   <div className="tw-text-sm">No clips playing at current time</div>
@@ -233,21 +251,19 @@ export const usePreviewRenderer = () => {
                   data-aspect-ratio={`${compositionSettings.width}:${compositionSettings.height}`}
                   style={{ aspectRatio: compositionSettings.width / compositionSettings.height }}
                 >
-                  <TimelineComposer
-                    activeClips={activeClips}
-                    isPlaying={isPlaying}
-                    currentTime={previewContent.currentTime || 0}
+                  <CanvasRenderer 
+                    assets={assets}
                     width={compositionSettings.width}
                     height={compositionSettings.height}
                     bpm={useStore.getState().bpm}
-                    globalEffects={[]}
+                    isPlaying={isPlaying}
                   />
                 </div>
                 <div className="tw-mt-2">
                   <h5 className="tw-text-sm tw-font-semibold tw-text-white">Active Timeline Clips:</h5>
                   {activeClips.map((clip: any, index: number) => (
                     <div key={`info-${clip.id}-${index}`} className="tw-flex tw-items-center tw-justify-between tw-text-xs tw-text-neutral-300 tw-border-b tw-border-neutral-800 tw-py-1">
-                      <div className="tw-font-medium">Track {clip.trackId.split('-')[1]}</div>
+                      <div className="tw-font-medium">Track {String(clip?.trackId || '').split('-')[1] || '-'}</div>
                       <div className="tw-text-neutral-400">{clip.name}</div>
                     </div>
                   ))}

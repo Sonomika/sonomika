@@ -346,8 +346,8 @@ export const useStore = createWithEqualityFn<AppState & {
 
       setPreviewMode: (mode: AppState['previewMode']) => set({ previewMode: mode }),
 
-      // Temporarily disable timeline mode for release: force false
-      setShowTimeline: (_show: boolean) => set({ showTimeline: false }),
+      // Toggle/show Timeline view
+      setShowTimeline: (show: boolean) => set({ showTimeline: Boolean(show) }),
 
       addMIDIMapping: (mapping: MIDIMapping) => set((state) => ({
         midiMappings: [...state.midiMappings, mapping],

@@ -13,6 +13,7 @@ interface CustomTitleBarProps {
   onLoadPreset?: () => void;
   onCompositionSettings?: () => void;
   onOpenSettings?: () => void;
+  onToggleTimeline?: () => void;
   onToggleUIDemo?: () => void;
   onStyleGuide?: () => void;
   debugMode?: boolean;
@@ -36,6 +37,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onLoadPreset,
   onCompositionSettings,
   onOpenSettings,
+  onToggleTimeline,
   onToggleUIDemo,
   onStyleGuide,
   debugMode = false,
@@ -194,6 +196,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               Fullscreen
             </button>
           )}
+          <button 
+            className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
+            onClick={onToggleTimeline}
+          >
+            Timeline
+          </button>
           <button 
             className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
             onClick={onToggleUIDemo}

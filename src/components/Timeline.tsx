@@ -210,7 +210,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const PIXELS_PER_SECOND = 120;
   const pixelsPerSecond = useMemo(() => PIXELS_PER_SECOND * Math.max(0.1, zoom), [zoom]);
   const timelinePixelWidth = useMemo(() => Math.max(1, duration * pixelsPerSecond), [duration, pixelsPerSecond]);
-  const TRACK_MIN_HEIGHT = 72;
+  const TRACK_MIN_HEIGHT = 28; // slightly taller for readability
   const SHOW_AUDIO_WAVEFORM = false; // Temporarily disable WaveSurfer-based waveform for stability
   const timelineVisualHeight = useMemo(() => {
     const baseRuler = 28; // top ruler height
@@ -237,6 +237,49 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   });
   
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  // Helper: build file:// URL for absolute paths (Windows-safe)
+  const toFileURL = (absPath: string) => {
+    try {
+      let p = String(absPath || '');
+      // Normalize backslashes for Windows paths
+      p = p.replace(/\\/g, '/');
+      // Ensure leading slash before drive letter
+      if (!p.startsWith('/')) p = '/' + p;
+      // Encode spaces and special chars to a valid URL
+      const url = 'file://' + p;
+      return encodeURI(url);
+    } catch {
+      try { return encodeURI('file://' + absPath); } catch { return 'file://' + absPath; }
+    }
+  };
+
+  // Resolve audio source path across blob/file/local-file sources
+  const getAudioSrc = (asset: any): string => {
+    if (!asset) return '';
+    try {
+      if (asset.filePath) {
+        const src = toFileURL(asset.filePath);
+        try { console.log('[Timeline][audio] filePath ->', asset.filePath, '=>', src); } catch {}
+        return src;
+      }
+      const p: string = asset.path || '';
+      if (p.startsWith('file://')) {
+        try { console.log('[Timeline][audio] path(file://) ->', p); } catch {}
+        return p;
+      }
+      if (p.startsWith('local-file://')) {
+        const fp = p.replace('local-file://', '');
+        const src = toFileURL(fp);
+        try { console.log('[Timeline][audio] path(local-file://) ->', p, '=>', src); } catch {}
+        return src;
+      }
+      try { console.log('[Timeline][audio] path(raw) ->', p); } catch {}
+      return p;
+    } catch {
+      return String(asset?.path || '');
+    }
+  };
   const playheadRef = useRef<HTMLDivElement>(null);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const lastActiveAudioIdsRef = useRef<Set<string>>(new Set());
@@ -1020,7 +1063,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           // If audio, fetch actual duration and update the clip (for both replacement and new clips)
           if (clipType === 'audio') {
             try {
-              const tempAudio = new Audio(assetRef.path);
+              const tempAudio = new Audio(getAudioSrc(assetRef));
               tempAudio.addEventListener('loadedmetadata', () => {
                 const realDuration = isFinite(tempAudio.duration) && tempAudio.duration > 0 ? tempAudio.duration : desiredDuration;
                 updateTracks(prev => prev.map(tr => {
@@ -1194,9 +1237,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         // If audio, fetch actual duration and update the clip
         if (clipType === 'audio') {
           try {
-            const tempAudio = new Audio(assetRef.path);
+            const src = getAudioSrc(assetRef);
+            try { console.log('[Timeline][audio] probe duration src=', src); } catch {}
+            const tempAudio = new Audio(src);
             tempAudio.addEventListener('loadedmetadata', () => {
               const realDuration = isFinite(tempAudio.duration) && tempAudio.duration > 0 ? tempAudio.duration : newClip.duration;
+              try { console.log('[Timeline][audio] duration loaded =', realDuration); } catch {}
               updateTracks(prev => prev.map(tr => {
                 if (tr.id !== trackId) return tr;
                 return {
@@ -1316,6 +1362,17 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     };
     rafRef.current = requestAnimationFrame(loop);
     try { document.dispatchEvent(new Event('timelinePlay')); } catch {}
+    try {
+      // Immediately request an audio tick so active clips begin playing without waiting for next effect
+      const activeAudioClips = getClipsAtTime(0).filter((c: any) => c.type === 'audio');
+      activeAudioClips.forEach((clip: any) => {
+        const audio = audioElementsRef.current.get(clip.id);
+        if (audio) {
+          try { audio.currentTime = Math.max(0, clip.relativeTime || 0); } catch {}
+          audio.play().catch(() => {});
+        }
+      });
+    } catch {}
     console.log('Timeline playback started, isPlaying set to true');
   };
 
@@ -1344,6 +1401,13 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     } catch {}
     setIsPlaying(false);
     try { document.dispatchEvent(new Event('timelineStop')); } catch {}
+    // Ensure all playing media stops when timeline stops
+    try {
+      document.dispatchEvent(new CustomEvent('globalStop', { detail: { type: 'globalStop', source: 'timeline' } }));
+    } catch {}
+    try {
+      document.dispatchEvent(new CustomEvent('videoStop', { detail: { type: 'videoStop', allColumns: true, source: 'timeline' } }));
+    } catch {}
     console.log('Timeline playback stopped, isPlaying set to false');
   };
 
@@ -1423,14 +1487,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     }
   };
 
-  // Force refresh play state when component mounts or when needed
+  // Play-state observer: avoid forcing false while RAF-driven playback is active
   useEffect(() => {
-    // Ensure play state is consistent with interval state
-    if (!playbackInterval && isPlaying) {
-      console.log('Fixing inconsistent play state - clearing isPlaying');
-      setIsPlaying(false);
+    if (isPlaying && rafRef.current == null) {
+      try { console.log('isPlaying=true but no RAF handle; leaving state as-is'); } catch {}
     }
-  }, [playbackInterval, isPlaying]);
+  }, [isPlaying]);
 
   // Debug currentTime changes
   useEffect(() => {
@@ -1478,22 +1540,26 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         activeAudioClips.forEach((clip: any) => {
           let audio = audioElementsRef.current.get(clip.id);
           if (!audio) {
-            audio = new Audio(clip.asset.path);
+            const src = getAudioSrc(clip.asset);
+            try { console.log('[Timeline][audio] create element for clip', clip.id, 'src=', src); } catch {}
+            audio = new Audio(src);
             audio.preload = 'auto';
             // Keep volume as-is; could later be controllable via clip params
             audioElementsRef.current.set(clip.id, audio);
           }
           if (isPlaying) {
             const desiredTime = Math.max(0, clip.relativeTime);
+            try { console.log('[Timeline][audio] play check clip', clip.id, 'desiredTime=', desiredTime, 'current=', audio.currentTime, 'paused=', audio.paused); } catch {}
             // Seek if drift is noticeable (>100ms)
             if (Math.abs((audio.currentTime || 0) - desiredTime) > 0.1) {
               try { audio.currentTime = desiredTime; } catch {}
             }
             if (audio.paused) {
               // Best-effort play; Electron should allow without gesture issues
-              audio.play().catch(() => {});
+              audio.play().then(() => { try { console.log('[Timeline][audio] playing', clip.id); } catch {} }).catch((e) => { try { console.warn('[Timeline][audio] play failed', e); } catch {} });
             }
           } else {
+            try { console.log('[Timeline][audio] pause clip', clip.id); } catch {}
             audio.pause();
           }
         });
@@ -1647,6 +1713,20 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           case 'playPause':
             handlePlayButtonClick();
             break;
+          case 'stop': {
+            if (isPlayingRef.current) {
+              // First stop: stop playback, keep current position
+              stopTimelinePlayback();
+            } else {
+              // Second stop while already stopped: return to start (or earliest clip)
+              const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
+              setCurrentTime(resetTime);
+              try {
+                document.dispatchEvent(new CustomEvent('timelineTick', { detail: { time: resetTime, duration } }));
+              } catch {}
+            }
+            break;
+          }
           case 'seekToTime':
             if (typeof value === 'number') {
               if (isPlaying) {

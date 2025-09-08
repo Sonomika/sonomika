@@ -326,6 +326,64 @@ const FileBrowser: React.FC = () => {
 
   const MemoImageThumb = React.memo(ImageThumb);
 
+  // Inline audio preview (play/stop) for audio files
+  const AudioInlinePreview: React.FC<{ path: string }> = ({ path }) => {
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    const getSrc = (p: string) => (p.startsWith('local-file://') ? p : `local-file://${p}`);
+
+    useEffect(() => {
+      return () => {
+        try { audioRef.current?.pause(); } catch {}
+        audioRef.current = null;
+      };
+    }, []);
+
+    const ensureAudio = () => {
+      if (!audioRef.current) {
+        const a = new Audio(getSrc(path));
+        a.preload = 'metadata';
+        a.onended = () => setIsPlaying(false);
+        audioRef.current = a;
+      }
+      return audioRef.current;
+    };
+
+    const handlePlay = () => {
+      const a = ensureAudio();
+      try { a.currentTime = 0; } catch {}
+      a.play().then(() => setIsPlaying(true)).catch(() => {});
+    };
+
+    const handleStop = () => {
+      const a = audioRef.current;
+      if (!a) return;
+      try { a.pause(); } catch {}
+      try { a.currentTime = 0; } catch {}
+      setIsPlaying(false);
+    };
+
+    return (
+      <div className="tw-w-12 tw-h-9 tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-flex tw-items-center tw-justify-center tw-gap-1 tw-rounded-[2px]">
+        <button
+          onClick={handlePlay}
+          title="Play"
+          className={`tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border tw-text-white ${isPlaying ? 'tw-bg-neutral-800 tw-border-neutral-700' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700'}`}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button
+          onClick={handleStop}
+          title="Stop"
+          className="tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border tw-text-white tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg>
+        </button>
+      </div>
+    );
+  };
+
   const formatFileSize = (bytes: number, decimalPoint = 2) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -572,9 +630,7 @@ const FileBrowser: React.FC = () => {
                         <MemoImageThumb path={localSrc} name={it.name} />
                       )}
                       {type === 'audio' && (
-                        <div className="tw-w-12 tw-h-9 tw-bg-[#0d0d0d] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-xs tw-text-[#999] tw-rounded-[2px]">
-                          AUDIO
-                        </div>
+                        <AudioInlinePreview path={it.path} />
                       )}
                     </div>
                     <div className="tw-min-w-0 tw-flex-1">
@@ -612,9 +668,7 @@ const FileBrowser: React.FC = () => {
                         <MemoImageThumb path={localSrc} name={it.name} />
                       )}
                       {type === 'audio' && (
-                        <div className="tw-w-12 tw-h-9 tw-bg-[#0d0d0d] tw-border tw-border-[#222] tw-flex tw-items-center tw-justify-center tw-text-xs tw-text-[#999] tw-rounded-[2px]">
-                          AUDIO
-                        </div>
+                        <AudioInlinePreview path={it.path} />
                       )}
                     </div>
                     

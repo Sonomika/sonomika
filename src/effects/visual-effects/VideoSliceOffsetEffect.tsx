@@ -63,7 +63,7 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
 
   // For global effects, we need to capture the current render target
   const renderTarget = useMemo(() => {
-    if (isGlobal || !videoTexture) {
+    if (isGlobal) {
       const rt = new THREE.WebGLRenderTarget(1920, 1080, {
         format: THREE.RGBAFormat,
         type: THREE.UnsignedByteType,
@@ -102,15 +102,8 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
 
   // Create shader material
   const shaderMaterial = useMemo(() => {
-    const initialTexture: THREE.Texture = (lastTextureRef.current as THREE.Texture)
-      || ((videoTexture && !isGlobal) ? (videoTexture as THREE.Texture) : (renderTarget ? renderTarget.texture : bufferTexture));
-
-    if (!lastTextureRef.current) {
-      lastTextureRef.current = initialTexture;
-    }
-
-    // Always render from live videoTexture if provided, otherwise from our persistent canvas buffer
-    const inputTexture: THREE.Texture = initialTexture;
+    // For global effects, we'll use a fallback texture initially
+    const inputTexture: any = videoTexture || (renderTarget ? renderTarget.texture : bufferTexture);
 
     const vertexShader = `
       varying vec2 vUv;
@@ -203,7 +196,7 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
       transparent: false,
       toneMapped: false
     });
-  }, []);
+  }, [videoTexture, sliceCount, offsetAmount, sliceWidth, animationSpeed, removeGaps, bpm, isGlobal]);
 
   // Update input texture when upstream changes to avoid stale binding and prevent feedback loops
   useEffect(() => {
@@ -241,9 +234,9 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
 
   // Calculate aspect ratio from video texture if available
   const aspectRatio = useMemo(() => {
-    if (videoTexture && videoTexture.image && !isGlobal) { // Added !isGlobal
+    if (videoTexture && (videoTexture as any).image && !isGlobal) { // Added !isGlobal
       try {
-        const { width, height } = videoTexture.image as any;
+        const { width, height } = (videoTexture as any).image;
         if (width && height && width > 0 && height > 0) {
           return width / height;
         }
@@ -293,8 +286,6 @@ const VideoSliceOffsetEffect: React.FC<VideoSliceOffsetEffectProps> = ({
     });
     return null;
   }
-
-  
 
   return (
     <mesh ref={meshRef} position={[0, 0, 0.1]}>
