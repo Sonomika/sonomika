@@ -5,6 +5,7 @@ import { useLFOStore, type LFOMapping } from '../store/lfoStore';
 import { ParamRow, Select, Tabs, TabsList, TabsTrigger, TabsContent, Switch, Slider } from './ui';
 import { getClock } from '../engine/Clock';
 import { getEffect } from '../utils/effectRegistry';
+import { getEffectComponentSync } from '../utils/EffectLoader';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
 
 interface LFOMapperProps {
@@ -578,10 +579,11 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
     options.push({ value: 'Layer Opacity', label: 'Layer Opacity' });
 
-    const effectId: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name;
+    const effectId: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name || (layer as any)?.asset?.effectId || (layer as any)?.asset?.effect?.id;
     const isEffect = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;
     if (isEffect && effectId) {
-      const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
+      // Resolve effect component robustly so metadata is available before params exist
+      const effectComponent = getEffectComponentSync(effectId) || getEffect(effectId) || null;
       const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
       if (metadata?.parameters && Array.isArray(metadata.parameters)) {
         // Global randomize-all entry

@@ -6,6 +6,7 @@ import { getEffect } from '../utils/effectRegistry';
 import { ParamRow, ButtonGroup, Slider } from './ui';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
 import { useStore } from '../store/store';
+import { useLFOStore } from '../store/lfoStore';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
@@ -38,6 +39,19 @@ const DiceIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
   const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip } = useStore() as any;
+  // Subscribe to live LFO modulations so sliders reflect movement during playback (esp. timeline)
+  const modulatedValues = useLFOStore((state) => state.modulatedValues);
+  const [isTimelinePlaying, setIsTimelinePlaying] = React.useState<boolean>(Boolean((window as any).__vj_timeline_is_playing__ === true));
+  React.useEffect(() => {
+    const onPlay = () => setIsTimelinePlaying(true);
+    const onStop = () => setIsTimelinePlaying(false);
+    document.addEventListener('timelinePlay', onPlay as any);
+    document.addEventListener('timelineStop', onStop as any);
+    return () => {
+      document.removeEventListener('timelinePlay', onPlay as any);
+      document.removeEventListener('timelineStop', onStop as any);
+    };
+  }, []);
   // Update local state when selectedLayer changes
   const [loopMode, setLoopMode] = useState<LoopMode>(
     (selectedLayer as any)?.loopMode || LOOP_MODES.NONE
@@ -96,6 +110,35 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   
   const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
 
+  // Build a lookup of live modulated values for the current layer
+  const liveModulatedByParam: Record<string, number> = React.useMemo(() => {
+    const out: Record<string, number> = {};
+    const lid = selectedLayer?.id ? String(selectedLayer.id) : null;
+    if (!lid) return out;
+    try {
+      Object.entries(modulatedValues || {}).forEach(([key, val]: any) => {
+        if (key.startsWith(`${lid}-`) && val && typeof val.modulatedValue === 'number') {
+          const pname = key.slice(lid.length + 1);
+          out[pname] = Number(val.modulatedValue);
+        }
+      });
+    } catch {}
+    return out;
+  }, [modulatedValues, selectedLayer?.id]);
+
+  // When timeline is playing, mirror live modulated values into local UI state
+  React.useEffect(() => {
+    if (!showTimeline || !isTimelinePlaying) return;
+    if (!selectedLayer) return;
+    const keys = Object.keys(liveModulatedByParam);
+    if (keys.length === 0) return;
+    setLocalParamValues((prev) => {
+      const next = { ...prev } as Record<string, any>;
+      keys.forEach((k) => { next[k] = liveModulatedByParam[k]; });
+      return next;
+    });
+  }, [showTimeline, isTimelinePlaying, selectedLayer?.id, liveModulatedByParam]);
+
   const handleFitModeChange = (mode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile') => {
     // Update column layer if present
     if (selectedLayer) {
@@ -107,12 +150,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       } as any);
     }
 
-    // In timeline mode, also update the selectedTimelineClip params so preview works independently
+    // In timeline mode, also update the selectedTimelineClip data so preview works independently
     try {
       if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
         const prev = selectedTimelineClip as any;
         const nextData = { ...(prev.data || {}) } as any;
-        nextData.params = { ...(nextData.params || {}), fitMode: mode };
+        // Store fitMode at the top level of clip data, not in params
+        nextData.fitMode = mode;
+        nextData.backgroundSizeMode = mode === 'tile' ? 'contain' : undefined;
+        nextData.backgroundRepeat = mode === 'tile' ? 'repeat' : 'no-repeat';
+        nextData.backgroundSizeCustom = undefined;
         setSelectedTimelineClip({ ...prev, data: nextData });
       }
     } catch {}
@@ -335,6 +382,19 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         pingPongEnabled: mode === LOOP_MODES.PING_PONG
       });
     }
+
+    // In timeline mode, also update the selectedTimelineClip data
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        nextData.loopMode = mode;
+        nextData.loopCount = mode === LOOP_MODES.NONE ? 1 : loopCount;
+        nextData.reverseEnabled = mode === LOOP_MODES.REVERSE;
+        nextData.pingPongEnabled = mode === LOOP_MODES.PING_PONG;
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
   };
 
   const handleLoopCountChange = (count: number) => {
@@ -345,6 +405,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         loopCount: count
       });
     }
+
+    // In timeline mode, also update the selectedTimelineClip data
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        nextData.loopCount = count;
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
   };
 
   const handleBlendModeChange = (mode: string) => {
@@ -355,6 +425,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         blendMode: mode
       });
     }
+
+    // In timeline mode, also update the selectedTimelineClip data
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        nextData.blendMode = mode;
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
   };
 
   const handlePlayModeChange = (mode: 'restart' | 'continue') => {
@@ -365,6 +445,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         playMode: mode
       });
     }
+
+    // In timeline mode, also update the selectedTimelineClip data
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        nextData.playMode = mode;
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
   };
 
   const commitOpacity = (value: number) => {
@@ -373,6 +463,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       ...(selectedLayer as any),
       opacity: value,
     });
+
+    // In timeline mode, also update the selectedTimelineClip data
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        nextData.opacity = value;
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
   };
 
   const handleOpacityChange = (value: number) => {
@@ -384,6 +484,22 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         opacityRafRef.current = null;
       });
     }
+  };
+
+  const handleRenderScaleChange = (value: number) => {
+    if (!selectedLayer) return;
+    const clamped = Number.isFinite(value) ? Math.max(0.1, Math.min(1, value)) : 1;
+    onUpdateLayer(selectedLayer.id, { renderScale: clamped } as any);
+
+    // In timeline mode, also update the selectedTimelineClip data
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        nextData.renderScale = clamped;
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
   };
 
   const handleEffectParamChange = (paramName: string, value: any) => {
@@ -763,7 +879,12 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                                 min={param?.min || 0}
                                 max={param?.max || 100}
                                 step={param?.step || 1}
-                                value={[localParamValues[paramName] ?? (param?.value ?? 0)]}
+                                value={[
+                                  // During timeline playback, prefer live LFO modulated value if available
+                                  (showTimeline && isTimelinePlaying && liveModulatedByParam[paramName] !== undefined)
+                                    ? Number(liveModulatedByParam[paramName])
+                                    : Number(localParamValues[paramName] ?? (param?.value ?? 0))
+                                ]}
                                 onValueChange={(values) => !isLocked && values && values.length > 0 && handleEffectParamChange(paramName, values[0])}
                               />
                             </div>
@@ -826,23 +947,18 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                         step={0.01}
                         buttonsAfter
                         showLabel={false}
-                        onChange={(value) => {
-                          if (!selectedLayer) return;
-                          const n = Number(value);
-                          const clamped = Number.isFinite(n) ? Math.max(0.1, Math.min(1, n)) : 1;
-                          onUpdateLayer(selectedLayer.id, { renderScale: clamped } as any);
-                        }}
+                        onChange={(value) => handleRenderScaleChange(Number(value))}
                         onIncrement={() => {
                           if (!selectedLayer) return;
                           const cur = Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1));
                           const next = Math.min(1, Math.round((cur + 0.01) * 100) / 100);
-                          onUpdateLayer(selectedLayer.id, { renderScale: next } as any);
+                          handleRenderScaleChange(next);
                         }}
                         onDecrement={() => {
                           if (!selectedLayer) return;
                           const cur = Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1));
                           const next = Math.max(0.1, Math.round((cur - 0.01) * 100) / 100);
-                          onUpdateLayer(selectedLayer.id, { renderScale: next } as any);
+                          handleRenderScaleChange(next);
                         }}
                       />
                     </div>
@@ -852,12 +968,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                       min={0.1}
                       max={1}
                       value={Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1)).toFixed(2)}
-                      onChange={(e) => {
-                        if (!selectedLayer) return;
-                        const n = parseFloat(e.target.value);
-                        const clamped = Number.isFinite(n) ? Math.max(0.1, Math.min(1, n)) : 1;
-                        onUpdateLayer(selectedLayer.id, { renderScale: clamped } as any);
-                      }}
+                      onChange={(e) => handleRenderScaleChange(parseFloat(e.target.value))}
                       className="tw-w-[72px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
                     />
                   </div>
@@ -987,7 +1098,12 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
             <div className="tw-flex-1 tw-min-w-0">
               <ParamRow
                 label="Opacity"
-                value={opacity}
+                value={
+                  // Reflect LFO opacity in timeline: mapping typically uses 0..100, convert to 0..1
+                  (showTimeline && isTimelinePlaying && liveModulatedByParam['opacity'] !== undefined)
+                    ? Math.max(0, Math.min(1, Number(liveModulatedByParam['opacity']) / 100))
+                    : opacity
+                }
                 min={0}
                 max={1}
                 step={0.01}

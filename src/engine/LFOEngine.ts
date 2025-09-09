@@ -416,6 +416,7 @@ class LFOEngineImpl {
         if (shouldFire) {
           const effectId: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name;
           const isEffect = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;
+          const isTimelinePlaying = (window as any).__vj_timeline_is_playing__ === true;
           if (isEffect && effectId) {
             const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
             const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
@@ -423,11 +424,16 @@ class LFOEngineImpl {
               const unlockedDefs = (metadata.parameters as any[]).filter((p: any) => !(layer.params as any)?.[p.name]?.locked);
               const randomized = globalRandomize(unlockedDefs, layer.params);
               if (randomized && Object.keys(randomized).length > 0) {
-                const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
-                Object.entries(randomized).forEach(([n, obj]) => {
-                  updatedParams[n] = { ...(updatedParams[n] || {}), value: (obj as any).value };
-                });
-                updateLayer(layer.id, { params: updatedParams });
+                if (isTimelinePlaying) {
+                  const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
+                  try { document.dispatchEvent(new CustomEvent('timelineModulateBatch', { detail: { clipId, params: randomized } })); } catch {}
+                } else {
+                  const updatedParams = { ...(layer.params || {}) } as Record<string, any>;
+                  Object.entries(randomized).forEach(([n, obj]) => {
+                    updatedParams[n] = { ...(updatedParams[n] || {}), value: (obj as any).value };
+                  });
+                  updateLayer(layer.id, { params: updatedParams });
+                }
               }
             }
           }
@@ -464,6 +470,7 @@ class LFOEngineImpl {
           const effectId: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name;
           const isEffect = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;
           let updatedParams = { ...(layer.params || {}) } as Record<string, any>;
+          const isTimelinePlaying = (window as any).__vj_timeline_is_playing__ === true;
           if (isEffect && effectId) {
             const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
             const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
@@ -471,16 +478,26 @@ class LFOEngineImpl {
             if (paramDef) {
               const randomized = globalRandomize([paramDef], layer.params);
               if (randomized && randomized[actualParamName]) {
-                updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: (randomized as any)[actualParamName].value };
-                updateLayer(layer.id, { params: updatedParams });
+                if (isTimelinePlaying) {
+                  const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
+                  try { document.dispatchEvent(new CustomEvent('timelineModulate', { detail: { clipId, paramName: actualParamName, value: (randomized as any)[actualParamName].value } })); } catch {}
+                } else {
+                  updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: (randomized as any)[actualParamName].value };
+                  updateLayer(layer.id, { params: updatedParams });
+                }
                 return;
               }
             }
           }
           // Fallback numeric randomization
           const val = Number(minVal) + Math.random() * (Number(maxVal) - Number(minVal));
-          updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: val };
-          updateLayer(layer.id, { params: updatedParams });
+          if (isTimelinePlaying) {
+            const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
+            try { document.dispatchEvent(new CustomEvent('timelineModulate', { detail: { clipId, paramName: actualParamName, value: val } })); } catch {}
+          } else {
+            updatedParams[actualParamName] = { ...(updatedParams[actualParamName] || {}), value: val };
+            updateLayer(layer.id, { params: updatedParams });
+          }
         }
         return;
       }
@@ -503,7 +520,8 @@ class LFOEngineImpl {
       } else {
         const currentParams = pendingParams;
         const currentVal = currentParams[actualParamName]?.value;
-        if (typeof currentVal !== 'number' || !Number.isFinite(currentVal)) return;
+        const canProceed = isTimelinePlaying || (typeof currentVal === 'number' && Number.isFinite(currentVal));
+        if (!canProceed) return;
         if (isTimelinePlaying) {
           const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
           dispatchToTimeline({ clipId, paramName: actualParamName, value: modulatedValue });

@@ -505,20 +505,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   // Unified updater: handles real layers and pseudo global-effect layers
   const handleUpdateSelectedLayer = (layerId: string, options: any) => {
-    // Only reroute updates to timeline's resolved layer when timeline preview is active
-    const forcedLayerId = (previewContent && previewContent.type === 'timeline' && selectedTimelineClip && selectedTimelineClip.layerId)
-      ? selectedTimelineClip.layerId
-      : null;
-    if (forcedLayerId) {
-      handleUpdateLayerWrapper(forcedLayerId, options);
-      // Nudge preview timeline state so it re-renders with latest params
-      try {
-        setPreviewContent((prev: any) => (prev && prev.type === 'timeline' ? { ...prev } : prev));
-      } catch {}
-      return;
-    }
-    // Timeline-only clip (no mapped scene layer): write back params to the selected timeline clip in the store
-    if (previewContent && previewContent.type === 'timeline' && selectedTimelineClip && (!selectedTimelineClip.layerId || String(layerId).startsWith('timeline-layer-'))) {
+    // Check if this is a timeline-only layer (pseudo-layer created for timeline editing)
+    const isTimelineOnlyLayer = String(layerId).startsWith('timeline-layer-');
+
+    // In timeline preview, ALWAYS write to the selected clip data (never forward to a column layer)
+    if (previewContent && previewContent.type === 'timeline' && selectedTimelineClip) {
       try {
         const nextClipData = { ...(selectedTimelineClip.data || {}) } as any;
         // Merge top-level layer options (e.g., fitMode, blendMode, opacity, etc.)
@@ -1064,13 +1055,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         }
         // Timeline clips should remain separate from column view; prefer clip params
         const resolvedParams = clip.params || matchedLayer?.params || {};
-        // Resolve effective fit mode: prefer clip.params.fitMode in timeline mode, then matched layer, then global default
+        
+        // Check if this is a timeline-only layer (pseudo-layer) and use its data
+        const isTimelineOnlyLayer = selectedTimelineClip && selectedTimelineClip.id === clip.id && !selectedTimelineClip.layerId;
+        const timelineLayerData = isTimelineOnlyLayer ? clip : null;
+        
+        // Resolve effective fit mode: prefer clip.fitMode in timeline mode, then matched layer, then global default
         let effectiveFitMode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile' | undefined = undefined;
         try {
           if (clip.type !== 'effect') {
-            // 1) Prefer fitMode coming from the clip's own params (timeline-local control)
-            effectiveFitMode = (resolvedParams as any)?.fitMode as any;
-            // 2) Fall back to matched layer's fitMode if not provided on the clip
+            // 1) Prefer fitMode coming from the clip's own data (timeline-local control)
+            effectiveFitMode = (clip as any)?.fitMode as any;
+            // 2) Fall back to clip.params.fitMode for backward compatibility
+            if (!effectiveFitMode) effectiveFitMode = (resolvedParams as any)?.fitMode as any;
+            // 3) Fall back to matched layer's fitMode if not provided on the clip
             if (!effectiveFitMode) effectiveFitMode = (matchedLayer as any)?.fitMode;
             if (!effectiveFitMode) {
               const storeModule: any = require('../store/store');
@@ -1092,11 +1090,17 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           layerNum: trackNumber,
           type: clip.type === 'effect' ? 'effect' : 'video',
           asset: clip.asset,
-          opacity: 1,
-          blendMode: 'add',
+          opacity: (clip as any)?.opacity || timelineLayerData?.opacity || 1,
+          blendMode: (clip as any)?.blendMode || timelineLayerData?.blendMode || 'add',
           params: resolvedParams,
           effects: clip.type === 'effect' ? [clip.asset] : undefined,
-          ...(clip.type !== 'effect' ? { fitMode: effectiveFitMode, ...backgroundProps } : {})
+          ...(clip.type !== 'effect' ? { 
+            fitMode: effectiveFitMode, 
+            backgroundSizeMode: (clip as any)?.backgroundSizeMode,
+            backgroundRepeat: (clip as any)?.backgroundRepeat,
+            backgroundSizeCustom: (clip as any)?.backgroundSizeCustom,
+            ...backgroundProps 
+          } : {})
         };
       });
 
@@ -1384,36 +1388,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     effectiveSelectedLayer = memoPseudoLayer;
   }
 
-  // Auto-focus Layer tab and select resolved layer when a timeline clip is chosen
+  // Auto-focus Layer tab and select pseudo-layer when a timeline clip is chosen (fully decoupled from columns)
   useEffect(() => {
     if (!selectedTimelineClip) return;
     try {
-      // Do not override user selection of Global tab during playback
       setMiddlePanelTab((curr) => (curr === 'global' ? curr : 'layer'));
-      const scene = getCurrentScene();
-      const allLayers = scene ? scene.columns.flatMap((c: any) => c.layers) : [];
-      let resolved: any = null;
-      if (selectedTimelineClip.layerId) {
-        resolved = allLayers.find((l: any) => l.id === selectedTimelineClip.layerId) || null;
-      }
-      if (!resolved && typeof selectedTimelineClip.trackNum === 'number') {
-        const byNum = allLayers.find((l: any) => l.layerNum === selectedTimelineClip.trackNum);
-        if (byNum) resolved = byNum;
-      }
-      if (!resolved) {
-        const assetId = selectedTimelineClip?.data?.asset?.id || selectedTimelineClip?.data?.asset?.name || selectedTimelineClip?.data?.name;
-        if (selectedTimelineClip?.data?.type === 'video') {
-          resolved = allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === assetId || l?.asset?.name === assetId)) || null;
-        } else {
-          resolved = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === assetId || l?.asset?.name === assetId)) || null;
-        }
-      }
-      if (!resolved) {
-        resolved = allLayers.find((l: any) => l?.asset?.isEffect || l?.type === 'effect') || null;
-      }
-      if (resolved) setSelectedLayer(resolved);
+      const clipData = selectedTimelineClip.data || {};
+      const asset = clipData.asset || {};
+      const pseudoLayer = {
+        id: `timeline-layer-${selectedTimelineClip.id}`,
+        type: clipData.type || 'video',
+        asset: asset,
+        params: clipData.params || {},
+        opacity: typeof clipData.opacity === 'number' ? clipData.opacity : 1.0,
+        blendMode: clipData.blendMode || 'add',
+        fitMode: clipData.fitMode || 'cover',
+        playMode: clipData.playMode || 'restart',
+        loopMode: clipData.loopMode || 'none',
+        loopCount: typeof clipData.loopCount === 'number' ? clipData.loopCount : 1,
+        renderScale: typeof clipData.renderScale === 'number' ? clipData.renderScale : undefined,
+        clipId: selectedTimelineClip.id,
+        isTimelineLayer: true,
+      };
+      setSelectedLayer(pseudoLayer);
     } catch {}
-  }, [selectedTimelineClip, getCurrentScene]);
+  }, [selectedTimelineClip]);
 
   // Ensure we have at least 30 columns
   const columns = [...currentScene.columns];

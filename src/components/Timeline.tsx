@@ -295,7 +295,25 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     
     isPlayingRef.current = true;
     setIsPlaying(true);
-    try { (window as any).__vj_timeline_is_playing__ = true; } catch {}
+    try {
+      (window as any).__vj_timeline_is_playing__ = true;
+      // Publish initial active layers immediately so engines can begin before first RAF update
+      const activeClipsNow = getClipsAtTime(currentTime);
+      const layersNow = activeClipsNow.map((clip: any) => ({
+        id: `timeline-layer-${clip.id}`,
+        type: clip.type,
+        name: clip.name,
+        opacity: (clip.params && clip.params.opacity && typeof clip.params.opacity.value === 'number') ? clip.params.opacity.value : undefined,
+        params: clip.params || {},
+        asset: clip.asset || {},
+        clipId: clip.id,
+      }));
+      (window as any).__vj_timeline_active_layers__ = layersNow;
+      // Fire an initial tick to kick the LFO engine
+      try { document.dispatchEvent(new CustomEvent('timelineTick', { detail: { time: currentTime, duration } })); } catch {}
+      // Also broadcast play event for any listeners
+      try { document.dispatchEvent(new Event('timelinePlay')); } catch {}
+    } catch {}
     
     const loop = (ts: number) => {
       if (!isPlayingRef.current) return;
@@ -1355,25 +1373,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         const allLayers: any[] = columns.flatMap((c: any) => c.layers || []);
         const track = tracks.find(t => t.clips.some(c => c.id === clipId));
         const clip = track?.clips.find(c => c.id === clipId);
-        if (track && clip) {
+        if (track && clip && typeof setSelectedTimelineClip === 'function') {
           const trackNum = parseInt((track.id || 'track-1').split('-')[1] || '1', 10);
-          let resolvedLayer: any = null;
-          if (clip?.type === 'effect') {
-            const effectId = clip?.asset?.id || clip?.asset?.name || clip?.name;
-            resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === effectId || l?.asset?.name === effectId));
-            if (!resolvedLayer) {
-              resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && l?.layerNum === trackNum);
-            }
-          } else if (clip?.type === 'video') {
-            resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && l?.layerNum === trackNum);
-            if (!resolvedLayer) {
-              const videoId = clip?.asset?.id || clip?.asset?.name || clip?.name;
-              resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === videoId || l?.asset?.name === videoId));
-            }
-          }
-          if (typeof setSelectedTimelineClip === 'function') {
-            setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: resolvedLayer?.id || null, trackNum });
-          }
+          // Decoupled: never resolve or set layerId here.
+          setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: null, trackNum });
         }
       } catch {}
     }
