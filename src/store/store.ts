@@ -937,7 +937,7 @@ export const useStore = createWithEqualityFn<AppState & {
            bpm: state.bpm,
            sidebarVisible: state.sidebarVisible,
            // Force timeline off in persisted state
-           showTimeline: false,
+           showTimeline: state.showTimeline,
            midiMappings: state.midiMappings,
            midiForceChannel1: (state as any).midiForceChannel1,
            selectedLayerId: state.selectedLayerId,
@@ -958,8 +958,7 @@ export const useStore = createWithEqualityFn<AppState & {
          };
        },
              onRehydrateStorage: () => (state) => {
-         // Ensure timeline remains disabled after rehydrate
-         try { (useStore as any)?.setState?.({ showTimeline: false }); } catch {}
+         // Respect persisted showTimeline; no override on rehydrate
          // console.log('🔄 Store rehydrated successfully!');
          // console.log('📊 Rehydrated data summary:');
          // console.log('  - Assets:', state?.assets?.length || 0, 'items');

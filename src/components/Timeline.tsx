@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { debounce } from '../utils/debounce';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
-import { AudioWaveform } from './AudioWaveform';
+import AudioWaveform from './AudioWaveform.tsx';
 import { useStore } from '../store/store';
 import { Slider } from './ui';
+import MoveableTimelineClip from './MoveableTimelineClip';
+import SimpleTimelineClip from './SimpleTimelineClip';
 // EffectLoader import removed - using dynamic loading instead
 
 // Context Menu Component
@@ -12,9 +14,10 @@ interface ContextMenuProps {
   y: number;
   onClose: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }
 
-const ClipContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete }) => {
+const ClipContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete, onDuplicate }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,18 +36,111 @@ const ClipContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete }
     onClose();
   };
 
+  const handleDuplicate = () => {
+    onDuplicate();
+    onClose();
+  };
+
   return (
     <div
       ref={menuRef}
-      className="context-menu tw-min-w-[140px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100"
-      style={{ position: 'fixed', left: x, top: y, zIndex: 1000 }}
+      className="context-menu tw-fixed tw-z-[10000] tw-min-w-[160px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg"
+      style={{ left: Math.min(x, window.innerWidth - 160), top: Math.min(y, window.innerHeight - 120) }}
     >
-      <button
+      <div
+        onClick={handleDuplicate}
+        className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5"
+      >
+        Duplicate
+      </div>
+      <div
         onClick={handleDelete}
-        className="tw-w-full tw-px-3 tw-py-1.5 tw-text-left tw-text-sm tw-text-red-400 hover:tw-bg-neutral-800"
+        className="context-menu-item tw-select-none tw-cursor-pointer tw-text-red-400 tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5"
       >
         Delete
-      </button>
+      </div>
+    </div>
+  );
+};
+
+// Track Context Menu Component
+interface TrackContextMenuProps {
+  x: number;
+  y: number;
+  onClose: () => void;
+  onAddTrack: () => void;
+  onAddAudioTrack: () => void;
+  onRemoveTrack: (trackId: string) => void;
+  trackId?: string;
+  canRemoveTrack: boolean;
+}
+
+const TrackContextMenu: React.FC<TrackContextMenuProps> = ({ 
+  x, 
+  y, 
+  onClose, 
+  onAddTrack, 
+  onAddAudioTrack,
+  onRemoveTrack,
+  trackId,
+  canRemoveTrack
+}) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  const handleAddTrack = () => {
+    onAddTrack();
+    onClose();
+  };
+
+  const handleAddAudio = () => {
+    onAddAudioTrack();
+    onClose();
+  };
+
+  const handleRemoveTrack = () => {
+    if (trackId) {
+      onRemoveTrack(trackId);
+    }
+    onClose();
+  };
+
+  return (
+    <div
+      ref={menuRef}
+      className="context-menu tw-fixed tw-z-[10000] tw-min-w-[160px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg"
+      style={{ left: Math.min(x, window.innerWidth - 160), top: Math.min(y, window.innerHeight - 120) }}
+    >
+      <div
+        onClick={handleAddTrack}
+        className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5"
+      >
+        Add Track
+      </div>
+      <div
+        onClick={handleAddAudio}
+        className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5"
+      >
+        Add Audio Track
+      </div>
+      {canRemoveTrack && trackId && (
+        <div
+          onClick={handleRemoveTrack}
+          className="context-menu-item tw-select-none tw-cursor-pointer tw-text-red-400 tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5"
+        >
+          Remove Track
+        </div>
+      )}
     </div>
   );
 };
@@ -235,8 +331,31 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     clipId: null,
     trackId: null,
   });
+
+  // Track context menu state
+  const [trackContextMenu, setTrackContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    trackId?: string;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+  });
   
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  // Display order: reverse non-audio tracks to match column view (top is highest layer), keep audio at bottom
+  const displayTracks = useMemo(() => {
+    try {
+      const nonAudio = (tracks || []).filter((t) => t.type !== 'audio');
+      const audio = (tracks || []).filter((t) => t.type === 'audio');
+      return [...nonAudio].reverse().concat(audio);
+    } catch {
+      return tracks || [];
+    }
+  }, [tracks]);
 
   // Helper: build file:// URL for absolute paths (Windows-safe)
   const toFileURL = (absPath: string) => {
@@ -1120,6 +1239,105 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     setDraggingClip(null);
   };
 
+  // Handle clip selection for MoveableTimelineClip
+  const handleClipSelect = useCallback((clipId: string, multiSelect?: boolean) => {
+    if (multiSelect) {
+      setSelectedClips(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(clipId)) {
+          newSet.delete(clipId);
+        } else {
+          newSet.add(clipId);
+        }
+        return newSet;
+      });
+    } else {
+      setSelectedClips(new Set([clipId]));
+      try {
+        const state = (useStore as any).getState();
+        const { scenes, currentSceneId, setSelectedTimelineClip } = state;
+        const scene = scenes?.find((s: any) => s.id === currentSceneId);
+        const columns: any[] = scene?.columns || [];
+        const allLayers: any[] = columns.flatMap((c: any) => c.layers || []);
+        const track = tracks.find(t => t.clips.some(c => c.id === clipId));
+        const clip = track?.clips.find(c => c.id === clipId);
+        if (track && clip) {
+          const trackNum = parseInt((track.id || 'track-1').split('-')[1] || '1', 10);
+          let resolvedLayer: any = null;
+          if (clip?.type === 'effect') {
+            const effectId = clip?.asset?.id || clip?.asset?.name || clip?.name;
+            resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === effectId || l?.asset?.name === effectId));
+            if (!resolvedLayer) {
+              resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && l?.layerNum === trackNum);
+            }
+          } else if (clip?.type === 'video') {
+            resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && l?.layerNum === trackNum);
+            if (!resolvedLayer) {
+              const videoId = clip?.asset?.id || clip?.asset?.name || clip?.name;
+              resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === videoId || l?.asset?.name === videoId));
+            }
+          }
+          if (typeof setSelectedTimelineClip === 'function') {
+            setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: resolvedLayer?.id || null, trackNum });
+          }
+        }
+      } catch {}
+    }
+  }, [tracks]);
+
+  // Handle clip update for MoveableTimelineClip
+  const handleClipUpdate = useCallback((clipId: string, updates: Partial<TimelineClip>) => {
+    updateTracks(prev => prev.map(track => ({
+      ...track,
+      clips: track.clips.map(clip => 
+        clip.id === clipId ? { ...clip, ...updates } : clip
+      )
+    })));
+  }, [updateTracks]);
+
+  // Handle clip delete for MoveableTimelineClip
+  const handleClipDelete = useCallback((clipId: string) => {
+    updateTracks(prev => prev.map(track => ({
+      ...track,
+      clips: track.clips.filter(clip => clip.id !== clipId)
+    })));
+    setSelectedClips(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(clipId);
+      return newSet;
+    });
+  }, [updateTracks]);
+
+  // Handle clip move to different track
+  const handleClipMoveToTrack = useCallback((clipId: string, fromTrackId: string, toTrackId: string) => {
+    updateTracks(prev => {
+      const fromTrack = prev.find(t => t.id === fromTrackId);
+      const toTrack = prev.find(t => t.id === toTrackId);
+      
+      if (!fromTrack || !toTrack) return prev;
+      
+      const clip = fromTrack.clips.find(c => c.id === clipId);
+      if (!clip) return prev;
+      
+      return prev.map(track => {
+        if (track.id === fromTrackId) {
+          // Remove clip from source track
+          return {
+            ...track,
+            clips: track.clips.filter(c => c.id !== clipId)
+          };
+        } else if (track.id === toTrackId) {
+          // Add clip to destination track
+          return {
+            ...track,
+            clips: [...track.clips, clip]
+          };
+        }
+        return track;
+      });
+    });
+  }, [updateTracks]);
+
   // Sync clip params when Layer Options updates selectedTimelineClip in the store (timeline-only clips)
   useEffect(() => {
     try {
@@ -1463,6 +1681,100 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     });
   };
 
+  // Track context menu handlers
+  const handleTrackRightClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setTrackContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
+  const handleIndividualTrackRightClick = (e: React.MouseEvent, trackId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const visualTracks = tracks.filter(t => t.type !== 'audio');
+    const audioTracks = tracks.filter(t => t.type === 'audio');
+    const track = tracks.find(t => t.id === trackId);
+    
+    // Check if track can be removed
+    let canRemove = false;
+    if (track) {
+      if (track.type === 'audio' && audioTracks.length > 1) {
+        canRemove = true;
+      } else if (track.type !== 'audio' && visualTracks.length > 3) {
+        canRemove = true;
+      }
+    }
+    
+    setTrackContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      trackId: canRemove ? trackId : undefined,
+    });
+  };
+
+  const handleTrackContextMenuClose = () => {
+    setTrackContextMenu({
+      visible: false,
+      x: 0,
+      y: 0,
+    });
+  };
+
+  const handleAddTrack = () => {
+    const newTrackId = `track-${Date.now()}`;
+    const newTrack: TimelineTrack = {
+      id: newTrackId,
+      name: `Track ${tracks.filter(t => t.type !== 'audio').length + 1}`,
+      type: 'video', // Default to video type for visual tracks
+      clips: []
+    };
+    
+    updateTracks(prevTracks => [...prevTracks, newTrack]);
+    console.log('Added new track:', newTrackId);
+  };
+
+  const handleAddAudioTrack = () => {
+    const newTrackId = `track-${Date.now()}`;
+    const newTrack: TimelineTrack = {
+      id: newTrackId,
+      name: `Audio Track ${tracks.filter(t => t.type === 'audio').length + 1}`,
+      type: 'audio',
+      clips: []
+    };
+    
+    updateTracks(prevTracks => [...prevTracks, newTrack]);
+    console.log('Added new audio track:', newTrackId);
+  };
+
+  const handleRemoveTrack = (trackId: string) => {
+    const trackToRemove = tracks.find(t => t.id === trackId);
+    if (!trackToRemove) return;
+
+    // Check minimum track requirements
+    const visualTracks = tracks.filter(t => t.type !== 'audio');
+    const audioTracks = tracks.filter(t => t.type === 'audio');
+
+    if (trackToRemove.type === 'audio' && audioTracks.length <= 1) {
+      console.log('Cannot remove last audio track');
+      return;
+    }
+
+    if (trackToRemove.type !== 'audio' && visualTracks.length <= 3) {
+      console.log('Cannot remove track - minimum 3 visual tracks required');
+      return;
+    }
+
+    updateTracks(prevTracks => prevTracks.filter(t => t.id !== trackId));
+    console.log('Removed track:', trackId);
+  };
+
   const handleDeleteClip = () => {
     if (contextMenu.trackId) {
       updateTracks(prevTracks => 
@@ -1484,6 +1796,40 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       
       const deletedCount = selectedClips.size > 0 ? selectedClips.size : 1;
       console.log(`Deleted ${deletedCount} clip(s) from track ${contextMenu.trackId}`);
+    }
+  };
+
+  const handleDuplicateClip = () => {
+    if (contextMenu.trackId && contextMenu.clipId) {
+      updateTracks(prevTracks => 
+        prevTracks.map(track => {
+          if (track.id === contextMenu.trackId) {
+            // Find the original clip
+            const originalClip = track.clips.find(clip => clip.id === contextMenu.clipId);
+            if (originalClip) {
+              // Create a duplicate with new ID and offset position
+              const duplicatedClip: TimelineClip = {
+                ...originalClip,
+                id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                startTime: originalClip.startTime + originalClip.duration + 0.1, // Place after original with small gap
+              };
+              
+              // Insert the duplicate after the original clip
+              const originalIndex = track.clips.findIndex(clip => clip.id === contextMenu.clipId);
+              const newClips = [...track.clips];
+              newClips.splice(originalIndex + 1, 0, duplicatedClip);
+              
+              return {
+                ...track,
+                clips: newClips
+              };
+            }
+          }
+          return track;
+        })
+      );
+      
+      console.log(`Duplicated clip ${contextMenu.clipId} on track ${contextMenu.trackId}`);
     }
   };
 
@@ -1570,20 +1916,34 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         console.warn('Audio sync error:', err);
       }
 
-      // Always send preview content so paused frames are visible
-      const timelinePreviewContent = {
-        type: 'timeline',
-        tracks: tracks,
-        currentTime: currentTime,
-        duration: duration,
-        // Use ref to avoid lag between RAF loop starting and state update
-        isPlaying: Boolean(isPlayingRef.current),
-        activeClips: activeClips
-      };
-      console.log('Sending timeline preview content:', timelinePreviewContent);
-      onPreviewUpdate(timelinePreviewContent);
+       // Only send timeline preview when in timeline mode
+       // Check if we're in timeline mode by looking at the store
+       const store = useStore.getState() as any;
+       if (store.showTimeline) {
+         const timelinePreviewContent = {
+           type: 'timeline',
+           tracks: tracks,
+           currentTime: currentTime,
+           duration: duration,
+           // Use ref to avoid lag between RAF loop starting and state update
+           isPlaying: Boolean(isPlayingRef.current),
+           activeClips: activeClips
+         };
+         console.log('Sending timeline preview content:', timelinePreviewContent);
+         onPreviewUpdate(timelinePreviewContent);
+       }
     }
   }, [currentTime, isPlaying, tracks, duration, onPreviewUpdate]);
+
+  // Listen to timeline mode changes and clear preview when switching away
+  const { showTimeline } = useStore();
+  useEffect(() => {
+    if (onPreviewUpdate && !showTimeline) {
+      // Clear timeline preview content when switching away from timeline mode
+      console.log('Clearing timeline preview - switched away from timeline mode');
+      onPreviewUpdate(null);
+    }
+  }, [showTimeline, onPreviewUpdate]);
 
   // Debug currentTime changes
   useEffect(() => {
@@ -2311,13 +2671,21 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             })()}
           </div>
 
-          <div className="tw-flex tw-flex-col tw-gap-2 tw-overflow-visible tw-min-h-0">
-            {tracks.map((track) => (
-              <div key={track.id} className="tw-flex tw-flex-col tw-gap-1">
-                <div className="tw-flex tw-items-center tw-gap-2 tw-text-neutral-300 tw-text-xs tw-px-1.5 tw-py-0.5">
-                  <span className="tw-inline-flex tw-items-center tw-justify-center tw-px-1.5 tw-py-0.5 tw-rounded tw-font-semibold tw-text-xs tw-bg-neutral-700 tw-border tw-border-neutral-600 tw-text-white">{track.type.toUpperCase()}</span>
-                  <span>{track.name}</span>
+          <div 
+            className="tw-flex tw-flex-col tw-gap-2 tw-overflow-visible tw-min-h-0"
+            onContextMenu={handleTrackRightClick}
+          >
+            {displayTracks.map((track) => (
+              <div 
+                key={track.id} 
+                className="tw-flex tw-flex-col tw-gap-1"
+                onContextMenu={(e) => handleIndividualTrackRightClick(e, track.id)}
+              >
+                {track.type === 'audio' && (
+                  <div className="tw-flex tw-items-center tw-gap-2 tw-text-neutral-400 tw-text-xs tw-px-1.5 tw-py-0.5">
+                    <span>AUDIO</span>
                 </div>
+                )}
                 <div 
                   className="tw-relative tw-rounded-md tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-mb-1"
                   onDragOver={handleDragOver}
@@ -2334,123 +2702,25 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                       const clipEnd = clip.startTime + clip.duration;
                       return clipEnd >= startWindow && clipStart <= endWindow;
                     });
-                    return visibleClips.map((clip) => {
-                      const isPlaying = currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration;
-                      const translateX = clip.startTime * pixelsPerSecond;
-                      const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
-                      const background = '#1e88e5'; // filled blue, no border
-                      return (
-                        <div
+                    let waveformBudget = 8;
+                    return visibleClips.map((clip) => (
+                      <SimpleTimelineClip
                           key={clip.id}
-                          data-clip-id={clip.id}
-                          className={`group tw-absolute tw-top-1 tw-bottom-1 tw-rounded tw-text-white tw-overflow-hidden tw-z-20 tw-box-border tw-flex tw-items-center tw-px-2 ${
-                            selectedClips.has(clip.id)
-                              ? 'tw-bg-orange-600 tw-ring-2 tw-ring-orange-400'
-                              : ''
-                          }`}
-                          style={{
-                            transform: `translate3d(${translateX}px, 0, 0)`,
-                            width: `${widthPx}px`,
-                            background: selectedClips.has(clip.id) ? undefined : background,
-                            willChange: 'transform,width',
-                          }}
-                          draggable
-                          onDragStart={(e) => handleClipDragStart(e, clip, track.id)}
-                          onDragEnd={handleClipDragEnd}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (e.ctrlKey || e.metaKey) {
-                              // Multi-select: toggle this clip
-                              setSelectedClips(prev => {
-                                const newSet = new Set(prev);
-                                if (newSet.has(clip.id)) {
-                                  newSet.delete(clip.id);
-                                } else {
-                                  newSet.add(clip.id);
-                                }
-                                return newSet;
-                              });
-                            } else {
-                              // Single select: clear others and select this one
-                              setSelectedClips(new Set([clip.id]));
-                              try {
-                                const state = (useStore as any).getState();
-                                const { scenes, currentSceneId, setSelectedTimelineClip } = state;
-                                const scene = scenes?.find((s: any) => s.id === currentSceneId);
-                                const columns: any[] = scene?.columns || [];
-                                const allLayers: any[] = columns.flatMap((c: any) => c.layers || []);
-                                const trackNum = parseInt((track.id || 'track-1').split('-')[1] || '1', 10);
-                                let resolvedLayer: any = null;
-                                if (clip?.type === 'effect') {
-                                  const effectId = clip?.asset?.id || clip?.asset?.name || clip?.name;
-                                  resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === effectId || l?.asset?.name === effectId));
-                                  if (!resolvedLayer) {
-                                    resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && l?.layerNum === trackNum);
-                                  }
-                                } else if (clip?.type === 'video') {
-                                  resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && l?.layerNum === trackNum);
-                                  if (!resolvedLayer) {
-                                    const videoId = clip?.asset?.id || clip?.asset?.name || clip?.name;
-                                    resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === videoId || l?.asset?.name === videoId));
-                                  }
-                                }
-                                // Do not auto-create a mapped layer from timeline; keep timeline/column separate
-                                if (typeof setSelectedTimelineClip === 'function') {
-                                  setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: resolvedLayer?.id || null, trackNum });
-                                }
-                              } catch {}
-                              try {
-                                const nextSel = new Set<string>([clip.id]);
-                                setSelectedClips(nextSel);
-                                localStorage.setItem('vj-timeline-selected-clips', JSON.stringify(Array.from(nextSel)));
-                              } catch {}
-                            }
-                          }}
-                          onContextMenu={(e) => handleClipRightClick(e, clip.id, track.id)}
-                        >
-                          <div
-                            className="tw-absolute tw-left-0 tw-top-0 tw-bottom-0 tw-w-[6px] tw-bg-white/80 tw-opacity-60 group-hover:tw-opacity-100 tw-cursor-ew-resize tw-rounded-l"
-                            draggable
-                            onDragStart={(ev) => {
-                              ev.stopPropagation();
-                              // Mark dragging this clip (reuse payload)
-                              setDraggingClip({ clipId: clip.id, sourceTrackId: track.id });
-                              ev.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip-trim-left', clipId: clip.id, sourceTrackId: track.id }));
-                              ev.dataTransfer.effectAllowed = 'move';
-                            }}
-                          />
-                          <span className="tw-text-xs tw-whitespace-nowrap tw-overflow-hidden tw-text-ellipsis">{clip.name}</span>
-                          <div
-                            className="tw-absolute tw-right-0 tw-top-0 tw-bottom-0 tw-w-[6px] tw-bg-white/80 tw-opacity-60 group-hover:tw-opacity-100 tw-cursor-ew-resize tw-rounded-r"
-                            draggable
-                            onDragStart={(ev) => {
-                              ev.stopPropagation();
-                              setDraggingClip({ clipId: clip.id, sourceTrackId: track.id });
-                              ev.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip-trim-right', clipId: clip.id, sourceTrackId: track.id }));
-                              ev.dataTransfer.effectAllowed = 'move';
-                            }}
-                          />
-                          {clip.type === 'audio' && SHOW_AUDIO_WAVEFORM && (
-                            <div style={{ position: 'absolute', left: 0, right: 0, top: 18, bottom: 6, padding: '0 2px' }}>
-                              <AudioWaveform
-                                src={clip.asset?.path}
-                                width={Math.max(1, Math.floor(clip.duration * pixelsPerSecond) - 4)}
-                                height={Math.max(20, TRACK_MIN_HEIGHT - 28)}
-                                color="#4CAF50"
-                                secondaryColor="#1b5e20"
-                              />
-                            </div>
-                          )}
-                          {isPlaying && (
-                            <div className="tw-ml-2" aria-hidden="true">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z"/>
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    });
+                        clip={clip}
+                        trackId={track.id}
+                        pixelsPerSecond={pixelsPerSecond}
+                        isSelected={selectedClips.has(clip.id)}
+                        onSelect={handleClipSelect}
+                        onUpdate={handleClipUpdate}
+                        onDelete={handleClipDelete}
+                        onContextMenu={handleClipRightClick}
+                        timelineRef={timelineRef}
+                        snapToGrid={timelineSnapEnabled}
+                        snapThreshold={20}
+                        allClips={tracks.flatMap(t => t.clips)}
+                        trackDuration={timelineDuration}
+                      />
+                    ));
                   })()}
                   {draggedAsset && (
                     <div className="drag-preview">
@@ -2518,6 +2788,21 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         y={contextMenu.y}
         onClose={handleContextMenuClose}
         onDelete={handleDeleteClip}
+        onDuplicate={handleDuplicateClip}
+      />
+    )}
+
+    {/* Track Context Menu */}
+    {trackContextMenu.visible && (
+      <TrackContextMenu
+        x={trackContextMenu.x}
+        y={trackContextMenu.y}
+        onClose={handleTrackContextMenuClose}
+        onAddTrack={handleAddTrack}
+        onAddAudioTrack={handleAddAudioTrack}
+        onRemoveTrack={handleRemoveTrack}
+        trackId={trackContextMenu.trackId}
+        canRemoveTrack={!!trackContextMenu.trackId}
       />
     )}
 
