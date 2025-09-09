@@ -311,6 +311,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     }
   }, []);
 
+  // Clear timeline preview when switching to column mode
+  useEffect(() => {
+    if (!showTimeline) {
+      // When switching to column mode, clear any lingering timeline preview
+      console.log('🎭 Switched to column mode - clearing timeline preview');
+      setPreviewContent(null);
+      setIsPlaying(false);
+    }
+  }, [showTimeline]);
+
   console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);
   console.log('🎭 Preview state - previewContent:', previewContent, 'isPlaying:', isPlaying);
 
@@ -1016,11 +1026,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         }
         // Timeline clips should remain separate from column view; prefer clip params
         const resolvedParams = clip.params || matchedLayer?.params || {};
-        // Resolve effective fit mode: use matched layer if present, else global default
+        // Resolve effective fit mode: prefer clip.params.fitMode in timeline mode, then matched layer, then global default
         let effectiveFitMode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile' | undefined = undefined;
         try {
           if (clip.type !== 'effect') {
-            effectiveFitMode = (matchedLayer as any)?.fitMode;
+            // 1) Prefer fitMode coming from the clip's own params (timeline-local control)
+            effectiveFitMode = (resolvedParams as any)?.fitMode as any;
+            // 2) Fall back to matched layer's fitMode if not provided on the clip
+            if (!effectiveFitMode) effectiveFitMode = (matchedLayer as any)?.fitMode;
             if (!effectiveFitMode) {
               const storeModule: any = require('../store/store');
               const useStore = (storeModule && (storeModule.useStore || storeModule.default?.useStore)) || storeModule.useStore;
@@ -1554,6 +1567,27 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     {currentScene?.name || 'Scene'}
                   </button>
                 </div>
+
+                {/* End of Scene Action Selector - Only show in timeline mode */}
+                {showTimeline && (
+                  <div className="tw-flex tw-items-center tw-gap-2 tw-ml-2">
+                    <label className="tw-text-xs tw-text-neutral-400 tw-whitespace-nowrap">End:</label>
+                    <select
+                      value={currentScene?.endOfSceneAction || 'stop'}
+                      onChange={(e) => {
+                        const action = e.target.value as 'loop' | 'play_next' | 'random' | 'stop';
+                        updateScene(currentSceneId, { endOfSceneAction: action });
+                      }}
+                      className="tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1 tw-min-w-0 tw-flex-shrink-0"
+                      title="Action when scene ends"
+                    >
+                      <option value="stop">Stop</option>
+                      <option value="loop">Loop</option>
+                      <option value="play_next">Next</option>
+                      <option value="random">Random</option>
+                    </select>
+                  </div>
+                )}
 
                 
 

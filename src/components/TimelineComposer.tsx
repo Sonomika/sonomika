@@ -33,11 +33,14 @@ const VideoTexture: React.FC<{
 }> = ({ video, opacity, blendMode, effects, compositionWidth, compositionHeight, assetId }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+  const [previousTexture, setPreviousTexture] = useState<THREE.VideoTexture | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [fallbackTexture, setFallbackTexture] = useState<THREE.CanvasTexture | null>(null);
   const liveMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const fallbackMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const frameReadyRef = useRef<boolean>(false);
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use composition settings for aspect ratio instead of video's natural ratio
   const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
@@ -54,6 +57,14 @@ const VideoTexture: React.FC<{
 
   useEffect(() => {
     if (video) {
+      // Start transition state
+      setIsTransitioning(true);
+      
+      // Clear any existing transition timeout
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+      
       const videoTexture = new THREE.VideoTexture(video);
       videoTexture.minFilter = THREE.LinearFilter;
       videoTexture.magFilter = THREE.LinearFilter;
@@ -65,8 +76,39 @@ const VideoTexture: React.FC<{
           (videoTexture as any).encoding = (THREE as any).sRGBEncoding;
         }
       } catch {}
+      
+      // Store previous texture for smooth transition
+      if (texture) {
+        setPreviousTexture(texture);
+      }
+      
       setTexture(videoTexture);
+      
+      // Wait for video to be ready before ending transition
+      const checkVideoReady = () => {
+        if (video.readyState >= 2) {
+          setIsTransitioning(false);
+          // Dispose previous texture after a short delay to ensure smooth transition
+          transitionTimeoutRef.current = setTimeout(() => {
+            if (previousTexture) {
+              previousTexture.dispose?.();
+              setPreviousTexture(null);
+            }
+          }, 100); // 100ms delay to ensure smooth transition
+        } else {
+          // Check again on next frame
+          requestAnimationFrame(checkVideoReady);
+        }
+      };
+      
+      checkVideoReady();
     }
+    
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+    };
   }, [video]);
 
   // RVFC-driven invalidation for live texture
@@ -129,7 +171,9 @@ const VideoTexture: React.FC<{
 
   // Update textures and control opacity
   useFrame(() => {
-    const ready = !!(texture && video.readyState >= 2);
+    // During transition, use previous texture if available, otherwise use current texture
+    const activeTexture = isTransitioning && previousTexture ? previousTexture : texture;
+    const ready = !!(activeTexture && video.readyState >= 2);
     const canvas = offscreenCanvasRef.current;
     const hasFallback = !!(fallbackTexture && canvas && canvas.width > 0 && canvas.height > 0);
     let liveAlpha = 1;
@@ -146,10 +190,14 @@ const VideoTexture: React.FC<{
       fallbackMaterialRef.current.opacity = opacity * fallbackAlpha;
       fallbackMaterialRef.current.transparent = true;
     }
-    if (texture && ready) {
+    if (activeTexture && ready) {
       if (frameReadyRef.current) {
-        texture.needsUpdate = true;
+        activeTexture.needsUpdate = true;
         frameReadyRef.current = false;
+      }
+      // Also update previous texture during transition to keep it smooth
+      if (isTransitioning && previousTexture) {
+        previousTexture.needsUpdate = true;
       }
       // Keep fallback updated when possible
       if (canvas && fallbackTexture) {
@@ -165,8 +213,11 @@ const VideoTexture: React.FC<{
     }
   });
 
+  // During transition, use previous texture if available, otherwise use current texture
+  const activeTexture = isTransitioning && previousTexture ? previousTexture : texture;
+  
   // If no texture yet and no fallback, render nothing (mask handles initial); otherwise show fallback
-  if (!texture || video.readyState < 2) {
+  if (!activeTexture || video.readyState < 2) {
     const compositionAspectRatio = aspectRatio;
     const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
     const scaleY = Math.max(videoAspectRatio / compositionAspectRatio, 1);
@@ -191,11 +242,11 @@ const VideoTexture: React.FC<{
     // Use EffectLoader for any effects
     return (
       <EffectLoader 
-        videoTexture={texture}
+        videoTexture={activeTexture}
         fallback={
           <mesh>
             <planeGeometry args={[aspectRatio * 2, 2]} />
-            <meshBasicMaterial map={texture} />
+            <meshBasicMaterial map={activeTexture} />
           </mesh>
         }
       />
@@ -223,7 +274,7 @@ const VideoTexture: React.FC<{
         <planeGeometry args={[finalScaleX, finalScaleY]} />
         <meshBasicMaterial 
           ref={liveMaterialRef}
-          map={texture} 
+          map={activeTexture} 
           transparent 
           opacity={1}
           blending={getBlendMode(blendMode)}

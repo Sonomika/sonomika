@@ -32,10 +32,10 @@ const TimelineControls: React.FC = () => {
         <span className="tw-text-xs tw-text-neutral-300">Zoom</span>
         <div className="tw-w-40">
           <Slider
-            min={0.2}
+            min={0.05}
             max={5}
             step={0.05}
-            value={[Math.max(0.2, Math.min(5, Number(timelineZoom) || 1))]}
+            value={[Math.max(0.05, Math.min(5, Number(timelineZoom) || 1))]}
             onValueChange={(v) => {
               const next = Array.isArray(v) ? Number(v[0]) : Number(v);
               if (isFinite(next)) try { setTimelineZoom(next); } catch {}

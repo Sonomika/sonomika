@@ -37,7 +37,7 @@ const DiceIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
-  const { defaultVideoRenderScale } = useStore() as any;
+  const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip } = useStore() as any;
   // Update local state when selectedLayer changes
   const [loopMode, setLoopMode] = useState<LoopMode>(
     (selectedLayer as any)?.loopMode || LOOP_MODES.NONE
@@ -97,14 +97,25 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
 
   const handleFitModeChange = (mode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile') => {
-    if (!selectedLayer) return;
-    // Clear old background sizing props so fitMode drives rendering
-    onUpdateLayer(selectedLayer.id, {
-      fitMode: mode,
-      backgroundSizeMode: mode === 'tile' ? 'contain' : undefined,
-      backgroundRepeat: mode === 'tile' ? 'repeat' as any : 'no-repeat' as any,
-      backgroundSizeCustom: undefined
-    } as any);
+    // Update column layer if present
+    if (selectedLayer) {
+      onUpdateLayer(selectedLayer.id, {
+        fitMode: mode,
+        backgroundSizeMode: mode === 'tile' ? 'contain' : undefined,
+        backgroundRepeat: mode === 'tile' ? 'repeat' as any : 'no-repeat' as any,
+        backgroundSizeCustom: undefined
+      } as any);
+    }
+
+    // In timeline mode, also update the selectedTimelineClip params so preview works independently
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        nextData.params = { ...(nextData.params || {}), fitMode: mode };
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
   };
 
   const toggleLock = (name: string) => {

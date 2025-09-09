@@ -147,6 +147,9 @@ export const useStore = createWithEqualityFn<AppState & {
   removeScene: (sceneId: string) => void;
   duplicateScene: (sceneId: string) => void;
   reorderScenes: (fromIndex: number, toIndex: number) => void;
+  playNextScene: () => void;
+  playRandomScene: () => void;
+  loopCurrentScene: () => void;
   setAccessibilityEnabled: (enabled: boolean) => void;
   toggleAccessibility: () => void;
   addColumn: (sceneId: string) => void;
@@ -298,6 +301,33 @@ export const useStore = createWithEqualityFn<AppState & {
         const [moved] = scenes.splice(fromIndex, 1);
         scenes.splice(toIndex, 0, moved);
         return { scenes } as any;
+      }),
+
+      // Scene navigation functions
+      playNextScene: () => set((state) => {
+        const currentIndex = state.scenes.findIndex(s => s.id === state.currentSceneId);
+        if (currentIndex === -1) return {} as any;
+        
+        const nextIndex = currentIndex < state.scenes.length - 1 ? currentIndex + 1 : 0;
+        return { currentSceneId: state.scenes[nextIndex].id } as any;
+      }),
+
+      playRandomScene: () => set((state) => {
+        if (state.scenes.length <= 1) return {} as any;
+        
+        const currentIndex = state.scenes.findIndex(s => s.id === state.currentSceneId);
+        let randomIndex;
+        do {
+          randomIndex = Math.floor(Math.random() * state.scenes.length);
+        } while (randomIndex === currentIndex && state.scenes.length > 1);
+        
+        return { currentSceneId: state.scenes[randomIndex].id } as any;
+      }),
+
+      loopCurrentScene: () => set((state) => {
+        // For loop, we just restart the current scene
+        // The actual looping logic will be handled in the timeline playback
+        return {} as any;
       }),
 
       setAccessibilityEnabled: (enabled: boolean) => set({ accessibilityEnabled: enabled }),

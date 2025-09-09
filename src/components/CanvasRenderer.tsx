@@ -183,7 +183,7 @@ const WorkerVideoTexture: React.FC<{
   );
 };
 
-// Video texture component for R3F
+// Video texture component for R3F with persistence during transitions
 const VideoTexture: React.FC<{ 
   video: HTMLVideoElement; 
   opacity: number; 
@@ -191,10 +191,21 @@ const VideoTexture: React.FC<{
 }> = ({ video, opacity, blendMode }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
+  const [previousTexture, setPreviousTexture] = useState<THREE.VideoTexture | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   const frameReadyRef = useRef<boolean>(false);
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (video) {
+      // Start transition state
+      setIsTransitioning(true);
+      
+      // Clear any existing transition timeout
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+      
       const videoTexture = new THREE.VideoTexture(video);
       videoTexture.minFilter = THREE.LinearFilter;
       videoTexture.magFilter = THREE.LinearFilter;
@@ -207,8 +218,39 @@ const VideoTexture: React.FC<{
           (videoTexture as any).encoding = (THREE as any).sRGBEncoding;
         }
       } catch {}
+      
+      // Store previous texture for smooth transition
+      if (texture) {
+        setPreviousTexture(texture);
+      }
+      
       setTexture(videoTexture);
+      
+      // Wait for video to be ready before ending transition
+      const checkVideoReady = () => {
+        if (video.readyState >= 2) {
+          setIsTransitioning(false);
+          // Dispose previous texture after a short delay to ensure smooth transition
+          transitionTimeoutRef.current = setTimeout(() => {
+            if (previousTexture) {
+              previousTexture.dispose?.();
+              setPreviousTexture(null);
+            }
+          }, 100); // 100ms delay to ensure smooth transition
+        } else {
+          // Check again on next frame
+          requestAnimationFrame(checkVideoReady);
+        }
+      };
+      
+      checkVideoReady();
     }
+    
+    return () => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+    };
   }, [video]);
 
   // Prefer requestVideoFrameCallback to invalidate texture only when a decoded frame is ready
@@ -235,9 +277,17 @@ const VideoTexture: React.FC<{
       texture.needsUpdate = true;
       frameReadyRef.current = false;
     }
+    
+    // Also update previous texture during transition to keep it smooth
+    if (isTransitioning && previousTexture) {
+      previousTexture.needsUpdate = true;
+    }
   });
 
-  if (!texture) {
+  // During transition, use previous texture if available, otherwise use current texture
+  const activeTexture = isTransitioning && previousTexture ? previousTexture : texture;
+  
+  if (!activeTexture) {
     // Render a transparent placeholder instead of null to prevent black flash
     return (
       <mesh>
@@ -255,7 +305,7 @@ const VideoTexture: React.FC<{
     <mesh ref={meshRef}>
       <planeGeometry args={[2, 2]} />
       <meshBasicMaterial 
-        map={texture} 
+        map={activeTexture} 
         transparent 
         opacity={opacity}
         blending={getBlendMode(blendMode)}

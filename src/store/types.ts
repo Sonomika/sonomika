@@ -63,6 +63,8 @@ export interface Scene {
   globalEffects: GlobalEffectSlot[];
   // UI: number of visible rows in the column grid
   numRows?: number;
+  // Action to take when scene ends
+  endOfSceneAction?: 'loop' | 'play_next' | 'random' | 'stop';
 }
 
 export interface MIDIMapping {

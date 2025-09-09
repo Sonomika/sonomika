@@ -15,9 +15,11 @@ interface ContextMenuProps {
   onClose: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onSplit?: () => void;
+  isPlayheadMenu?: boolean;
 }
 
-const ClipContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete, onDuplicate }) => {
+const ClipContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete, onDuplicate, onSplit, isPlayheadMenu = false }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,24 +43,42 @@ const ClipContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose, onDelete, 
     onClose();
   };
 
+  const handleSplit = () => {
+    if (onSplit) {
+      onSplit();
+      onClose();
+    }
+  };
+
   return (
     <div
       ref={menuRef}
       className="context-menu tw-fixed tw-z-[10000] tw-min-w-[160px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg"
       style={{ left: Math.min(x, window.innerWidth - 160), top: Math.min(y, window.innerHeight - 120) }}
     >
-      <div
-        onClick={handleDuplicate}
-        className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5"
-      >
-        Duplicate
-      </div>
-      <div
-        onClick={handleDelete}
-        className="context-menu-item tw-select-none tw-cursor-pointer tw-text-red-400 tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5"
-      >
-        Delete
-      </div>
+      {isPlayheadMenu ? (
+        <div
+          onClick={handleSplit}
+          className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5"
+        >
+          Split Clips at Playhead
+        </div>
+      ) : (
+        <>
+          <div
+            onClick={handleDuplicate}
+            className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5"
+          >
+            Duplicate
+          </div>
+          <div
+            onClick={handleDelete}
+            className="context-menu-item tw-select-none tw-cursor-pointer tw-text-red-400 tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5"
+          >
+            Delete
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -170,7 +190,7 @@ interface TimelineClip {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreviewUpdate }) => {
-  const { currentSceneId, timelineSnapEnabled, setTimelineSnapEnabled, timelineDuration, setTimelineDuration, selectedTimelineClip } = useStore() as any;
+  const { currentSceneId, timelineSnapEnabled, setTimelineSnapEnabled, selectedTimelineClip, scenes, playNextScene, playRandomScene, loopCurrentScene } = useStore() as any;
   
   // Load saved timeline data from localStorage for current scene
   const loadTimelineData = (): TimelineTrack[] => {
@@ -205,7 +225,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   const [tracks, setTracks] = useState<TimelineTrack[]>(loadTimelineData);
   const [currentTime, setCurrentTime] = useState(0);
-  // Timeline duration adapts to longest clip end; fallback to store duration if no clips
+  // Timeline duration adapts to longest clip end only
   const duration = useMemo(() => {
     let maxEnd = 0;
     try {
@@ -216,9 +236,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         });
       });
     } catch {}
-    // Use the maximum of: longest clip end, or configured timeline duration
-    return Math.max(maxEnd > 0 ? Math.ceil(maxEnd) : 0, timelineDuration);
-  }, [tracks, timelineDuration]);
+    // Use only the longest clip end, with a minimum of 1 second if no clips
+    return Math.max(maxEnd > 0 ? Math.ceil(maxEnd) : 1, 1);
+  }, [tracks]);
   
   // Reload timeline data when scene changes
   useEffect(() => {
@@ -255,17 +275,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     }
   };
 
-  // (removed unused clearAllTimelineData)
-
-  // Custom setTracks function that also saves to localStorage
-  const updateTracks = (newTracks: TimelineTrack[] | ((prev: TimelineTrack[]) => TimelineTrack[])) => {
-    setTracks(prevTracks => {
-      const updatedTracks = typeof newTracks === 'function' ? newTracks(prevTracks) : newTracks;
-      saveTimelineData(updatedTracks);
-      return updatedTracks;
-    });
-  };
-  
   // Calculate the earliest clip start time to sync playhead
   const getEarliestClipTime = () => {
     let earliestTime = Number.POSITIVE_INFINITY;
@@ -278,6 +287,91 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       });
     } catch {}
     return Number.isFinite(earliestTime) ? earliestTime : 0;
+  };
+
+  // Helper function to start playback with RAF loop
+  const startPlayback = useCallback(() => {
+    if (isPlayingRef.current) return;
+    
+    isPlayingRef.current = true;
+    setIsPlaying(true);
+    try { (window as any).__vj_timeline_is_playing__ = true; } catch {}
+    
+    const loop = (ts: number) => {
+      if (!isPlayingRef.current) return;
+      if (lastTsRef.current == null) lastTsRef.current = ts;
+      const dt = (ts - (lastTsRef.current || ts)) / 1000;
+      lastTsRef.current = ts;
+      setCurrentTime(prevTime => {
+        const newTime = prevTime + dt;
+        if (newTime >= duration) {
+          setIsPlaying(false);
+          isPlayingRef.current = false;
+          try {
+            (window as any).__vj_timeline_is_playing__ = false;
+            (window as any).__vj_timeline_active_layers__ = [];
+          } catch {}
+          handleSceneEnd();
+          const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
+          setCurrentTime(resetTime);
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+          return resetTime;
+        }
+        try {
+          const evt = new CustomEvent('timelineTick', { detail: { time: newTime, duration } });
+          document.dispatchEvent(evt);
+        } catch {}
+        return newTime;
+      });
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+  }, [duration, getEarliestClipTime, setCurrentTime]);
+
+  // Handle scene end actions
+  const handleSceneEnd = useCallback(() => {
+    const currentScene = scenes.find((s: any) => s.id === currentSceneId);
+    const endAction = currentScene?.endOfSceneAction || 'stop';
+    
+    console.log('🎬 Scene ended, executing action:', endAction);
+    
+    switch (endAction) {
+      case 'loop':
+        console.log('🔄 Looping current scene');
+        setCurrentTime(0);
+        setTimeout(() => startPlayback(), 100);
+        break;
+        
+      case 'play_next':
+        console.log('⏭️ Playing next scene');
+        playNextScene();
+        setTimeout(() => startPlayback(), 200);
+        break;
+        
+      case 'random':
+        console.log('🎲 Playing random scene');
+        playRandomScene();
+        setTimeout(() => startPlayback(), 200);
+        break;
+        
+      case 'stop':
+      default:
+        console.log('⏹️ Stopping playback');
+        // Timeline will stop automatically
+        break;
+    }
+  }, [currentSceneId, scenes, playNextScene, playRandomScene, setCurrentTime, startPlayback]);
+
+  // (removed unused clearAllTimelineData)
+
+  // Custom setTracks function that also saves to localStorage
+  const updateTracks = (newTracks: TimelineTrack[] | ((prev: TimelineTrack[]) => TimelineTrack[])) => {
+    setTracks(prevTracks => {
+      const updatedTracks = typeof newTracks === 'function' ? newTracks(prevTracks) : newTracks;
+      saveTimelineData(updatedTracks);
+      return updatedTracks;
+    });
   };
   const { timelineZoom, setTimelineZoom } = useStore();
   const zoom = timelineZoom;
@@ -304,7 +398,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const [lassoStart, setLassoStart] = useState<{ x: number; y: number } | null>(null);
   const [lassoEnd, setLassoEnd] = useState<{ x: number; y: number } | null>(null);
   const PIXELS_PER_SECOND = 120;
-  const pixelsPerSecond = useMemo(() => PIXELS_PER_SECOND * Math.max(0.1, zoom), [zoom]);
+  const pixelsPerSecond = useMemo(() => PIXELS_PER_SECOND * Math.max(0.05, zoom), [zoom]);
   const timelinePixelWidth = useMemo(() => Math.max(1, duration * pixelsPerSecond), [duration, pixelsPerSecond]);
   const TRACK_MIN_HEIGHT = 28; // slightly taller for readability
   const SHOW_AUDIO_WAVEFORM = false; // Temporarily disable WaveSurfer-based waveform for stability
@@ -1308,33 +1402,42 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     });
   }, [updateTracks]);
 
-  // Handle clip move to different track
+  // Handle moving clip to different track
   const handleClipMoveToTrack = useCallback((clipId: string, fromTrackId: string, toTrackId: string) => {
+    console.log('Moving clip:', clipId, 'from track:', fromTrackId, 'to track:', toTrackId);
+    
     updateTracks(prev => {
-      const fromTrack = prev.find(t => t.id === fromTrackId);
-      const toTrack = prev.find(t => t.id === toTrackId);
+      let movingClip: TimelineClip | null = null;
       
-      if (!fromTrack || !toTrack) return prev;
-      
-      const clip = fromTrack.clips.find(c => c.id === clipId);
-      if (!clip) return prev;
-      
-      return prev.map(track => {
+      // Remove clip from source track
+      const updatedTracks = prev.map(track => {
         if (track.id === fromTrackId) {
-          // Remove clip from source track
-          return {
-            ...track,
-            clips: track.clips.filter(c => c.id !== clipId)
-          };
-        } else if (track.id === toTrackId) {
-          // Add clip to destination track
-          return {
-            ...track,
-            clips: [...track.clips, clip]
-          };
+          const clipIndex = track.clips.findIndex(clip => clip.id === clipId);
+          if (clipIndex !== -1) {
+            movingClip = track.clips[clipIndex];
+            return {
+              ...track,
+              clips: track.clips.filter(clip => clip.id !== clipId)
+            };
+          }
         }
         return track;
       });
+      
+      // Add clip to destination track
+      if (movingClip) {
+        return updatedTracks.map(track => {
+          if (track.id === toTrackId) {
+            return {
+              ...track,
+              clips: [...track.clips, movingClip!].sort((a, b) => a.startTime - b.startTime)
+            };
+          }
+          return track;
+        });
+      }
+      
+      return updatedTracks;
     });
   }, [updateTracks]);
 
@@ -1564,6 +1667,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             (window as any).__vj_timeline_is_playing__ = false;
             (window as any).__vj_timeline_active_layers__ = [];
           } catch {}
+          
+          // Execute scene end action
+          handleSceneEnd();
+          
           const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
           setCurrentTime(resetTime);
           if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -1988,6 +2095,109 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       stopTimelinePlayback();
     }
   };
+
+  // Playhead right-click handler for split context menu
+  const handlePlayheadRightClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Find which track row was clicked
+    let targetTrackId: string | null = null;
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (rect) {
+      const mouseY = e.clientY - rect.top;
+      const trackElements = timelineRef.current?.querySelectorAll('[data-track-id]');
+      
+      for (const trackElement of trackElements || []) {
+        const trackRect = trackElement.getBoundingClientRect();
+        const trackTop = trackRect.top - rect.top;
+        const trackBottom = trackRect.bottom - rect.top;
+        
+        if (mouseY >= trackTop && mouseY <= trackBottom) {
+          targetTrackId = (trackElement as HTMLElement).dataset.trackId || null;
+          break;
+        }
+      }
+    }
+    
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      clipId: null, // Special marker for playhead context menu
+      trackId: targetTrackId, // Store the target track ID
+    });
+  };
+
+  // Split clips at current playhead position in specific track
+  const splitClipsAtPlayhead = useCallback(() => {
+    const splitTime = currentTime;
+    const targetTrackId = contextMenu.trackId;
+    
+    if (!targetTrackId) {
+      console.log('No target track identified for splitting');
+      return;
+    }
+
+    let hasSplit = false;
+
+    const updatedTracks = tracks.map(track => {
+      // Only process the target track
+      if (track.id !== targetTrackId) {
+        return track;
+      }
+
+      const clipsToSplit = track.clips.filter(clip => {
+        const clipStart = clip.startTime || 0;
+        const clipEnd = clipStart + (clip.duration || 0);
+        return splitTime > clipStart && splitTime < clipEnd;
+      });
+
+      if (clipsToSplit.length === 0) {
+        return track;
+      }
+
+      hasSplit = true;
+      const newClips = [];
+
+      for (const clip of track.clips) {
+        const clipStart = clip.startTime || 0;
+        const clipEnd = clipStart + (clip.duration || 0);
+
+        if (splitTime > clipStart && splitTime < clipEnd) {
+          // Split this clip
+          const firstPart = {
+            ...clip,
+            id: `${clip.id}-part1`,
+            duration: splitTime - clipStart,
+          };
+          
+          const secondPart = {
+            ...clip,
+            id: `${clip.id}-part2`,
+            startTime: splitTime,
+            duration: clipEnd - splitTime,
+          };
+
+          newClips.push(firstPart, secondPart);
+        } else {
+          newClips.push(clip);
+        }
+      }
+
+      return {
+        ...track,
+        clips: newClips.sort((a, b) => (a.startTime || 0) - (b.startTime || 0))
+      };
+    });
+
+    if (hasSplit) {
+      updateTracks(updatedTracks);
+      console.log(`Split clips in track ${targetTrackId} at time ${splitTime.toFixed(2)}s`);
+    } else {
+      console.log(`No clips found to split in track ${targetTrackId} at current playhead position`);
+    }
+  }, [currentTime, tracks, updateTracks, contextMenu.trackId]);
 
   const handlePlayheadMouseMove = (e: React.MouseEvent) => {
     if (isDraggingPlayhead) {
@@ -2679,6 +2889,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               <div 
                 key={track.id} 
                 className="tw-flex tw-flex-col tw-gap-1"
+                data-track-id={track.id}
                 onContextMenu={(e) => handleIndividualTrackRightClick(e, track.id)}
               >
                 {track.type === 'audio' && (
@@ -2713,12 +2924,14 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                         onSelect={handleClipSelect}
                         onUpdate={handleClipUpdate}
                         onDelete={handleClipDelete}
+                        onMoveToTrack={handleClipMoveToTrack}
                         onContextMenu={handleClipRightClick}
                         timelineRef={timelineRef}
                         snapToGrid={timelineSnapEnabled}
                         snapThreshold={20}
                         allClips={tracks.flatMap(t => t.clips)}
-                        trackDuration={timelineDuration}
+                        trackDuration={duration}
+                        allTracks={tracks.map(t => ({ id: t.id, type: t.type, name: t.name }))}
                       />
                     ));
                   })()}
@@ -2735,7 +2948,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           {/* Playhead inside scrollable area */}
           <div 
             ref={playheadRef}
-            className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[2px] tw-bg-red-500 tw-[will-change:transform] tw-pointer-events-auto tw-z-40 tw-cursor-ew-resize"
+            className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[2px] tw-bg-red-500 tw-[will-change:transform] tw-pointer-events-auto tw-z-50 tw-cursor-ew-resize"
             style={{ 
               transform: `translate3d(${currentTime * pixelsPerSecond}px, 0, 0)`,
               transition: isPlaying ? 'none' : 'transform 0.1s ease'
@@ -2747,6 +2960,18 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             onMouseDown={handlePlayheadMouseDown}
             onMouseMove={handlePlayheadMouseMove}
             onMouseUp={handlePlayheadMouseUp}
+            onContextMenu={handlePlayheadRightClick}
+          />
+          
+          {/* Invisible full-height hit area for playhead right-click */}
+          <div 
+            className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[40px] tw-bg-transparent tw-pointer-events-auto tw-z-50 tw-cursor-ew-resize"
+            style={{ 
+              transform: `translate3d(${currentTime * pixelsPerSecond - 19}px, 0, 0)`,
+              transition: isPlaying ? 'none' : 'transform 0.1s ease',
+              height: '100%' // Ensure it covers the full timeline height
+            }}
+            onContextMenu={handlePlayheadRightClick}
           />
         </div>
           </ScrollArea.Viewport>
@@ -2789,6 +3014,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         onClose={handleContextMenuClose}
         onDelete={handleDeleteClip}
         onDuplicate={handleDuplicateClip}
+        onSplit={splitClipsAtPlayhead}
+        isPlayheadMenu={contextMenu.clipId === null}
       />
     )}
 
