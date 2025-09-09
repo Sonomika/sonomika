@@ -190,12 +190,12 @@ interface TimelineClip {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreviewUpdate }) => {
-  const { currentSceneId, timelineSnapEnabled, setTimelineSnapEnabled, selectedTimelineClip, scenes, playNextScene, playRandomScene, loopCurrentScene } = useStore() as any;
+  const { currentTimelineSceneId, timelineSnapEnabled, setTimelineSnapEnabled, selectedTimelineClip, timelineScenes, playNextTimelineScene, playRandomTimelineScene, loopCurrentTimelineScene } = useStore() as any;
   
   // Load saved timeline data from localStorage for current scene
   const loadTimelineData = (): TimelineTrack[] => {
     try {
-      const savedData = localStorage.getItem(`timeline-tracks-${currentSceneId}`);
+      const savedData = localStorage.getItem(`timeline-tracks-${currentTimelineSceneId}`);
       if (savedData) {
         const parsedData = JSON.parse(savedData);
         let tracksData: TimelineTrack[] = parsedData;
@@ -207,7 +207,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           ];
           console.log('Appended missing audio track to saved timeline data');
         }
-        console.log(`Loaded timeline data for scene ${currentSceneId} from localStorage:`, tracksData);
+        console.log(`Loaded timeline data for scene ${currentTimelineSceneId} from localStorage:`, tracksData);
         return tracksData;
       }
     } catch (error) {
@@ -242,7 +242,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   
   // Reload timeline data when scene changes
   useEffect(() => {
-    console.log(`Scene changed to ${currentSceneId}, reloading timeline data`);
+    console.log(`Scene changed to ${currentTimelineSceneId}, reloading timeline data`);
     const newTracks = loadTimelineData();
     setTracks(newTracks);
     setCurrentTime(0);
@@ -253,13 +253,13 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       setPlaybackInterval(null);
     }
     setIsPlaying(false);
-  }, [currentSceneId]);
+  }, [currentTimelineSceneId]);
   
   // Save timeline data to localStorage for current scene
   const saveTimelineData = (tracksData: TimelineTrack[]) => {
     try {
-      localStorage.setItem(`timeline-tracks-${currentSceneId}`, JSON.stringify(tracksData));
-      console.log(`Saved timeline data for scene ${currentSceneId} to localStorage:`, tracksData);
+      localStorage.setItem(`timeline-tracks-${currentTimelineSceneId}`, JSON.stringify(tracksData));
+      console.log(`Saved timeline data for scene ${currentTimelineSceneId} to localStorage:`, tracksData);
     } catch (error) {
       console.error('Error saving timeline data:', error);
     }
@@ -268,8 +268,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   // Clear timeline data from localStorage for current scene
   const clearTimelineData = () => {
     try {
-      localStorage.removeItem(`timeline-tracks-${currentSceneId}`);
-      console.log(`Cleared timeline data for scene ${currentSceneId} from localStorage`);
+      localStorage.removeItem(`timeline-tracks-${currentTimelineSceneId}`);
+      console.log(`Cleared timeline data for scene ${currentTimelineSceneId} from localStorage`);
     } catch (error) {
       console.error('Error clearing timeline data:', error);
     }
@@ -331,7 +331,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   // Handle scene end actions
   const handleSceneEnd = useCallback(() => {
-    const currentScene = scenes.find((s: any) => s.id === currentSceneId);
+    const currentScene = timelineScenes.find((s: any) => s.id === currentTimelineSceneId);
     const endAction = currentScene?.endOfSceneAction || 'stop';
     
     console.log('🎬 Scene ended, executing action:', endAction);
@@ -345,13 +345,13 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         
       case 'play_next':
         console.log('⏭️ Playing next scene');
-        playNextScene();
+        playNextTimelineScene();
         setTimeout(() => startPlayback(), 200);
         break;
         
       case 'random':
         console.log('🎲 Playing random scene');
-        playRandomScene();
+        playRandomTimelineScene();
         setTimeout(() => startPlayback(), 200);
         break;
         
@@ -361,7 +361,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         // Timeline will stop automatically
         break;
     }
-  }, [currentSceneId, scenes, playNextScene, playRandomScene, setCurrentTime, startPlayback]);
+  }, [currentTimelineSceneId, timelineScenes, playNextTimelineScene, playRandomTimelineScene, setCurrentTime, startPlayback]);
 
   // (removed unused clearAllTimelineData)
 
@@ -1349,8 +1349,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       setSelectedClips(new Set([clipId]));
       try {
         const state = (useStore as any).getState();
-        const { scenes, currentSceneId, setSelectedTimelineClip } = state;
-        const scene = scenes?.find((s: any) => s.id === currentSceneId);
+        const { timelineScenes, currentTimelineSceneId, setSelectedTimelineClip } = state;
+        const scene = timelineScenes?.find((s: any) => s.id === currentTimelineSceneId);
         const columns: any[] = scene?.columns || [];
         const allLayers: any[] = columns.flatMap((c: any) => c.layers || []);
         const track = tracks.find(t => t.clips.some(c => c.id === clipId));

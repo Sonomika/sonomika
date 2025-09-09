@@ -83,7 +83,7 @@ const MemoMediaLibrary = React.memo(MediaLibrary);
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   // console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides } = useStore() as any;
+  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline } = useStore() as any;
   
   // Debug logging for playingColumnId
   useEffect(() => {
@@ -219,7 +219,38 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [fsFallbackActive, setFsFallbackActive] = useState(false);
 
-  const { showTimeline, setShowTimeline } = useStore() as any;
+  // Helper functions to get current scene and management functions based on mode
+  const getCurrentScene = () => {
+    return showTimeline 
+      ? timelineScenes.find((s: any) => s.id === currentTimelineSceneId)
+      : scenes.find((s: any) => s.id === currentSceneId);
+  };
+
+  const getCurrentSceneId = () => {
+    return showTimeline ? currentTimelineSceneId : currentSceneId;
+  };
+
+  const getScenes = () => {
+    return showTimeline ? timelineScenes : scenes;
+  };
+
+  const getSceneManagementFunctions = () => {
+    return showTimeline ? {
+      setCurrentScene: setCurrentTimelineScene,
+      addScene: addTimelineScene,
+      removeScene: removeTimelineScene,
+      updateScene: updateTimelineScene,
+      duplicateScene: duplicateTimelineScene,
+      reorderScenes: reorderTimelineScenes,
+    } : {
+      setCurrentScene,
+      addScene,
+      removeScene,
+      updateScene,
+      duplicateScene,
+      reorderScenes,
+    };
+  };
   const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
   const [middlePanelTab, setMiddlePanelTab] = useState<'global' | 'layer'>(() => {
     try {
@@ -249,20 +280,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Keep scene.numRows in sync when numRows changes
   useEffect(() => {
     try {
-      if (!currentSceneId) return;
-      const sc = scenes.find((s: any) => s.id === currentSceneId);
+      if (!getCurrentSceneId()) return;
+      const sc = getCurrentScene();
       if (!sc) return;
       const clamped = Math.min(6, Math.max(3, numRows));
       if (sc.numRows !== clamped) {
-        updateScene(currentSceneId, { numRows: clamped });
+        const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+        updateSceneFn(getCurrentSceneId(), { numRows: clamped });
       }
     } catch {}
-  }, [numRows, currentSceneId, scenes]);
+  }, [numRows, getCurrentSceneId, getCurrentScene, getSceneManagementFunctions]);
 
   // When scene changes, load its persisted numRows
   useEffect(() => {
     try {
-      const sc = scenes.find((s: any) => s.id === currentSceneId);
+      const sc = getCurrentScene();
       if (sc && typeof sc.numRows === 'number') {
         setNumRows(Math.min(6, Math.max(3, sc.numRows)));
       } else {
@@ -326,7 +358,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
 
 
-  const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+  const currentScene = getCurrentScene();
   console.log('Current scene:', currentScene);
 
   const handleLayerClickWrapper = (layer: any, columnId: string) => {
@@ -346,7 +378,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         return;
       }
       
-      const currentScene = scenes.find((s: any) => s.id === currentSceneId);
+      const currentScene = getCurrentScene();
       if (!currentScene) {
         console.log('No current scene found');
         return;
@@ -405,7 +437,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       console.log('Removed source layer from index:', sourceLayerIndex);
 
       // Update the scene
-      updateScene(currentSceneId, currentScene);
+      const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+      updateSceneFn(getCurrentSceneId(), currentScene);
       
       console.log(`Successfully moved asset from column ${sourceColumnId} to column ${targetColumnId} at layer ${targetLayerNum}`);
     } catch (error) {
@@ -418,13 +451,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     if (showTimeline) return;
     if (!persistedSelectedLayerId) return;
     try {
-      const scene = scenes.find((s: any) => s.id === currentSceneId);
+      const scene = getCurrentScene();
       if (!scene) return;
       const allLayers = scene.columns.flatMap((c: any) => c.layers || []);
       const match = allLayers.find((l: any) => l.id === persistedSelectedLayerId);
       if (match) setSelectedLayer(match);
     } catch {}
-  }, [showTimeline, persistedSelectedLayerId, currentSceneId, scenes]);
+  }, [showTimeline, persistedSelectedLayerId, getCurrentSceneId, getCurrentScene]);
 
   // const handleColumnClickWrapper = (columnId: string) => {
   //   handleColumnClick(columnId, setSelectedColumn);
@@ -519,7 +552,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       }
       // Future: support blend/opacity if needed for global context
       updatedEffects[idx] = updatedSlot;
-      updateScene(currentSceneId, { globalEffects: updatedEffects });
+      const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+      updateSceneFn(getCurrentSceneId(), { globalEffects: updatedEffects });
       // Keep the pseudo layer in sync for instant UI feedback
       setSelectedLayer((prev: any) => (prev && prev.id === layerId ? { ...prev, ...options } : prev));
       return;
@@ -715,7 +749,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Delete layer from column
   const handleDeleteLayer = () => {
     if (contextMenu.layerId && contextMenu.columnId) {
-      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      const currentScene = getCurrentScene();
       if (currentScene) {
         const updatedColumns = currentScene.columns.map((column: any) => {
           if (column.id === contextMenu.columnId) {
@@ -727,7 +761,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           return column;
         });
 
-        updateScene(currentSceneId, { columns: updatedColumns });
+        const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+        updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
         console.log(`Deleted layer ${contextMenu.layerId} from column ${contextMenu.columnId}`);
       }
     }
@@ -737,7 +772,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Copy column
   const handleCopyColumn = () => {
     if (contextMenu.columnId) {
-      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      const currentScene = getCurrentScene();
       if (currentScene) {
         const columnToCopy = currentScene.columns.find((col: any) => col.id === contextMenu.columnId);
         if (columnToCopy) {
@@ -760,7 +795,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       return;
     }
 
-    const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+    const currentScene = getCurrentScene();
     if (!currentScene) {
       handleContextMenuClose();
       return;
@@ -784,7 +819,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
     const updatedColumns = [...currentScene.columns];
     updatedColumns.splice(insertIndex, 0, pastedColumn);
-    updateScene(currentSceneId, { columns: updatedColumns });
+    const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+    updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
     console.log(`Pasted column ${pastedColumn.name} after column index ${targetIndex}`);
 
     handleContextMenuClose();
@@ -793,7 +829,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Copy cell
   const handleCopyCell = () => {
     if (contextMenu.layerId && contextMenu.columnId) {
-      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      const currentScene = getCurrentScene();
       if (currentScene) {
         const column = currentScene.columns.find((col: any) => col.id === contextMenu.columnId);
         if (column) {
@@ -815,7 +851,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Paste cell
   const handlePasteCell = () => {
     if (clipboard && clipboard.type === 'cell' && clipboard.data && contextMenu.columnId) {
-      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      const currentScene = getCurrentScene();
       if (currentScene) {
         // Determine target column and layer number from the highlighted cell
         let targetColumnId: string | null = contextMenu.columnId;
@@ -852,7 +888,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             return col;
           });
 
-          updateScene(currentSceneId, { columns: updatedColumns });
+          const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+          updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
           console.log(`Pasted cell ${pastedCell.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
         }
       }
@@ -863,7 +900,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Copy clip
   const handleCopyClip = () => {
     if (contextMenu.layerId && contextMenu.columnId) {
-      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      const currentScene = getCurrentScene();
       if (currentScene) {
         const column = currentScene.columns.find((col: any) => col.id === contextMenu.columnId);
         if (column) {
@@ -885,7 +922,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Paste clip (replaces existing content)
   const handlePasteClip = () => {
     if (clipboard && clipboard.type === 'clip' && clipboard.data && contextMenu.columnId) {
-      const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
+      const currentScene = getCurrentScene();
       if (currentScene) {
         // Determine target column and layer number from the highlighted cell
         let targetColumnId: string | null = contextMenu.columnId;
@@ -922,7 +959,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             return col;
           });
 
-        updateScene(currentSceneId, { columns: updatedColumns });
+        const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+        updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
         console.log(`Pasted clip ${pastedClip.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
         }
       }
@@ -1286,8 +1324,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     // When a timeline clip is selected, prefer timeline-driven resolution over prior grid selection
     effectiveSelectedLayer = null as any;
   }
-  if (selectedTimelineClip && currentSceneId) {
-    const scene = scenes.find((s: any) => s.id === currentSceneId);
+  if (selectedTimelineClip && getCurrentSceneId()) {
+    const scene = getCurrentScene();
     if (scene) {
       const allLayers = scene.columns.flatMap((c: any) => c.layers);
       // Prefer an explicit layerId supplied by timeline selection
@@ -1352,7 +1390,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     try {
       // Do not override user selection of Global tab during playback
       setMiddlePanelTab((curr) => (curr === 'global' ? curr : 'layer'));
-      const scene = scenes.find((s: any) => s.id === currentSceneId);
+      const scene = getCurrentScene();
       const allLayers = scene ? scene.columns.flatMap((c: any) => c.layers) : [];
       let resolved: any = null;
       if (selectedTimelineClip.layerId) {
@@ -1375,7 +1413,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       }
       if (resolved) setSelectedLayer(resolved);
     } catch {}
-  }, [selectedTimelineClip, scenes, currentSceneId]);
+  }, [selectedTimelineClip, getCurrentScene]);
 
   // Ensure we have at least 30 columns
   const columns = [...currentScene.columns];
@@ -1388,8 +1426,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   }
   // Persist newly-added columns once
   if (columnsAdded > 0) {
-    console.log('➕ Added', columnsAdded, 'columns to scene', currentSceneId);
-    updateScene(currentSceneId, { columns });
+    console.log('➕ Added', columnsAdded, 'columns to scene', getCurrentSceneId());
+    const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+    updateSceneFn(getCurrentSceneId(), { columns });
   }
 
   // Migrate global effects to new format if needed
@@ -1431,7 +1470,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
     if (effectsMigrated) {
       console.log('🔄 Migrating global effects to new format');
-      updateScene(currentSceneId, { globalEffects: migratedEffects });
+      const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+      updateSceneFn(getCurrentSceneId(), { globalEffects: migratedEffects });
     }
   }
 
@@ -1548,11 +1588,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 <div className="tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last lg:tw-order-none lg:tw-basis-auto tw-mt-2 tw-mb-2 lg:tw-mt-0 lg:tw-mb-0 tw-w-full lg:tw-w-auto tw-justify-between lg:tw-justify-start">
                 <button
                   onClick={() => {
-                    const currentIndex = scenes.findIndex((s: any) => s.id === currentSceneId);
-                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : scenes.length - 1;
-                    setCurrentScene(scenes[prevIndex].id);
+                    const currentScenes = getScenes();
+                    const currentIndex = currentScenes.findIndex((s: any) => s.id === getCurrentSceneId());
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : currentScenes.length - 1;
+                    const { setCurrentScene: setCurrentSceneFn } = getSceneManagementFunctions();
+                    setCurrentSceneFn(currentScenes[prevIndex].id);
                   }}
-                  disabled={scenes.length <= 1}
+                  disabled={getScenes().length <= 1}
                   className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
                   title="Previous scene"
                 >
@@ -1576,7 +1618,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       value={currentScene?.endOfSceneAction || 'stop'}
                       onChange={(e) => {
                         const action = e.target.value as 'loop' | 'play_next' | 'random' | 'stop';
-                        updateScene(currentSceneId, { endOfSceneAction: action });
+                        const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+                        updateSceneFn(getCurrentSceneId(), { endOfSceneAction: action });
                       }}
                       className="tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1 tw-min-w-0 tw-flex-shrink-0"
                       title="Action when scene ends"
@@ -1592,12 +1635,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 
 
                 <div className="tw-hidden lg:tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last lg:tw-order-none lg:tw-basis-auto tw-mt-2 lg:tw-mt-0">
-                  {scenes.map((scene: any, index: number) => (
+                  {getScenes().map((scene: any, index: number) => (
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>
                         <button
-                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === currentSceneId ? 'tw-text-white tw-bg-graphite tw-border-neutral-700' : ''}`}
-                          onClick={() => setCurrentScene(scene.id)}
+                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === getCurrentSceneId() ? 'tw-text-white tw-bg-graphite tw-border-neutral-700' : ''}`}
+                          onClick={() => {
+                            const { setCurrentScene: setCurrentSceneFn } = getSceneManagementFunctions();
+                            setCurrentSceneFn(scene.id);
+                          }}
                           draggable
                           onDragStart={(e) => {
                             e.dataTransfer.setData('application/x-scene-index', String(index));
@@ -1610,7 +1656,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                             const fromStr = e.dataTransfer.getData('application/x-scene-index');
                             if (fromStr) {
                               const from = parseInt(fromStr, 10);
-                              if (!Number.isNaN(from)) reorderScenes(from, index);
+                              if (!Number.isNaN(from)) {
+                                const { reorderScenes: reorderScenesFn } = getSceneManagementFunctions();
+                                reorderScenesFn(from, index);
+                              }
                             }
                           }}
                           title={"Right-click to rename, duplicate, or delete"}
@@ -1619,25 +1668,39 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         </button>
                       </ContextMenuTrigger>
                       <ContextMenuContent>
-                        <ContextMenuItem onSelect={() => handleSceneRename(scene, updateScene)}>Rename</ContextMenuItem>
-                        <ContextMenuItem onSelect={() => duplicateScene(scene.id)}>Duplicate</ContextMenuItem>
-                        {scenes.length > 1 && (
-                          <ContextMenuItem className="tw-text-red-400" onSelect={() => removeScene(scene.id)}>Delete</ContextMenuItem>
+                        <ContextMenuItem onSelect={() => {
+                          const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+                          handleSceneRename(scene, updateSceneFn);
+                        }}>Rename</ContextMenuItem>
+                        <ContextMenuItem onSelect={() => {
+                          const { duplicateScene: duplicateSceneFn } = getSceneManagementFunctions();
+                          duplicateSceneFn(scene.id);
+                        }}>Duplicate</ContextMenuItem>
+                        {getScenes().length > 1 && (
+                          <ContextMenuItem className="tw-text-red-400" onSelect={() => {
+                            const { removeScene: removeSceneFn } = getSceneManagementFunctions();
+                            removeSceneFn(scene.id);
+                          }}>Delete</ContextMenuItem>
                         )}
                       </ContextMenuContent>
                     </ContextMenu>
                   ))}
-                  <button onClick={addScene} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 hover:tw-bg-neutral-800" title="Add new scene">
+                  <button onClick={() => {
+                    const { addScene: addSceneFn } = getSceneManagementFunctions();
+                    addSceneFn();
+                  }} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 hover:tw-bg-neutral-800" title="Add new scene">
                     +
                   </button>
                 </div>
                 <button
                   onClick={() => {
-                    const currentIndex = scenes.findIndex((s: any) => s.id === currentSceneId);
-                    const nextIndex = currentIndex < scenes.length - 1 ? currentIndex + 1 : 0;
-                    setCurrentScene(scenes[nextIndex].id);
+                    const currentScenes = getScenes();
+                    const currentIndex = currentScenes.findIndex((s: any) => s.id === getCurrentSceneId());
+                    const nextIndex = currentIndex < currentScenes.length - 1 ? currentIndex + 1 : 0;
+                    const { setCurrentScene: setCurrentSceneFn } = getSceneManagementFunctions();
+                    setCurrentSceneFn(currentScenes[nextIndex].id);
                   }}
-                  disabled={scenes.length <= 1}
+                  disabled={getScenes().length <= 1}
                   className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
                   title="Next scene"
                 >
@@ -1765,7 +1828,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                          console.log('Double-click detected!', { hasAsset, layer, columnId: column.id, layerNum });
                          if (hasAsset && layer) {
                            // Find the source column ID by searching through all columns
-                           const currentScene = scenes.find((s: any) => s.id === currentSceneId);
+                           const currentScene = getCurrentScene();
                            console.log('Current scene:', currentScene);
                            if (currentScene) {
                              const sourceColumn = currentScene.columns.find((col: any) => 

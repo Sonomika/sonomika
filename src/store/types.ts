@@ -127,8 +127,12 @@ export interface CompositionSettings {
 }
 
 export interface AppState {
+  // Column mode scenes (original scenes)
   scenes: Scene[];
   currentSceneId: string;
+  // Timeline mode scenes (separate from column mode)
+  timelineScenes: Scene[];
+  currentTimelineSceneId: string;
   playingColumnId: string | null; // Track which column is currently playing
   isGlobalPlaying: boolean; // Track global play/pause state
   bpm: number;

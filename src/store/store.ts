@@ -93,6 +93,8 @@ const createDefaultScenes = (): Scene[] => {
 const initialState: AppState = {
   scenes: createDefaultScenes(),
   currentSceneId: '',
+  timelineScenes: createDefaultScenes(),
+  currentTimelineSceneId: '',
   playingColumnId: null, // No column playing initially
   isGlobalPlaying: false, // Global play/pause state
   activeLayerOverrides: {},
@@ -125,6 +127,7 @@ const initialState: AppState = {
 };
 
 initialState.currentSceneId = initialState.scenes[0].id;
+initialState.currentTimelineSceneId = initialState.timelineScenes[0].id;
 
 export type RecordSettings = {
   codec: 'vp8' | 'vp9';
@@ -150,6 +153,19 @@ export const useStore = createWithEqualityFn<AppState & {
   playNextScene: () => void;
   playRandomScene: () => void;
   loopCurrentScene: () => void;
+  // Timeline scene management
+  addTimelineScene: () => void;
+  setCurrentTimelineScene: (sceneId: string) => void;
+  updateTimelineScene: (sceneId: string, updates: Partial<Scene>) => void;
+  removeTimelineScene: (sceneId: string) => void;
+  duplicateTimelineScene: (sceneId: string) => void;
+  reorderTimelineScenes: (fromIndex: number, toIndex: number) => void;
+  playNextTimelineScene: () => void;
+  playRandomTimelineScene: () => void;
+  loopCurrentTimelineScene: () => void;
+  // Scene sync functions
+  syncScenesToTimeline: () => void;
+  syncScenesToColumn: () => void;
   setAccessibilityEnabled: (enabled: boolean) => void;
   toggleAccessibility: () => void;
   addColumn: (sceneId: string) => void;
@@ -329,6 +345,100 @@ export const useStore = createWithEqualityFn<AppState & {
         // The actual looping logic will be handled in the timeline playback
         return {} as any;
       }),
+
+      // Timeline scene management functions
+      addTimelineScene: () => set((state) => {
+        const newScene = createEmptyScene();
+        return { timelineScenes: [...state.timelineScenes, newScene] };
+      }),
+
+      setCurrentTimelineScene: (sceneId: string) => set({ currentTimelineSceneId: sceneId }),
+
+      updateTimelineScene: (sceneId: string, updates: Partial<Scene>) => {
+        return set((state) => {
+          const newTimelineScenes = state.timelineScenes.map(scene => 
+            scene.id === sceneId ? { ...scene, ...updates } : scene
+          );
+          return { timelineScenes: newTimelineScenes };
+        });
+      },
+
+      removeTimelineScene: (sceneId: string) => set((state) => ({
+        timelineScenes: state.timelineScenes.filter(scene => scene.id !== sceneId),
+        currentTimelineSceneId: state.currentTimelineSceneId === sceneId 
+          ? state.timelineScenes[0].id 
+          : state.currentTimelineSceneId,
+      })),
+
+      duplicateTimelineScene: (sceneId: string) => set((state) => {
+        const srcIndex = state.timelineScenes.findIndex(s => s.id === sceneId);
+        if (srcIndex === -1) return {} as any;
+        const src = state.timelineScenes[srcIndex];
+        const cloned = {
+          id: uuidv4(),
+          name: `${src.name} Copy`,
+          columns: src.columns.map((col) => ({
+            id: uuidv4(),
+            name: col.name,
+            layers: col.layers.map((layer) => ({
+              ...layer,
+              id: uuidv4(),
+            }))
+          })),
+          globalEffects: (src.globalEffects || []).map((eff: any) => {
+            if (!eff) return eff;
+            return { ...eff, id: uuidv4() };
+          })
+        } as Scene as any;
+        const nextTimelineScenes = [...state.timelineScenes];
+        nextTimelineScenes.splice(srcIndex + 1, 0, cloned);
+        return { timelineScenes: nextTimelineScenes } as any;
+      }),
+
+      reorderTimelineScenes: (fromIndex: number, toIndex: number) => set((state) => {
+        if (fromIndex === toIndex) return {} as any;
+        if (fromIndex < 0 || toIndex < 0 || fromIndex >= state.timelineScenes.length || toIndex >= state.timelineScenes.length) return {} as any;
+        const timelineScenes = [...state.timelineScenes];
+        const [moved] = timelineScenes.splice(fromIndex, 1);
+        timelineScenes.splice(toIndex, 0, moved);
+        return { timelineScenes } as any;
+      }),
+
+      // Timeline scene navigation functions
+      playNextTimelineScene: () => set((state) => {
+        const currentIndex = state.timelineScenes.findIndex(s => s.id === state.currentTimelineSceneId);
+        if (currentIndex === -1) return {} as any;
+        
+        const nextIndex = currentIndex < state.timelineScenes.length - 1 ? currentIndex + 1 : 0;
+        return { currentTimelineSceneId: state.timelineScenes[nextIndex].id } as any;
+      }),
+
+      playRandomTimelineScene: () => set((state) => {
+        if (state.timelineScenes.length <= 1) return {} as any;
+        
+        const currentIndex = state.timelineScenes.findIndex(s => s.id === state.currentTimelineSceneId);
+        let randomIndex;
+        do {
+          randomIndex = Math.floor(Math.random() * state.timelineScenes.length);
+        } while (randomIndex === currentIndex && state.timelineScenes.length > 1);
+        
+        return { currentTimelineSceneId: state.timelineScenes[randomIndex].id } as any;
+      }),
+
+      loopCurrentTimelineScene: () => set((state) => {
+        // For loop, we just restart the current timeline scene
+        // The actual looping logic will be handled in the timeline playback
+        return {} as any;
+      }),
+
+      // Scene sync functions
+      syncScenesToTimeline: () => set((state) => ({
+        timelineScenes: [...state.scenes]
+      })),
+
+      syncScenesToColumn: () => set((state) => ({
+        scenes: [...state.timelineScenes]
+      })),
 
       setAccessibilityEnabled: (enabled: boolean) => set({ accessibilityEnabled: enabled }),
       toggleAccessibility: () => set((state) => ({ accessibilityEnabled: !state.accessibilityEnabled })),
@@ -930,6 +1040,23 @@ export const useStore = createWithEqualityFn<AppState & {
            }))
          }));
 
+         const sanitizedTimelineScenes = state.timelineScenes.map((scene) => ({
+           ...scene,
+           columns: scene.columns.map((col) => ({
+             ...col,
+             layers: col.layers.map((layer: any) => {
+               const nextLayer: any = { ...layer };
+               if (nextLayer.asset) {
+                 const a = nextLayer.asset as any;
+                 // Drop heavy non-serializable refs
+                 if (a.originalFile) delete a.originalFile;
+                 if (a.base64Data && a.size > 500 * 1024) delete a.base64Data;
+               }
+               return nextLayer;
+             })
+           }))
+         }));
+
          return {
            // Persist assets with base64Data for small files
            assets: state.assets.map(asset => {
@@ -962,6 +1089,8 @@ export const useStore = createWithEqualityFn<AppState & {
            // Persist all critical application state (sanitized)
            scenes: sanitizedScenes,
            currentSceneId: state.currentSceneId,
+           timelineScenes: sanitizedTimelineScenes,
+           currentTimelineSceneId: state.currentTimelineSceneId,
            currentPresetName: (state as any).currentPresetName,
            playingColumnId: state.playingColumnId,
            bpm: state.bpm,
