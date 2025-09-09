@@ -7,6 +7,7 @@ import { ParamRow, ButtonGroup, Slider } from './ui';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
 import { useStore } from '../store/store';
 import { useLFOStore } from '../store/lfoStore';
+import { useVideoOptionsStore } from '../store/videoOptionsStore';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
@@ -41,6 +42,10 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip } = useStore() as any;
   // Subscribe to live LFO modulations so sliders reflect movement during playback (esp. timeline)
   const modulatedValues = useLFOStore((state) => state.modulatedValues);
+  // Video options store
+  const getVideoOptionsForLayer = useVideoOptionsStore((state) => state.getVideoOptionsForLayer);
+  const setVideoOptionsForLayerMode = useVideoOptionsStore((state) => state.setVideoOptionsForLayerMode);
+  const ensureVideoOptionsForLayer = useVideoOptionsStore((state) => state.ensureVideoOptionsForLayer);
   const [isTimelinePlaying, setIsTimelinePlaying] = React.useState<boolean>(Boolean((window as any).__vj_timeline_is_playing__ === true));
   React.useEffect(() => {
     const onPlay = () => setIsTimelinePlaying(true);
@@ -52,17 +57,20 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       document.removeEventListener('timelineStop', onStop as any);
     };
   }, []);
+  // Get video options for current mode
+  const videoOptions = selectedLayer ? getVideoOptionsForLayer(selectedLayer.id, showTimeline) : null;
+  
   // Update local state when selectedLayer changes
   const [loopMode, setLoopMode] = useState<LoopMode>(
-    (selectedLayer as any)?.loopMode || LOOP_MODES.NONE
+    videoOptions?.loopMode || LOOP_MODES.NONE
   );
   const [loopCount, setLoopCount] = useState(
-    (selectedLayer as any)?.loopCount || 1
+    videoOptions?.loopCount || 1
   );
-  const [blendMode, setBlendMode] = useState(selectedLayer?.blendMode || 'add');
-  const [opacity, setOpacity] = useState(selectedLayer?.opacity || 1.0);
+  const [blendMode, setBlendMode] = useState(videoOptions?.blendMode || 'add');
+  const [opacity, setOpacity] = useState(videoOptions?.opacity || 1.0);
   const [playMode, setPlayMode] = useState<'restart' | 'continue'>(
-    (selectedLayer as any)?.playMode || 'restart'
+    videoOptions?.playMode || 'restart'
   );
   const opacityRafRef = useRef<number | null>(null);
   const opacityPendingRef = useRef<number>(selectedLayer?.opacity || 1.0);
@@ -140,8 +148,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   }, [showTimeline, isTimelinePlaying, selectedLayer?.id, liveModulatedByParam]);
 
   const handleFitModeChange = (mode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile') => {
-    // Update column layer if present
+    // Update video options store
     if (selectedLayer) {
+      setVideoOptionsForLayerMode(selectedLayer.id, {
+        fitMode: mode,
+        backgroundSizeMode: mode === 'tile' ? 'contain' : undefined,
+        backgroundRepeat: mode === 'tile' ? 'repeat' as any : 'no-repeat' as any,
+        backgroundSizeCustom: undefined
+      }, showTimeline);
+      
+      // Also update the layer data in the main store for immediate rendering
       onUpdateLayer(selectedLayer.id, {
         fitMode: mode,
         backgroundSizeMode: mode === 'tile' ? 'contain' : undefined,
@@ -305,13 +321,17 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     setLocalParamValues(prev => ({ ...prev, [name]: val }));
   };
 
-  // Sync local state with selectedLayer and live param changes
+  // Sync local state with video options and live param changes
   React.useEffect(() => {
     if (selectedLayer) {
-      setLoopMode((selectedLayer as any).loopMode || LOOP_MODES.NONE);
-      setLoopCount((selectedLayer as any).loopCount || 1);
-      setBlendMode(selectedLayer.blendMode || 'add');
-      setOpacity(selectedLayer.opacity || 1.0);
+      // Ensure video options exist for this layer
+      ensureVideoOptionsForLayer(selectedLayer.id, showTimeline);
+      const options = getVideoOptionsForLayer(selectedLayer.id, showTimeline);
+      
+      setLoopMode(options.loopMode || LOOP_MODES.NONE);
+      setLoopCount(options.loopCount || 1);
+      setBlendMode(options.blendMode || 'add');
+      setOpacity(options.opacity || 1.0);
       
       if (hasEffect && effectMetadata?.parameters) {
         const baseParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
@@ -354,33 +374,44 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         return hasChanges ? paramValues : prev;
       });
 
-      const currentPlayMode = (selectedLayer as any)?.playMode;
+      const currentPlayMode = options.playMode;
       if (currentPlayMode === undefined) {
         const defaultPlayMode = 'restart';
         setPlayMode(defaultPlayMode);
-        onUpdateLayer(selectedLayer.id, { playMode: defaultPlayMode });
+        setVideoOptionsForLayerMode(selectedLayer.id, { playMode: defaultPlayMode }, showTimeline);
       } else {
         setPlayMode(currentPlayMode);
       }
     }
-  }, [selectedLayer?.id, selectedLayer?.params, hasEffect, effectMetadata?.parameters]);
+  }, [selectedLayer?.id, selectedLayer?.params, hasEffect, effectMetadata?.parameters, showTimeline, ensureVideoOptionsForLayer, getVideoOptionsForLayer, setVideoOptionsForLayerMode]);
 
   // Reflect external opacity changes (e.g., LFO) into the local UI state
   React.useEffect(() => {
-    if (typeof selectedLayer?.opacity === 'number') {
-      setOpacity(selectedLayer.opacity);
+    if (selectedLayer) {
+      const options = getVideoOptionsForLayer(selectedLayer.id, showTimeline);
+      if (typeof options.opacity === 'number') {
+        setOpacity(options.opacity);
+      }
     }
-  }, [selectedLayer?.opacity]);
+  }, [selectedLayer?.id, showTimeline, getVideoOptionsForLayer]);
 
   const handleLoopModeChange = (mode: LoopMode) => {
     setLoopMode(mode);
     if (selectedLayer) {
+      setVideoOptionsForLayerMode(selectedLayer.id, {
+        loopMode: mode,
+        loopCount: mode === LOOP_MODES.NONE ? 1 : loopCount,
+        reverseEnabled: mode === LOOP_MODES.REVERSE,
+        pingPongEnabled: mode === LOOP_MODES.PING_PONG
+      }, showTimeline);
+      
+      // Also update the layer data in the main store for immediate rendering
       onUpdateLayer(selectedLayer.id, {
         loopMode: mode,
         loopCount: mode === LOOP_MODES.NONE ? 1 : loopCount,
         reverseEnabled: mode === LOOP_MODES.REVERSE,
         pingPongEnabled: mode === LOOP_MODES.PING_PONG
-      });
+      } as any);
     }
 
     // In timeline mode, also update the selectedTimelineClip data
@@ -400,10 +431,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const handleLoopCountChange = (count: number) => {
     setLoopCount(count);
     if (selectedLayer) {
-      onUpdateLayer(selectedLayer.id, {
-        ...(selectedLayer as any),
+      setVideoOptionsForLayerMode(selectedLayer.id, {
         loopCount: count
-      });
+      }, showTimeline);
+      
+      // Also update the layer data in the main store for immediate rendering
+      onUpdateLayer(selectedLayer.id, {
+        loopCount: count
+      } as any);
     }
 
     // In timeline mode, also update the selectedTimelineClip data
@@ -418,11 +453,15 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   };
 
   const handleBlendModeChange = (mode: string) => {
-    setBlendMode(mode);
+    setBlendMode(mode as any);
     if (selectedLayer) {
+      setVideoOptionsForLayerMode(selectedLayer.id, {
+        blendMode: mode as any
+      }, showTimeline);
+      
+      // Also update the layer data in the main store for immediate rendering
       onUpdateLayer(selectedLayer.id, {
-        ...(selectedLayer as any),
-        blendMode: mode
+        blendMode: mode as any
       });
     }
 
@@ -440,10 +479,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const handlePlayModeChange = (mode: 'restart' | 'continue') => {
     setPlayMode(mode);
     if (selectedLayer) {
-      onUpdateLayer(selectedLayer.id, {
-        ...(selectedLayer as any),
+      setVideoOptionsForLayerMode(selectedLayer.id, {
         playMode: mode
-      });
+      }, showTimeline);
+      
+      // Also update the layer data in the main store for immediate rendering
+      onUpdateLayer(selectedLayer.id, {
+        playMode: mode
+      } as any);
     }
 
     // In timeline mode, also update the selectedTimelineClip data
@@ -459,8 +502,12 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
 
   const commitOpacity = (value: number) => {
     if (!selectedLayer) return;
+    setVideoOptionsForLayerMode(selectedLayer.id, {
+      opacity: value,
+    }, showTimeline);
+    
+    // Also update the layer data in the main store for immediate rendering
     onUpdateLayer(selectedLayer.id, {
-      ...(selectedLayer as any),
       opacity: value,
     });
 
@@ -489,6 +536,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const handleRenderScaleChange = (value: number) => {
     if (!selectedLayer) return;
     const clamped = Number.isFinite(value) ? Math.max(0.1, Math.min(1, value)) : 1;
+    setVideoOptionsForLayerMode(selectedLayer.id, { renderScale: clamped }, showTimeline);
+    
+    // Also update the layer data in the main store for immediate rendering
     onUpdateLayer(selectedLayer.id, { renderScale: clamped } as any);
 
     // In timeline mode, also update the selectedTimelineClip data
@@ -928,7 +978,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                       { value: 'stretch', label: 'Stretch' },
                       { value: 'tile', label: 'Tile' },
                     ]}
-                    value={(selectedLayer as any)?.fitMode || 'cover'}
+                    value={videoOptions?.fitMode || 'cover'}
                     onChange={(v) => handleFitModeChange(v as 'cover' | 'contain' | 'stretch' | 'none' | 'tile')}
                     columns={5}
                     size="small"
@@ -941,7 +991,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                     <div className="tw-flex-1 tw-min-w-0">
                       <ParamRow
                         label="Render Resolution"
-                        value={Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1))}
+                        value={Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1))}
                         min={0.1}
                         max={1}
                         step={0.01}
@@ -950,13 +1000,13 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                         onChange={(value) => handleRenderScaleChange(Number(value))}
                         onIncrement={() => {
                           if (!selectedLayer) return;
-                          const cur = Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1));
+                          const cur = Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1));
                           const next = Math.min(1, Math.round((cur + 0.01) * 100) / 100);
                           handleRenderScaleChange(next);
                         }}
                         onDecrement={() => {
                           if (!selectedLayer) return;
-                          const cur = Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1));
+                          const cur = Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1));
                           const next = Math.max(0.1, Math.round((cur - 0.01) * 100) / 100);
                           handleRenderScaleChange(next);
                         }}
@@ -967,7 +1017,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                       step={0.01}
                       min={0.1}
                       max={1}
-                      value={Number(((selectedLayer as any)?.renderScale ?? defaultVideoRenderScale ?? 1)).toFixed(2)}
+                      value={Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1)).toFixed(2)}
                       onChange={(e) => handleRenderScaleChange(parseFloat(e.target.value))}
                       className="tw-w-[72px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
                     />

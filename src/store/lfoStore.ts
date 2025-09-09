@@ -81,9 +81,10 @@ interface LFOStore {
   // Non-persisted real-time values
   modulatedValues: Record<string, LFOModulatedValue>;
   
-  // Persisted LFO state and mappings, scoped per layer id
+  // Persisted LFO state and mappings, scoped per layer id and mode
   lfoStateByLayer: Record<string, LFOState>;
-  mappingsByLayer: Record<string, LFOMapping[]>;
+  mappingsByLayer: Record<string, LFOMapping[]>; // columns mode mappings
+  timelineMappingsByLayer: Record<string, LFOMapping[]>; // timeline mode mappings
   selectedMapping: string | null; // kept global for UI convenience
   // Persisted UI defaults for initializing new layers
   uiDefaults: { lfoMin: number; lfoMax: number };
@@ -102,6 +103,17 @@ interface LFOStore {
   addMappingForLayer: (layerId: string, mapping: LFOMapping) => void;
   removeMappingForLayer: (layerId: string, id: string) => void;
   updateMappingForLayer: (layerId: string, id: string, updates: Partial<LFOMapping>) => void;
+  // Timeline-specific mapping actions
+  setTimelineMappingsForLayer: (layerId: string, mappings: LFOMapping[]) => void;
+  addTimelineMappingForLayer: (layerId: string, mapping: LFOMapping) => void;
+  removeTimelineMappingForLayer: (layerId: string, id: string) => void;
+  updateTimelineMappingForLayer: (layerId: string, id: string, updates: Partial<LFOMapping>) => void;
+  // Helper to get mappings for current mode
+  getMappingsForLayer: (layerId: string, isTimelineMode: boolean) => LFOMapping[];
+  setMappingsForLayerMode: (layerId: string, mappings: LFOMapping[], isTimelineMode: boolean) => void;
+  addMappingForLayerMode: (layerId: string, mapping: LFOMapping, isTimelineMode: boolean) => void;
+  removeMappingForLayerMode: (layerId: string, id: string, isTimelineMode: boolean) => void;
+  updateMappingForLayerMode: (layerId: string, id: string, updates: Partial<LFOMapping>, isTimelineMode: boolean) => void;
   setSelectedMapping: (id: string | null) => void;
   setUIDefaults: (defaults: Partial<{ lfoMin: number; lfoMax: number }>) => void;
   getDefaultsForNewLayer: () => LFOState;
@@ -116,7 +128,8 @@ export const useLFOStore = create<LFOStore>()(
       
       // Persisted LFO state and mappings (initial values) — empty, filled lazily per layer
       lfoStateByLayer: {},
-      mappingsByLayer: {},
+      mappingsByLayer: {}, // columns mode mappings
+      timelineMappingsByLayer: {}, // timeline mode mappings
       selectedMapping: null,
       uiDefaults: { lfoMin: 0, lfoMax: 100 },
       lastLFOStateTemplate: null,
@@ -215,6 +228,115 @@ export const useLFOStore = create<LFOStore>()(
           [layerId]: (state.mappingsByLayer[layerId] || []).map(m => m.id === id ? { ...m, ...updates } : m),
         }
       })),
+
+      // Timeline-specific mapping actions
+      setTimelineMappingsForLayer: (layerId: string, mappings: LFOMapping[]) => set((state) => ({
+        timelineMappingsByLayer: {
+          ...state.timelineMappingsByLayer,
+          [layerId]: [...mappings],
+        }
+      })),
+
+      addTimelineMappingForLayer: (layerId: string, mapping: LFOMapping) => set((state) => ({
+        timelineMappingsByLayer: {
+          ...state.timelineMappingsByLayer,
+          [layerId]: [...(state.timelineMappingsByLayer[layerId] || []), mapping],
+        }
+      })),
+
+      removeTimelineMappingForLayer: (layerId: string, id: string) => set((state) => ({
+        timelineMappingsByLayer: {
+          ...state.timelineMappingsByLayer,
+          [layerId]: (state.timelineMappingsByLayer[layerId] || []).filter(m => m.id !== id),
+        }
+      })),
+
+      updateTimelineMappingForLayer: (layerId: string, id: string, updates: Partial<LFOMapping>) => set((state) => ({
+        timelineMappingsByLayer: {
+          ...state.timelineMappingsByLayer,
+          [layerId]: (state.timelineMappingsByLayer[layerId] || []).map(m => m.id === id ? { ...m, ...updates } : m),
+        }
+      })),
+
+      // Helper methods for mode-aware mapping operations
+      getMappingsForLayer: (layerId: string, isTimelineMode: boolean) => {
+        const state = get();
+        return isTimelineMode 
+          ? (state.timelineMappingsByLayer[layerId] || [])
+          : (state.mappingsByLayer[layerId] || []);
+      },
+
+      setMappingsForLayerMode: (layerId: string, mappings: LFOMapping[], isTimelineMode: boolean) => set((state) => {
+        if (isTimelineMode) {
+          return {
+            timelineMappingsByLayer: {
+              ...state.timelineMappingsByLayer,
+              [layerId]: [...mappings],
+            }
+          };
+        } else {
+          return {
+            mappingsByLayer: {
+              ...state.mappingsByLayer,
+              [layerId]: [...mappings],
+            }
+          };
+        }
+      }),
+
+      addMappingForLayerMode: (layerId: string, mapping: LFOMapping, isTimelineMode: boolean) => set((state) => {
+        if (isTimelineMode) {
+          return {
+            timelineMappingsByLayer: {
+              ...state.timelineMappingsByLayer,
+              [layerId]: [...(state.timelineMappingsByLayer[layerId] || []), mapping],
+            }
+          };
+        } else {
+          return {
+            mappingsByLayer: {
+              ...state.mappingsByLayer,
+              [layerId]: [...(state.mappingsByLayer[layerId] || []), mapping],
+            }
+          };
+        }
+      }),
+
+      removeMappingForLayerMode: (layerId: string, id: string, isTimelineMode: boolean) => set((state) => {
+        if (isTimelineMode) {
+          return {
+            timelineMappingsByLayer: {
+              ...state.timelineMappingsByLayer,
+              [layerId]: (state.timelineMappingsByLayer[layerId] || []).filter(m => m.id !== id),
+            }
+          };
+        } else {
+          return {
+            mappingsByLayer: {
+              ...state.mappingsByLayer,
+              [layerId]: (state.mappingsByLayer[layerId] || []).filter(m => m.id !== id),
+            }
+          };
+        }
+      }),
+
+      updateMappingForLayerMode: (layerId: string, id: string, updates: Partial<LFOMapping>, isTimelineMode: boolean) => set((state) => {
+        if (isTimelineMode) {
+          return {
+            timelineMappingsByLayer: {
+              ...state.timelineMappingsByLayer,
+              [layerId]: (state.timelineMappingsByLayer[layerId] || []).map(m => m.id === id ? { ...m, ...updates } : m),
+            }
+          };
+        } else {
+          return {
+            mappingsByLayer: {
+              ...state.mappingsByLayer,
+              [layerId]: (state.mappingsByLayer[layerId] || []).map(m => m.id === id ? { ...m, ...updates } : m),
+            }
+          };
+        }
+      }),
       
       setSelectedMapping: (id: string | null) => set({ selectedMapping: id }),
       setUIDefaults: (defaults: Partial<{ lfoMin: number; lfoMax: number }>) => set((state) => ({
@@ -243,6 +365,7 @@ export const useLFOStore = create<LFOStore>()(
       partialize: (state) => ({
         lfoStateByLayer: state.lfoStateByLayer,
         mappingsByLayer: state.mappingsByLayer,
+        timelineMappingsByLayer: state.timelineMappingsByLayer,
         selectedMapping: state.selectedMapping,
         uiDefaults: state.uiDefaults,
         lastLFOStateTemplate: state.lastLFOStateTemplate,

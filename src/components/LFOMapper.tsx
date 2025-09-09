@@ -29,7 +29,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   const animationRef = useRef<number>();
   const randomHoldRef = useRef<{ step: number; value: number }>({ step: -1, value: 0 });
   const [activeTab, setActiveTab] = useState<'lfo'>('lfo');
-  const { playingColumnId, isGlobalPlaying } = useStore() as any;
+  const { playingColumnId, isGlobalPlaying, showTimeline } = useStore() as any;
   const [transportPlaying, setTransportPlaying] = useState<boolean>(false);
 
   // Sync local playing state with column/global/timeline transport
@@ -62,11 +62,19 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   
   const lfoStateByLayer = useLFOStore((state) => state.lfoStateByLayer);
   const mappingsByLayer = useLFOStore((state) => state.mappingsByLayer);
+  const timelineMappingsByLayer = useLFOStore((state) => state.timelineMappingsByLayer);
   const setLFOForLayer = useLFOStore((state) => state.setLFOStateForLayer);
   const ensureLFOForLayer = useLFOStore((state) => state.ensureLFOStateForLayer);
   const addMappingForLayer = useLFOStore((state) => state.addMappingForLayer);
   const removeMappingForLayer = useLFOStore((state) => state.removeMappingForLayer);
   const updateMappingForLayer = useLFOStore((state) => state.updateMappingForLayer);
+  const addTimelineMappingForLayer = useLFOStore((state) => state.addTimelineMappingForLayer);
+  const removeTimelineMappingForLayer = useLFOStore((state) => state.removeTimelineMappingForLayer);
+  const updateTimelineMappingForLayer = useLFOStore((state) => state.updateTimelineMappingForLayer);
+  const getMappingsForLayer = useLFOStore((state) => state.getMappingsForLayer);
+  const addMappingForLayerMode = useLFOStore((state) => state.addMappingForLayerMode);
+  const removeMappingForLayerMode = useLFOStore((state) => state.removeMappingForLayerMode);
+  const updateMappingForLayerMode = useLFOStore((state) => state.updateMappingForLayerMode);
   const setLFOModulatedValue = useLFOStore((state) => state.setModulatedValue);
 
   // Sync UI tab with per-layer mode, but only when the mode actually changes
@@ -85,7 +93,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
   // Refs to avoid dependencies
   const selectedLayerRef = useRef(selectedLayer);
-  const mappingsRef = useRef(mappingsByLayer[selectedLayer?.id || ''] || []);
+  const mappingsRef = useRef<LFOMapping[]>([]);
   const onUpdateLayerRef = useRef(onUpdateLayer);
   const prevNormByMappingRef = useRef<Record<string, number>>({});
 
@@ -98,8 +106,12 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
   }, [selectedLayer?.id]);
   useEffect(() => {
     const lid = selectedLayerRef.current?.id;
-    mappingsRef.current = lid ? (mappingsByLayer[lid] || []) : [];
-  }, [mappingsByLayer, selectedLayer?.id]);
+    if (lid) {
+      mappingsRef.current = getMappingsForLayer(lid, showTimeline);
+    } else {
+      mappingsRef.current = [];
+    }
+  }, [mappingsByLayer, timelineMappingsByLayer, selectedLayer?.id, showTimeline, getMappingsForLayer]);
   useEffect(() => { onUpdateLayerRef.current = onUpdateLayer; }, [onUpdateLayer]);
 
   // Debug selection (always log to console)
@@ -569,7 +581,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       enabled: true
     };
     const lid = selectedLayerRef.current?.id;
-    if (lid) addMappingForLayer(lid, newMapping);
+    if (lid) addMappingForLayerMode(lid, newMapping, showTimeline);
   };
 
   const buildParameterOptions = (): { value: string; label: string }[] => {
@@ -613,7 +625,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
   const lid = selectedLayer?.id;
   const lfo = lid ? (lfoStateByLayer[lid] || ({} as any)) : ({} as any);
-  const mappings = lid ? (mappingsByLayer[lid] || []) : [];
+  const mappings = lid ? getMappingsForLayer(lid, showTimeline) : [];
 
   return (
     <div className="ableton-lfo">
@@ -774,7 +786,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                               const parts = newParam.split(' - ');
                               const rawName = parts.length > 1 ? parts[1] : (parts[0].toLowerCase().includes('opacity') ? 'opacity' : undefined);
                               if (rawName === 'opacity') {
-                                updateMappingForLayer(lid, mapping.id, { parameter: newParam, min: 0, max: 100 });
+                                updateMappingForLayerMode(lid, mapping.id, { parameter: newParam, min: 0, max: 100 }, showTimeline);
                               } else if (isEffect && effectId && rawName) {
                                 const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
                                 const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
@@ -782,15 +794,15 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                                 if (def && def.type === 'number') {
                                   const defMin = typeof def.min === 'number' ? def.min : 0;
                                   const defMax = typeof def.max === 'number' ? def.max : 100;
-                                  updateMappingForLayer(lid, mapping.id, { parameter: newParam, min: defMin, max: defMax });
+                                  updateMappingForLayerMode(lid, mapping.id, { parameter: newParam, min: defMin, max: defMax }, showTimeline);
                                 } else {
-                                  updateMappingForLayer(lid, mapping.id, { parameter: newParam });
+                                  updateMappingForLayerMode(lid, mapping.id, { parameter: newParam }, showTimeline);
                                 }
                               } else {
-                                updateMappingForLayer(lid, mapping.id, { parameter: newParam });
+                                updateMappingForLayerMode(lid, mapping.id, { parameter: newParam }, showTimeline);
                               }
                             } catch {
-                              updateMappingForLayer(lid, mapping.id, { parameter: newParam });
+                              updateMappingForLayerMode(lid, mapping.id, { parameter: newParam }, showTimeline);
                             }
                           }}
                           options={buildParameterOptions()}
@@ -803,7 +815,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                             checked={mapping.enabled === true}
                             onCheckedChange={(checked) => {
                               const lid = selectedLayerRef.current?.id;
-                              if (lid) updateMappingForLayer(lid, mapping.id, { enabled: checked === true });
+                              if (lid) updateMappingForLayerMode(lid, mapping.id, { enabled: checked === true }, showTimeline);
                             }}
                             aria-label="Enable mapping"
                           />
@@ -813,7 +825,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                           className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-w-6 tw-h-6 hover:tw-bg-neutral-800"
                           onClick={() => {
                             const lid = selectedLayerRef.current?.id;
-                            if (lid) removeMappingForLayer(lid, mapping.id);
+                            if (lid) removeMappingForLayerMode(lid, mapping.id, showTimeline);
                           }}
                         >
                           ×

@@ -217,6 +217,9 @@ class LFOEngineImpl {
     // Prefer central Clock BPM (smoothed); fall back to BPMManager
     const clock = getClock();
     const bpm = (clock?.smoothedBpm || clock?.bpm || 120);
+    
+    // Determine if we're in timeline mode
+    const isTimelineMode = (window as any).__vj_timeline_is_playing__ === true;
 
     for (const layer of layers) {
       let lfo: LFOState | undefined = lfoState.lfoStateByLayer[layer.id];
@@ -227,7 +230,10 @@ class LFOEngineImpl {
           if (ensured) lfo = ensured as any;
         } catch {}
       }
-      const mappings: LFOMapping[] = lfoState.mappingsByLayer[layer.id] || [];
+      // Get mode-specific mappings
+      const mappings: LFOMapping[] = isTimelineMode 
+        ? (lfoState.timelineMappingsByLayer[layer.id] || [])
+        : (lfoState.mappingsByLayer[layer.id] || []);
       if (!lfo || !mappings || mappings.length === 0) {
         // Clear any timer left from random mode
         const key = layer.id;

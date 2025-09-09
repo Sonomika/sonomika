@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CanvasStreamManager } from '../utils/CanvasStream';
 import { useStore } from '../store/store';
+import { useVideoOptionsStore } from '../store/videoOptionsStore';
 import { LayerOptions } from './LayerOptions';
 import { CanvasRenderer } from './CanvasRenderer';
 import { ColumnPreview } from './ColumnPreview';
@@ -84,6 +85,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // console.log('LayerManager component rendering');
   
   const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline } = useStore() as any;
+  
+  // Video options store
+  const getVideoOptionsForLayer = useVideoOptionsStore((state) => state.getVideoOptionsForLayer);
+  const ensureVideoOptionsForLayer = useVideoOptionsStore((state) => state.ensureVideoOptionsForLayer);
+  
   
   // Debug logging for playingColumnId
   useEffect(() => {
@@ -1084,21 +1090,25 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           }
           return {} as any;
         })();
+        // Get video options for this layer
+        const layerId = `timeline-layer-${clip.id}`;
+        const videoOptions = getVideoOptionsForLayer(layerId, true);
+        
         return {
-          id: `timeline-layer-${clip.id}`,
+          id: layerId,
           name: `Layer ${trackNumber}`,
           layerNum: trackNumber,
           type: clip.type === 'effect' ? 'effect' : 'video',
           asset: clip.asset,
-          opacity: (clip as any)?.opacity || timelineLayerData?.opacity || 1,
-          blendMode: (clip as any)?.blendMode || timelineLayerData?.blendMode || 'add',
+          opacity: videoOptions.opacity || 1,
+          blendMode: videoOptions.blendMode || 'add',
           params: resolvedParams,
           effects: clip.type === 'effect' ? [clip.asset] : undefined,
           ...(clip.type !== 'effect' ? { 
-            fitMode: effectiveFitMode, 
-            backgroundSizeMode: (clip as any)?.backgroundSizeMode,
-            backgroundRepeat: (clip as any)?.backgroundRepeat,
-            backgroundSizeCustom: (clip as any)?.backgroundSizeCustom,
+            fitMode: videoOptions.fitMode || effectiveFitMode, 
+            backgroundSizeMode: videoOptions.backgroundSizeMode,
+            backgroundRepeat: videoOptions.backgroundRepeat,
+            backgroundSizeCustom: videoOptions.backgroundSizeCustom,
             ...backgroundProps 
           } : {})
         };
@@ -1363,14 +1373,17 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     if (!selectedTimelineClip || !selectedTimelineClip.data) return null;
     const clip: any = selectedTimelineClip.data;
     const trackNumber = parseInt((selectedTimelineClip.trackId || 'track-1').split('-')[1] || '1', 10);
+    const layerId = `timeline-layer-${selectedTimelineClip.id}`;
+    const videoOptions = getVideoOptionsForLayer(layerId, true);
+    
     return {
-      id: `timeline-layer-${selectedTimelineClip.id}`,
+      id: layerId,
       name: clip.name || `Layer ${trackNumber}`,
       layerNum: trackNumber,
       type: clip.type === 'effect' ? 'effect' : 'video',
       asset: clip.asset,
-      opacity: 1,
-      blendMode: 'add',
+      opacity: videoOptions.opacity || 1,
+      blendMode: videoOptions.blendMode || 'add',
       // Keep reference stable to clip.params to avoid triggering effects on each render
       params: clip.params || {},
       effects: clip.type === 'effect' ? [clip.asset] : undefined,
@@ -1382,6 +1395,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     selectedTimelineClip?.data?.type,
     selectedTimelineClip?.data?.asset?.id,
     selectedTimelineClip?.data?.params,
+    getVideoOptionsForLayer,
   ]);
 
   if (!effectiveSelectedLayer && memoPseudoLayer) {
@@ -1395,24 +1409,30 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       setMiddlePanelTab((curr) => (curr === 'global' ? curr : 'layer'));
       const clipData = selectedTimelineClip.data || {};
       const asset = clipData.asset || {};
+      const layerId = `timeline-layer-${selectedTimelineClip.id}`;
+      
+      // Ensure video options exist for this timeline layer
+      ensureVideoOptionsForLayer(layerId, true);
+      const videoOptions = getVideoOptionsForLayer(layerId, true);
+      
       const pseudoLayer = {
-        id: `timeline-layer-${selectedTimelineClip.id}`,
+        id: layerId,
         type: clipData.type || 'video',
         asset: asset,
         params: clipData.params || {},
-        opacity: typeof clipData.opacity === 'number' ? clipData.opacity : 1.0,
-        blendMode: clipData.blendMode || 'add',
-        fitMode: clipData.fitMode || 'cover',
-        playMode: clipData.playMode || 'restart',
-        loopMode: clipData.loopMode || 'none',
-        loopCount: typeof clipData.loopCount === 'number' ? clipData.loopCount : 1,
-        renderScale: typeof clipData.renderScale === 'number' ? clipData.renderScale : undefined,
+        opacity: videoOptions.opacity || 1.0,
+        blendMode: videoOptions.blendMode || 'add',
+        fitMode: videoOptions.fitMode || 'cover',
+        playMode: videoOptions.playMode || 'restart',
+        loopMode: videoOptions.loopMode || 'none',
+        loopCount: videoOptions.loopCount || 1,
+        renderScale: videoOptions.renderScale || undefined,
         clipId: selectedTimelineClip.id,
         isTimelineLayer: true,
       };
       setSelectedLayer(pseudoLayer);
     } catch {}
-  }, [selectedTimelineClip]);
+  }, [selectedTimelineClip, ensureVideoOptionsForLayer, getVideoOptionsForLayer]);
 
   // Ensure we have at least 30 columns
   const columns = [...currentScene.columns];
