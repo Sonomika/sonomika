@@ -1,0 +1,1072 @@
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useStore } from '../store/store';
+import CustomWaveform, { CustomWaveformRef } from './CustomWaveform';
+import { Button, ScrollArea, Select, Input, Label, Switch } from './ui';
+import { Trash2, Play, Pause, Square, Upload, Settings, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+interface TriggerConfig {
+  id: string;
+  time: number;
+  actions: TriggerAction[];
+}
+
+interface TriggerAction {
+  type: 'column' | 'cell';
+  columnId?: string;
+  columnIndex?: number;
+  row?: number;
+  action: 'play' | 'stop' | 'toggle';
+}
+
+interface AudioFile {
+  id: string;
+  file: File;
+  name: string;
+  duration: number;
+  waveformData?: Float32Array;
+  path?: string; // Electron absolute path for persistence
+}
+
+const SequenceTab: React.FC = () => {
+  const { scenes, currentSceneId, playColumn, globalStop, playingColumnId, selectedLayerId, activeLayerOverrides } = useStore();
+  const STORAGE_KEY = 'vj-sequence-settings-v1';
+  const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<AudioFile | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const waveformRef = useRef<CustomWaveformRef>(null);
+  // Debounce map: triggerTime -> last fired performance timestamp
+  const lastFiredRef = useRef<Record<number, number>>({});
+  // Previous time to detect seeks/backward jumps
+  const prevTimeRef = useRef(0);
+
+  // (moved below after checkTriggers is defined)
+  const [triggersEnabled, setTriggersEnabled] = useState(false);
+  const [triggerPoints, setTriggerPoints] = useState<number[]>([]);
+  const [triggerConfigs, setTriggerConfigs] = useState<Record<number, TriggerConfig>>({});
+  const [selectedTriggerTime, setSelectedTriggerTime] = useState<number | null>(null);
+  const [hasHydrated, setHasHydrated] = useState(false);
+  const [editorDrafts, setEditorDrafts] = useState<Record<number, { columnIndex: number; rowCells: Record<number, number>; action: 'play' | 'stop' | 'toggle' }>>({});
+
+  // Restore persisted sequence settings
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (typeof data?.triggersEnabled === 'boolean') setTriggersEnabled(Boolean(data.triggersEnabled));
+        if (Array.isArray(data?.triggerPoints)) setTriggerPoints(data.triggerPoints.map((n: any) => Number(n)).filter((n: any) => Number.isFinite(n)).sort((a: number,b: number)=>a-b));
+        if (data?.triggerConfigs && typeof data.triggerConfigs === 'object') {
+          const next: Record<number, TriggerConfig> = {};
+          Object.keys(data.triggerConfigs).forEach((k) => {
+            const keyNum = Number(k);
+            const cfg = data.triggerConfigs[k];
+            if (Number.isFinite(keyNum) && cfg && Array.isArray(cfg.actions)) {
+              next[keyNum] = { id: String(cfg.id || `t-${keyNum}`), time: keyNum, actions: cfg.actions } as TriggerConfig;
+            }
+          });
+          setTriggerConfigs(next);
+        }
+        // Restore audio files and selection (Electron)
+        if (Array.isArray(data?.audioFiles)) {
+          const restored: AudioFile[] = data.audioFiles.map((af: any) => ({
+            id: String(af.id),
+            file: new File([], af.name || 'audio', { type: 'audio/mpeg' }),
+            name: af.name || 'audio',
+            duration: Number(af.duration) || 0,
+            path: af.path || undefined,
+          }));
+          setAudioFiles(restored);
+          const selId = String(data?.selectedAudioId || '')
+          const sel = restored.find(a => a.id === selId) || restored[0] || null;
+          if (sel) setSelectedFile(sel);
+        }
+      }
+    } catch {}
+    setHasHydrated(true);
+  }, []);
+
+  // Persist sequence settings
+  useEffect(() => {
+    if (!hasHydrated) return;
+    try {
+      const payload = {
+        triggersEnabled,
+        triggerPoints,
+        triggerConfigs,
+        audioFiles: audioFiles.map(f => ({ id: f.id, name: f.name, duration: f.duration, path: f.path })),
+        selectedAudioId: selectedFile?.id || null,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {}
+  }, [hasHydrated, triggersEnabled, triggerPoints, triggerConfigs, audioFiles, selectedFile]);
+
+  // Get current scene and columns
+  const currentScene = scenes.find(s => s.id === currentSceneId);
+  const columns = currentScene?.columns || [];
+
+  // Normalize trigger configurations so each marker has a column action and per-row cell actions
+  useEffect(() => {
+    try {
+      const rowsCount = Math.min(6, Math.max(1, Number(currentScene?.numRows) || 3));
+      let changedAny = false;
+      const next: typeof triggerConfigs = { ...triggerConfigs } as any;
+      for (const t of triggerPoints) {
+        const cfg = next[t];
+        if (!cfg) continue;
+        let changed = false;
+        const actions = Array.isArray(cfg.actions) ? [...cfg.actions] : [];
+        const hasColumn = actions.some(a => a && a.type === 'column');
+        if (!hasColumn) {
+          const colIdx = Math.max(1, Math.min((columns?.length || 1), 1));
+          actions.unshift({ type: 'column', columnIndex: colIdx, action: 'play' } as any);
+          changed = true;
+        }
+        for (let r = 1; r <= rowsCount; r++) {
+          const existing = actions.find(a => a && a.type === 'cell' && Number((a as any).row) === r);
+          if (!existing) {
+            const colAct = actions.find(a => a && a.type === 'column');
+            const baseIdx = (colAct && (colAct as any).columnIndex) ? Number((colAct as any).columnIndex) : 1;
+            actions.push({ type: 'cell', row: r, columnIndex: baseIdx, action: 'play' } as any);
+            changed = true;
+          }
+        }
+        if (changed) { next[t] = { ...cfg, actions } as any; changedAny = true; }
+      }
+      if (changedAny) setTriggerConfigs(next);
+    } catch {}
+  }, [currentScene?.numRows, columns?.length, triggerPoints]);
+
+  // Handle file selection from input
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    handleFiles(files);
+  }, []);
+
+  // Handle files (from input or drag & drop)
+  const handleFiles = useCallback((files: File[]) => {
+    const first = files.find(file => file.type.startsWith('audio/'));
+    if (!first) return;
+    const audioFile: AudioFile = {
+      id: Math.random().toString(36).substr(2, 9),
+      file: first,
+      name: first.name,
+      duration: 0, // Will be updated when loaded
+      path: (first as any).path || undefined,
+    };
+
+    setAudioFiles([audioFile]);
+    setSelectedFile(audioFile);
+  }, []);
+
+  // Handle drag and drop from files library
+  const handleFileDrop = useCallback((file: File) => {
+    const audioFile: AudioFile = {
+      id: Math.random().toString(36).substr(2, 9),
+      file,
+      name: file.name,
+      duration: 0,
+      path: (file as any).path || undefined,
+    };
+    
+    setAudioFiles([audioFile]);
+    setSelectedFile(audioFile);
+  }, []);
+
+  // Handle file load completion
+  const handleFileLoad = useCallback((file: File) => {
+    // Update duration when file is loaded
+    setAudioFiles(prev => prev.map(audioFile => 
+      audioFile.file === file 
+        ? { ...audioFile, duration: 0 } // Duration will be updated by the waveform component
+        : audioFile
+    ));
+  }, []);
+
+  // Create URL for selected file
+  useEffect(() => {
+    const buildUrlForPath = (p: string) => {
+      try {
+        const isElectron = typeof window !== 'undefined' && !!((window as any).process?.versions?.electron);
+        if (isElectron) {
+          return `local-file://${p}`;
+        }
+        // Fallback for web (may be blocked):
+        const normalized = p.replace(/\\/g, '/');
+        return `file://${encodeURI(normalized)}`;
+      } catch {
+        return '';
+      }
+    };
+
+    if (selectedFile) {
+      if (selectedFile.path) {
+        const urlFromPath = buildUrlForPath(selectedFile.path);
+        setAudioUrl(urlFromPath);
+        return () => {};
+      }
+      const url = URL.createObjectURL(selectedFile.file);
+      setAudioUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } else {
+      setAudioUrl('');
+    }
+  }, [selectedFile]);
+
+  // Handle time update from waveform
+  const handleTimeUpdate = useCallback((time: number) => {
+    setCurrentTime(time);
+  }, []);
+
+  // Handle duration change from waveform
+  const handleDurationChange = useCallback((dur: number) => {
+    setDuration(dur);
+    if (selectedFile) {
+      setAudioFiles(prev => prev.map(file => 
+        file.id === selectedFile.id 
+          ? { ...file, duration: dur }
+          : file
+      ));
+    }
+  }, [selectedFile]);
+
+  // Handle play/pause from waveform
+  const handlePlay = useCallback(() => {
+    setIsPlaying(true);
+  }, []);
+
+  const handlePause = useCallback(() => {
+    setIsPlaying(false);
+  }, []);
+
+  // Controls
+  const togglePlayPause = useCallback(() => {
+    try { waveformRef.current?.playPause?.(); } catch {}
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setAudioFiles([]);
+    setSelectedFile(null);
+    setAudioUrl('');
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(false);
+    setTriggerPoints([]);
+    setTriggerConfigs({} as any);
+  }, []);
+
+  const removeFile = useCallback((id: string) => {
+    setAudioFiles((prev) => prev.filter((f) => f.id !== id));
+    setSelectedFile((prev) => (prev && prev.id === id ? null : prev));
+  }, []);
+
+  // Derive current selection: prefer selected layer (row+column), else playing column
+  const deriveSelectedCell = useCallback((): { columnId: string; row: number } | null => {
+    try {
+      if (!selectedLayerId) return null;
+      const scene = scenes.find(s => s.id === currentSceneId);
+      if (!scene) return null;
+      for (let c = 0; c < (scene.columns?.length || 0); c++) {
+        const col = scene.columns[c];
+        const rowIdx = (col.layers || []).findIndex(l => l?.id === selectedLayerId);
+        if (rowIdx >= 0) {
+          return { columnId: col.id, row: rowIdx + 1 };
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [scenes, currentSceneId, selectedLayerId]);
+
+  const deriveDefaultTriggerAction = useCallback((): TriggerAction | null => {
+    const scene = scenes.find(s => s.id === currentSceneId);
+    // Prefer the currently selected/playing column
+    if (playingColumnId && scene) {
+      const idx = Math.max(0, (scene.columns || []).findIndex(c => c.id === playingColumnId));
+      const columnIndex = idx >= 0 ? idx + 1 : undefined;
+      return { type: 'column', columnId: playingColumnId, columnIndex, action: 'play' } as TriggerAction;
+    }
+    // Else, if a specific layer (cell) is selected, use its column+row
+    const cell = deriveSelectedCell();
+    if (cell && scene) {
+      const idx = Math.max(0, (scene.columns || []).findIndex(c => c.id === cell.columnId));
+      const columnIndex = idx >= 0 ? idx + 1 : undefined;
+      return { type: 'cell', columnId: cell.columnId, columnIndex, row: cell.row, action: 'play' } as TriggerAction;
+    }
+    // Fallback to first column in scene if available
+    try {
+      if (scene?.columns && scene.columns[0]) {
+        return { type: 'column', columnId: scene.columns[0].id, columnIndex: 1, action: 'play' } as TriggerAction;
+      }
+    } catch {}
+    return null;
+  }, [deriveSelectedCell, playingColumnId, scenes, currentSceneId]);
+
+  // Add trigger point
+  const addTriggerPoint = useCallback((time: number) => {
+    if (!triggersEnabled) return;
+    
+    setTriggerPoints(prev => {
+      const newTriggers = [...prev, time].sort((a, b) => a - b);
+      return newTriggers;
+    });
+
+    // Build initial actions so summary and editor match immediately
+    const triggerId = `trigger-${time}-${Date.now()}`;
+    const rowsCount = Math.min(6, Math.max(1, Number(currentScene?.numRows) || 3));
+
+    // Determine base column index from playing column or selected cell
+    const deriveBaseColumnIndex = (): number => {
+      try {
+        if (playingColumnId) {
+          const idx = (currentScene?.columns || []).findIndex(c => c.id === playingColumnId);
+          if (idx >= 0) return idx + 1;
+        }
+        // Fallback to selected cell's column
+        const sel = deriveSelectedCell?.();
+        if (sel) {
+          const idx = (currentScene?.columns || []).findIndex(c => c.id === sel.columnId);
+          if (idx >= 0) return idx + 1;
+        }
+      } catch {}
+      return 1;
+    };
+
+    const baseColIndex = deriveBaseColumnIndex();
+
+    const cellIndexForRow = (row: number): number => {
+      try {
+        const overrideColId = (activeLayerOverrides || ({} as any))[row];
+        if (overrideColId) {
+          const j = (currentScene?.columns || []).findIndex(c => c.id === overrideColId);
+          if (j >= 0) return j + 1;
+        }
+      } catch {}
+      return baseColIndex;
+    };
+
+    const initialActions: TriggerAction[] = [
+      { type: 'column', columnIndex: baseColIndex, action: 'play' } as TriggerAction,
+      // Pre-populate per-row cell actions
+      ...Array.from({ length: rowsCount }, (_, i) => {
+        const rowNum = i + 1;
+        return { type: 'cell', row: rowNum, columnIndex: cellIndexForRow(rowNum), action: 'play' } as TriggerAction;
+      })
+    ];
+
+    setTriggerConfigs(prev => ({
+      ...prev,
+      [time]: { id: triggerId, time, actions: initialActions } as TriggerConfig,
+    }));
+  }, [triggersEnabled, currentScene, playingColumnId, activeLayerOverrides]);
+
+  // Remove trigger point
+  const removeTriggerPoint = useCallback((time: number) => {
+    setTriggerPoints(prev => prev.filter(t => Math.abs(t - time) > 0.1));
+    setTriggerConfigs(prev => {
+      const newConfigs = { ...prev };
+      delete newConfigs[time];
+      return newConfigs;
+    });
+  }, []);
+
+  // Check if current time matches any trigger
+  const checkTriggers = useCallback((currentTime: number) => {
+    if (!triggersEnabled) return;
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
+    triggerPoints.forEach(triggerTime => {
+      if (Math.abs(currentTime - triggerTime) < 0.05) {
+        const last = lastFiredRef.current?.[triggerTime] || 0;
+        if (now - last < 400) {
+          return; // Suppress rapid re-fires within 400ms window
+        }
+        lastFiredRef.current[triggerTime] = now;
+        const config = triggerConfigs[triggerTime];
+        if (config) {
+          console.log('Trigger fired at:', triggerTime, 'Actions:', config.actions);
+          
+          // Execute trigger actions
+          try {
+            // 1) Apply all cell overrides first
+            const state: any = useStore.getState();
+            const applyOverride = state?.setActiveLayerOverride;
+            const clearOverrides = state?.clearActiveLayerOverrides;
+            let nextColumnToPlay: string | null = null;
+            let shouldStop = false;
+
+            try {
+              const rowsCount = Math.min(6, Math.max(1, Number(currentScene?.numRows) || 3));
+              const resolved: Record<number, string | null> = {};
+              for (let r = 1; r <= rowsCount; r++) resolved[r] = null;
+              for (const act of (config.actions || [])) {
+                if (act?.type === 'cell') {
+                  const idx = Math.max(1, Math.min((columns?.length || 1), Number((act as any).columnIndex) || 1));
+                  const id = act.columnId || columns[idx - 1]?.id || null;
+                  const row = Math.max(1, Number((act as any).row) || 1);
+                  resolved[row] = id;
+                }
+              }
+              console.log('[Sequence] Resolving trigger', triggerTime, {
+                columnAction: (config.actions || []).find(a => a.type === 'column') || null,
+                resolvedCells: resolved,
+                columnsCount: columns?.length || 0,
+              });
+            } catch {}
+
+            try { if (clearOverrides) clearOverrides(); } catch {}
+
+            for (const action of config.actions || []) {
+              if (action.type === 'cell') {
+                try {
+                  const safeIdx = Math.max(1, Math.min((columns?.length || 1), Number(action.columnIndex) || 1));
+                  const targetId = action.columnId || columns[safeIdx - 1]?.id;
+                  const rowNum = Math.max(1, Number(action.row) || 1);
+                  if (applyOverride && targetId) applyOverride(rowNum, targetId);
+                  console.log('[Sequence] Applied cell override', { row: rowNum, columnIndex: safeIdx, columnId: targetId });
+                  // If the overridden row points to a different column, restart its video layer to ensure playback
+                  try {
+                    const scene = currentScene;
+                    const targetCol = (scene?.columns || []).find(c => c.id === targetId);
+                    const getLayerFor = (col: any, ln: number) => (col?.layers || []).find((l: any) => l.layerNum === ln || l.name === `Layer ${ln}`) || null;
+                    const layer = getLayerFor(targetCol as any, rowNum);
+                    if (layer && (layer.type === 'video' || (layer as any)?.asset?.type === 'video')) {
+                      document.dispatchEvent(new CustomEvent('videoRestart', {
+                        detail: { layerId: layer.id, columnId: targetId }
+                      }));
+                    }
+                  } catch {}
+                } catch (e) {
+                  console.warn('Failed to apply cell action override:', e);
+                }
+              }
+            }
+
+            // 2) Determine column command
+            for (const action of config.actions || []) {
+              if (action.type === 'column') {
+                const safeIdx = Math.max(1, Math.min((columns?.length || 1), Number(action.columnIndex) || 1));
+                const colId = action.columnId || columns[safeIdx - 1]?.id;
+                if (!colId) continue;
+                if (action.action === 'stop') {
+                  shouldStop = true;
+                } else {
+                  // play or toggle both resolve to playColumn
+                  nextColumnToPlay = colId;
+                }
+              }
+            }
+
+            // 3) Execute column command or refresh current playing column IMMEDIATELY (no deferral)
+            if (shouldStop) {
+              globalStop();
+            } else if (nextColumnToPlay) {
+              playColumn(nextColumnToPlay);
+            } else {
+              const currentPlaying = (useStore.getState() as any).playingColumnId;
+              if (currentPlaying) {
+                try { playColumn(currentPlaying); } catch {}
+              }
+            }
+            console.log('[Sequence] Trigger applied', {
+              triggerTime,
+              playingAfter: (useStore.getState() as any).playingColumnId,
+              shouldStop,
+              nextColumnToPlay,
+            });
+          } catch (err) {
+            console.warn('Error executing trigger actions:', err);
+          }
+        }
+      } else {
+        // If we moved away from this marker significantly, allow future fires
+        const last = lastFiredRef.current?.[triggerTime];
+        if (last && Math.abs(currentTime - triggerTime) > 0.3) {
+          try { delete lastFiredRef.current[triggerTime]; } catch {}
+        }
+      }
+    });
+  }, [triggersEnabled, triggerPoints, triggerConfigs, playColumn, globalStop, columns, currentScene?.numRows]);
+
+  // Apply all markers up to a given time (inclusive)
+  const applyMarkersUpToTime = useCallback((t: number) => {
+    try {
+      const upper = Math.max(0, Number(t) || 0);
+      const sorted = [...triggerPoints].sort((a, b) => a - b);
+      for (const tp of sorted) {
+        if (tp <= upper) {
+          try { delete lastFiredRef.current[tp]; } catch {}
+          checkTriggers(tp);
+        } else {
+          break;
+        }
+      }
+    } catch {}
+  }, [triggerPoints, checkTriggers]);
+
+  // Global transport integration: control audio and apply triggers immediately on Play
+  useEffect(() => {
+    const onGlobalPlay = () => {
+      if (!triggersEnabled) return;
+      try { waveformRef.current?.play?.(); } catch {}
+      try {
+        lastFiredRef.current = {};
+        // Apply all markers up to the current time; ensures 0:00 fires
+        applyMarkersUpToTime(Math.max(currentTime, 0.15));
+      } catch {}
+    };
+    const onGlobalPause = () => { if (triggersEnabled) { try { waveformRef.current?.pause?.(); } catch {} } };
+    const onGlobalStop = () => { if (triggersEnabled) { try { waveformRef.current?.stop?.(); } catch {} } };
+    document.addEventListener('globalPlay', onGlobalPlay as any);
+    document.addEventListener('globalPause', onGlobalPause as any);
+    document.addEventListener('globalStop', onGlobalStop as any);
+    return () => {
+      document.removeEventListener('globalPlay', onGlobalPlay as any);
+      document.removeEventListener('globalPause', onGlobalPause as any);
+      document.removeEventListener('globalStop', onGlobalStop as any);
+    }; 
+  }, [triggersEnabled, currentTime, applyMarkersUpToTime]);
+
+  // Update time update handler to check triggers
+  useEffect(() => {
+    if (triggersEnabled && isPlaying) {
+      const prev = prevTimeRef.current;
+      prevTimeRef.current = currentTime;
+      // If we jumped backwards by more than 0.5s, treat as a seek and skip checks this tick
+      if (prev - currentTime > 0.5) {
+        return;
+      }
+      checkTriggers(currentTime);
+    }
+  }, [currentTime, checkTriggers, triggersEnabled, isPlaying]);
+
+  // Also check once right when playback starts so a marker exactly at the
+  // current time applies immediately on Play
+  useEffect(() => {
+    if (triggersEnabled && isPlaying) {
+      try { checkTriggers(currentTime); } catch {}
+    }
+  }, [isPlaying, triggersEnabled, currentTime, checkTriggers]);
+
+  // Add action to trigger
+  const addTriggerAction = useCallback((triggerTime: number, action: TriggerAction) => {
+    setTriggerConfigs(prev => ({
+      ...prev,
+      [triggerTime]: {
+        ...prev[triggerTime],
+        actions: [...(prev[triggerTime]?.actions || []), action]
+      }
+    }));
+  }, []);
+
+  // Remove action from trigger
+  const removeTriggerAction = useCallback((triggerTime: number, actionIndex: number) => {
+    setTriggerConfigs(prev => ({
+      ...prev,
+      [triggerTime]: {
+        ...prev[triggerTime],
+        actions: prev[triggerTime]?.actions.filter((_, i) => i !== actionIndex) || []
+      }
+    }));
+  }, []);
+
+  // Format duration for display
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Helper: add audio entry from absolute path (Electron)
+  const addAudioFromPath = useCallback((name: string, absPath: string) => {
+    const audioFile: AudioFile = {
+      id: Math.random().toString(36).substr(2, 9),
+      file: new File([], name, { type: 'audio/mpeg' }),
+      name,
+      duration: 0,
+      path: absPath,
+    };
+    setAudioFiles([audioFile]);
+    setSelectedFile(audioFile);
+  }, []);
+
+  return (
+    <div className="tw-flex tw-flex-col tw-h-full tw-p-4 tw-space-y-4">
+      {/* Header */}
+      <div className="tw-flex tw-items-center tw-justify-between">
+        <h3 className="tw-text-sm tw-font-medium tw-text-white">Sequence</h3>
+        <div className="tw-flex tw-space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            className="tw-h-8 tw-px-3"
+          >
+            <Upload className="tw-w-3 tw-h-3 tw-mr-1" />
+            Add
+          </Button>
+          {audioFiles.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearAll}
+              className="tw-h-8 tw-px-3 tw-text-red-400 hover:tw-bg-red-900/20"
+            >
+              <Trash2 className="tw-w-3 tw-h-3 tw-mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Trigger Controls */}
+      <div className="tw-flex tw-items-center tw-justify-between tw-bg-neutral-800/50 tw-rounded-lg tw-px-4 tw-py-3 tw-border tw-border-neutral-600">
+        <div className="tw-flex tw-items-center tw-space-x-3">
+          <span className="tw-text-sm tw-text-white">Timeline Triggers</span>
+          <span className="tw-text-xs tw-text-neutral-400">Shift+Click to add</span>
+        </div>
+        <Switch checked={triggersEnabled} onCheckedChange={(val) => setTriggersEnabled(!!val)} />
+      </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        onChange={handleFileSelect}
+        className="tw-hidden"
+      />
+
+      {/* Triggers Panel Content (disable when toggle off) */}
+      <div className={`${triggersEnabled ? '' : 'tw-opacity-50 tw-pointer-events-none'}`} aria-disabled={!triggersEnabled}>
+      {/* Waveform Display */}
+      <div className="tw-flex-1 tw-min-h-0">
+        <div 
+          className="tw-w-full tw-h-full tw-border-2 tw-border-dashed tw-border-neutral-600 tw-rounded-lg tw-p-4 tw-bg-neutral-800/50"
+          onDragOver={(e) => {
+            e.preventDefault();
+            try { e.dataTransfer.dropEffect = 'copy'; } catch {}
+            e.currentTarget.classList.add('tw-border-blue-400', 'tw-bg-blue-50/10');
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            e.currentTarget.classList.remove('tw-border-blue-400', 'tw-bg-blue-50/10');
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.currentTarget.classList.remove('tw-border-blue-400', 'tw-bg-blue-50/10');
+            
+            // 1) Accept file objects (from desktop)
+            const files = Array.from(e.dataTransfer.files || []);
+            const audioFiles = files.filter(file => file.type.startsWith('audio/'));
+            if (audioFiles.length > 0) {
+              handleFiles(audioFiles);
+              return;
+            }
+
+            // 2) Accept JSON asset payloads from Files/Media tabs
+            const json = e.dataTransfer.getData('application/json');
+            if (json) {
+              try {
+                const asset = typeof json === 'string' ? JSON.parse(json) : json;
+                const type = (asset?.type || '').toLowerCase();
+                const name = asset?.name || 'audio';
+                const pathLike: string | undefined = asset?.filePath || asset?.path || asset?.id;
+                const isAudio = type === 'audio' || (/\.(mp3|wav|aiff|flac|ogg)$/i).test(String(name || pathLike || ''));
+                if (isAudio && pathLike) {
+                  // Strip scheme if present
+                  const absPath = pathLike.startsWith('local-file://') ? pathLike.replace('local-file://', '') : pathLike;
+                  addAudioFromPath(name, absPath);
+                  return;
+                }
+              } catch {
+                // ignore JSON parse failure
+              }
+            }
+          }}
+        >
+          {audioUrl ? (
+            <div className="tw-space-y-3">
+              <div className="tw-space-y-2">
+                {/* Zoom Controls */}
+                <div className="tw-flex tw-items-center tw-justify-between tw-bg-neutral-800/50 tw-rounded-lg tw-px-3 tw-py-2">
+                  <div className="tw-flex tw-items-center tw-space-x-2">
+                    <span className="tw-text-xs tw-text-neutral-400">Zoom:</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => waveformRef.current?.zoomIn?.()}
+                      className="tw-h-6 tw-w-6 tw-p-0"
+                    >
+                      <ZoomIn className="tw-w-3 tw-h-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => waveformRef.current?.zoomOut?.()}
+                      className="tw-h-6 tw-w-6 tw-p-0"
+                    >
+                      <ZoomOut className="tw-w-3 tw-h-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => waveformRef.current?.resetZoom?.()}
+                      className="tw-h-6 tw-w-6 tw-p-0"
+                    >
+                      <RotateCcw className="tw-w-3 tw-h-3" />
+                    </Button>
+                  </div>
+                  <div className="tw-text-xs tw-text-neutral-400">
+                    Mouse wheel to zoom • Drag to pan
+                  </div>
+                </div>
+
+                <CustomWaveform
+                  ref={waveformRef}
+                  audioUrl={audioUrl}
+                  onTimeUpdate={handleTimeUpdate}
+                  onDurationChange={handleDurationChange}
+                  onPlay={handlePlay}
+                  onPause={handlePause}
+                  isPlaying={isPlaying}
+                  currentTime={currentTime}
+                  height={150}
+                  waveColor="#4F4A85"
+                  progressColor="#383351"
+                  triggerPoints={triggerPoints}
+                  onTriggerClick={addTriggerPoint}
+                  triggersEnabled={triggersEnabled}
+                />
+
+                {/* Add trigger under timeline */}
+                <div className="tw-flex tw-justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addTriggerPoint(currentTime)}
+                    className="tw-h-7 tw-px-3"
+                    disabled={!triggersEnabled || !audioUrl}
+                  >
+                    + Add at {formatDuration(currentTime)}
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Controls */}
+              <div className="tw-flex tw-items-center tw-justify-between tw-bg-black/50 tw-backdrop-blur-sm tw-rounded-lg tw-px-4 tw-py-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={togglePlayPause}
+                  className="tw-h-8 tw-w-8 tw-p-0"
+                >
+                  {isPlaying ? <Pause className="tw-w-4 tw-h-4" /> : <Play className="tw-w-4 tw-h-4" />}
+                </Button>
+                
+                <div className="tw-text-white tw-text-xs">
+                  {Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(0).padStart(2, '0')} / 
+                  {Math.floor(duration / 60)}:{(duration % 60).toFixed(0).padStart(2, '0')}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-h-full tw-text-neutral-400">
+              <div className="tw-text-sm tw-text-center">
+                Drag audio files here or click "Add"
+              </div>
+              <div className="tw-text-xs tw-mt-2 tw-text-neutral-500">
+                Supports MP3, WAV, OGG, FLAC
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Trigger List */}
+      {triggersEnabled && triggerPoints.length > 0 && (
+        <div className="tw-space-y-2">
+          <div className="tw-text-xs tw-text-neutral-400 tw-font-medium">Trigger Points</div>
+          <div className="tw-bg-neutral-800/50 tw-rounded-lg tw-p-3 tw-max-h-48 tw-overflow-y-auto">
+            <div className="tw-space-y-2">
+              {triggerPoints.map((triggerTime, index) => {
+                const config = triggerConfigs[triggerTime];
+                const rowsCount = Math.min(6, Math.max(1, Number(currentScene?.numRows) || 3));
+                const deriveColumnIndexFromConfig = () => {
+                  try {
+                    const colAct = (config?.actions || []).find(a => a.type === 'column');
+                    if (colAct?.columnIndex) return Number(colAct.columnIndex);
+                    if (colAct?.columnId) {
+                      const idx = columns.findIndex(c => c.id === colAct.columnId);
+                      if (idx >= 0) return idx + 1;
+                    }
+                  } catch {}
+                  return 1;
+                };
+                // Build a row -> cellIndex map from all actions to avoid picking a stale first match
+                const rowToCellIndex: Record<number, number> = {};
+                try {
+                  for (const act of (config?.actions || [])) {
+                    if (act && act.type === 'cell') {
+                      const r = Math.max(1, Number((act as any).row) || 1);
+                      let idx = Number((act as any).columnIndex) || 0;
+                      if (!idx && (act as any).columnId) {
+                        const j = columns.findIndex(c => c.id === (act as any).columnId);
+                        if (j >= 0) idx = j + 1;
+                      }
+                      if (idx > 0) rowToCellIndex[r] = idx;
+                    }
+                  }
+                } catch {}
+                const summaryColIndex = deriveColumnIndexFromConfig();
+                const summaryCells = Array.from({ length: rowsCount }, (_, i) => {
+                  const rowNum = i + 1;
+                  let idx = rowToCellIndex[rowNum];
+                  if (!idx) {
+                    try {
+                      const overrideColId = (activeLayerOverrides || ({} as any))[rowNum];
+                      if (overrideColId) {
+                        const j = columns.findIndex(c => c.id === overrideColId);
+                        if (j >= 0) idx = j + 1;
+                      }
+                    } catch {}
+                  }
+                  if (!idx) idx = summaryColIndex;
+                  return `Row ${rowNum}: ${idx}`;
+                }).join(', ');
+                return (
+                  <div
+                    key={index}
+                    className="tw-bg-neutral-700/50 tw-rounded tw-p-2 tw-text-xs"
+                  >
+                    <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
+                      <div className="tw-flex tw-items-center tw-space-x-2">
+                        <span className="tw-text-neutral-400">Time</span>
+                        <Input
+                          defaultValue={formatDuration(triggerTime)}
+                          className="tw-h-7 tw-w-24 tw-text-xs"
+                          onBlur={(e) => {
+                            const toSec = (val: string) => {
+                              const parts = (val || '').trim().split(':');
+                              if (parts.length === 1) return Math.max(0, Number(parts[0]) || 0);
+                              const m = Math.max(0, Number(parts[0]) || 0);
+                              const s = Math.max(0, Number(parts[1]) || 0);
+                              return m * 60 + s;
+                            };
+                            const newTime = toSec(e.target.value);
+                            if (!Number.isFinite(newTime)) return;
+                            setTriggerPoints((prev) => {
+                              const without = prev.filter(t => Math.abs(t - triggerTime) > 0.0001);
+                              const next = [...without, newTime].sort((a,b) => a-b);
+                              return next;
+                            });
+                            setTriggerConfigs((prev) => {
+                              const cfg = prev[triggerTime];
+                              const rest: any = { ...prev };
+                              delete rest[triggerTime as any];
+                              if (cfg) rest[newTime] = { ...cfg, time: newTime } as any;
+                              return rest as any;
+                            });
+                          }}
+                        />
+                        <div className="tw-text-neutral-400 tw-text-xs tw-ml-3">
+                          Column {summaryColIndex} • Cells: {summaryCells}
+                        </div>
+                      </div>
+                      <div className="tw-flex tw-space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedTriggerTime(selectedTriggerTime === triggerTime ? null : triggerTime)}
+                          className="tw-w-5 tw-h-5 tw-text-neutral-400 hover:tw-text-blue-400"
+                        >
+                          <Settings className="tw-w-3 tw-h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeTriggerPoint(triggerTime)}
+                          className="tw-w-5 tw-h-5 tw-text-neutral-400 hover:tw-text-red-400"
+                        >
+                          <Trash2 className="tw-w-3 tw-h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    {/* Hide verbose actions list to keep one-row summary; details available in settings */}
+ 
+                    {/* Add Action Button */}
+                    {selectedTriggerTime === triggerTime && (
+                      <div className="tw-space-y-2 tw-mt-2 tw-pt-2 tw-border-t tw-border-neutral-600">
+                        <div className="tw-text-xs tw-text-neutral-400">Add Action:</div>
+                        {(() => {
+                          const rowsCount = Math.min(6, Math.max(1, Number(currentScene?.numRows) || 3));
+                          const cfg = triggerConfigs[triggerTime];
+                          const summaryColIndex = (() => {
+                            try {
+                              const colAct = (cfg?.actions || []).find(a => a.type === 'column');
+                              if (colAct?.columnIndex) return Number(colAct.columnIndex);
+                              if (colAct?.columnId) {
+                                const idx = columns.findIndex(c => c.id === colAct.columnId);
+                                if (idx >= 0) return idx + 1;
+                              }
+                            } catch {}
+                            return 1;
+                          })();
+                          // Helpers to read/write config actions
+                          const getColumnIndexFromConfig = (): number => {
+                            try {
+                              const colAct = (cfg?.actions || []).find(a => a.type === 'column');
+                              if (colAct?.columnIndex) return Number(colAct.columnIndex);
+                              if (colAct?.columnId) {
+                                const idx = columns.findIndex(c => c.id === colAct.columnId);
+                                if (idx >= 0) return idx + 1;
+                              }
+                            } catch {}
+                            return summaryColIndex;
+                          };
+                          const getCellIndexForRow = (row: number): number => {
+                            try {
+                              const cellAct = (cfg?.actions || []).find(a => a.type === 'cell' && Number(a.row) === row);
+                              if (cellAct?.columnIndex) return Number(cellAct.columnIndex);
+                              if ((cellAct as any)?.columnId) {
+                                const idx = columns.findIndex(c => c.id === (cellAct as any).columnId);
+                                if (idx >= 0) return idx + 1;
+                              }
+                              const overrideColId = (activeLayerOverrides || ({} as any))[row];
+                              if (overrideColId) {
+                                const idx2 = columns.findIndex(c => c.id === overrideColId);
+                                if (idx2 >= 0) return idx2 + 1;
+                              }
+                            } catch {}
+                            return getColumnIndexFromConfig();
+                          };
+ 
+                          const setColumnIndex = (colIdx: number) => {
+                            setTriggerConfigs(prev => {
+                              const prevCfg = prev[triggerTime] || { id: `trigger-${triggerTime}`, time: triggerTime, actions: [] } as TriggerConfig;
+                              const nextActions = (prevCfg.actions || []).filter(a => a.type !== 'column');
+                              nextActions.unshift({ type: 'column', columnIndex: colIdx, action: 'play' });
+                              return { ...prev, [triggerTime]: { ...prevCfg, actions: nextActions } };
+                            });
+                          };
+                          const setCellIndexForRow = (row: number, colIdx: number) => {
+                            setTriggerConfigs(prev => {
+                              const prevCfg = prev[triggerTime] || { id: `trigger-${triggerTime}`, time: triggerTime, actions: [] } as TriggerConfig;
+                              const nextActions = (prevCfg.actions || []).filter(a => !(a.type === 'cell' && Number(a.row) === row));
+                              nextActions.push({ type: 'cell', columnIndex: colIdx, row, action: 'play' });
+                              return { ...prev, [triggerTime]: { ...prevCfg, actions: nextActions } };
+                            });
+                          };
+ 
+                          const currentColumnIndex = getColumnIndexFromConfig();
+ 
+                          return (
+                            <>
+                              {/* Column selector */}
+                              <div className="tw-grid tw-grid-cols-4 tw-gap-2 tw-items-end">
+                                <div className="tw-space-y-1">
+                                  <Label className="tw-text-xs tw-text-neutral-300">Column</Label>
+                                  <Select
+                                    value={String(currentColumnIndex)}
+                                    onChange={(val) => setColumnIndex(Math.max(1, Number(val) || 1))}
+                                    options={columns.map((c, i) => ({ value: String(i + 1), label: String(i + 1) }))}
+                                    className="tw-h-7 tw-text-xs"
+                                  />
+                                </div>
+                              </div>
+                              {/* Cells per row */}
+                              <div className="tw-mt-3 tw-space-y-2">
+                                <Label className="tw-text-xs tw-text-neutral-400">Cells</Label>
+                                <div className="tw-space-y-1">
+                                  <div className="tw-flex tw-items-center tw-gap-2 tw-text-neutral-400 tw-text-xs">
+                                    <div className="tw-w-20">Row</div>
+                                    <div className="tw-w-28">Cell</div>
+                                  </div>
+                                  {Array.from({ length: rowsCount }, (_, i) => i + 1).map((rowNum) => (
+                                    <div key={`row-${rowNum}`} className="tw-flex tw-items-center tw-gap-2">
+                                      <div className="tw-w-20 tw-text-xs tw-text-neutral-300">Row {rowNum}</div>
+                                      <Select
+                                        value={String(getCellIndexForRow(rowNum))}
+                                        onChange={(val) => setCellIndexForRow(rowNum, Math.max(1, Number(val) || 1))}
+                                        options={columns.map((c, i) => ({ value: String(i + 1), label: String(i + 1) }))}
+                                        className="tw-h-7 tw-text-xs tw-w-28"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+
+      {/* File List */}
+      {audioFiles.length > 0 && (
+        <div className="tw-space-y-2">
+          <div className="tw-text-xs tw-text-neutral-400 tw-font-medium">Audio Files</div>
+          <ScrollArea className="tw-h-32">
+            <div className="tw-space-y-1">
+              {audioFiles.map((audioFile) => (
+                <div
+                  key={audioFile.id}
+                  className={`tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-rounded tw-cursor-pointer tw-transition-colors ${
+                    selectedFile?.id === audioFile.id
+                      ? 'tw-bg-blue-600/20 tw-border tw-border-blue-500/50'
+                      : 'tw-bg-neutral-800/50 hover:tw-bg-neutral-700/50'
+                  }`}
+                  onClick={() => setSelectedFile(audioFile)}
+                >
+                  <div className="tw-flex-1 tw-min-w-0">
+                    <div className="tw-text-xs tw-text-white tw-truncate">
+                      {audioFile.name}
+                    </div>
+                    <div className="tw-text-xs tw-text-neutral-400">
+                      {formatDuration(audioFile.duration)}
+                    </div>
+                  </div>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFile(audioFile.id);
+                    }}
+                    className="tw-h-6 tw-w-6 tw-p-0 tw-text-red-400 hover:tw-bg-red-900/20"
+                  >
+                    <Trash2 className="tw-w-3 tw-h-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Instructions */}
+      {audioFiles.length === 0 && (
+        <div className="tw-text-center tw-text-neutral-500 tw-text-xs tw-py-8">
+          <div className="tw-mb-2">No audio files loaded</div>
+          <div>Click "Add" or drag files from the Files tab</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SequenceTab;

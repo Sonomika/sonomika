@@ -24,6 +24,7 @@ import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { ScrollArea as AppScrollArea } from './ui';
 import { Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
 import { GlobalEffectsTab } from './GlobalEffectsTab';
+import SequenceTab from './SequenceTab';
 // Solid media control icons (fill uses currentColor)
 const PlaySolidIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -258,10 +259,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     };
   };
   const [showMediaLibrary, setShowMediaLibrary] = useState<string | false>(false);
-  const [middlePanelTab, setMiddlePanelTab] = useState<'global' | 'layer'>(() => {
+  const [middlePanelTab, setMiddlePanelTab] = useState<'global' | 'layer' | 'sequence'>(() => {
     try {
       const saved = localStorage.getItem('vj-ui-middle-tab');
-      return (saved === 'global' || saved === 'layer') ? (saved as any) : 'layer';
+      return (saved === 'global' || saved === 'layer' || saved === 'sequence') ? (saved as any) : 'layer';
     } catch { return 'layer'; }
   });
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
@@ -2141,10 +2142,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             {/* Layer Options / Global - Bottom Center */}
             <div className="tw-flex-1 tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
-                <Tabs value={middlePanelTab} onValueChange={(value) => { setMiddlePanelTab(value as 'global' | 'layer'); try { localStorage.setItem('vj-ui-middle-tab', value); } catch {} }} className="tw-w-full">
-                  <TabsList className="tw-grid tw-w-full tw-grid-cols-2">
+                <Tabs value={middlePanelTab} onValueChange={(value) => { setMiddlePanelTab(value as 'global' | 'layer' | 'sequence'); try { localStorage.setItem('vj-ui-middle-tab', value); } catch {} }} className="tw-w-full">
+                  <TabsList className="tw-grid tw-w-full tw-grid-cols-3">
                     <TabsTrigger value="global">Global</TabsTrigger>
                     <TabsTrigger value="layer">Layer</TabsTrigger>
+                    <TabsTrigger value="sequence">Sequence</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
@@ -2200,6 +2202,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                          {middlePanelTab === 'global' ? (
                            <div className="tw-h-full">
                              <GlobalEffectsTab className="tw-h-full" />
+                           </div>
+                         ) : middlePanelTab === 'sequence' ? (
+                           <div className="tw-h-full">
+                             <SequenceTab />
                            </div>
                          ) : (
                            <div className="tw-h-full tw-min-h-0">
