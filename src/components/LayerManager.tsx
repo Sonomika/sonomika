@@ -473,13 +473,23 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Handle column play button
   const handleColumnPlayWrapper = (columnId: string) => {
     // Manual/user-initiated: update preview and request play, and mark as manual so triggers back off briefly
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const last = (handleColumnPlayWrapper as any).__lastManualMs || 0;
+    // Hard debounce manual plays to avoid double-firing from nested/bubbling handlers
+    if (now - last < 300) return;
+    (handleColumnPlayWrapper as any).__lastManualMs = now;
     if ((handleColumnPlayWrapper as any).__lock) return;
     (handleColumnPlayWrapper as any).__lock = true;
     try {
-      document.dispatchEvent(new CustomEvent('columnPlay', { detail: { type: 'columnPlay', columnId, fromTrigger: false } }));
+      document.dispatchEvent(new CustomEvent('columnPlay', { detail: { type: 'columnPlay', columnId, fromTrigger: false, origin: 'manual' } }));
+    } catch {}
+    // Manual play: reset per-row overrides so the new base column is visible
+    try {
+      const clear = (useStore as any).getState?.().clearActiveLayerOverrides as () => void;
+      if (typeof clear === 'function') clear();
     } catch {}
     handleColumnPlay(columnId, currentScene, setPreviewContent, setIsPlaying, playColumn);
-    setTimeout(() => { (handleColumnPlayWrapper as any).__lock = false; }, 50);
+    setTimeout(() => { (handleColumnPlayWrapper as any).__lock = false; }, 300);
   };
 
   const updatePreviewForColumn = (columnId: string) => {

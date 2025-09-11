@@ -527,44 +527,45 @@ export const useStore = createWithEqualityFn<AppState & {
        },
        
                playColumn: (columnId: string) => {
-          try {
-            // Get the current scene and column to access video layers
-            const state = get();
-            const currentScene = state.scenes.find(scene => scene.id === state.currentSceneId);
-            const column = currentScene?.columns.find(col => col.id === columnId);
-            
-            if (column) {
-              // Handle video layers based on their playMode
-              column.layers.forEach(layer => {
-                if (layer.type === 'video' || (layer as any)?.asset?.type === 'video') {
-                  const playMode = layer.playMode || 'restart';
-                  
-                  if (playMode === 'restart') {
-                    // Always restart if restart mode is selected
-                    document.dispatchEvent(new CustomEvent('videoRestart', {
-                      detail: { layerId: layer.id, columnId }
-                    }));
-                  } else if (playMode === 'continue') {
-                    // Continue playback (resume from current position)
-                    document.dispatchEvent(new CustomEvent('videoContinue', {
-                      detail: { layerId: layer.id, columnId }
-                    }));
-                  }
-                }
-              });
-            }
-            
-            // Dispatch column play event for general handling
-            document.dispatchEvent(new CustomEvent('columnPlay', {
-              detail: { type: 'columnPlay', columnId }
-            }));
-            
-            // Always set as playing column (don't toggle off)
-            set({ playingColumnId: columnId });
-          } catch (error) {
-            console.warn('Failed to play column:', error);
-          }
-        },
+         try {
+           try { console.log('[Store] playColumn', columnId); } catch {}
+           // Get the current scene and column to access video layers
+           const state = get();
+           const currentScene = state.scenes.find(scene => scene.id === state.currentSceneId);
+           const column = currentScene?.columns.find(col => col.id === columnId);
+           
+           if (column) {
+             // Handle video layers based on their playMode
+             column.layers.forEach(layer => {
+               if (layer.type === 'video' || (layer as any)?.asset?.type === 'video') {
+                 const playMode = layer.playMode || 'restart';
+                 
+                 if (playMode === 'restart') {
+                   // Always restart if restart mode is selected
+                   document.dispatchEvent(new CustomEvent('videoRestart', {
+                     detail: { layerId: layer.id, columnId }
+                   }));
+                 } else if (playMode === 'continue') {
+                   // Continue playback (resume from current position)
+                   document.dispatchEvent(new CustomEvent('videoContinue', {
+                     detail: { layerId: layer.id, columnId }
+                   }));
+                 }
+               }
+             });
+           }
+           
+           // Dispatch column play event for general handling
+           document.dispatchEvent(new CustomEvent('columnPlay', {
+             detail: { type: 'columnPlay', columnId, origin: 'store' }
+           }));
+           
+           // Always set as playing column (don't toggle off)
+           set({ playingColumnId: columnId });
+         } catch (error) {
+           console.warn('Failed to play column:', error);
+         }
+       },
        
        stopColumn: () => {
          try {

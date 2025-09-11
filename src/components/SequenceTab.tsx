@@ -60,6 +60,7 @@ const SequenceTab: React.FC = () => {
   const firedOnceRef = useRef<Set<number>>(new Set());
   // Briefly suppress triggers after a manual column play to avoid flashes
   const suppressUntilRef = useRef<number>(0);
+  const lastGlobalPlayMsRef = useRef<number>(0);
 
   // Restore persisted sequence settings
   useEffect(() => {
@@ -391,7 +392,8 @@ const SequenceTab: React.FC = () => {
     if (!triggersEnabled) return;
     const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     // If user just manually changed column, give it a short hold window
-    if (now < suppressUntilRef.current) return;
+    // But NEVER suppress the initial 0:00 triggers
+    const suppressionActive = now < suppressUntilRef.current;
 
     triggerPoints.forEach(triggerTime => {
       // Skip if this marker already fired in this play session
@@ -401,6 +403,9 @@ const SequenceTab: React.FC = () => {
         ? ((prevTime < triggerTime && triggerTime <= currentTime) || (prevTime > triggerTime && triggerTime >= currentTime))
         : (Math.abs(currentTime - triggerTime) < 0.05);
       if (crossed) {
+        // Allow 0:00 (and near-zero) markers even during manual suppression
+        if (suppressionActive && triggerTime > 0.2) return;
+        try { console.log('[Sequence][Fire] triggerTime =', triggerTime.toFixed(3), 'currentTime =', Number(currentTime||0).toFixed(3), 'prevTime =', typeof prevTime==='number'?prevTime.toFixed(3):'n/a'); } catch {}
         const last = lastFiredRef.current?.[triggerTime] || 0;
         if (now - last < 400) {
           return; // Suppress rapid re-fires within 400ms window
@@ -574,6 +579,7 @@ const SequenceTab: React.FC = () => {
   const applyMarkersUpToTime = useCallback((t: number) => {
     try {
       const upper = Math.max(0, Number(t) || 0);
+      try { console.log('[Sequence][Init] applyMarkersUpToTime → upper =', upper.toFixed(3)); } catch {}
       const sorted = [...triggerPoints].sort((a, b) => a - b);
       for (const tp of sorted) {
         if (tp <= upper) {
@@ -592,12 +598,22 @@ const SequenceTab: React.FC = () => {
   useEffect(() => {
     const onGlobalPlay = () => {
       if (!triggersEnabled) return;
+      try { lastGlobalPlayMsRef.current = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); } catch {}
       try { waveformRef.current?.play?.(); } catch {}
       try {
         lastFiredRef.current = {};
         firedOnceRef.current.clear();
-        // Apply all markers up to the current time; ensures 0:00 fires
-        applyMarkersUpToTime(Math.max(currentTime, 0.15));
+        // Ensure earliest marker has normalized actions before applying
+        const upper = Math.max(currentTime, 0.15);
+        const sorted = [...triggerPoints].filter(tp => tp <= upper).sort((a,b)=>a-b);
+        const earliest = sorted.length > 0 ? sorted[0] : null;
+        const cfg = earliest != null ? triggerConfigs[earliest] : null;
+        const hasCells = !!(cfg && Array.isArray(cfg.actions) && cfg.actions.some(a => a && a.type === 'cell'));
+        const run = () => applyMarkersUpToTime(upper);
+        // Always defer briefly to allow hydration/normalization to complete reliably
+        const delayMs = 120;
+        try { console.log('[Sequence][Init] onGlobalPlay → currentTime =', Number(currentTime || 0).toFixed(3), 'upper =', upper.toFixed(3), 'delay =', delayMs, 'ms'); } catch {}
+        setTimeout(run, delayMs);
       } catch {}
 
       // Start fallback ticker if there is no audio playing
@@ -630,9 +646,23 @@ const SequenceTab: React.FC = () => {
     // Manual column plays (no fromTrigger flag) should suppress triggers briefly
     const onAnyColumnPlay = (e: any) => {
       try {
-        if (e?.detail?.fromTrigger) return;
         const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-        suppressUntilRef.current = now + 800; // extend hold to 800ms for reliable manual switching
+        // Ignore columnPlay emitted immediately by transport start (auto-play first column)
+        if (now - (lastGlobalPlayMsRef.current || 0) < 500) return;
+        if (e?.detail?.fromTrigger) return;
+        // Only treat explicit UI/MIDI manual events; ignore unknown origins to avoid false suppression
+        if ((e?.detail?.origin || '') !== 'manual') return;
+        // Debounce multiple manual events to one suppression window
+        const debounceMs = 250;
+        if ((suppressUntilRef as any).__lastManual && now - (suppressUntilRef as any).__lastManual < debounceMs) {
+          (suppressUntilRef as any).__lastManual = now;
+          return;
+        }
+        (suppressUntilRef as any).__lastManual = now;
+        // During manual switch, clear any auto-applied per-row overrides so base column shows
+        try { (useStore.getState() as any)?.clearActiveLayerOverrides?.(); } catch {}
+        suppressUntilRef.current = now + 600; // balanced hold for reliable manual switching
+        try { console.log('[Sequence][Manual] columnPlay detected; suppressing triggers until', suppressUntilRef.current, 'origin= manual'); } catch {}
       } catch {}
     };
     document.addEventListener('columnPlay', onAnyColumnPlay as any);
@@ -665,6 +695,17 @@ const SequenceTab: React.FC = () => {
       try { checkTriggers(currentTime); } catch {}
     }
   }, [currentTime, isPlaying, triggersEnabled, checkTriggers]);
+
+  // Ensure first marker applies if triggers become enabled after hydration
+  useEffect(() => {
+    try {
+      if (triggersEnabled && isPlaying) {
+        setTimeout(() => {
+          try { applyMarkersUpToTime(Math.max(currentTime, 0.15)); } catch {}
+        }, 120);
+      }
+    } catch {}
+  }, [triggersEnabled, isPlaying]);
 
   // Also check once right when playback starts so a marker exactly at the
   // current time applies immediately on Play
