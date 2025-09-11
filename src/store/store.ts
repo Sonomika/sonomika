@@ -77,6 +77,7 @@ const createEmptyScene = (): Scene => ({
   columns: Array.from({ length: 20 }, () => createEmptyColumn()),
   globalEffects: [],
   numRows: 3,
+  sequenceEnabled: false,
 });
 
 const createDefaultScenes = (): Scene[] => {
@@ -87,6 +88,7 @@ const createDefaultScenes = (): Scene[] => {
     columns: Array.from({ length: 20 }, () => createEmptyColumn()),
     globalEffects: [],
     numRows: 3,
+    sequenceEnabled: false,
   }];
 };
 
@@ -97,6 +99,7 @@ const initialState: AppState = {
   currentTimelineSceneId: '',
   playingColumnId: null, // No column playing initially
   isGlobalPlaying: false, // Global play/pause state
+  sequenceEnabledGlobal: false,
   activeLayerOverrides: {},
   bpm: 120,
   sidebarVisible: true,
@@ -183,6 +186,7 @@ export const useStore = createWithEqualityFn<AppState & {
   setTransitionType: (type: TransitionType) => void;
   setTransitionDuration: (duration: number) => void;
   setNeutralContrast: (factor: number) => void;
+  setSequenceEnabledGlobal: (enabled: boolean) => void;
   setPlayingColumn: (columnId: string | null) => void;
   playColumn: (columnId: string) => void;
   stopColumn: () => void;
@@ -252,6 +256,7 @@ export const useStore = createWithEqualityFn<AppState & {
         } catch {}
         return { neutralContrast: safe } as any;
       }),
+      setSequenceEnabledGlobal: (enabled: boolean) => set({ sequenceEnabledGlobal: !!enabled } as any),
       currentPresetName: null as any,
       setCurrentPresetName: (name: string | null) => set({ currentPresetName: name } as any),
       recordSettings: initialRecordSettings,

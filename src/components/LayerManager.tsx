@@ -2235,23 +2235,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      }, []);
                      return (
                        <ScrollArea.Viewport ref={viewportRef as any} className="vj-scroll-viewport tw-h-full tw-w-full tw-overflow-auto scroll-touch drag-scroll tw-pr-0 sm:tw-pr-3 tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
-                         {middlePanelTab === 'global' ? (
-                           <div className="tw-h-full">
-                             <GlobalEffectsTab className="tw-h-full" />
-                           </div>
-                         ) : middlePanelTab === 'sequence' ? (
-                           <div className="tw-h-full">
-                             <SequenceTab />
-                           </div>
-                         ) : (
-                           <div className="tw-h-full tw-min-h-0">
-                             <LayerOptions 
-                               key={(effectiveSelectedLayer || selectedLayer)?.id || 'none'}
-                               selectedLayer={effectiveSelectedLayer || selectedLayer}
-                               onUpdateLayer={handleUpdateSelectedLayer}
-                             />
-                           </div>
-                         )}
+                         {/* Keep tabs mounted to allow Sequence to keep running */}
+                         <div className={`tw-h-full ${middlePanelTab === 'global' ? '' : 'tw-hidden'}`}>
+                           <GlobalEffectsTab className="tw-h-full" />
+                         </div>
+                         <div className={`tw-h-full ${middlePanelTab === 'sequence' ? '' : 'tw-hidden'}`}>
+                           <SequenceTab />
+                         </div>
+                         <div className={`tw-h-full tw-min-h-0 ${middlePanelTab === 'layer' || (middlePanelTab !== 'global' && middlePanelTab !== 'sequence') ? '' : 'tw-hidden'}`}>
+                           <LayerOptions 
+                             key={(effectiveSelectedLayer || selectedLayer)?.id || 'none'}
+                             selectedLayer={effectiveSelectedLayer || selectedLayer}
+                             onUpdateLayer={handleUpdateSelectedLayer}
+                           />
+                         </div>
                        </ScrollArea.Viewport>
                      );
                    })()}

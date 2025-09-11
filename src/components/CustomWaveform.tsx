@@ -6,6 +6,7 @@ interface CustomWaveformProps {
   onDurationChange?: (duration: number) => void
   onPlay?: () => void
   onPause?: () => void
+  onEnded?: () => void
   isPlaying?: boolean
   currentTime?: number
   height?: number
@@ -25,6 +26,8 @@ export interface CustomWaveformRef {
   pause: () => void
   stop: () => void
   seekTo: (timeSec: number) => void
+  // Return up to `count` peak times (in seconds), spaced by optional minDistanceSec
+  getPeaks: (count: number, options?: { minDistanceSec?: number }) => number[]
 }
 
 const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
@@ -33,6 +36,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
   onDurationChange,
   onPlay,
   onPause,
+  onEnded,
   isPlaying = false,
   currentTime = 0,
   height = 96,
@@ -80,21 +84,29 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
       onPause?.()
     }
 
+    const handleEnded = () => {
+      // Mirror pause callback and signal end-of-track
+      onPause?.()
+      onEnded?.()
+    }
+
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('play', handlePlay)
     audio.addEventListener('pause', handlePause)
+    audio.addEventListener('ended', handleEnded)
 
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('play', handlePlay)
       audio.removeEventListener('pause', handlePause)
+      audio.removeEventListener('ended', handleEnded)
 
       audio.pause()
       audio.src = ''
     }
-  }, [audioUrl, onTimeUpdate, onDurationChange, onPlay, onPause])
+  }, [audioUrl, onTimeUpdate, onDurationChange, onPlay, onPause, onEnded])
 
   // Analyze audio when URL changes
   useEffect(() => {
@@ -191,7 +203,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
       const progressBar = Math.floor(progress * totalBars)
       if (progressBar >= startBar && progressBar < endBar) {
         const progressX = (progressBar - startBar) * barWidth
-        ctx.strokeStyle = '#fff'
+        ctx.strokeStyle = progressColor || '#fff'
         ctx.lineWidth = 2
         ctx.beginPath()
         ctx.moveTo(progressX, 0)
@@ -201,7 +213,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     }
 
     // Draw center line
-    ctx.strokeStyle = '#666'
+    ctx.strokeStyle = '#262626'
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(0, centerY)
@@ -238,6 +250,51 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
   useEffect(() => {
     drawSimpleWaveform()
   }, [currentTime, waveformData, zoom, pan])
+
+  // Basic peak picker using the generated waveformData
+  const computePeaks = (count: number, minDistanceSec?: number): number[] => {
+    if (!audioRef.current || !Number.isFinite(audioRef.current.duration) || audioRef.current.duration <= 0) return []
+    const dur = audioRef.current.duration
+    const totalBars = waveformData.length || 0
+    if (totalBars === 0 || count <= 0) return []
+
+    // Convert min distance to bars
+    const minBars = Math.max(1, Math.floor(((minDistanceSec || (dur / (count * 2))) / dur) * totalBars))
+
+    // Find local maxima
+    const candidates: Array<{ i: number; v: number }> = []
+    for (let i = 1; i < totalBars - 1; i++) {
+      const v = waveformData[i] || 0
+      if (v >= (waveformData[i - 1] || 0) && v >= (waveformData[i + 1] || 0)) {
+        candidates.push({ i, v })
+      }
+    }
+    // Sort by amplitude desc
+    candidates.sort((a, b) => b.v - a.v)
+
+    const selected: number[] = []
+    const taken: boolean[] = new Array(totalBars).fill(false)
+    for (const c of candidates) {
+      if (selected.length >= count) break
+      // Enforce minimum bar distance
+      let ok = true
+      for (let di = -minBars; di <= minBars; di++) {
+        const idx = c.i + di
+        if (idx >= 0 && idx < totalBars && taken[idx]) { ok = false; break }
+      }
+      if (!ok) continue
+      // Mark neighborhood
+      for (let di = -minBars; di <= minBars; di++) {
+        const idx = c.i + di
+        if (idx >= 0 && idx < totalBars) taken[idx] = true
+      }
+      // Convert bar index to time in seconds
+      const t = (c.i / Math.max(1, totalBars - 1)) * dur
+      selected.push(t)
+    }
+    // Sort chronologically
+    return selected.sort((a, b) => a - b)
+  }
 
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!audioRef.current) return
@@ -360,7 +417,8 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     play,
     pause,
     stop,
-    seekTo
+    seekTo,
+    getPeaks: (count: number, options?: { minDistanceSec?: number }) => computePeaks(Math.max(0, Math.floor(count || 0)), options?.minDistanceSec)
   }), [playPause])
 
   return (
@@ -379,8 +437,8 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
                       width: '100%',
                       height: height,
                       cursor: isDragging ? 'grabbing' : 'grab',
-                      border: '1px solid #ccc',
-                      backgroundColor: '#f5f5f5'
+                      border: '1px solid #262626',
+                      backgroundColor: '#1f1f1f'
                     }}
                   />
       {isLoading && (

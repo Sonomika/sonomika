@@ -28,8 +28,8 @@ interface AudioFile {
 }
 
 const SequenceTab: React.FC = () => {
-  const { scenes, currentSceneId, playColumn, globalStop, playingColumnId, selectedLayerId, activeLayerOverrides } = useStore();
-  const STORAGE_KEY = 'vj-sequence-settings-v1';
+  const { scenes, currentSceneId, playColumn, globalStop, playingColumnId, selectedLayerId, activeLayerOverrides, playNextScene, updateScene, sequenceEnabledGlobal, setSequenceEnabledGlobal, accentColor } = useStore();
+  const storageKeyForScene = (sceneId: string) => `vj-sequence-settings-v1:${sceneId || 'default'}`;
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<AudioFile | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -43,13 +43,16 @@ const SequenceTab: React.FC = () => {
   // Previous time to detect seeks/backward jumps
   const prevTimeRef = useRef(0);
 
-  // (moved below after checkTriggers is defined)
-  const [triggersEnabled, setTriggersEnabled] = useState(false);
+  // Sequence enable/disable is now per-scene via scene.sequenceEnabled
   const [triggerPoints, setTriggerPoints] = useState<number[]>([]);
   const [triggerConfigs, setTriggerConfigs] = useState<Record<number, TriggerConfig>>({});
   const [selectedTriggerTime, setSelectedTriggerTime] = useState<number | null>(null);
   const [hasHydrated, setHasHydrated] = useState(false);
   const [editorDrafts, setEditorDrafts] = useState<Record<number, { columnIndex: number; rowCells: Record<number, number>; action: 'play' | 'stop' | 'toggle' }>>({});
+  // Auto Fill options
+  const [autoFillCount, setAutoFillCount] = useState<number>(0); // 0 = auto
+  const [autoFillRandomize, setAutoFillRandomize] = useState<boolean>(false);
+  const [autoFillOverflowStrategy, setAutoFillOverflowStrategy] = useState<'repeat' | 'random' | 'no_adjacent'>('repeat');
 
   // Fallback playhead ticker (when no audio is loaded)
   const fallbackRafRef = useRef<number | null>(null);
@@ -62,13 +65,12 @@ const SequenceTab: React.FC = () => {
   const suppressUntilRef = useRef<number>(0);
   const lastGlobalPlayMsRef = useRef<number>(0);
 
-  // Restore persisted sequence settings
+  // Restore persisted sequence settings (per scene)
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(storageKeyForScene(currentSceneId));
       if (raw) {
         const data = JSON.parse(raw);
-        if (typeof data?.triggersEnabled === 'boolean') setTriggersEnabled(Boolean(data.triggersEnabled));
         if (Array.isArray(data?.triggerPoints)) setTriggerPoints(data.triggerPoints.map((n: any) => Number(n)).filter((n: any) => Number.isFinite(n)).sort((a: number,b: number)=>a-b));
         if (data?.triggerConfigs && typeof data.triggerConfigs === 'object') {
           const next: Record<number, TriggerConfig> = {};
@@ -95,28 +97,62 @@ const SequenceTab: React.FC = () => {
           const sel = restored.find(a => a.id === selId) || restored[0] || null;
           if (sel) setSelectedFile(sel);
         }
+        // Restore Auto Fill options
+        try {
+          const n = Number(data?.autoFillCount);
+          setAutoFillCount(Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0);
+        } catch { setAutoFillCount(0); }
+        try { setAutoFillRandomize(Boolean(data?.autoFillRandomize)); } catch { setAutoFillRandomize(false); }
+        try {
+          const s = String(data?.autoFillOverflowStrategy || 'repeat');
+          setAutoFillOverflowStrategy((s === 'random' || s === 'no_adjacent') ? (s as any) : 'repeat');
+        } catch { setAutoFillOverflowStrategy('repeat'); }
+        // Restore global sequence toggle from saved payload if present
+        try {
+          if (typeof data?.triggersEnabled === 'boolean') {
+            setSequenceEnabledGlobal(Boolean(data.triggersEnabled));
+          }
+        } catch {}
+      } else {
+        // Reset to clean state if no saved data for this scene
+        setTriggerPoints([]);
+        setTriggerConfigs({} as any);
+        setAudioFiles([]);
+        setSelectedFile(null);
+        setAudioUrl('');
+        setCurrentTime(0);
+        setDuration(0);
+        setIsPlaying(false);
+        setAutoFillCount(0);
+        setAutoFillRandomize(false);
+        setAutoFillOverflowStrategy('repeat');
       }
     } catch {}
     setHasHydrated(true);
-  }, []);
+  }, [currentSceneId]);
 
-  // Persist sequence settings
+  // Persist sequence settings (per scene)
   useEffect(() => {
     if (!hasHydrated) return;
     try {
       const payload = {
-        triggersEnabled,
+        // Persist global toggle to each scene payload (backward compat with existing saves)
+        triggersEnabled: !!sequenceEnabledGlobal,
         triggerPoints,
         triggerConfigs,
         audioFiles: audioFiles.map(f => ({ id: f.id, name: f.name, duration: f.duration, path: f.path })),
         selectedAudioId: selectedFile?.id || null,
+        autoFillCount,
+        autoFillRandomize,
+        autoFillOverflowStrategy,
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      localStorage.setItem(storageKeyForScene(currentSceneId), JSON.stringify(payload));
     } catch {}
-  }, [hasHydrated, triggersEnabled, triggerPoints, triggerConfigs, audioFiles, selectedFile]);
+  }, [hasHydrated, sequenceEnabledGlobal, currentSceneId, triggerPoints, triggerConfigs, audioFiles, selectedFile, autoFillCount, autoFillRandomize, autoFillOverflowStrategy]);
 
   // Get current scene and columns
   const currentScene = scenes.find(s => s.id === currentSceneId);
+  const triggersEnabled = !!sequenceEnabledGlobal;
   const columns = currentScene?.columns || [];
 
   // Normalize trigger configurations so each marker has a column action and per-row cell actions
@@ -254,6 +290,29 @@ const SequenceTab: React.FC = () => {
   const handlePause = useCallback(() => {
     setIsPlaying(false);
   }, []);
+
+  // Handle audio end-of-track action based on scene setting
+  const handleEnded = useCallback(() => {
+    try {
+      const scene = scenes.find(s => s.id === currentSceneId);
+      const action = scene?.endOfSceneAction || 'stop';
+      if (action === 'loop') {
+        // Reset trigger one-shots and restart audio
+        lastFiredRef.current = {};
+        firedOnceRef.current.clear();
+        try { waveformRef.current?.seekTo?.(0); } catch {}
+        setCurrentTime(0);
+        setTimeout(() => { try { waveformRef.current?.play?.(); } catch {} }, 50);
+      } else if (action === 'play_next') {
+        playNextScene();
+        // Give time for per-scene settings to hydrate, then auto-play if audio exists
+        setTimeout(() => { try { waveformRef.current?.play?.(); } catch {} }, 250);
+      } else {
+        // stop: nothing else to do; ensure playing flag is false
+        setIsPlaying(false);
+      }
+    } catch {}
+  }, [currentSceneId, scenes, playNextScene]);
 
   // Controls
   const togglePlayPause = useCallback(() => {
@@ -757,6 +816,99 @@ const SequenceTab: React.FC = () => {
     setSelectedFile(audioFile);
   }, []);
 
+  // Color helpers (use accent for bars; brighter for progress)
+  const toBrightenedHex = useCallback((hex: string, factor: number) => {
+    try {
+      const norm = String(hex || '').trim();
+      const m = /^#?([0-9a-fA-F]{6})$/.exec(norm);
+      if (!m) return hex;
+      const int = parseInt(m[1], 16);
+      const r = Math.min(255, Math.max(0, Math.round(((int >> 16) & 255) * factor)));
+      const g = Math.min(255, Math.max(0, Math.round(((int >> 8) & 255) * factor)));
+      const b = Math.min(255, Math.max(0, Math.round((int & 255) * factor)));
+      const to2 = (n: number) => n.toString(16).padStart(2, '0');
+      return `#${to2(r)}${to2(g)}${to2(b)}`;
+    } catch {
+      return hex;
+    }
+  }, []);
+
+  // Generate/refresh auto markers: always include 0.000, replace prior auto markers, keep manual ones
+  const generateAutoMarkers = useCallback(() => {
+    try {
+      const scene = scenes.find(s => s.id === currentSceneId);
+      if (!scene) return;
+      const cols = (scene.columns || []).filter((c: any) => (c.layers || []).some((l: any) => !!l?.asset));
+      const numRows = Math.min(6, Math.max(1, Number(scene.numRows) || 3));
+      const baseCount = Math.max(cols.length, numRows);
+      const count = Math.max(1, autoFillCount || baseCount);
+      const peaks = (waveformRef.current?.getPeaks?.(count, { minDistanceSec: Math.max(0.5, (duration || 0) / (count * 2)) }) || []) as number[];
+      const times = Array.isArray(peaks) ? peaks.slice() : [];
+      times.unshift(0); // ensure start marker
+      // Normalize to ms precision and unique
+      const norm = (t: number) => Number(Number(t).toFixed(3));
+      let picked = Array.from(new Set(times.map(norm)));
+      if (autoFillRandomize) {
+        picked = picked.sort(() => Math.random() - 0.5);
+      } else {
+        picked = picked.sort((a,b) => a - b);
+      }
+
+      // Remove existing auto markers
+      const isAuto = (t: number) => String(triggerConfigs[t]?.id || '').startsWith('auto-');
+      const manualPoints = triggerPoints.filter((t) => !isAuto(t));
+      const manualConfigs = Object.fromEntries(Object.entries(triggerConfigs).filter(([k]) => !isAuto(Number(k))));
+
+      const colIds = cols.map(c => c.id);
+      const nextPoints = Array.from(new Set<number>([...manualPoints, ...picked])).sort((a,b)=>a-b);
+      const nextConfigs: Record<number, TriggerConfig> = { ...(manualConfigs as any) } as any;
+
+      let previousBaseColIdx: number | null = null;
+      picked.forEach((t, idx) => {
+        const key = norm(t);
+        const actions: TriggerAction[] = [];
+        // Default: group peaks into blocks of numRows so pattern is 1,1,1,1 → 2,2,2,2.
+        // In 'no_adjacent' mode, we disable grouping so consecutive markers cycle columns.
+        const blockSize = (autoFillOverflowStrategy === 'no_adjacent') ? 1 : Math.max(1, numRows);
+        let baseColIdx = 0;
+        if (colIds.length > 0) {
+          if (autoFillOverflowStrategy === 'random') {
+            // After columns exhausted, pick random among available
+            // For consistent grouping, base on block index
+            const blockIndex = Math.floor(idx / blockSize);
+            const rng = Math.abs(Math.sin(blockIndex * 12.9898 + 78.233)) % 1; // deterministic-ish
+            baseColIdx = Math.floor(rng * colIds.length) % colIds.length;
+          } else if (autoFillOverflowStrategy === 'no_adjacent') {
+            // Choose next column per marker, avoid same as previous marker
+            const prev = previousBaseColIdx == null ? -1 : previousBaseColIdx;
+            baseColIdx = (prev + 1) % colIds.length;
+          } else {
+            // repeat: wrap around
+            baseColIdx = (Math.floor(idx / blockSize) % colIds.length);
+          }
+        }
+        const baseIndex1 = Math.max(1, baseColIdx + 1);
+        actions.push({ type: 'column', columnIndex: baseIndex1, action: 'play' } as TriggerAction);
+        // Do not add per-row cell actions here. Normalization will populate
+        // rows using the same column as the column action, yielding 1,1,1,1 then 2,2,2,2.
+        nextConfigs[key] = { id: `auto-${key.toFixed(3)}`, time: key, actions } as TriggerConfig;
+        // Track previous column at the granularity in effect
+        if (autoFillOverflowStrategy === 'no_adjacent') previousBaseColIdx = baseColIdx; else if ((idx + 1) % blockSize === 0) previousBaseColIdx = baseColIdx;
+      });
+
+      setTriggerPoints(nextPoints);
+      setTriggerConfigs(nextConfigs);
+    } catch {}
+  }, [scenes, currentSceneId, duration, autoFillCount, autoFillRandomize, triggerPoints, triggerConfigs]);
+
+  // Clear only markers (keep audio)
+  const clearMarkers = useCallback(() => {
+    try {
+      setTriggerPoints([]);
+      setTriggerConfigs({} as any);
+    } catch {}
+  }, []);
+
   return (
     <div className="tw-flex tw-flex-col tw-h-full tw-p-4 tw-space-y-4">
       {/* Header */}
@@ -783,16 +935,95 @@ const SequenceTab: React.FC = () => {
               Clear
             </Button>
           )}
+          {audioUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={generateAutoMarkers}
+              className="tw-h-8 tw-px-3"
+            >
+              Auto Fill
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Trigger Controls */}
+      {/* Trigger Controls + End Action */}
       <div className="tw-flex tw-items-center tw-justify-between tw-bg-neutral-800/50 tw-rounded-lg tw-px-4 tw-py-3 tw-border tw-border-neutral-600">
         <div className="tw-flex tw-items-center tw-space-x-3">
           <span className="tw-text-sm tw-text-white">Timeline Triggers</span>
           <span className="tw-text-xs tw-text-neutral-400">Shift+Click to add</span>
         </div>
-        <Switch checked={triggersEnabled} onCheckedChange={(val) => setTriggersEnabled(!!val)} />
+        {/* Controls arranged on two lines to avoid overflow */}
+        <div className="tw-flex tw-flex-col tw-items-start tw-gap-2 tw-w-full">
+          {/* Line 1 */}
+          <div className="tw-flex tw-flex-wrap tw-items-center tw-gap-3 tw-w-full">
+            <div className="tw-flex tw-items-center tw-gap-2">
+              <span className="tw-text-xs tw-text-neutral-400">End:</span>
+              <select
+                value={currentScene?.endOfSceneAction || 'stop'}
+                onChange={(e) => {
+                  const action = e.target.value as 'loop' | 'play_next' | 'random' | 'stop';
+                  try { updateScene(currentSceneId, { endOfSceneAction: action }); } catch {}
+                }}
+                className="tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
+                title="Action when audio ends"
+              >
+                <option value="stop">Stop</option>
+                <option value="loop">Loop</option>
+                <option value="play_next">Next</option>
+              </select>
+            </div>
+            {/* Auto Fill options */}
+            <div className="tw-flex tw-items-center tw-gap-2">
+              <span className="tw-text-xs tw-text-neutral-400">Markers:</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={autoFillCount}
+                onChange={(e) => setAutoFillCount(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                className="tw-w-16 tw-h-6 tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2"
+                title="Number of markers to add (0 = auto)"
+              />
+              <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs tw-text-neutral-400">
+                <input type="checkbox" checked={autoFillRandomize} onChange={(e) => setAutoFillRandomize(!!e.target.checked)} />
+                Randomize
+              </label>
+              <span className="tw-text-xs tw-text-neutral-400">Overflow:</span>
+              <select
+                value={autoFillOverflowStrategy}
+                onChange={(e) => {
+                  const v = String(e.target.value);
+                  setAutoFillOverflowStrategy((v === 'random' || v === 'no_adjacent') ? (v as any) : 'repeat');
+                }}
+                className="tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
+                title="When markers exceed columns"
+              >
+                <option value="repeat">Repeat</option>
+                <option value="random">Randomize</option>
+                <option value="no_adjacent">No Adjacent Same</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Line 2 */}
+          <div className="tw-flex tw-items-center tw-gap-3 tw-w-full">
+            <div className="tw-flex tw-items-center tw-gap-2">
+              <span className="tw-text-xs tw-text-neutral-400">Sequence:</span>
+              <Switch checked={triggersEnabled} onCheckedChange={(val) => setSequenceEnabledGlobal(!!val)} />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearMarkers}
+              className="tw-h-7 tw-px-2"
+              title="Clear all markers"
+            >
+              Clear markers
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Hidden file input */}
@@ -896,11 +1127,12 @@ const SequenceTab: React.FC = () => {
                   onDurationChange={handleDurationChange}
                   onPlay={handlePlay}
                   onPause={handlePause}
+                  onEnded={handleEnded}
                   isPlaying={isPlaying}
                   currentTime={currentTime}
                   height={150}
-                  waveColor="#4F4A85"
-                  progressColor="#383351"
+                  waveColor={accentColor || '#00bcd4'}
+                  progressColor={toBrightenedHex(accentColor || '#00bcd4', 1.25)}
                   triggerPoints={triggerPoints}
                   onTriggerClick={addTriggerPoint}
                   triggersEnabled={triggersEnabled}

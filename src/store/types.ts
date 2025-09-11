@@ -65,6 +65,8 @@ export interface Scene {
   numRows?: number;
   // Action to take when scene ends
   endOfSceneAction?: 'loop' | 'play_next' | 'random' | 'stop';
+  // Whether Sequence (audio-triggered markers) is enabled for this scene
+  sequenceEnabled?: boolean;
 }
 
 export interface MIDIMapping {
@@ -135,6 +137,8 @@ export interface AppState {
   currentTimelineSceneId: string;
   playingColumnId: string | null; // Track which column is currently playing
   isGlobalPlaying: boolean; // Track global play/pause state
+  // Global toggle for Sequence (audio-triggered markers) across all scenes
+  sequenceEnabledGlobal?: boolean;
   bpm: number;
   sidebarVisible: boolean; // Global accessibility mode
   accessibilityEnabled: boolean; // Global accessibility mode
