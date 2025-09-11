@@ -87,16 +87,16 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 					break;
 				case LOOP_MODES.LOOP:
 					video.currentTime = 0;
-					video.play();
+					try { const p = video.play(); if (p && (p as any).catch) (p as any).catch(() => {}); } catch {}
 					break;
 				case LOOP_MODES.REVERSE:
 					console.warn('REVERSE MODE: Native reverse playback not supported, falling back to loop');
 					video.currentTime = 0;
-					video.play();
+					try { const p = video.play(); if (p && (p as any).catch) (p as any).catch(() => {}); } catch {}
 					break;
 				case LOOP_MODES.PING_PONG:
 					video.currentTime = 0;
-					video.play();
+					try { const p = video.play(); if (p && (p as any).catch) (p as any).catch(() => {}); } catch {}
 					break;
 				default:
 					setIsPlaying(false);
@@ -148,14 +148,14 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 		const handleVideoRestart = (e: CustomEvent) => {
 			if (e.detail?.layerId === layer.id) {
 				video.currentTime = 0;
-				video.play().catch(console.error);
+				try { const p = video.play(); if (p && (p as any).catch) (p as any).catch(() => {}); } catch {}
 			}
 		};
 
 		const handleVideoContinue = (e: CustomEvent) => {
 			if (e.detail?.layerId === layer.id) {
 				if (video.paused) {
-					video.play().catch(console.error);
+					try { const p = video.play(); if (p && (p as any).catch) (p as any).catch(() => {}); } catch {}
 				}
 			}
 		};
@@ -182,7 +182,7 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 		video.onloadeddata = () => {
 			setIsLoading(false);
 			if (layer.autoplay) {
-				try { video.play().catch(() => {}); } catch {}
+				try { const p = video.play(); if (p && (p as any).catch) (p as any).catch(() => {}); } catch {}
 			}
 		};
 

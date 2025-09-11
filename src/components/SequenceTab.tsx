@@ -51,6 +51,16 @@ const SequenceTab: React.FC = () => {
   const [hasHydrated, setHasHydrated] = useState(false);
   const [editorDrafts, setEditorDrafts] = useState<Record<number, { columnIndex: number; rowCells: Record<number, number>; action: 'play' | 'stop' | 'toggle' }>>({});
 
+  // Fallback playhead ticker (when no audio is loaded)
+  const fallbackRafRef = useRef<number | null>(null);
+  const fallbackStartMsRef = useRef<number>(0);
+  const fallbackOriginTimeRef = useRef<number>(0);
+
+  // One-shot trigger tracking for current play session
+  const firedOnceRef = useRef<Set<number>>(new Set());
+  // Briefly suppress triggers after a manual column play to avoid flashes
+  const suppressUntilRef = useRef<number>(0);
+
   // Restore persisted sequence settings
   useEffect(() => {
     try {
@@ -376,18 +386,27 @@ const SequenceTab: React.FC = () => {
     });
   }, []);
 
-  // Check if current time matches any trigger
-  const checkTriggers = useCallback((currentTime: number) => {
+  // Check if current time matches or crosses any trigger between prev and current
+  const checkTriggers = useCallback((currentTime: number, prevTime?: number) => {
     if (!triggersEnabled) return;
     const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    // If user just manually changed column, give it a short hold window
+    if (now < suppressUntilRef.current) return;
 
     triggerPoints.forEach(triggerTime => {
-      if (Math.abs(currentTime - triggerTime) < 0.05) {
+      // Skip if this marker already fired in this play session
+      if (firedOnceRef.current.has(triggerTime)) return;
+      // Detect crossing in either direction when prevTime is provided
+      const crossed = (typeof prevTime === 'number')
+        ? ((prevTime < triggerTime && triggerTime <= currentTime) || (prevTime > triggerTime && triggerTime >= currentTime))
+        : (Math.abs(currentTime - triggerTime) < 0.05);
+      if (crossed) {
         const last = lastFiredRef.current?.[triggerTime] || 0;
         if (now - last < 400) {
           return; // Suppress rapid re-fires within 400ms window
         }
         lastFiredRef.current[triggerTime] = now;
+        firedOnceRef.current.add(triggerTime);
         const config = triggerConfigs[triggerTime];
         if (config) {
           console.log('Trigger fired at:', triggerTime, 'Actions:', config.actions);
@@ -400,10 +419,17 @@ const SequenceTab: React.FC = () => {
             const clearOverrides = state?.clearActiveLayerOverrides;
             let nextColumnToPlay: string | null = null;
             let shouldStop = false;
+            const appliedOverrides: Array<{ row: number; targetId: string }> = [];
 
             try {
               const rowsCount = Math.min(6, Math.max(1, Number(currentScene?.numRows) || 3));
               const resolved: Record<number, string | null> = {};
+              const resolvedIdx: Record<number, number> = {};
+              const idxFromId = (id: string | null | undefined): number | null => {
+                if (!id) return null;
+                const j = columns.findIndex(c => c.id === id);
+                return j >= 0 ? j + 1 : null;
+              };
               for (let r = 1; r <= rowsCount; r++) resolved[r] = null;
               for (const act of (config.actions || [])) {
                 if (act?.type === 'cell') {
@@ -411,13 +437,20 @@ const SequenceTab: React.FC = () => {
                   const id = act.columnId || columns[idx - 1]?.id || null;
                   const row = Math.max(1, Number((act as any).row) || 1);
                   resolved[row] = id;
+                  const idxResolved = (act as any).columnIndex ? Number((act as any).columnIndex) : (idxFromId(id) || idx);
+                  resolvedIdx[row] = idxResolved;
                 }
               }
-              console.log('[Sequence] Resolving trigger', triggerTime, {
-                columnAction: (config.actions || []).find(a => a.type === 'column') || null,
-                resolvedCells: resolved,
-                columnsCount: columns?.length || 0,
-              });
+              const columnAct = (config.actions || []).find(a => a.type === 'column') as any;
+              const columnIndex = columnAct?.columnIndex
+                ? Number(columnAct.columnIndex)
+                : idxFromId(columnAct?.columnId) || 1;
+              const summaryCells = Array.from({ length: rowsCount }, (_, i) => {
+                const row = i + 1;
+                const idx = resolvedIdx[row] || columnIndex;
+                return `Row ${row}: ${idx}`;
+              }).join(', ');
+              console.log('[Sequence] Resolving trigger', triggerTime, `Column ${columnIndex} • Cells: ${summaryCells}`);
             } catch {}
 
             try { if (clearOverrides) clearOverrides(); } catch {}
@@ -429,7 +462,8 @@ const SequenceTab: React.FC = () => {
                   const targetId = action.columnId || columns[safeIdx - 1]?.id;
                   const rowNum = Math.max(1, Number(action.row) || 1);
                   if (applyOverride && targetId) applyOverride(rowNum, targetId);
-                  console.log('[Sequence] Applied cell override', { row: rowNum, columnIndex: safeIdx, columnId: targetId });
+                  if (targetId) appliedOverrides.push({ row: rowNum, targetId });
+                  console.log('[Sequence] Applied cell override', `Row ${rowNum}: ${safeIdx}`);
                   // If the overridden row points to a different column, restart its video layer to ensure playback
                   try {
                     const scene = currentScene;
@@ -468,12 +502,54 @@ const SequenceTab: React.FC = () => {
               globalStop();
             } else if (nextColumnToPlay) {
               playColumn(nextColumnToPlay);
+              // Single-shot event dispatch per tick
+              try {
+                if (!(window as any).__vjLastColumnPlay || (window as any).__vjLastColumnPlay !== nextColumnToPlay) {
+                  (window as any).__vjLastColumnPlay = nextColumnToPlay;
+                  setTimeout(() => { (window as any).__vjLastColumnPlay = null; }, 100);
+                  document.dispatchEvent(new CustomEvent('columnPlay', { detail: { type: 'columnPlay', columnId: nextColumnToPlay, fromTrigger: true } }));
+                }
+              } catch {}
+              // Re-apply overrides to ensure they persist after playColumn side effects
+              try {
+                const reapply = (useStore.getState() as any).setActiveLayerOverride as (ln: number, col: string|null) => void;
+                if (typeof reapply === 'function') {
+                  for (const { row, targetId } of appliedOverrides) reapply(row, targetId);
+                }
+              } catch {}
+              // Update preview without re-triggering store play path
+              try { document.dispatchEvent(new CustomEvent('columnPlay', { detail: { type: 'columnPlay', columnId: nextColumnToPlay, fromTrigger: true, previewOnly: true } })); } catch {}
             } else {
               const currentPlaying = (useStore.getState() as any).playingColumnId;
               if (currentPlaying) {
                 try { playColumn(currentPlaying); } catch {}
+                try {
+                  if (!(window as any).__vjLastColumnPlay || (window as any).__vjLastColumnPlay !== currentPlaying) {
+                    (window as any).__vjLastColumnPlay = currentPlaying;
+                    setTimeout(() => { (window as any).__vjLastColumnPlay = null; }, 100);
+                    document.dispatchEvent(new CustomEvent('columnPlay', { detail: { type: 'columnPlay', columnId: currentPlaying, fromTrigger: true, previewOnly: true } }));
+                  }
+                } catch {}
               }
             }
+            // Log the actual effective mapping after actions
+            try {
+              const st: any = useStore.getState();
+              const rowsCount = Math.min(6, Math.max(1, Number(currentScene?.numRows) || 3));
+              const idxFromId = (id: string | null | undefined): number | null => {
+                if (!id) return null;
+                const j = columns.findIndex(c => c.id === id);
+                return j >= 0 ? j + 1 : null;
+              };
+              const playingIdx = idxFromId(st.playingColumnId) || 1;
+              const summary = Array.from({ length: rowsCount }, (_, i) => {
+                const row = i + 1;
+                const srcId = (st.activeLayerOverrides || {})[row] || st.playingColumnId;
+                const srcIdx = idxFromId(srcId) || playingIdx;
+                return `Row ${row}: ${srcIdx}`;
+              }).join(', ');
+              console.log('[Sequence] Effective after trigger', triggerTime, `Column ${playingIdx} • Cells: ${summary}`);
+            } catch {}
             console.log('[Sequence] Trigger applied', {
               triggerTime,
               playingAfter: (useStore.getState() as any).playingColumnId,
@@ -502,7 +578,9 @@ const SequenceTab: React.FC = () => {
       for (const tp of sorted) {
         if (tp <= upper) {
           try { delete lastFiredRef.current[tp]; } catch {}
-          checkTriggers(tp);
+          if (!firedOnceRef.current.has(tp)) {
+            checkTriggers(tp, tp - 0.01);
+          }
         } else {
           break;
         }
@@ -517,19 +595,53 @@ const SequenceTab: React.FC = () => {
       try { waveformRef.current?.play?.(); } catch {}
       try {
         lastFiredRef.current = {};
+        firedOnceRef.current.clear();
         // Apply all markers up to the current time; ensures 0:00 fires
         applyMarkersUpToTime(Math.max(currentTime, 0.15));
       } catch {}
+
+      // Start fallback ticker if there is no audio playing
+      try {
+        const hasAudio = !!audioUrl;
+        if (!hasAudio && fallbackRafRef.current == null) {
+          fallbackStartMsRef.current = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+          fallbackOriginTimeRef.current = Number(currentTime) || 0;
+          const loop = () => {
+            const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+            const elapsed = Math.max(0, nowMs - fallbackStartMsRef.current) * 0.001;
+            const t = fallbackOriginTimeRef.current + elapsed;
+            setCurrentTime(t);
+            fallbackRafRef.current = requestAnimationFrame(loop);
+          };
+          fallbackRafRef.current = requestAnimationFrame(loop);
+          // Mirror global playing state locally to enable trigger checks
+          setIsPlaying(true);
+        }
+      } catch {}
     };
-    const onGlobalPause = () => { if (triggersEnabled) { try { waveformRef.current?.pause?.(); } catch {} } };
-    const onGlobalStop = () => { if (triggersEnabled) { try { waveformRef.current?.stop?.(); } catch {} } };
+    const stopFallback = () => {
+      try { if (fallbackRafRef.current != null) { cancelAnimationFrame(fallbackRafRef.current); fallbackRafRef.current = null; } } catch {}
+    };
+    const onGlobalPause = () => { if (triggersEnabled) { try { waveformRef.current?.pause?.(); } catch {} ; stopFallback(); setIsPlaying(false); } };
+    const onGlobalStop = () => { if (triggersEnabled) { try { waveformRef.current?.stop?.(); } catch {} ; stopFallback(); setIsPlaying(false); firedOnceRef.current.clear(); } };
     document.addEventListener('globalPlay', onGlobalPlay as any);
     document.addEventListener('globalPause', onGlobalPause as any);
     document.addEventListener('globalStop', onGlobalStop as any);
+    // Manual column plays (no fromTrigger flag) should suppress triggers briefly
+    const onAnyColumnPlay = (e: any) => {
+      try {
+        if (e?.detail?.fromTrigger) return;
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        suppressUntilRef.current = now + 800; // extend hold to 800ms for reliable manual switching
+      } catch {}
+    };
+    document.addEventListener('columnPlay', onAnyColumnPlay as any);
     return () => {
       document.removeEventListener('globalPlay', onGlobalPlay as any);
       document.removeEventListener('globalPause', onGlobalPause as any);
       document.removeEventListener('globalStop', onGlobalStop as any);
+      document.removeEventListener('columnPlay', onAnyColumnPlay as any);
+      try { if (fallbackRafRef.current != null) { cancelAnimationFrame(fallbackRafRef.current); fallbackRafRef.current = null; } } catch {}
     }; 
   }, [triggersEnabled, currentTime, applyMarkersUpToTime]);
 
@@ -542,9 +654,17 @@ const SequenceTab: React.FC = () => {
       if (prev - currentTime > 0.5) {
         return;
       }
-      checkTriggers(currentTime);
+      checkTriggers(currentTime, prev);
     }
   }, [currentTime, checkTriggers, triggersEnabled, isPlaying]);
+
+  // Ensure fallback ticker also drives trigger checks when audio isn't present
+  useEffect(() => {
+    if (!triggersEnabled) return;
+    if (fallbackRafRef.current != null && isPlaying) {
+      try { checkTriggers(currentTime); } catch {}
+    }
+  }, [currentTime, isPlaying, triggersEnabled, checkTriggers]);
 
   // Also check once right when playback starts so a marker exactly at the
   // current time applies immediately on Play
@@ -950,6 +1070,7 @@ const SequenceTab: React.FC = () => {
                           const setColumnIndex = (colIdx: number) => {
                             setTriggerConfigs(prev => {
                               const prevCfg = prev[triggerTime] || { id: `trigger-${triggerTime}`, time: triggerTime, actions: [] } as TriggerConfig;
+                              // Replace only the column action; keep per-row cells as set by the user
                               const nextActions = (prevCfg.actions || []).filter(a => a.type !== 'column');
                               nextActions.unshift({ type: 'column', columnIndex: colIdx, action: 'play' });
                               return { ...prev, [triggerTime]: { ...prevCfg, actions: nextActions } };
@@ -958,7 +1079,8 @@ const SequenceTab: React.FC = () => {
                           const setCellIndexForRow = (row: number, colIdx: number) => {
                             setTriggerConfigs(prev => {
                               const prevCfg = prev[triggerTime] || { id: `trigger-${triggerTime}`, time: triggerTime, actions: [] } as TriggerConfig;
-                              const nextActions = (prevCfg.actions || []).filter(a => !(a.type === 'cell' && Number(a.row) === row));
+                              // Replace existing cell action for this row; keep others intact
+                              const nextActions = (prevCfg.actions || []).filter(a => !(a.type === 'cell' && Number((a as any).row) === row));
                               nextActions.push({ type: 'cell', columnIndex: colIdx, row, action: 'play' });
                               return { ...prev, [triggerTime]: { ...prevCfg, actions: nextActions } };
                             });

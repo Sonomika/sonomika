@@ -549,9 +549,9 @@ const CanvasScene: React.FC<{
   useEffect(() => {
     loadedAssets.videos.forEach(video => {
       if (isPlaying) {
-        video.play().catch(console.warn);
+        try { const p = video.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {}
       } else {
-        video.pause();
+        try { video.pause(); } catch {}
       }
     });
   }, [isPlaying, loadedAssets.videos]);

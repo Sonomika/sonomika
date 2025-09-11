@@ -34,8 +34,8 @@ export class MIDIProcessor {
   private tryTriggerColumn(columnId: string | null | undefined) {
     if (!columnId) return;
     const now = Date.now();
-    // Throttle rapid triggers within 30ms
-    if (now - this.lastColumnTriggerAt < 30) return;
+    // Throttle rapid triggers within 150ms (debounce)
+    if (now - this.lastColumnTriggerAt < 150) return;
     if (this.columnTriggerLock) return;
     this.columnTriggerLock = true;
     this.lastColumnTriggerAt = now;
@@ -43,8 +43,8 @@ export class MIDIProcessor {
       const state = useStore.getState() as any;
       if (typeof state.playColumn === 'function') state.playColumn(columnId);
     } finally {
-      // Release lock quickly to allow fast changes
-      setTimeout(() => { this.columnTriggerLock = false; }, 10);
+      // Release lock after debounce window
+      setTimeout(() => { this.columnTriggerLock = false; }, 120);
     }
   }
 

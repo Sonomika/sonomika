@@ -62,7 +62,7 @@ export class VideoAssetManager {
         } catch {}
 
         // Attempt to play (muted) to advance decoder
-        try { void video.play(); } catch {}
+        try { const p = video.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {}
 
         const managed: ManagedVideo = {
           assetId: id,

@@ -120,7 +120,7 @@ async function preloadVideoAsset(asset: any, layer?: any): Promise<HTMLVideoElem
         cleanup();
         reject(e);
       };
-      const tryPlay = () => { try { void video.play(); } catch {} };
+      const tryPlay = () => { try { const p = video.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {} };
 
       const cleanup = () => {
         video.removeEventListener('loadeddata', onReady);

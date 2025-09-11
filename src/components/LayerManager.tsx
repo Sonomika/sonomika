@@ -472,19 +472,28 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   // Handle column play button
   const handleColumnPlayWrapper = (columnId: string) => {
+    // Manual/user-initiated: update preview and request play, and mark as manual so triggers back off briefly
+    if ((handleColumnPlayWrapper as any).__lock) return;
+    (handleColumnPlayWrapper as any).__lock = true;
     try {
-      const clear = (useStore as any).getState?.().clearActiveLayerOverrides as () => void;
-      if (clear) clear();
+      document.dispatchEvent(new CustomEvent('columnPlay', { detail: { type: 'columnPlay', columnId, fromTrigger: false } }));
     } catch {}
     handleColumnPlay(columnId, currentScene, setPreviewContent, setIsPlaying, playColumn);
+    setTimeout(() => { (handleColumnPlayWrapper as any).__lock = false; }, 50);
+  };
+
+  const updatePreviewForColumn = (columnId: string) => {
+    // Programmatic column changes (from store/trigger): update preview only, do not call playColumn again
+    try {
+      handleColumnPlay(columnId, currentScene, setPreviewContent, setIsPlaying, ((_id: string) => {}) as any);
+    } catch {}
   };
 
   // Keep preview content in sync when playback changes programmatically (e.g., via MIDI)
   useEffect(() => {
     try {
-      if (playingColumnId) {
-        handleColumnPlayWrapper(playingColumnId);
-      }
+      if (!playingColumnId) return;
+      updatePreviewForColumn(playingColumnId);
     } catch {}
   }, [playingColumnId]);
 
@@ -1136,6 +1145,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               isPlaying={Boolean(previewContent.isPlaying)}
               bpm={bpm}
               globalEffects={currentScene?.globalEffects || []}
+              overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
             />
           </div>
         </div>
@@ -1154,7 +1164,22 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         const overrides: Record<number, string> = (st?.activeLayerOverrides || {}) as any;
         const byId: Record<string, any> = {};
         for (const c of currentScene?.columns || []) byId[c.id] = c;
-        const getLayerFor = (col: any, ln: number) => (col?.layers || []).find((l: any) => l.layerNum === ln || l.name === `Layer ${ln}`) || null;
+        const getLayerFor = (col: any, ln: number) => {
+          if (!col) return null;
+          const layers = (col?.layers || []);
+          // Prefer explicit layerNum/name
+          let found = layers.find((l: any) => l?.layerNum === ln || l?.name === `Layer ${ln}`) || null;
+          // Fallback to array index if metadata missing
+          if (!found) {
+            const idx = Math.max(0, Math.min(layers.length - 1, ln - 1));
+            found = layers[idx] || null;
+          }
+          // Normalize layerNum so downstream logic uses row index reliably
+          if (found && found.layerNum !== ln) {
+            return { ...found, layerNum: ln };
+          }
+          return found;
+        };
         const rowCount = Math.min(6, Math.max(3, Number(currentScene?.numRows) || numRows || 3));
         const rowNums = Array.from({ length: rowCount }, (_, i) => i + 1);
         const finalLayers = rowNums.map((ln) => {
@@ -1197,6 +1222,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 isPlaying={isPlaying && playingColumnId === previewContent.columnId}
                 bpm={bpm}
                 globalEffects={currentScene?.globalEffects || []}
+                overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
               />
             </div>
                      {debugMode && (
