@@ -65,6 +65,10 @@ try {
         saveBinaryFile: (filePath, data) => {
             return electron_1.ipcRenderer.invoke('save-binary-file', filePath, data);
         },
+        // Efficient audio bytes reader for renderer
+        readAudioBytes: (urlOrPath) => {
+            return electron_1.ipcRenderer.invoke('read-audio-bytes', urlOrPath);
+        },
         getSystemAudioStream: () => {
             return electron_1.ipcRenderer.invoke('get-system-audio-stream');
         },

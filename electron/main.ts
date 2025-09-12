@@ -245,6 +245,21 @@ function createWindow() {
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('Window loaded successfully');
   });
+  // Extra crash/instrumentation hooks
+  try {
+    mainWindow.webContents.on('render-process-gone', (_e, details) => {
+      console.error('[electron] render-process-gone', details);
+    });
+    mainWindow.webContents.on('unresponsive', () => {
+      console.error('[electron] webContents became unresponsive');
+    });
+    mainWindow.webContents.on('media-started-playing', () => {
+      console.log('[electron] media-started-playing');
+    });
+    mainWindow.webContents.on('media-paused', () => {
+      console.log('[electron] media-paused');
+    });
+  } catch {}
 
   // Handle window errors
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
@@ -723,6 +738,10 @@ function createCustomMenu() {
 
 app.whenReady().then(() => {
   console.log('Electron app is ready');
+  try {
+    // Allow audio playback without a user gesture to avoid play() stalls
+    app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+  } catch {}
   
   // Prevent app from pausing when windows lose focus
   app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -823,6 +842,23 @@ app.whenReady().then(() => {
     } catch (err: any) {
       console.error('Failed to read local file:', filePath, err);
       throw err;
+    }
+  });
+
+  // Efficient raw byte reader for audio analysis and Blob URLs
+  ipcMain.handle('read-audio-bytes', async (_e, urlOrPath: string) => {
+    try {
+      const { fileURLToPath } = require('url');
+      const asPath = typeof urlOrPath === 'string' && urlOrPath.startsWith('file:')
+        ? fileURLToPath(urlOrPath)
+        : urlOrPath;
+      const buf: Buffer = await fs.promises.readFile(asPath);
+      // Return ArrayBuffer view of Buffer without extra copy
+      return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    } catch (err) {
+      console.error('read-audio-bytes failed for', urlOrPath, err);
+      // Return empty ArrayBuffer on failure
+      return new ArrayBuffer(0);
     }
   });
 

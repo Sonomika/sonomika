@@ -1019,7 +1019,7 @@ const SequenceTab: React.FC = () => {
             <div className="tw-flex tw-items-center tw-gap-2">
               <span className="tw-text-xs tw-text-neutral-400">End:</span>
               <select
-                value={currentScene?.endOfSceneAction || 'stop'}
+                value={currentScene?.endOfSceneAction || 'play_next'}
                 onChange={(e) => {
                   const action = e.target.value as 'loop' | 'play_next' | 'random' | 'stop';
                   try { updateScene(currentSceneId, { endOfSceneAction: action }); } catch {}
@@ -1178,23 +1178,29 @@ const SequenceTab: React.FC = () => {
                   </div>
                 </div>
 
-                <CustomWaveform
-                  ref={waveformRef}
-                  audioUrl={audioUrl}
-                  onTimeUpdate={handleTimeUpdate}
-                  onDurationChange={handleDurationChange}
-                  onPlay={handlePlay}
-                  onPause={handlePause}
-                  onEnded={handleEnded}
-                  isPlaying={isPlaying}
-                  currentTime={currentTime}
-                  height={150}
-                  waveColor={accentColor || '#00bcd4'}
-                  progressColor={toBrightenedHex(accentColor || '#00bcd4', 1.25)}
-                  triggerPoints={triggerPoints}
-                  onTriggerClick={addTriggerPoint}
-                  triggersEnabled={triggersEnabled}
-                />
+                {hasHydrated ? (
+                  <CustomWaveform
+                    ref={waveformRef}
+                    audioUrl={audioUrl}
+                    onTimeUpdate={handleTimeUpdate}
+                    onDurationChange={handleDurationChange}
+                    onPlay={handlePlay}
+                    onPause={handlePause}
+                    onEnded={handleEnded}
+                    isPlaying={isPlaying}
+                    currentTime={currentTime}
+                    height={150}
+                    waveColor={accentColor || '#00bcd4'}
+                    progressColor={toBrightenedHex(accentColor || '#00bcd4', 1.25)}
+                    triggerPoints={triggerPoints}
+                    onTriggerClick={addTriggerPoint}
+                    triggersEnabled={triggersEnabled}
+                  />
+                ) : (
+                  <div className="tw-flex tw-items-center tw-justify-center tw-h-[150px] tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded">
+                    <div className="tw-text-sm tw-text-neutral-400">Loading markers...</div>
+                  </div>
+                )}
 
                 {/* Add trigger under timeline */}
                 <div className="tw-flex tw-justify-end">

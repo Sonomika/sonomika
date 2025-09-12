@@ -235,6 +235,21 @@ function createWindow() {
   mainWindow.webContents.on("did-finish-load", () => {
     console.log("Window loaded successfully");
   });
+  try {
+    mainWindow.webContents.on("render-process-gone", (_e, details) => {
+      console.error("[electron] render-process-gone", details);
+    });
+    mainWindow.webContents.on("unresponsive", () => {
+      console.error("[electron] webContents became unresponsive");
+    });
+    mainWindow.webContents.on("media-started-playing", () => {
+      console.log("[electron] media-started-playing");
+    });
+    mainWindow.webContents.on("media-paused", () => {
+      console.log("[electron] media-paused");
+    });
+  } catch {
+  }
   mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
     console.error("Failed to load:", errorCode, errorDescription);
   });
@@ -716,6 +731,10 @@ function createCustomMenu() {
 }
 electron.app.whenReady().then(() => {
   console.log("Electron app is ready");
+  try {
+    electron.app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+  } catch {
+  }
   electron.app.commandLine.appendSwitch("disable-background-timer-throttling");
   electron.app.commandLine.appendSwitch("disable-renderer-backgrounding");
   createCustomMenu();
@@ -796,6 +815,17 @@ electron.app.whenReady().then(() => {
     } catch (err) {
       console.error("Failed to read local file:", filePath, err);
       throw err;
+    }
+  });
+  electron.ipcMain.handle("read-audio-bytes", async (_e, urlOrPath) => {
+    try {
+      const { fileURLToPath } = require("url");
+      const asPath = typeof urlOrPath === "string" && urlOrPath.startsWith("file:") ? fileURLToPath(urlOrPath) : urlOrPath;
+      const buf = await fs.promises.readFile(asPath);
+      return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    } catch (err) {
+      console.error("read-audio-bytes failed for", urlOrPath, err);
+      return new ArrayBuffer(0);
     }
   });
   electron.ipcMain.handle("authStorage:isEncryptionAvailable", () => {
