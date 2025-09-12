@@ -5,6 +5,20 @@ import { Slider } from './ui';
 // Minimal timeline controls: Play/Stop + Zoom slider + Magnet toggle (uses timelineCommand bridge)
 const TimelineControls: React.FC = () => {
   const { timelineZoom, setTimelineZoom, timelineSnapEnabled, setTimelineSnapEnabled } = useStore() as any;
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  React.useEffect(() => {
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onStop = () => setIsPlaying(false);
+    document.addEventListener('globalPlay', onPlay as any);
+    document.addEventListener('globalPause', onPause as any);
+    document.addEventListener('globalStop', onStop as any);
+    return () => {
+      document.removeEventListener('globalPlay', onPlay as any);
+      document.removeEventListener('globalPause', onPause as any);
+      document.removeEventListener('globalStop', onStop as any);
+    };
+  }, []);
   const dispatchCommand = (type: string) => {
     try { document.dispatchEvent(new CustomEvent('timelineCommand', { detail: { type } })); } catch {}
   };
@@ -13,7 +27,7 @@ const TimelineControls: React.FC = () => {
     <div className="tw-flex tw-items-center tw-gap-3 tw-px-2 tw-py-1.5 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
       <button
         onClick={() => dispatchCommand('playPause')}
-        className="tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-bg-sky-600 hover:tw-bg-sky-500 tw-border tw-border-sky-500 tw-rounded tw-text-white"
+        className={`tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-border tw-rounded tw-text-black ${isPlaying ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))]' : 'tw-bg-neutral-800 tw-text-white tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
         title="Play"
         aria-label="Play"
       >
@@ -21,7 +35,7 @@ const TimelineControls: React.FC = () => {
       </button>
       <button
         onClick={() => dispatchCommand('stop')}
-        className="tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded tw-text-white hover:tw-bg-neutral-700"
+        className={`tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-border tw-rounded ${!isPlaying ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-border-neutral-700 tw-text-white hover:tw-bg-neutral-700'}`}
         title="Stop"
         aria-label="Stop"
       >

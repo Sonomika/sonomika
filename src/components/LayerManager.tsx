@@ -86,6 +86,22 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // console.log('LayerManager component rendering');
   
   const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline } = useStore() as any;
+
+  // Track transport state to style Play/Pause/Stop buttons with accent for the active control
+  const [transportState, setTransportState] = useState<'play' | 'pause' | 'stop'>(isGlobalPlaying ? 'play' : 'pause');
+  useEffect(() => {
+    const onPlay = () => setTransportState('play');
+    const onPause = () => setTransportState('pause');
+    const onStop = () => setTransportState('stop');
+    document.addEventListener('globalPlay', onPlay as any);
+    document.addEventListener('globalPause', onPause as any);
+    document.addEventListener('globalStop', onStop as any);
+    return () => {
+      document.removeEventListener('globalPlay', onPlay as any);
+      document.removeEventListener('globalPause', onPause as any);
+      document.removeEventListener('globalStop', onStop as any);
+    };
+  }, []);
   
   // Video options store
   const getVideoOptionsForLayer = useVideoOptionsStore((state) => state.getVideoOptionsForLayer);
@@ -1636,21 +1652,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-my-2 tw-mr-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
                     <button
                       onClick={globalPlay}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${isGlobalPlaying ? 'tw-bg-graphite tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${transportState === 'play' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       title="Play - Resume all videos"
                     >
                       <PlaySolidIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
                       onClick={() => globalPause({ force: true, source: 'toolbar' })}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${!isGlobalPlaying ? 'tw-bg-graphite tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${transportState === 'pause' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       title="Pause - Pause all videos"
                     >
                       <PauseSolidIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
                       onClick={() => globalStop({ force: true, source: 'toolbar' })}
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700"
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${transportState === 'stop' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       title="Stop - Stop all videos"
                     >
                       <StopSolidIcon className="tw-w-4 tw-h-4" />
@@ -1690,7 +1706,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 {/* Mobile: single current scene label centered */}
                 <div className="tw-flex-1 tw-flex tw-justify-center lg:tw-hidden">
                   <button
-                    className={`tw-text-xs tw-rounded tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${'tw-text-white'}`}
+                    className={`tw-text-xs tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${currentScene?.id === getCurrentSceneId() ? 'tw-text-[hsl(var(--accent))]' : 'tw-text-neutral-200'}`}
                     title={currentScene?.name || 'Current scene'}
                   >
                     {currentScene?.name || 'Scene'}
@@ -1726,7 +1742,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>
                         <button
-                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === getCurrentSceneId() ? 'tw-text-white tw-bg-graphite tw-border-neutral-700' : ''}`}
+                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === getCurrentSceneId() ? 'tw-text-[hsl(var(--accent))] tw-bg-neutral-800 tw-border-neutral-700' : 'tw-text-neutral-200'}`}
                           onClick={() => {
                             const { setCurrentScene: setCurrentSceneFn } = getSceneManagementFunctions();
                             setCurrentSceneFn(scene.id);

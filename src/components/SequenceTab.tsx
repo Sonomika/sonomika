@@ -303,16 +303,38 @@ const SequenceTab: React.FC = () => {
         // Reset trigger one-shots and restart audio
         lastFiredRef.current = {};
         firedOnceRef.current.clear();
+        try { prevTimeRef.current = 0; } catch {}
         try { waveformRef.current?.seekTo?.(0); } catch {}
         setCurrentTime(0);
-        setTimeout(() => { try { waveformRef.current?.play?.(); } catch {} }, 50);
+        // Re-apply early markers to ensure 0.00 triggers fire on loop
+        try { applyMarkersUpToTime(0.15); } catch {}
+        setTimeout(() => {
+          try { waveformRef.current?.play?.(); } catch {}
+          // Notify transport listeners that playback resumed due to loop
+          try { document.dispatchEvent(new CustomEvent('globalPlay', { detail: { source: 'sequence:loop' } })); } catch {}
+        }, 80);
       } else if (action === 'play_next') {
+        // Prepare for next scene: clear per-session trigger state so 0.00 fires in new scene
+        try { lastFiredRef.current = {}; } catch {}
+        try { firedOnceRef.current.clear(); } catch {}
+        try { prevTimeRef.current = 0; } catch {}
         playNextScene();
-        // Give time for per-scene settings to hydrate, then auto-play if audio exists
-        setTimeout(() => { try { waveformRef.current?.play?.(); } catch {} }, 250);
+        // Give time for per-scene settings to hydrate, then apply early markers and auto-play if audio exists
+        setTimeout(() => {
+          try { applyMarkersUpToTime(Math.max(0.15, Number(0))); } catch {}
+          try { waveformRef.current?.play?.(); } catch {}
+          // Also emit a globalPlay so other subsystems can react consistently
+          try { document.dispatchEvent(new CustomEvent('globalPlay', { detail: { source: 'sequence:autoNext' } })); } catch {}
+        }, 250);
       } else {
-        // stop: nothing else to do; ensure playing flag is false
+        // stop: hard-stop audio and prevent auto-resume handlers from reasserting
+        try { explicitlyStoppedRef.current = true; } catch {}
+        try { waveformRef.current?.stop?.(); } catch {}
+        // Cancel fallback ticker if running
+        try { if (fallbackRafRef.current != null) { cancelAnimationFrame(fallbackRafRef.current); fallbackRafRef.current = null; } } catch {}
         setIsPlaying(false);
+        // Broadcast a globalStop so listeners honor the stop state
+        try { document.dispatchEvent(new CustomEvent('globalStop', { detail: { source: 'sequence:endStop' } })); } catch {}
       }
     } catch {}
   }, [currentSceneId, scenes, playNextScene]);
@@ -462,7 +484,7 @@ const SequenceTab: React.FC = () => {
       if (firedOnceRef.current.has(triggerTime)) return;
       // Detect crossing in either direction when prevTime is provided
       const crossed = (typeof prevTime === 'number')
-        ? ((prevTime < triggerTime && triggerTime <= currentTime) || (prevTime > triggerTime && triggerTime >= currentTime))
+        ? ((prevTime <= triggerTime && triggerTime <= currentTime) || (prevTime >= triggerTime && triggerTime >= currentTime))
         : (Math.abs(currentTime - triggerTime) < 0.05);
       if (crossed) {
         // Allow 0:00 (and near-zero) markers even during manual suppression
