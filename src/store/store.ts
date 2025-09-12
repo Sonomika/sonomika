@@ -136,15 +136,15 @@ initialState.currentTimelineSceneId = initialState.timelineScenes[0].id;
 export type RecordSettings = {
   codec: 'vp8' | 'vp9';
   quality: 'low' | 'medium' | 'high';
-  audioSource: 'none' | 'microphone' | 'system';
+  audioSource: 'none' | 'microphone' | 'system' | 'app';
   audioBitrate: number;
 };
 
 const initialRecordSettings: RecordSettings = {
   codec: 'vp9',
-  quality: 'medium',
-  audioSource: 'none',
-  audioBitrate: 128000
+  quality: 'high',
+  audioSource: 'app',
+  audioBitrate: 256000
 };
 
 export const useStore = createWithEqualityFn<AppState & {

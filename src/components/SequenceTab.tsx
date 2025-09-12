@@ -53,7 +53,7 @@ const SequenceTab: React.FC = () => {
   // Auto Fill options
   const [autoFillCount, setAutoFillCount] = useState<number>(0); // 0 = auto
   const [autoFillRandomize, setAutoFillRandomize] = useState<boolean>(false);
-  const [autoFillOverflowStrategy, setAutoFillOverflowStrategy] = useState<'repeat' | 'random' | 'no_adjacent'>('repeat');
+  const [autoFillOverflowStrategy, setAutoFillOverflowStrategy] = useState<'repeat' | 'random' | 'no_adjacent'>('no_adjacent');
 
   // Fallback playhead ticker (when no audio is loaded)
   const fallbackRafRef = useRef<number | null>(null);
@@ -994,133 +994,33 @@ const SequenceTab: React.FC = () => {
       {/* Header */}
       <div className="tw-flex tw-items-center tw-justify-between">
         <h3 className="tw-text-sm tw-font-medium tw-text-white">Sequence</h3>
-        <div className="tw-flex tw-space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            className="tw-h-8 tw-px-3"
-          >
-            <Upload className="tw-w-3 tw-h-3 tw-mr-1" />
-            Add
-          </Button>
-          {audioFiles.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearAll}
-              className="tw-h-8 tw-px-3 tw-text-red-400 hover:tw-bg-red-900/20"
-            >
-              <Trash2 className="tw-w-3 tw-h-3 tw-mr-1" />
-              Clear
-            </Button>
-          )}
-          {audioUrl && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={generateAutoMarkers}
-              className="tw-h-8 tw-px-3"
-            >
-              Auto Fill
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Trigger Controls + End Action */}
-      <div className="tw-flex tw-items-center tw-justify-between tw-bg-neutral-800/50 tw-rounded-lg tw-px-4 tw-py-3 tw-border tw-border-neutral-600">
-        <div className="tw-flex tw-items-center tw-space-x-3">
-          <span className="tw-text-sm tw-text-white">Timeline Triggers</span>
-          <span className="tw-text-xs tw-text-neutral-400">Shift+Click to add</span>
-        </div>
-        {/* Controls arranged on two lines to avoid overflow */}
-        <div className="tw-flex tw-flex-col tw-items-start tw-gap-2 tw-w-full">
-          {/* Line 1 */}
-          <div className="tw-flex tw-flex-wrap tw-items-center tw-gap-3 tw-w-full">
-            <div className="tw-flex tw-items-center tw-gap-2">
-              <span className="tw-text-xs tw-text-neutral-400">End:</span>
-              <select
-                value={currentScene?.endOfSceneAction || 'play_next'}
-                onChange={(e) => {
-                  const action = e.target.value as 'loop' | 'play_next' | 'random' | 'stop';
-                  try { updateScene(currentSceneId, { endOfSceneAction: action }); } catch {}
-                }}
-                className="tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
-                title="Action when audio ends"
-              >
-                <option value="stop">Stop</option>
-                <option value="loop">Loop</option>
-                <option value="play_next">Next</option>
-              </select>
-            </div>
-            {/* Auto Fill options */}
-            <div className="tw-flex tw-items-center tw-gap-2">
-              <span className="tw-text-xs tw-text-neutral-400">Markers:</span>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={autoFillCount}
-                onChange={(e) => setAutoFillCount(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-                className="tw-w-16 tw-h-6 tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2"
-                title="Number of markers to add (0 = auto)"
-              />
-              <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs tw-text-neutral-400">
-                <input type="checkbox" checked={autoFillRandomize} onChange={(e) => setAutoFillRandomize(!!e.target.checked)} />
-                Randomize
-              </label>
-              <span className="tw-text-xs tw-text-neutral-400">Overflow:</span>
-              <select
-                value={autoFillOverflowStrategy}
-                onChange={(e) => {
-                  const v = String(e.target.value);
-                  setAutoFillOverflowStrategy((v === 'random' || v === 'no_adjacent') ? (v as any) : 'repeat');
-                }}
-                className="tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
-                title="When markers exceed columns"
-              >
-                <option value="repeat">Repeat</option>
-                <option value="random">Randomize</option>
-                <option value="no_adjacent">No Adjacent Same</option>
-              </select>
-            </div>
+        <div className="tw-flex tw-items-center tw-gap-4">
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <span className="tw-text-xs tw-text-neutral-400">End:</span>
+            <Select
+              value={currentScene?.endOfSceneAction || 'play_next'}
+              onChange={(action) => {
+                try { updateScene(currentSceneId, { endOfSceneAction: action as 'loop' | 'play_next' | 'random' | 'stop' }); } catch {}
+              }}
+              options={[
+                { value: 'stop', label: 'Stop' },
+                { value: 'loop', label: 'Loop' },
+                { value: 'play_next', label: 'Next' }
+              ]}
+              className="tw-text-xs"
+            />
           </div>
-
-          {/* Line 2 */}
-          <div className="tw-flex tw-items-center tw-gap-3 tw-w-full">
-            <div className="tw-flex tw-items-center tw-gap-2">
-              <span className="tw-text-xs tw-text-neutral-400">Sequence:</span>
-              <Switch checked={triggersEnabled} onCheckedChange={(val) => setSequenceEnabledGlobal(!!val)} />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearMarkers}
-              className="tw-h-7 tw-px-2"
-              title="Clear all markers"
-            >
-              Clear markers
-            </Button>
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <span className="tw-text-xs tw-text-neutral-400">Sequence:</span>
+            <Switch checked={triggersEnabled} onCheckedChange={(val) => setSequenceEnabledGlobal(!!val)} />
           </div>
         </div>
       </div>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*"
-        onChange={handleFileSelect}
-        className="tw-hidden"
-      />
-
-      {/* Triggers Panel Content (disable when toggle off) */}
-      <div className={`${triggersEnabled ? '' : 'tw-opacity-50 tw-pointer-events-none'}`} aria-disabled={!triggersEnabled}>
       {/* Waveform Display */}
       <div className="tw-flex-1 tw-min-h-0">
         <div 
-          className="tw-w-full tw-h-full tw-border-2 tw-border-dashed tw-border-neutral-600 tw-rounded-lg tw-p-4 tw-bg-neutral-800/50"
+          className="tw-w-full tw-h-full tw-rounded-lg tw-bg-neutral-800/50"
           onDragOver={(e) => {
             e.preventDefault();
             try { e.dataTransfer.dropEffect = 'copy'; } catch {}
@@ -1166,42 +1066,43 @@ const SequenceTab: React.FC = () => {
           {audioUrl ? (
             <div className="tw-space-y-3">
               <div className="tw-space-y-2">
-                {/* Zoom Controls */}
-                <div className="tw-flex tw-items-center tw-justify-between tw-bg-neutral-800/50 tw-rounded-lg tw-px-3 tw-py-2">
+                {/* Zoom Controls and Add Button */}
+                <div className="tw-flex tw-items-center tw-justify-between tw-bg-neutral-800/50 tw-rounded-lg">
                   <div className="tw-flex tw-items-center tw-space-x-2">
-                    <span className="tw-text-xs tw-text-neutral-400">Zoom:</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
                       onClick={() => waveformRef.current?.zoomIn?.()}
-                      className="tw-h-6 tw-w-6 tw-p-0"
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-border tw-text-white tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
+                      title="Zoom In"
                     >
-                      <ZoomIn className="tw-w-3 tw-h-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
+                      <ZoomIn className="tw-w-4 tw-h-4" />
+                    </button>
+                    <button
                       onClick={() => waveformRef.current?.zoomOut?.()}
-                      className="tw-h-6 tw-w-6 tw-p-0"
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-border tw-text-white tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
+                      title="Zoom Out"
                     >
-                      <ZoomOut className="tw-w-3 tw-h-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
+                      <ZoomOut className="tw-w-4 tw-h-4" />
+                    </button>
+                    <button
                       onClick={() => waveformRef.current?.resetZoom?.()}
-                      className="tw-h-6 tw-w-6 tw-p-0"
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-border tw-text-white tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
+                      title="Reset Zoom"
                     >
-                      <RotateCcw className="tw-w-3 tw-h-3" />
-                    </Button>
+                      <RotateCcw className="tw-w-4 tw-h-4" />
+                    </button>
                   </div>
-                  <div className="tw-text-xs tw-text-neutral-400">
-                    Mouse wheel to zoom • Drag to pan
-                  </div>
+                  <button
+                    onClick={() => addTriggerPoint(currentTime)}
+                    disabled={!triggersEnabled || !audioUrl}
+                    className="tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                  >
+                    + Add column selection at {formatDuration(currentTime)}
+                  </button>
                 </div>
 
                 {hasHydrated ? (
                   <CustomWaveform
+                    key={`${audioUrl}-${triggerPoints.length}`}
                     ref={waveformRef}
                     audioUrl={audioUrl}
                     onTimeUpdate={handleTimeUpdate}
@@ -1224,34 +1125,38 @@ const SequenceTab: React.FC = () => {
                   </div>
                 )}
 
-                {/* Add trigger under timeline */}
-                <div className="tw-flex tw-justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addTriggerPoint(currentTime)}
-                    className="tw-h-7 tw-px-3"
-                    disabled={!triggersEnabled || !audioUrl}
-                  >
-                    + Add at {formatDuration(currentTime)}
-                  </Button>
-                </div>
               </div>
               
-              {/* Controls */}
-              <div className="tw-flex tw-items-center tw-justify-between tw-bg-black/50 tw-backdrop-blur-sm tw-rounded-lg tw-px-4 tw-py-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={togglePlayPause}
-                  className="tw-h-8 tw-w-8 tw-p-0"
-                >
-                  {isPlaying ? <Pause className="tw-w-4 tw-h-4" /> : <Play className="tw-w-4 tw-h-4" />}
-                </Button>
+               {/* Controls */}
+               <div className="tw-flex tw-items-center tw-justify-between tw-rounded-lg">
+                {/* Audio Info */}
+                <div className="tw-flex tw-items-center tw-gap-2 tw-flex-1 tw-min-w-0">
+                  <div className="tw-text-white tw-text-xs tw-truncate">
+                    {audioFiles[0]?.name || 'Audio File'}
+                  </div>
+                </div>
                 
-                <div className="tw-text-white tw-text-xs">
-                  {Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(0).padStart(2, '0')} / 
-                  {Math.floor(duration / 60)}:{(duration % 60).toFixed(0).padStart(2, '0')}
+                {/* Play/Pause Button */}
+                  <button
+                    onClick={togglePlayPause}
+                    className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-w-8 tw-p-0 tw-mx-4 tw-text-xs tw-rounded tw-bg-neutral-700 tw-text-white hover:tw-bg-neutral-600"
+                  >
+                  {isPlaying ? <Pause className="tw-w-4 tw-h-4" /> : <Play className="tw-w-4 tw-h-4" />}
+                </button>
+                
+                {/* Time and Delete */}
+                <div className="tw-flex tw-items-center tw-gap-2">
+                  <div className="tw-text-white tw-text-xs">
+                    {Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(0).padStart(2, '0')} / 
+                    {Math.floor(duration / 60)}:{(duration % 60).toFixed(0).padStart(2, '0')}
+                  </div>
+                  <button
+                    onClick={clearAll}
+                    className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-w-8 tw-p-0 tw-text-xs tw-rounded tw-border tw-bg-neutral-800 tw-text-red-400 tw-border-neutral-700 hover:tw-bg-red-900/20"
+                    title="Delete audio file"
+                  >
+                    <Trash2 className="tw-w-4 tw-h-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -1263,15 +1168,86 @@ const SequenceTab: React.FC = () => {
               <div className="tw-text-xs tw-mt-2 tw-text-neutral-500">
                 Supports MP3, WAV, OGG, FLAC
               </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="tw-mt-4 tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700 tw-flex tw-items-center tw-gap-1"
+              >
+                <Upload className="tw-w-3 tw-h-3" />
+                Add
+              </button>
             </div>
           )}
         </div>
       </div>
 
+      {/* Trigger Controls + End Action */}
+      <div className="tw-flex tw-items-center tw-justify-between tw-bg-neutral-800/50 tw-rounded-lg tw-border tw-border-neutral-600">
+        <div className="tw-flex tw-items-center tw-space-x-3">
+        </div>
+        {/* Controls arranged on two lines to avoid overflow */}
+        <div className="tw-flex tw-flex-col tw-items-start tw-gap-2 tw-w-full">
+          {/* Line 1 */}
+          <div className="tw-flex tw-items-center tw-gap-3 tw-w-full">
+            {/* Auto Fill options */}
+            <div className="tw-flex tw-items-center tw-gap-2">
+              <span className="tw-text-xs tw-text-neutral-400">Markers:</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={autoFillCount}
+                onChange={(e) => setAutoFillCount(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
+                title="Number of markers to add (0 = auto)"
+              />
+              <Select
+                value={autoFillOverflowStrategy}
+                onChange={(v) => setAutoFillOverflowStrategy((v === 'random' || v === 'no_adjacent') ? (v as any) : 'repeat')}
+                options={[
+                  { value: 'repeat', label: 'Repeat' },
+                  { value: 'random', label: 'Randomize' },
+                  { value: 'no_adjacent', label: 'No Adjacent Same' }
+                ]}
+                className="tw-text-xs"
+              />
+            </div>
+            {audioUrl && (
+              <button
+                onClick={generateAutoMarkers}
+                className="tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700"
+              >
+                Auto Fill
+              </button>
+            )}
+          </div>
+
+          {/* Line 2 */}
+        </div>
+      </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        onChange={handleFileSelect}
+        className="tw-hidden"
+      />
+
+
       {/* Trigger List */}
       {triggersEnabled && triggerPoints.length > 0 && (
         <div className="tw-space-y-2">
-          <div className="tw-text-xs tw-text-neutral-400 tw-font-medium">Trigger Points</div>
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div className="tw-text-xs tw-text-neutral-400 tw-font-medium">Trigger Points</div>
+            <button
+              onClick={clearMarkers}
+              className="tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700"
+              title="Clear all markers"
+            >
+              Clear markers
+            </button>
+          </div>
           <div className="tw-bg-neutral-800/50 tw-rounded-lg tw-p-3 tw-max-h-48 tw-overflow-y-auto">
             <div className="tw-space-y-2">
               {triggerPoints.map((triggerTime, index) => {
@@ -1317,8 +1293,8 @@ const SequenceTab: React.FC = () => {
                     } catch {}
                   }
                   if (!idx) idx = summaryColIndex;
-                  return `Row ${rowNum}: ${idx}`;
-                }).join(', ');
+                  return `${rowNum}.${idx}`;
+                }).join(' / ');
                 return (
                   <div
                     key={index}
@@ -1354,27 +1330,25 @@ const SequenceTab: React.FC = () => {
                             });
                           }}
                         />
-                        <div className="tw-text-neutral-400 tw-text-xs tw-ml-3">
-                          Column {summaryColIndex} • Cells: {summaryCells}
-                        </div>
+                        <span className="tw-text-neutral-400 tw-text-xs tw-whitespace-nowrap">
+                          Col {summaryColIndex}, Rows {summaryCells}
+                        </span>
                       </div>
                       <div className="tw-flex tw-space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
+                        <button
                           onClick={() => setSelectedTriggerTime(selectedTriggerTime === triggerTime ? null : triggerTime)}
-                          className="tw-w-5 tw-h-5 tw-text-neutral-400 hover:tw-text-blue-400"
+                          className="tw-inline-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-rounded tw-border tw-text-neutral-400 hover:tw-text-blue-400 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
+                          title="Settings"
                         >
-                          <Settings className="tw-w-3 tw-h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
+                          <Settings className="tw-w-4 tw-h-4" />
+                        </button>
+                        <button
                           onClick={() => removeTriggerPoint(triggerTime)}
-                          className="tw-w-5 tw-h-5 tw-text-neutral-400 hover:tw-text-red-400"
+                          className="tw-inline-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-rounded tw-border tw-text-neutral-400 hover:tw-text-red-400 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
+                          title="Delete"
                         >
-                          <Trash2 className="tw-w-3 tw-h-3" />
-                        </Button>
+                          <Trash2 className="tw-w-4 tw-h-4" />
+                        </button>
                       </div>
                     </div>
                     {/* Hide verbose actions list to keep one-row summary; details available in settings */}
@@ -1492,50 +1466,6 @@ const SequenceTab: React.FC = () => {
               })}
             </div>
           </div>
-        </div>
-      )}
-      </div>
-
-      {/* File List */}
-      {audioFiles.length > 0 && (
-        <div className="tw-space-y-2">
-          <div className="tw-text-xs tw-text-neutral-400 tw-font-medium">Audio Files</div>
-          <ScrollArea className="tw-h-32">
-            <div className="tw-space-y-1">
-              {audioFiles.map((audioFile) => (
-                <div
-                  key={audioFile.id}
-                  className={`tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-rounded tw-cursor-pointer tw-transition-colors ${
-                    selectedFile?.id === audioFile.id
-                      ? 'tw-bg-blue-600/20 tw-border tw-border-blue-500/50'
-                      : 'tw-bg-neutral-800/50 hover:tw-bg-neutral-700/50'
-                  }`}
-                  onClick={() => setSelectedFile(audioFile)}
-                >
-                  <div className="tw-flex-1 tw-min-w-0">
-                    <div className="tw-text-xs tw-text-white tw-truncate">
-                      {audioFile.name}
-                    </div>
-                    <div className="tw-text-xs tw-text-neutral-400">
-                      {formatDuration(audioFile.duration)}
-                    </div>
-                  </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFile(audioFile.id);
-                    }}
-                    className="tw-h-6 tw-w-6 tw-p-0 tw-text-red-400 hover:tw-bg-red-900/20"
-                  >
-                    <Trash2 className="tw-w-3 tw-h-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
         </div>
       )}
 

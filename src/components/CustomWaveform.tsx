@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
 import WaveSurfer from 'wavesurfer.js'
+import { useAppAudioCapture } from '../hooks/useAppAudioCapture'
 
 interface CustomWaveformProps {
   audioUrl: string
@@ -85,6 +86,9 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
   const [dragStart, setDragStart] = useState({ x: 0, pan: 0 })
   const analysisAbortRef = useRef<{ url: string; aborted: boolean } | null>(null)
   const emptyDrawLoggedRef = useRef(false)
+
+  // Register audio element for app audio capture
+  useAppAudioCapture(audioRef.current)
 
   useEffect(() => {
     if (!audioUrl) return
@@ -657,7 +661,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
 
   useEffect(() => {
     drawSimpleWaveform()
-  }, [currentTime, waveformData, zoom, pan])
+  }, [currentTime, waveformData, zoom, pan, triggerPoints, triggersEnabled])
 
   // Add resize listener for canvas redraw (no data regeneration)
   useEffect(() => {
@@ -723,9 +727,6 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // Prevent double-click issues by debouncing
-    if (event.detail > 1) return
-
     const rect = canvas.getBoundingClientRect()
     const x = event.clientX - rect.left
     
@@ -780,22 +781,6 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     setIsDragging(false)
   }
 
-  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
-    event.preventDefault()
-    const delta = event.deltaY > 0 ? 0.9 : 1.1
-    const newZoom = Math.max(0.1, Math.min(10, zoom * delta))
-    setZoom(newZoom)
-    
-    // Adjust pan to keep the center point stable
-    const canvas = canvasRef.current
-    if (canvas) {
-      const rect = canvas.getBoundingClientRect()
-      const centerX = event.clientX - rect.left
-      const centerProgress = centerX / rect.width
-      const newPan = centerProgress * (1 - 1/newZoom)
-      setPan(prev => clampPan(newPan, waveformData.length, newZoom))
-    }
-  }
 
   const playPause = () => {
     if (!audioRef.current) return
@@ -870,7 +855,6 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
-                    onWheel={handleWheel}
                     style={{
                       width: '100%',
                       height: height,

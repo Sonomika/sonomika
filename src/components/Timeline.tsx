@@ -6,6 +6,7 @@ import { useStore } from '../store/store';
 import { Slider } from './ui';
 import MoveableTimelineClip from './MoveableTimelineClip';
 import SimpleTimelineClip from './SimpleTimelineClip';
+import { audioContextManager } from '../utils/AudioContextManager';
 // EffectLoader import removed - using dynamic loading instead
 
 // Context Menu Component
@@ -1988,7 +1989,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         lastActiveAudioIdsRef.current.forEach((clipId) => {
           if (!nextActiveIds.has(clipId)) {
             const audio = audioElementsRef.current.get(clipId);
-            if (audio) audio.pause();
+            if (audio) {
+              audio.pause();
+              // Unregister from app audio capture system
+              audioContextManager.unregisterAudioElement(audio);
+            }
           }
         });
 
@@ -2002,6 +2007,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             audio.preload = 'auto';
             // Keep volume as-is; could later be controllable via clip params
             audioElementsRef.current.set(clip.id, audio);
+            
+            // Register with app audio capture system
+            audioContextManager.initialize().then(() => {
+              audioContextManager.registerAudioElement(audio);
+            }).catch(console.warn);
           }
           if (isPlaying) {
             const desiredTime = Math.max(0, clip.relativeTime);
@@ -2082,7 +2092,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   useEffect(() => {
     return () => {
       try {
-        audioElementsRef.current.forEach((audio) => audio.pause());
+        audioElementsRef.current.forEach((audio) => {
+          audio.pause();
+          // Unregister from app audio capture system
+          audioContextManager.unregisterAudioElement(audio);
+        });
         audioElementsRef.current.clear();
         lastActiveAudioIdsRef.current.clear();
       } catch {}

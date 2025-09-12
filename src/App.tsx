@@ -922,6 +922,20 @@ function App() {
                   console.warn('Failed to get microphone access:', err);
                   toast({ description: 'Microphone access denied. Recording without audio.' });
                 }
+              } else if (audioSource === 'app') {
+                try {
+                  // Use app audio context manager to get internal audio
+                  const { audioContextManager } = await import('./utils/AudioContextManager');
+                  await audioContextManager.initialize();
+                  audioStream = audioContextManager.getAppAudioStream();
+                  
+                  if (!audioStream) {
+                    throw new Error('Failed to get app audio stream');
+                  }
+                } catch (err) {
+                  console.warn('Failed to get app audio access:', err);
+                  toast({ description: 'App audio access failed. Recording without audio.' });
+                }
               } else if (audioSource === 'system') {
                 try {
                   // Check if we're in Electron
