@@ -295,9 +295,12 @@ export const useStore = createWithEqualityFn<AppState & {
         const srcIndex = state.scenes.findIndex(s => s.id === sceneId);
         if (srcIndex === -1) return {} as any;
         const src = state.scenes[srcIndex];
+        const newId = uuidv4();
         const cloned = {
-          id: uuidv4(),
+          id: newId,
           name: `${src.name} Copy`,
+          numRows: src.numRows,
+          endOfSceneAction: src.endOfSceneAction,
           columns: src.columns.map((col) => ({
             id: uuidv4(),
             name: col.name,
@@ -313,6 +316,17 @@ export const useStore = createWithEqualityFn<AppState & {
         } as Scene as any;
         const nextScenes = [...state.scenes];
         nextScenes.splice(srcIndex + 1, 0, cloned);
+        // Duplicate per-scene Sequence settings stored in localStorage
+        try {
+          const srcKey = `vj-sequence-settings-v1:${src.id || 'default'}`;
+          const dstKey = `vj-sequence-settings-v1:${newId || 'default'}`;
+          const raw = localStorage.getItem(srcKey);
+          if (raw) {
+            const payload = JSON.parse(raw);
+            // Store under the new scene ID. Keep payload as-is (markers, audio, options).
+            localStorage.setItem(dstKey, JSON.stringify(payload));
+          }
+        } catch {}
         return { scenes: nextScenes } as any;
       }),
 

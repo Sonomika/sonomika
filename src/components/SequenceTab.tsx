@@ -407,13 +407,17 @@ const SequenceTab: React.FC = () => {
   const addTriggerPoint = useCallback((time: number) => {
     if (!triggersEnabled) return;
     
+    const norm = (t: number) => Number(Number(Math.max(0, Number(t) || 0)).toFixed(3));
+    const t = norm(time);
+
     setTriggerPoints(prev => {
-      const newTriggers = [...prev, time].sort((a, b) => a - b);
-      return newTriggers;
+      const normalized = prev.map(norm);
+      const next = Array.from(new Set<number>([...normalized, t])).sort((a, b) => a - b);
+      return next;
     });
 
     // Build initial actions so summary and editor match immediately
-    const triggerId = `trigger-${time}-${Date.now()}`;
+    const triggerId = `trigger-${t}-${Date.now()}`;
     const rowsCount = Math.min(6, Math.max(1, Number(currentScene?.numRows) || 3));
 
     // Determine base column index from playing column or selected cell
@@ -455,10 +459,16 @@ const SequenceTab: React.FC = () => {
       })
     ];
 
-    setTriggerConfigs(prev => ({
-      ...prev,
-      [time]: { id: triggerId, time, actions: initialActions } as TriggerConfig,
-    }));
+    setTriggerConfigs(prev => {
+      const out: Record<number, TriggerConfig> = { ...prev } as any;
+      // Remove any configs that collide within rounding precision
+      Object.keys(out).forEach((k) => {
+        const kn = Number(k);
+        if (Math.abs(kn - t) < 0.0005) delete (out as any)[kn];
+      });
+      out[t] = { id: triggerId, time: t, actions: initialActions } as TriggerConfig;
+      return out as any;
+    });
   }, [triggersEnabled, currentScene, playingColumnId, activeLayerOverrides]);
 
   // Remove trigger point
@@ -878,9 +888,14 @@ const SequenceTab: React.FC = () => {
 
   // Format duration for display
   const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+    if (safe < 1) {
+      const hundredths = Math.round(safe * 100);
+      return `0.${hundredths.toString().padStart(2, '0')}`;
+    }
+    const mins = Math.floor(safe / 60);
+    const secsWhole = Math.floor(safe % 60);
+    return `${mins}:${secsWhole.toString().padStart(2, '0')}`;
   };
 
   // Helper: add audio entry from absolute path (Electron)
@@ -924,7 +939,9 @@ const SequenceTab: React.FC = () => {
       const count = Math.max(1, autoFillCount || baseCount);
       const peaks = (waveformRef.current?.getPeaks?.(count, { minDistanceSec: Math.max(0.5, (duration || 0) / (count * 2)) }) || []) as number[];
       const times = Array.isArray(peaks) ? peaks.slice() : [];
-      times.unshift(0); // ensure start marker
+      // Ensure a start marker with a small gap before the next to avoid duplicates like 0.00, 0.00
+      const startGap = Math.max(0.06, (duration || 0) / Math.max(50, count * 4));
+      times.unshift(0, startGap);
       // Normalize to ms precision and unique
       const norm = (t: number) => Number(Number(t).toFixed(3));
       let picked = Array.from(new Set(times.map(norm)));
@@ -934,10 +951,21 @@ const SequenceTab: React.FC = () => {
         picked = picked.sort((a,b) => a - b);
       }
 
-      // Remove existing auto markers
+      // Remove existing auto markers and normalize manual times to 3 decimals to avoid
+      // near-zero duplicates (e.g., 0 and 0.001 both showing as 0:00 in UI)
       const isAuto = (t: number) => String(triggerConfigs[t]?.id || '').startsWith('auto-');
-      const manualPoints = triggerPoints.filter((t) => !isAuto(t));
-      const manualConfigs = Object.fromEntries(Object.entries(triggerConfigs).filter(([k]) => !isAuto(Number(k))));
+      const manualPoints = triggerPoints
+        .filter((t) => !isAuto(t))
+        .map(norm);
+      // Re-key manual configs using normalized time keys so the config map remains aligned
+      const manualConfigs: Record<number, TriggerConfig> = {} as any;
+      Object.entries(triggerConfigs).forEach(([k, cfg]) => {
+        const tNum = Number(k);
+        if (!isAuto(tNum) && cfg) {
+          const key = norm((cfg as any).time ?? tNum);
+          manualConfigs[key] = { ...(cfg as any), time: key } as TriggerConfig;
+        }
+      });
 
       const colIds = cols.map(c => c.id);
       const nextPoints = Array.from(new Set<number>([...manualPoints, ...picked])).sort((a,b)=>a-b);
@@ -1308,11 +1336,20 @@ const SequenceTab: React.FC = () => {
                           className="tw-h-7 tw-w-24 tw-text-xs"
                           onBlur={(e) => {
                             const toSec = (val: string) => {
-                              const parts = (val || '').trim().split(':');
-                              if (parts.length === 1) return Math.max(0, Number(parts[0]) || 0);
-                              const m = Math.max(0, Number(parts[0]) || 0);
-                              const s = Math.max(0, Number(parts[1]) || 0);
-                              return m * 60 + s;
+                              const raw = (val || '').trim();
+                              if (raw.includes(':')) {
+                                const parts = raw.split(':');
+                                const m = Math.max(0, Number(parts[0]) || 0);
+                                const s = Math.max(0, Number(parts[1]) || 0);
+                                return m * 60 + s;
+                              }
+                              if (raw.includes('.')) {
+                                const parts = raw.split('.');
+                                const m = Math.max(0, Number(parts[0]) || 0);
+                                const s = Math.max(0, Number(parts[1]) || 0);
+                                return m * 60 + s;
+                              }
+                              return Math.max(0, Number(raw) || 0);
                             };
                             const newTime = toSec(e.target.value);
                             if (!Number.isFinite(newTime)) return;
