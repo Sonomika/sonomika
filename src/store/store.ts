@@ -1,6 +1,7 @@
 import { createWithEqualityFn } from 'zustand/traditional';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { ActionLogger } from '../utils/ActionLogger';
 import { AppState, Scene, Column, Layer, MIDIMapping, Asset, CompositionSettings, TransitionType } from './types';
 
 // Helper: convert hex color (e.g., #00bcd4) to HSL components for CSS variables
@@ -190,9 +191,9 @@ export const useStore = createWithEqualityFn<AppState & {
   setPlayingColumn: (columnId: string | null) => void;
   playColumn: (columnId: string) => void;
   stopColumn: () => void;
-  globalPlay: () => void;
-  globalPause: () => void;
-  globalStop: () => void;
+  globalPlay: (opts?: { force?: boolean; source?: string }) => void;
+  globalPause: (opts?: { force?: boolean; source?: string }) => void;
+  globalStop: (opts?: { force?: boolean; source?: string }) => void;
   clearStorage: () => void;
   resetToDefault: () => void;
       addAsset: (asset: Asset) => void;
@@ -616,40 +617,50 @@ export const useStore = createWithEqualityFn<AppState & {
          }
        },
 
-       globalPause: () => {
+       globalPause: (opts?: { force?: boolean; source?: string }) => {
          try {
+           if ((get() as any).sequenceEnabledGlobal && !(opts && opts.force)) {
+             try { ActionLogger.log('guardedGlobalPauseIgnored', opts); } catch {}
+             return;
+           }
            set({ isGlobalPlaying: false });
            // Dispatch global pause event
            document.dispatchEvent(new CustomEvent('globalPause', {
-             detail: { type: 'globalPause' }
+             detail: { type: 'globalPause', source: opts && opts.source }
            }));
+           try { ActionLogger.log('globalPauseDispatch', opts); } catch {}
            // Pause LFO engine as well
            document.dispatchEvent(new CustomEvent('columnStop', {
              detail: { type: 'columnStop' }
            }));
            // Dispatch pause event for all video layers
            document.dispatchEvent(new CustomEvent('videoPause', {
-             detail: { type: 'videoPause', allColumns: true }
+             detail: { type: 'videoPause', allColumns: true, source: opts && opts.source }
            }));
          } catch (error) {
            console.warn('Failed to pause global playback:', error);
          }
        },
 
-       globalStop: () => {
+       globalStop: (opts?: { force?: boolean; source?: string }) => {
          try {
+           if ((get() as any).sequenceEnabledGlobal && !(opts && opts.force)) {
+             try { ActionLogger.log('guardedGlobalStopIgnored', opts); } catch {}
+             return;
+           }
            set({ isGlobalPlaying: false, playingColumnId: null });
            // Dispatch global stop event
            document.dispatchEvent(new CustomEvent('globalStop', {
-             detail: { type: 'globalStop' }
+             detail: { type: 'globalStop', source: opts && opts.source }
            }));
+           try { ActionLogger.log('globalStopDispatch', opts); } catch {}
            // Also signal column stop for LFO engine
            document.dispatchEvent(new CustomEvent('columnStop', {
              detail: { type: 'columnStop' }
            }));
            // Dispatch stop event for all video layers
            document.dispatchEvent(new CustomEvent('videoStop', {
-             detail: { type: 'videoStop', allColumns: true }
+             detail: { type: 'videoStop', allColumns: true, source: opts && opts.source }
            }));
          } catch (error) {
            console.warn('Failed to stop global playback:', error);

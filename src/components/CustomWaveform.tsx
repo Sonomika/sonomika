@@ -106,7 +106,62 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
       audio.pause()
       audio.src = ''
     }
-  }, [audioUrl, onTimeUpdate, onDurationChange, onPlay, onPause, onEnded])
+  }, [audioUrl]) // Only recreate audio element when audioUrl changes
+
+  // Separate effect to update callbacks without recreating audio element
+  useEffect(() => {
+    if (!audioRef.current) return
+
+    const audio = audioRef.current
+
+    // Remove old listeners
+    const oldHandlers = (audio as any).__oldHandlers || {}
+    if (oldHandlers.timeupdate) {
+      audio.removeEventListener('timeupdate', oldHandlers.timeupdate)
+    }
+    if (oldHandlers.play) {
+      audio.removeEventListener('play', oldHandlers.play)
+    }
+    if (oldHandlers.pause) {
+      audio.removeEventListener('pause', oldHandlers.pause)
+    }
+    if (oldHandlers.ended) {
+      audio.removeEventListener('ended', oldHandlers.ended)
+    }
+
+    // Create new handlers
+    const handleTimeUpdate = () => {
+      onTimeUpdate?.(audio.currentTime)
+      drawSimpleWaveform()
+    }
+
+    const handlePlay = () => {
+      onPlay?.()
+    }
+
+    const handlePause = () => {
+      onPause?.()
+    }
+
+    const handleEnded = () => {
+      onPause?.()
+      onEnded?.()
+    }
+
+    // Add new listeners
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('play', handlePlay)
+    audio.addEventListener('pause', handlePause)
+    audio.addEventListener('ended', handleEnded)
+
+    // Store handlers for cleanup
+    ;(audio as any).__oldHandlers = {
+      timeupdate: handleTimeUpdate,
+      play: handlePlay,
+      pause: handlePause,
+      ended: handleEnded
+    }
+  }, [onTimeUpdate, onDurationChange, onPlay, onPause, onEnded])
 
   // Analyze audio when URL changes
   useEffect(() => {

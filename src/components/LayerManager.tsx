@@ -623,7 +623,38 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     const wasPlayingThisColumn = playingColumnId === columnId;
     console.log('🎵 Before drop - Column playing state:', { columnId, wasPlayingThisColumn, playingColumnId });
     
+    // Snapshot sequence/global play state
+    let seqOn = false;
+    let wasGlobalPlaying = false;
+    try {
+      const st: any = useStore.getState();
+      seqOn = !!st.sequenceEnabledGlobal;
+      wasGlobalPlaying = !!st.isGlobalPlaying;
+    } catch {}
+    
     handleDrop(e, columnId, layerNum, scenes, currentSceneId, updateScene, setDragOverCell);
+    
+    // If sequence mode is active, ensure playback stays running
+    if (seqOn) {
+      try {
+        const st: any = useStore.getState();
+        // If this column was already playing, reassert it; otherwise keep global transport running
+        const reassert = () => {
+          try {
+            if (wasPlayingThisColumn && typeof (st as any).playColumn === 'function') {
+              (st as any).playColumn(columnId);
+            }
+            if (wasGlobalPlaying && typeof (st as any).globalPlay === 'function') {
+              (st as any).globalPlay();
+            }
+          } catch (err) {
+            console.warn('Failed to reassert playback after drop:', err);
+          }
+        };
+        // Defer slightly to allow React state to settle
+        setTimeout(reassert, 80);
+      } catch {}
+    }
     
     // Keep playback running if this column was already playing
     if (wasPlayingThisColumn) {
@@ -1611,14 +1642,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       <PlaySolidIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
-                      onClick={globalPause}
+                      onClick={() => globalPause({ force: true, source: 'toolbar' })}
                       className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${!isGlobalPlaying ? 'tw-bg-graphite tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       title="Pause - Pause all videos"
                     >
                       <PauseSolidIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
-                      onClick={globalStop}
+                      onClick={() => globalStop({ force: true, source: 'toolbar' })}
                       className="tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700"
                       title="Stop - Stop all videos"
                     >

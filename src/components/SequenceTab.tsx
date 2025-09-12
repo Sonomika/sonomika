@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useStore } from '../store/store';
 import CustomWaveform, { CustomWaveformRef } from './CustomWaveform';
 import { Button, ScrollArea, Select, Input, Label, Switch } from './ui';
+import { ActionLogger } from '../utils/ActionLogger';
 import { Trash2, Play, Pause, Square, Upload, Settings, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 interface TriggerConfig {
@@ -64,6 +65,8 @@ const SequenceTab: React.FC = () => {
   // Briefly suppress triggers after a manual column play to avoid flashes
   const suppressUntilRef = useRef<number>(0);
   const lastGlobalPlayMsRef = useRef<number>(0);
+  // When user explicitly stops via toolbar or turns sequence off, suppress auto-reassert
+  const explicitlyStoppedRef = useRef<boolean>(false);
 
   // Restore persisted sequence settings (per scene)
   useEffect(() => {
@@ -656,9 +659,11 @@ const SequenceTab: React.FC = () => {
   // Global transport integration: control audio and apply triggers immediately on Play
   useEffect(() => {
     const onGlobalPlay = () => {
+      try { explicitlyStoppedRef.current = false; } catch {}
+      try { ActionLogger.log('globalPlay'); } catch {}
       if (!triggersEnabled) return;
       try { lastGlobalPlayMsRef.current = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); } catch {}
-      try { waveformRef.current?.play?.(); } catch {}
+      try { waveformRef.current?.play?.(); ActionLogger.log('sequenceAudioPlay'); } catch {}
       try {
         lastFiredRef.current = {};
         firedOnceRef.current.clear();
@@ -697,11 +702,59 @@ const SequenceTab: React.FC = () => {
     const stopFallback = () => {
       try { if (fallbackRafRef.current != null) { cancelAnimationFrame(fallbackRafRef.current); fallbackRafRef.current = null; } } catch {}
     };
-    const onGlobalPause = () => { if (triggersEnabled) { try { waveformRef.current?.pause?.(); } catch {} ; stopFallback(); setIsPlaying(false); } };
-    const onGlobalStop = () => { if (triggersEnabled) { try { waveformRef.current?.stop?.(); } catch {} ; stopFallback(); setIsPlaying(false); firedOnceRef.current.clear(); } };
+    const onGlobalPause = (evt?: any) => {
+      if (!triggersEnabled) return;
+      const source = evt?.detail?.source || '';
+      // Ignore non-forced pauses while sequence is active
+      if (!source) return;
+      try { waveformRef.current?.pause?.(); ActionLogger.log('sequenceAudioPause'); } catch {}
+      stopFallback();
+      setIsPlaying(false);
+    };
+    const onGlobalStop = (evt?: any) => {
+      if (!triggersEnabled) return;
+      const source = evt?.detail?.source || '';
+      // Ignore non-forced stops while sequence is active
+      if (!source) return;
+      try { explicitlyStoppedRef.current = true; } catch {}
+      try { waveformRef.current?.stop?.(); ActionLogger.log('sequenceAudioStop'); } catch {}
+      stopFallback();
+      setIsPlaying(false);
+      firedOnceRef.current.clear();
+    };
     document.addEventListener('globalPlay', onGlobalPlay as any);
     document.addEventListener('globalPause', onGlobalPause as any);
     document.addEventListener('globalStop', onGlobalStop as any);
+    // Keep sequence independent from other media events
+    const onVideoPause = (evt?: any) => {
+      if (!triggersEnabled) return;
+      const source = evt?.detail?.source || '';
+      try { ActionLogger.log('videoPause(evt)', evt?.detail); } catch {}
+      if (audioUrl && !explicitlyStoppedRef.current && !source) {
+        try { waveformRef.current?.play?.(); ActionLogger.log('sequenceAudioPlay(recover:videoPause)'); } catch {}
+      }
+    };
+    const onVideoStop = (evt?: any) => {
+      if (!triggersEnabled) return;
+      const source = evt?.detail?.source || '';
+      try { ActionLogger.log('videoStop(evt)', evt?.detail); } catch {}
+      if (audioUrl && !explicitlyStoppedRef.current && !source) {
+        try { waveformRef.current?.play?.(); ActionLogger.log('sequenceAudioPlay(recover:videoStop)'); } catch {}
+      }
+    };
+    const onColumnStopEvt = (evt?: any) => {
+      if (!triggersEnabled) return;
+      const source = evt?.detail?.source || '';
+      try { ActionLogger.log('columnStop(evt)', evt?.detail); } catch {}
+      if (audioUrl && !explicitlyStoppedRef.current && !source) {
+        try { waveformRef.current?.play?.(); ActionLogger.log('sequenceAudioPlay(recover:columnStop)'); } catch {}
+      }
+    };
+    try {
+      document.addEventListener('videoPause', onVideoPause as any);
+      document.addEventListener('videoStop', onVideoStop as any);
+      document.addEventListener('columnStop', onColumnStopEvt as any);
+    } catch {}
     // Manual column plays (no fromTrigger flag) should suppress triggers briefly
     const onAnyColumnPlay = (e: any) => {
       try {
@@ -729,6 +782,11 @@ const SequenceTab: React.FC = () => {
       document.removeEventListener('globalPlay', onGlobalPlay as any);
       document.removeEventListener('globalPause', onGlobalPause as any);
       document.removeEventListener('globalStop', onGlobalStop as any);
+      try {
+        document.removeEventListener('videoPause', onVideoPause as any);
+        document.removeEventListener('videoStop', onVideoStop as any);
+        document.removeEventListener('columnStop', onColumnStopEvt as any);
+      } catch {}
       document.removeEventListener('columnPlay', onAnyColumnPlay as any);
       try { if (fallbackRafRef.current != null) { cancelAnimationFrame(fallbackRafRef.current); fallbackRafRef.current = null; } } catch {}
     }; 

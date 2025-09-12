@@ -528,6 +528,13 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     if (opacityRafRef.current == null) {
       opacityRafRef.current = requestAnimationFrame(() => {
         commitOpacity(opacityPendingRef.current);
+        // Reassert global play when sequence mode is active
+        try {
+          const st: any = useStore.getState();
+          if (st.sequenceEnabledGlobal && typeof st.globalPlay === 'function') {
+            st.globalPlay();
+          }
+        } catch {}
         opacityRafRef.current = null;
       });
     }
@@ -548,6 +555,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         const nextData = { ...(prev.data || {}) } as any;
         nextData.renderScale = clamped;
         setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
+
+    // Keep sequence transport alive if active
+    try {
+      const st: any = useStore.getState();
+      if (st.sequenceEnabledGlobal && typeof st.globalPlay === 'function') {
+        st.globalPlay();
       }
     } catch {}
   };

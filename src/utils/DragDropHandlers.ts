@@ -1,4 +1,6 @@
 import { createLayer, createColumn, getDefaultEffectParams } from './LayerManagerUtils';
+import { useStore } from '../store/store';
+import { ActionLogger } from './ActionLogger';
 
 /**
  * Handle drop event for assets
@@ -510,6 +512,28 @@ export const handleLayerReorderDrop = (
 
     updateScene(currentSceneId, { columns: updatedColumns });
     console.log('✅ Layer moved');
+    // Keep sequence audio running after reorder
+    try {
+      const st: any = useStore.getState();
+      const seqOn = !!st.sequenceEnabledGlobal;
+      const wasPlayingCol = st.playingColumnId;
+      const wasPlaying = !!st.isGlobalPlaying;
+      if (seqOn) {
+        setTimeout(() => {
+          try {
+            if (wasPlaying && typeof st.globalPlay === 'function') {
+              st.globalPlay();
+            }
+            if (wasPlayingCol && typeof st.playColumn === 'function') {
+              st.playColumn(wasPlayingCol);
+            }
+            try { ActionLogger.log('reorderReassert', { wasPlaying, wasPlayingCol }); } catch {}
+          } catch (err) {
+            try { ActionLogger.log('reorderReassertError', String(err)); } catch {}
+          }
+        }, 80);
+      }
+    } catch {}
     
   } catch (error) {
     console.error('❌ Error reordering layer:', error);
