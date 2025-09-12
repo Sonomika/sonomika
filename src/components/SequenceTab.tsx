@@ -242,7 +242,7 @@ const SequenceTab: React.FC = () => {
       try {
         const isElectron = typeof window !== 'undefined' && !!((window as any).process?.versions?.electron);
         if (isElectron) {
-          return `local-file://${p}`;
+          return `file://${p}`;
         }
         // Fallback for web (may be blocked):
         const normalized = p.replace(/\\/g, '/');
@@ -1141,8 +1141,8 @@ const SequenceTab: React.FC = () => {
                     isPlaying={isPlaying}
                     currentTime={currentTime}
                     height={150}
-                    waveColor={accentColor || '#00bcd4'}
-                    progressColor={toBrightenedHex(accentColor || '#00bcd4', 1.25)}
+                    waveColor="#404040"
+                    progressColor="#aaaaaa"
                     triggerPoints={triggerPoints}
                     onTriggerClick={addTriggerPoint}
                     triggersEnabled={triggersEnabled}

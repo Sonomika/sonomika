@@ -70,8 +70,8 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
   isPlaying = false,
   currentTime = 0,
   height = 96,
-  waveColor = '#4F4A85',
-  progressColor = '#383351',
+  waveColor = '#404040',
+  progressColor = '#aaaaaa',
   triggerPoints = [],
   onTriggerClick,
   triggersEnabled = false
@@ -264,39 +264,11 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
       if (!arrayBuffer || analysisAbortRef.current !== ticket || ticket.aborted) return
       let audioBuffer = await decodeAudioBuffer(arrayBuffer)
       try { console.log('[CustomWaveform] decode result', { ok: !!audioBuffer, duration: audioBuffer?.duration, sampleRate: audioBuffer?.sampleRate, channels: audioBuffer?.numberOfChannels, length: audioBuffer?.length }) } catch {}
-      if ((!audioBuffer || !isFinite(audioBuffer.duration)) && WaveSurfer) {
-        // In Electron, avoid Wavesurfer fallback decode to prevent crashes in the audio thread
-        const isElectron = !!(window as any).electron
-        if (!isElectron) {
-          try {
-            // Last-resort decode using wavesurfer in-memory
-            const ws = WaveSurfer.create({
-              container: document.createElement('div'),
-              interact: false,
-              cursorWidth: 0,
-              backend: 'WebAudio',
-              normalize: true,
-              height: 0,
-            })
-            await ws.loadBlob(new Blob([arrayBuffer], { type: detectAudioMime(url) }))
-            const decoded: any = (ws as any).backend?.buffer
-            if (decoded && typeof decoded.duration === 'number' && decoded.duration > 0) {
-              audioBuffer = decoded as AudioBuffer
-            }
-            try { ws.destroy() } catch {}
-          } catch {
-            try { (WaveSurfer as any)?.destroy?.() } catch {}
-          }
-        }
-      }
+      // No WebAudio fallback in Electron to prevent crashes
+      // If decode failed, we'll show empty waveform (honest approach)
       if (!audioBuffer || analysisAbortRef.current !== ticket || ticket.aborted) {
-        const isElectron = !!(window as any).electron
-        if (isElectron) {
-          const bars = generateSyntheticWaveform(2000, url || 'electron')
-          setWaveformData(bars)
-        } else {
-          setWaveformData([])
-        }
+        try { console.warn('[CustomWaveform] no audio buffer available for waveform generation') } catch {}
+        setWaveformData([])
         return
       }
       const bars = computeWaveformBars(audioBuffer)
@@ -305,13 +277,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
       setWaveformData(bars)
     } catch {
       try { console.warn('[CustomWaveform] analyze error') } catch {}
-      const isElectron = !!(window as any).electron
-      if (isElectron) {
-        const bars = generateSyntheticWaveform(2000, url || 'electron')
-        setWaveformData(bars)
-      } else {
-        setWaveformData([])
-      }
+      setWaveformData([])
     }
   }
 
@@ -319,40 +285,32 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
   const loadAudioArrayBuffer = async (url: string): Promise<ArrayBuffer> => {
     try {
       const isElectron = !!(window as any).electron
-      if (url.startsWith('file://') || url.startsWith('local-file://')) {
-        const bridge = (window as any).electron?.readLocalFileAsBase64
-        if (bridge) {
-          let fp = url.replace(/^file:\/\//, '').replace(/^local-file:\/\//, '')
-          // Handle Windows file URL that starts with /C:/...
-          if (/^\/[A-Za-z]:\//.test(fp)) fp = fp.slice(1)
-          fp = decodePath(fp)
-          try { console.log('[CustomWaveform] reading local file via bridge', { fp }) } catch {}
-          const b64 = await bridge(fp)
-          return base64ToArrayBuffer(b64)
+      
+      // For Electron, avoid base64 loading to prevent crashes
+      // Use direct file access or fetch instead
+      if (isElectron) {
+        // Try the safer readAudioBytes first
+        const readBytes = (window as any).electron?.readAudioBytes
+        if (readBytes) {
+          try { 
+            console.log('[CustomWaveform] reading audio bytes directly', { url }) 
+            const ab: ArrayBuffer = await readBytes(url)
+            return ab || new ArrayBuffer(0)
+          } catch (e) {
+            console.warn('[CustomWaveform] readAudioBytes failed:', e)
+          }
         }
       }
-      // Absolute OS paths without a scheme
-      const isWindowsPath = /^[A-Za-z]:\\/.test(url) || url.startsWith('\\\\')
-      const isPosixPath = url.startsWith('/') && !/^\/(?:https?:|blob:|data:)/.test(url)
-      if ((isWindowsPath || isPosixPath) && isElectron) {
-        const bridge = (window as any).electron?.readLocalFileAsBase64
-        if (bridge) {
-          const fp = decodePath(url)
-          try { console.log('[CustomWaveform] reading absolute path via bridge', { path: fp }) } catch {}
-          const b64 = await bridge(fp)
-          return base64ToArrayBuffer(b64)
-        }
-      }
+      
+      // Fallback to fetch (works for file:// URLs in Electron)
       try { console.log('[CustomWaveform] fetching URL', { url }) } catch {}
-      const readBytes = (window as any).electron?.readAudioBytes
-      if (isElectron && readBytes) {
-        const ab: ArrayBuffer = await readBytes(url)
-        return ab || new ArrayBuffer(0)
-      }
       const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+      }
       return await res.arrayBuffer()
-    } catch {
-      try { console.warn('[CustomWaveform] loadAudioArrayBuffer failed') } catch {}
+    } catch (e) {
+      try { console.warn('[CustomWaveform] loadAudioArrayBuffer failed:', e) } catch {}
       return new ArrayBuffer(0)
     }
   }
@@ -432,24 +390,73 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
 
   const decodeAudioBuffer = async (data: ArrayBuffer): Promise<AudioBuffer | null> => {
     if (!data || data.byteLength === 0) return null
-    // Guard: avoid crashing Electron by attempting to decode formats likely unsupported
-    // if Electron lacks proprietary codecs. We conservatively skip MP3/AAC/M4A here
-    // when running under Electron and fall back to empty waveform (visualization only).
-    try {
-      const isElectron = !!(window as any).electron
-      if (isElectron) {
-        const mimeCheck = (dataGuess: string) => /audio\/(mpeg|mp4|aac)/i.test(dataGuess)
-        // We don't have the file name here reliably; rely on recent URL set via analyzeAudio
-        // by peeking a captured URL from analysisAbortRef
-        const currentUrl = analysisAbortRef.current?.url || ''
-        const L = currentUrl.toLowerCase()
-        const looksProprietary = L.endsWith('.mp3') || L.endsWith('.m4a') || L.endsWith('.aac') || L.endsWith('.mp4')
-        if (looksProprietary) {
-          try { console.warn('[CustomWaveform] skipping decode of proprietary codec in Electron for', currentUrl) } catch {}
-          return null
+    
+    const isElectron = !!(window as any).electron
+    const currentUrl = analysisAbortRef.current?.url || ''
+    const L = currentUrl.toLowerCase()
+    const looksProprietary = L.endsWith('.mp3') || L.endsWith('.m4a') || L.endsWith('.aac') || L.endsWith('.mp4')
+    
+    // In Electron 38+, try direct WebAudio decode with improved stability
+    if (isElectron && looksProprietary) {
+      console.log('[CustomWaveform] attempting direct WebAudio decode for proprietary format in Electron 38+')
+      
+      // Try direct WebAudio decode first (should be more stable in Electron 38+)
+      try {
+        const AC = (window as any).AudioContext || (window as any).webkitAudioContext
+        const OC = (window as any).OfflineAudioContext || (window as any).webkitOfflineAudioContext
+        
+        if (AC || OC) {
+          const decodeWith = async (CtxCtor: any, opts: any, offlineFlag: boolean) => {
+            let ctx: any
+            try {
+              ctx = new CtxCtor(opts)
+              try { console.log('[CustomWaveform] decoding proprietary format directly', { size: data.byteLength, offline: offlineFlag }) } catch {}
+              const ab = data.slice(0)
+              const p: Promise<AudioBuffer> = new Promise((resolve, reject) => {
+                // Safari-style callback API fallback
+                try {
+                  const req = (ctx as any).decodeAudioData(ab, (buf: AudioBuffer) => resolve(buf), (err: any) => reject(err))
+                  if (req && typeof (req as any).then === 'function') {
+                    ;(req as any).then(resolve).catch(reject)
+                  }
+                } catch (e) {
+                  // Modern promise API
+                  ;(ctx as any).decodeAudioData(ab).then(resolve).catch(reject)
+                }
+              })
+              // Shorter timeout for direct decode
+              const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+              const result = await Promise.race([p, timeout])
+              return result as AudioBuffer | null
+            } catch {
+              return null
+            } finally {
+              try { await ctx?.close?.() } catch {}
+            }
+          }
+
+          // Try live context first, then offline
+          const primary = AC ? await decodeWith(AC, { sampleRate: 44100 }, false) : null
+          if (primary && primary.duration > 0) {
+            console.log('[CustomWaveform] successfully decoded proprietary format via direct WebAudio in Electron 38+')
+            return primary
+          }
+          const fallback = OC ? await decodeWith(OC, { numberOfChannels: 1, length: 1, sampleRate: 44100 }, true) : null
+          if (fallback && fallback.duration > 0) {
+            console.log('[CustomWaveform] successfully decoded proprietary format via OfflineAudioContext in Electron 38+')
+            return fallback
+          }
         }
+      } catch (e) {
+        console.warn('[CustomWaveform] direct WebAudio decode failed:', e)
       }
-    } catch {}
+      
+      // If direct decode fails, fall back to skipping (safe approach)
+      console.log('[CustomWaveform] falling back to safe approach - skipping proprietary format decode')
+      return null
+    }
+    
+    // Standard WebAudio decode for non-proprietary formats or non-Electron
     const AC = (window as any).AudioContext || (window as any).webkitAudioContext
     const OC = (window as any).OfflineAudioContext || (window as any).webkitOfflineAudioContext
     if (!AC && !OC) return null
@@ -530,56 +537,16 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     return bars
   }
 
-  // Synthetic waveform generator for Electron fallback when decoding is unavailable
-  const generateSyntheticWaveform = (targetBars: number, seedInput: string): number[] => {
-    const barsLen = Math.max(100, Math.min(5000, Math.floor(targetBars) || 2000))
-    const bars: number[] = new Array(barsLen)
-    // Deterministic seed from URL
-    let seed = 2166136261 >>> 0
-    for (let i = 0; i < seedInput.length; i++) {
-      seed ^= seedInput.charCodeAt(i)
-      seed = Math.imul(seed, 16777619) >>> 0
-    }
-    const rand = () => {
-      seed ^= seed << 13; seed >>>= 0
-      seed ^= seed >>> 17; seed >>>= 0
-      seed ^= seed << 5; seed >>>= 0
-      return (seed >>> 0) / 4294967296
-    }
-    const baseFreq = 0.015 + rand() * 0.015
-    const modFreq = 0.002 + rand() * 0.004
-    const phaseA = rand() * Math.PI * 2
-    const phaseB = rand() * Math.PI * 2
-    const jaggedness = 0.15 + rand() * 0.25
-    const fadeBars = Math.max(8, Math.floor(barsLen * 0.04))
-    for (let i = 0; i < barsLen; i++) {
-      const t = i
-      const s1 = Math.sin(t * baseFreq + phaseA)
-      const s2 = Math.sin(t * (baseFreq * 2.3) + phaseB)
-      const s3 = Math.sin(t * modFreq + (phaseA + phaseB) * 0.5)
-      let v = 0.55 + 0.25 * s1 + 0.15 * s2 + 0.10 * s3
-      v += (rand() - 0.5) * jaggedness
-      // Apply fade-in/out envelope at the edges
-      let env = 1
-      if (i < fadeBars) env = i / fadeBars
-      else if (i > barsLen - fadeBars) env = (barsLen - i) / fadeBars
-      v = Math.max(0.06, Math.min(1, v * Math.max(0, Math.min(1, env))))
-      bars[i] = v
-    }
-    return bars
-  }
-
-  // Removed synthetic fallback in favor of real analysis only
-
   const drawSimpleWaveform = () => {
     const canvas = canvasRef.current
     const audio = audioRef.current
     if (!canvas || !audio) return
     if (!waveformData.length && !emptyDrawLoggedRef.current) {
-      try { console.warn('[CustomWaveform] draw skipped: no waveformData') } catch {}
+      try { console.warn('[CustomWaveform] draw skipped: no waveformData', { waveformDataLength: waveformData.length }) } catch {}
       emptyDrawLoggedRef.current = true
     } else if (waveformData.length) {
       emptyDrawLoggedRef.current = false
+      try { console.log('[CustomWaveform] drawing waveform', { waveformDataLength: waveformData.length, audioDuration: audio.duration }) } catch {}
     }
 
     const sized = resizeCanvasToDisplaySize(canvas)
@@ -650,10 +617,6 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
           ctx.lineTo(triggerX, cssHeight)
           ctx.stroke()
 
-          ctx.fillStyle = '#ff6b6b'
-          ctx.beginPath()
-          ctx.arc(triggerX, 10, 4, 0, Math.PI * 2)
-          ctx.fill()
         }
       })
     }
@@ -870,9 +833,8 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            padding: '10px',
-            borderRadius: '4px'
+            color: '#aaaaaa',
+            fontSize: '12px'
           }}
         >
           Loading waveform...

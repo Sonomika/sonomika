@@ -26,7 +26,6 @@
   "license": "ISC",
   "devDependencies": {
     "@shadcn/ui": "^0.0.4",
-    "@types/electron": "^1.6.10",
     "@types/node": "^20.10.5",
     "@types/p5": "^1.7.6",
     "@types/react": "^18.2.45",
@@ -37,7 +36,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.21",
     "concurrently": "^8.2.2",
-    "electron": "^28.1.0",
+    "electron": "^38.0.0",
     "electron-builder": "^26.0.12",
     "patch-package": "^8.0.0",
     "postcss": "^8.5.6",

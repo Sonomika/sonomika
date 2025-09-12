@@ -14,8 +14,8 @@ const AudioWaveform: React.FC<Props> = ({
   src,
   width,
   height,
-  color = '#4CAF50',
-  secondaryColor = '#2e7d32',
+  color = '#404040',
+  secondaryColor = '#aaaaaa',
   backgroundColor = 'transparent',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,7 +34,13 @@ const AudioWaveform: React.FC<Props> = ({
     if (!el) return;
     if (wavesurferRef.current) { try { wavesurferRef.current.destroy(); } catch {} wavesurferRef.current = null; }
     let destroyed = false;
-    const preferMediaElement = src?.startsWith('file://') && !(window as any).electron?.readLocalFileAsBase64;
+    
+    // Safe Electron defaults: avoid WebAudio for proprietary codecs and base64 conversion
+    const isElectron = !!(window as any).electron;
+    const isFileUrl = typeof src === 'string' && src.startsWith('file://');
+    const isProprietary = /\.(mp3|m4a|aac|mp4)$/i.test(src || '');
+    const preferMediaElement = isElectron && (isFileUrl || isProprietary);
+    
     const ws = WaveSurfer.create({
       container: el,
       height: Math.max(1, height),
@@ -51,20 +57,9 @@ const AudioWaveform: React.FC<Props> = ({
     wavesurferRef.current = ws;
     const loadUrl = (u: string) => { if (!destroyed) try { ws.load(u); } catch {} };
     try {
-      if (src?.startsWith('file://')) {
-        const bridge = (window as any).electron?.readLocalFileAsBase64;
-        if (bridge) {
-          const fp = src.replace('file://', '');
-          bridge(fp).then((b64: string) => {
-            let mime = 'audio/mpeg';
-            const L = fp.toLowerCase();
-            if (L.endsWith('.wav')) mime = 'audio/wav'; else if (L.endsWith('.ogg')) mime = 'audio/ogg'; else if (L.endsWith('.flac')) mime = 'audio/flac';
-            loadUrl(`data:${mime};base64,${b64}`);
-          }).catch(() => loadUrl(src));
-        } else {
-          loadUrl(src);
-        }
-      } else if (src) {
+      if (src) {
+        // Always load the URL directly; let Chromium stream from disk
+        // This avoids base64 conversion and WebAudio decode crashes in Electron
         loadUrl(src);
       }
     } catch {}
