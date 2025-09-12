@@ -273,23 +273,13 @@ export const MoveableTimelineClip: React.FC<MoveableTimelineClipProps> = ({
         onResizeEnd={handleResizeEnd}
         // Visual feedback
         dragArea={true}
-        dragWithStick={false}
-        dragStick={false}
         // Only allow horizontal dragging for now
-        dragVertical={false}
-        dragHorizontal={true}
         // Snap settings
         snapContainer={timelineRef.current}
         snapGap={true}
-        snapElement={true}
-        snapVertical={false}
-        snapHorizontal={true}
         snapThreshold={snapThreshold}
         // Styling
         className="timeline-moveable"
-        style={{
-          '--moveable-color': '#ff6b35',
-        } as React.CSSProperties}
       />
     </>
   );

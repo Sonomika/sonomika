@@ -376,8 +376,8 @@ export const MIDIMapper: React.FC = () => {
               </>
             );
           })()}
-          </div>
         </div>
+      </div>
 
       <div className="tw-bg-neutral-900 tw-flex-1 tw-overflow-auto tw-text-xs tw-text-neutral-300 tw-p-2">
         <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
@@ -409,41 +409,6 @@ export const MIDIMapper: React.FC = () => {
           </div>
         </div>
 
-      {/* Hidden file input for web load */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json,application/json"
-        className="tw-hidden"
-        onChange={async (e) => {
-          try {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            const text = await file.text();
-            try {
-              const parsed = JSON.parse(text);
-              const mappingsOnly = parsed?.data?.midiMappings || parsed?.midiMappings || parsed;
-              if (Array.isArray(mappingsOnly)) {
-                setMIDIMappings(mappingsOnly as any);
-              } else {
-                console.warn('Selected file did not contain midiMappings array');
-              }
-            } catch (err) {
-              console.warn('Failed to parse MIDI mapping file:', err);
-            }
-            // reset input value to allow re-selecting same file later
-            (e.target as HTMLInputElement).value = '';
-          } catch {}
-        }}
-      />
-
-      {/* System Save handler (Electron or File System Access API) */}
-      {/* No custom dialog; using native OS picker instead */}
-
-      {/* Helper: save mappings to a JSON file via system UI */}
-      {(() => {
-        // define once within component scope
-      })()}
     </div>
   );
 }; 

@@ -225,6 +225,19 @@ export async function generateVideoThumbnail(
   return queueThumbnailRequest(src, finalOptions, priority);
 }
 
+// Helper function to convert local-file:// URLs to file:// URLs for Electron
+function normalizeVideoSrc(src: string): string {
+  if (src.startsWith('local-file://')) {
+    const filePath = src.replace('local-file://', '');
+    // Normalize backslashes to forward slashes for Windows paths
+    const normalizedPath = filePath.replace(/\\/g, '/');
+    // Ensure leading slash for drive letters (C:/...)
+    const finalPath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
+    return `file://${finalPath}`;
+  }
+  return src;
+}
+
 // Internal thumbnail generation function (moved from original)
 async function generateVideoThumbnailInternal(
   src: string,
@@ -242,7 +255,10 @@ async function generateVideoThumbnailInternal(
   video.crossOrigin = 'anonymous';
   video.muted = true;
   video.preload = 'metadata'; // Changed from 'auto' to 'metadata' for better performance
-  video.src = src;
+  
+  // Normalize the src URL for proper Electron file handling
+  const normalizedSrc = normalizeVideoSrc(src);
+  video.src = normalizedSrc;
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -251,7 +267,7 @@ async function generateVideoThumbnailInternal(
         resolve();
       };
       const onError = (error: Event) => {
-        console.error('📸 Failed to load video for thumbnail:', src, error);
+        console.error('📸 Failed to load video for thumbnail:', src, 'normalized:', normalizedSrc, error);
         reject(new Error(`Failed to load video: ${error}`));
       };
       video.addEventListener('loadeddata', onLoaded, { once: true });
@@ -280,7 +296,7 @@ async function generateVideoThumbnailInternal(
         resolve();
       };
       const onError = (error: Event) => {
-        console.error('📸 Failed to seek video:', src, error);
+        console.error('📸 Failed to seek video:', src, 'normalized:', normalizedSrc, error);
         reject(new Error(`Failed to seek video: ${error}`));
       };
       video.currentTime = seekTime;

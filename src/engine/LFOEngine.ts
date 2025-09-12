@@ -264,9 +264,9 @@ class LFOEngineImpl {
         if (timingMode === 'sync' && lfo) {
           try { useLFOStore.getState().setLFOStateForLayer(layer.id, { rate }); } catch {}
         }
-        const phase = Number(lfo.phase || 0);
-        const depth = Number(lfo.depth || 100);
-        const offset = Number(lfo.offset || 0);
+        const phase = 0; // Phase removed from LFOState interface
+        const depth = 100; // Depth removed from LFOState interface  
+        const offset = 0; // Offset removed from LFOState interface
         const waveform = String(lfo.waveform || 'sine');
         const cacheKey = `${layer.id}-lfo`;
         const cache = this.randomHoldCache.get(cacheKey) || { step: -1, value: 0 };

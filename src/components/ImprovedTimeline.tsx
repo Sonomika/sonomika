@@ -830,13 +830,16 @@ export const ImprovedTimeline: React.FC<TimelineProps> = ({ onClose: _onClose, o
                           key={clip.id}
                           clip={clip}
                           trackId={track.id}
+                          trackIndex={tracks.findIndex(t => t.id === track.id)}
+                          totalTracks={tracks.length}
                           pixelsPerSecond={pixelsPerSecond}
                           isSelected={selectedClips.has(clip.id)}
                           onSelect={handleClipSelect}
                           onUpdate={handleClipUpdate}
                           onDelete={handleClipDelete}
                           onContextMenu={handleClipRightClick}
-                          timelineRef={timelineRef}
+                          onMoveToTrack={(clipId, fromTrack, toTrack) => console.log('Move clip', clipId, 'from', fromTrack, 'to', toTrack)}
+                          timelineRef={timelineRef as React.RefObject<HTMLDivElement>}
                           snapToGrid={timelineSnapEnabled}
                           snapThreshold={10}
                         />

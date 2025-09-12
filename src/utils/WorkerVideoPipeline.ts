@@ -81,7 +81,7 @@ export class WorkerVideoPipeline {
         try {
           await this.opts.chunkFeeder!(chunk => {
             try {
-              this.worker?.postMessage({ type: 'decodeChunk', ...chunk }, [chunk.data as any]);
+              this.worker?.postMessage({ ...chunk, type: 'decodeChunk' }, [chunk.data as any]);
             } catch {}
           });
         } catch {}

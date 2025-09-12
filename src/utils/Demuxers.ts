@@ -23,7 +23,7 @@ export async function demuxWithMediaSource(url: string, push: ChunkPusher): Prom
 export async function demuxWithMp4box(url: string, push: ChunkPusher): Promise<void> {
   let mp4boxMod: any = null;
   try {
-    mp4boxMod = await import('mp4box');
+    mp4boxMod = await import('mp4box' as any);
   } catch {
     // Module not available; bail out silently
     return;
@@ -55,7 +55,7 @@ export async function demuxWithMp4box(url: string, push: ChunkPusher): Promise<v
           const ts = Math.round(((s.cts ?? s.dts ?? 0) / (timescale || 1)) * 1_000_000);
           const dur = s.duration !== undefined ? Math.round((s.duration / (timescale || 1)) * 1_000_000) : undefined;
           const type = s.is_sync ? 'key' as const : 'delta' as const;
-          push({ data, timestamp: ts, type, duration: dur });
+          push({ data: data as ArrayBuffer, timestamp: ts, type, duration: dur });
         }
       } catch {}
     };

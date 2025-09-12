@@ -271,7 +271,7 @@ const ShaderFeedbackEffect: React.FC<ShaderFeedbackEffectProps> = ({
     const w = Math.max(2, Math.floor(effectiveCompositionWidth));
     const h = Math.max(2, Math.floor(effectiveCompositionHeight));
 
-    const options: THREE.WebGLRenderTargetOptions = {
+    const options: THREE.RenderTargetOptions = {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
       format: THREE.RGBAFormat,

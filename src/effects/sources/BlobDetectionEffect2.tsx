@@ -431,7 +431,7 @@ const BlobDetectionEffect: React.FC<BlobDetectionEffectProps> = ({
 
   // Create blob visualization meshes
   const blobMeshes = useMemo(() => {
-    const meshes: JSX.Element[] = [];
+    const meshes: React.ReactElement[] = [];
     
     for (let i = 0; i < maxBlobs; i++) {
       meshes.push(

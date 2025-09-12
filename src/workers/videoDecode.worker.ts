@@ -52,7 +52,7 @@ self.onmessage = async (e: MessageEvent) => {
             description: msg.description,
             hardwareAcceleration: 'prefer-hardware',
           } as any;
-          try { await decoder.configure(config as any); configured = true; } catch {}
+          try { if (decoder) await decoder.configure(config as any); configured = true; } catch {}
         }
       } catch (err) {
         post('error', { error: String(err) });

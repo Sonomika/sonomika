@@ -6,6 +6,9 @@ type StoreActions = {
   setCurrentScene: (sceneId: string) => void;
   updateLayer: (layerId: string, updates: any) => void;
   setBpm: (bpm: number) => void;
+  globalPlay: (opts?: { force?: boolean; source?: string }) => void;
+  globalPause: (opts?: { force?: boolean; source?: string }) => void;
+  globalStop: (opts?: { force?: boolean; source?: string }) => void;
 };
 
 type Store = AppState & StoreActions;

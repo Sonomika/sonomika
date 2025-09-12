@@ -112,7 +112,8 @@ export const DragTest: React.FC = () => {
               onUpdate={handleClipUpdate}
               onDelete={handleClipDelete}
               onContextMenu={handleContextMenu}
-              timelineRef={timelineRef}
+              onMoveToTrack={(clipId, fromTrack, toTrack) => console.log('Move clip', clipId, 'from', fromTrack, 'to', toTrack)}
+              timelineRef={timelineRef as React.RefObject<HTMLDivElement>}
             />
           ))}
         </div>

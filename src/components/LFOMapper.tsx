@@ -26,7 +26,7 @@ const RANDOMIZE_ALL = '__randomize_all';
 
 export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLayer }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   const randomHoldRef = useRef<{ step: number; value: number }>({ step: -1, value: 0 });
   const [activeTab, setActiveTab] = useState<'lfo'>('lfo');
   const { playingColumnId, isGlobalPlaying, showTimeline } = useStore() as any;

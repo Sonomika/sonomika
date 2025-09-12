@@ -115,7 +115,7 @@ export const TimelineTest: React.FC = () => {
               onDelete={handleClipDelete}
               onMoveToTrack={(clipId, fromTrack, toTrack) => console.log('Move clip', clipId, 'from', fromTrack, 'to', toTrack)}
               onContextMenu={handleContextMenu}
-              timelineRef={timelineRef}
+              timelineRef={timelineRef as React.RefObject<HTMLDivElement>}
               snapToGrid={true}
               snapThreshold={10}
             />

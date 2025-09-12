@@ -2010,7 +2010,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             
             // Register with app audio capture system
             audioContextManager.initialize().then(() => {
-              audioContextManager.registerAudioElement(audio);
+              if (audio) audioContextManager.registerAudioElement(audio);
             }).catch(console.warn);
           }
           if (isPlaying) {
@@ -2943,7 +2943,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                         onDelete={handleClipDelete}
                         onMoveToTrack={handleClipMoveToTrack}
                         onContextMenu={handleClipRightClick}
-                        timelineRef={timelineRef}
+                        timelineRef={timelineRef as React.RefObject<HTMLDivElement>}
                         snapToGrid={timelineSnapEnabled}
                         snapThreshold={20}
                         allClips={tracks.flatMap(t => t.clips)}

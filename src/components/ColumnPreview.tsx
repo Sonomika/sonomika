@@ -1133,13 +1133,13 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               <Canvas
                 camera={{ position: [0, 0, 1], fov: 90 }}
                className="tw-w-full tw-h-full tw-block tw-bg-transparent"
+                dpr={Math.min(window.devicePixelRatio || 1, 2)}
                 gl={{ 
                   alpha: true,
                   preserveDrawingBuffer: true,
                   antialias: false,
                   powerPreference: 'high-performance',
-                  premultipliedAlpha: false,
-                  pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
+                  premultipliedAlpha: false
                 }}
               onCreated={({ gl, camera }) => {
                 // Check if this column contains only source effects
