@@ -353,25 +353,34 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     const currentScene = timelineScenes.find((s: any) => s.id === currentTimelineSceneId);
     const endAction = currentScene?.endOfSceneAction || 'stop';
     
-    console.log('🎬 Scene ended, executing action:', endAction);
+    console.log('🎬 Scene ended, executing action:', endAction, 'currentScene:', currentScene?.name, 'sceneId:', currentTimelineSceneId);
     
     switch (endAction) {
       case 'loop':
         console.log('🔄 Looping current scene');
         setCurrentTime(0);
-        setTimeout(() => startPlayback(), 100);
+        setTimeout(() => {
+          console.log('🔄 Starting loop playback');
+          startPlayback();
+        }, 100);
         break;
         
       case 'play_next':
-        console.log('⏭️ Playing next scene');
+        console.log('⏭️ Playing next scene - before:', currentTimelineSceneId);
         playNextTimelineScene();
-        setTimeout(() => startPlayback(), 200);
+        setTimeout(() => {
+          console.log('⏭️ Starting next scene playback - after:', currentTimelineSceneId);
+          startPlayback();
+        }, 200);
         break;
         
       case 'random':
         console.log('🎲 Playing random scene');
         playRandomTimelineScene();
-        setTimeout(() => startPlayback(), 200);
+        setTimeout(() => {
+          console.log('🎲 Starting random scene playback');
+          startPlayback();
+        }, 200);
         break;
         
       case 'stop':

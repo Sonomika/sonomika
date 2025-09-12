@@ -318,13 +318,25 @@ const SequenceTab: React.FC = () => {
         try { lastFiredRef.current = {}; } catch {}
         try { firedOnceRef.current.clear(); } catch {}
         try { prevTimeRef.current = 0; } catch {}
+        
         playNextScene();
+        
         // Give time for per-scene settings to hydrate, then apply early markers and auto-play if audio exists
         setTimeout(() => {
-          try { applyMarkersUpToTime(Math.max(0.15, Number(0))); } catch {}
-          try { waveformRef.current?.play?.(); } catch {}
-          // Also emit a globalPlay so other subsystems can react consistently
-          try { document.dispatchEvent(new CustomEvent('globalPlay', { detail: { source: 'sequence:autoNext' } })); } catch {}
+          const hasAudio = selectedFile && audioUrl;
+          
+          if (hasAudio) {
+            // If we have audio, apply markers and start playback
+            try { applyMarkersUpToTime(Math.max(0.15, Number(0))); } catch {}
+            try { waveformRef.current?.play?.(); } catch {}
+            // Also emit a globalPlay so other subsystems can react consistently
+            try { document.dispatchEvent(new CustomEvent('globalPlay', { detail: { source: 'sequence:autoNext' } })); } catch {}
+          } else {
+            // If no audio in the new scene, just emit globalPlay for other systems
+            // This allows other systems (like timeline) to continue playback
+            console.log('📻 Next scene has no audio, emitting globalPlay for other systems');
+            try { document.dispatchEvent(new CustomEvent('globalPlay', { detail: { source: 'sequence:autoNextNoAudio' } })); } catch {}
+          }
         }, 250);
       } else {
         // stop: hard-stop audio and prevent auto-resume handlers from reasserting

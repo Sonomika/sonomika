@@ -123,7 +123,7 @@ function createWindow() {
     });
     mainWindow.webContents.on("did-create-window", (childWindow, details) => {
       try {
-        if ((details == null ? void 0 : details.frameName) === "output-canvas") {
+        if (details?.frameName === "output-canvas") {
           outputWindow = childWindow;
           try {
             childWindow.removeMenu();
@@ -157,13 +157,13 @@ function createWindow() {
   }
   mainWindow.on("maximize", () => {
     try {
-      mainWindow == null ? void 0 : mainWindow.webContents.send("window-state", { maximized: true });
+      mainWindow?.webContents.send("window-state", { maximized: true });
     } catch {
     }
   });
   mainWindow.on("unmaximize", () => {
     try {
-      mainWindow == null ? void 0 : mainWindow.webContents.send("window-state", { maximized: false });
+      mainWindow?.webContents.send("window-state", { maximized: false });
     } catch {
     }
   });
@@ -482,11 +482,11 @@ function createAdvancedMirrorWindow(id, opts) {
   const fallbackPreload = path.join(__dirname, "preload.js");
   const preloadPath = fs.existsSync(mirrorPreload) ? mirrorPreload : fallbackPreload;
   const win = new electron.BrowserWindow({
-    width: (opts == null ? void 0 : opts.width) ?? 960,
-    height: (opts == null ? void 0 : opts.height) ?? 540,
-    x: opts == null ? void 0 : opts.x,
-    y: opts == null ? void 0 : opts.y,
-    title: (opts == null ? void 0 : opts.title) ?? `VJ Mirror Slice: ${id}`,
+    width: opts?.width ?? 960,
+    height: opts?.height ?? 540,
+    x: opts?.x,
+    y: opts?.y,
+    title: opts?.title ?? `VJ Mirror Slice: ${id}`,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -527,7 +527,7 @@ function createAdvancedMirrorWindow(id, opts) {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${(opts == null ? void 0 : opts.title) ?? `VJ Mirror Slice: ${id}`}</title>
+      <title>${opts?.title ?? `VJ Mirror Slice: ${id}`}</title>
       <style>
         body {
           margin: 0;
@@ -674,7 +674,7 @@ function createCustomMenu() {
           accelerator: "CmdOrCtrl+Shift+D",
           click: () => {
             try {
-              mainWindow == null ? void 0 : mainWindow.webContents.send("debug:toggleOverlay");
+              mainWindow?.webContents.send("debug:toggleOverlay");
             } catch {
             }
           }
@@ -684,7 +684,7 @@ function createCustomMenu() {
           accelerator: "CmdOrCtrl+Alt+D",
           click: () => {
             try {
-              mainWindow == null ? void 0 : mainWindow.webContents.send("debug:openPanel");
+              mainWindow?.webContents.send("debug:openPanel");
             } catch {
             }
           }
@@ -1161,10 +1161,10 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.on("advanced-mirror:open", (event, slices) => {
     try {
-      console.log("[main] advanced-mirror:open", Array.isArray(slices) ? slices.map((s) => s == null ? void 0 : s.id) : slices);
+      console.log("[main] advanced-mirror:open", Array.isArray(slices) ? slices.map((s) => s?.id) : slices);
       if (Array.isArray(slices)) {
         for (const s of slices) {
-          console.log("[main] createAdvancedMirrorWindow", s == null ? void 0 : s.id);
+          console.log("[main] createAdvancedMirrorWindow", s?.id);
           createAdvancedMirrorWindow(String(s.id), s);
         }
       }
