@@ -33,6 +33,7 @@ export interface ReactEffectMetadata {
   component?: React.ComponentType<any>;
   folder?: string; // Add folder information for categorization
   isSource?: boolean; // Add source flag for categorization
+  isUserEffect?: boolean; // Add user effect flag for categorization
 }
 
 /**
@@ -75,6 +76,9 @@ export class EffectDiscovery {
   private effectComponents: Map<string, React.ComponentType<any>> = new Map();
   // In browser builds, keep a registry from discovered effect file -> import fn (via import.meta.glob)
   private browserEffectImports: Map<string, () => Promise<any>> = new Map();
+  // Registry for user-loaded effects from external directories
+  private userEffects: Map<string, ReactSelfContainedEffect> = new Map();
+  private userEffectImports: Map<string, () => Promise<any>> = new Map();
 
   private constructor() {}
 
@@ -132,7 +136,7 @@ export class EffectDiscovery {
     icon: string;
     author: string;
     version: string;
-    metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean };
+    metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean; isUserEffect?: boolean };
     fileKey: string;
   }>> {
     const results: Array<{
@@ -143,13 +147,13 @@ export class EffectDiscovery {
       icon: string;
       author: string;
       version: string;
-      metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean };
+      metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean; isUserEffect?: boolean };
       fileKey: string;
     }> = [];
 
     try {
       // Build map of effect modules without importing them
-      const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../effects/**/*.tsx', { eager: false });
+      const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}', { eager: false });
       for (const [modulePath, importFn] of Object.entries(effectModules)) {
         // Normalize key to be relative to effects folder
         const normalized = modulePath.replace('../effects/', '');
@@ -177,12 +181,36 @@ export class EffectDiscovery {
             type: 'react-component',
             folder,
             isSource,
+            isUserEffect: false,
           },
           fileKey: normalized,
         });
       }
     } catch (error) {
       console.warn('Lightweight effect listing failed:', error);
+    }
+
+    // Add user effects to the results
+    const userEffects = Array.from(this.userEffects.values());
+    for (const userEffect of userEffects) {
+      results.push({
+        id: userEffect.id,
+        name: userEffect.name,
+        description: userEffect.description,
+        category: userEffect.category,
+        icon: userEffect.icon,
+        author: userEffect.author || 'User',
+        version: userEffect.version || '1.0.0',
+        metadata: {
+          parameters: userEffect.metadata.parameters || [],
+          category: userEffect.category,
+          type: 'react-component',
+          folder: 'user-effects',
+          isSource: userEffect.metadata.isSource || false,
+          isUserEffect: true,
+        },
+        fileKey: `user-${userEffect.id}`,
+      });
     }
 
     return results;
@@ -200,7 +228,7 @@ export class EffectDiscovery {
     icon: string;
     author: string;
     version: string;
-    metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean };
+    metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean; isUserEffect?: boolean };
     fileKey: string;
   }>> {
     // If Electron/Node APIs are present, prefer true filesystem scan for immediate detection
@@ -217,7 +245,7 @@ export class EffectDiscovery {
       icon: string;
       author: string;
       version: string;
-      metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean };
+      metadata: Partial<ReactEffectMetadata> & { folder?: string; isSource?: boolean; isUserEffect?: boolean };
       fileKey: string;
     }> = [];
 
@@ -246,6 +274,7 @@ export class EffectDiscovery {
             type: 'react-component',
             folder,
             isSource,
+            isUserEffect: false,
           },
           fileKey: normalized,
         });
@@ -253,6 +282,29 @@ export class EffectDiscovery {
     } catch (error) {
       console.warn('Filesystem effect listing failed, falling back to browser listing:', error);
       return this.listAvailableEffectsLightweight();
+    }
+
+    // Add user effects to the results
+    const userEffects = Array.from(this.userEffects.values());
+    for (const userEffect of userEffects) {
+      results.push({
+        id: userEffect.id,
+        name: userEffect.name,
+        description: userEffect.description,
+        category: userEffect.category,
+        icon: userEffect.icon,
+        author: userEffect.author || 'User',
+        version: userEffect.version || '1.0.0',
+        metadata: {
+          parameters: userEffect.metadata.parameters || [],
+          category: userEffect.category,
+          type: 'react-component',
+          folder: 'user-effects',
+          isSource: userEffect.metadata.isSource || false,
+          isUserEffect: true,
+        },
+        fileKey: `user-${userEffect.id}`,
+      });
     }
 
     return results;
@@ -308,8 +360,8 @@ export class EffectDiscovery {
         try {
           // console.log('🔍 Attempting to use import.meta.glob for dynamic discovery...');
           
-          // This should dynamically discover all .tsx files in the effects directory and subdirectories
-          const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../effects/**/*.tsx', { eager: false });
+          // This should dynamically discover all supported files in the effects directory and subdirectories
+          const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}', { eager: false });
           
           // console.log('🔍 Found effect modules:', Object.keys(effectModules));
           
@@ -319,16 +371,11 @@ export class EffectDiscovery {
               // Try to import the module to verify it's a valid effect
               await (importFn as any)();
               
-              // Extract the effect name from the path
-              // Remove '../effects/' prefix and '.tsx' extension
-              const effectName = modulePath
-                .replace('../effects/', '')
-                .replace('.tsx', '');
-              
-              const fileKey = `${effectName}.tsx`;
-              discoveredFiles.push(fileKey);
+              // Extract the effect path from the glob key and preserve extension
+              const normalized = modulePath.replace('../effects/', '');
+              discoveredFiles.push(normalized);
               // Register import function so we can load deterministically later
-              this.browserEffectImports.set(fileKey, importFn);
+              this.browserEffectImports.set(normalized, importFn);
               // console.log(`✅ Discovered effect: ${effectName}`);
             } catch (error) {
               console.log(`❌ Failed to import effect: ${modulePath}`, error);
@@ -371,7 +418,7 @@ export class EffectDiscovery {
           // Recursively scan subdirectories
           const subFiles = this.scanDirectoryRecursively(fs, path, fullPath);
           effectFiles.push(...subFiles);
-        } else if (item.endsWith('.tsx') && !item.startsWith('.')) {
+        } else if ((/\.(tsx|ts|jsx|js)$/).test(item) && !item.startsWith('.')) {
           // Found a .tsx file, add it to the list
           // Convert to relative path from effects folder
           const relativePath = path.relative(path.join(__dirname, '../effects'), fullPath);
@@ -405,7 +452,7 @@ export class EffectDiscovery {
         module = await importFn();
       } else {
         // Fallback for Electron/Node where direct relative import works during build time
-        const importPath = fileName.replace('.tsx', '');
+        const importPath = fileName.replace(/\.(tsx|ts|jsx|js)$/,'');
         // console.log(`🔍 Importing from path (fallback): "../effects/${importPath}"`);
         module = await import(/* @vite-ignore */ `../effects/${importPath}`);
       }
@@ -413,7 +460,7 @@ export class EffectDiscovery {
       
       // Try to get metadata from the module
       // Compute importPath only for logging/derived keys
-      const importPathForKeys = fileName.replace('.tsx', '');
+      const importPathForKeys = fileName.replace(/\.(tsx|ts|jsx|js)$/,'');
       const component = module.default || module[`${importPathForKeys}Component`];
       const metadata = module.metadata || component?.metadata || module[`${importPathForKeys}Metadata`];
       
@@ -518,7 +565,7 @@ export class EffectDiscovery {
       .replace(/([A-Z])/g, '-$1') // Handle single uppercase
       .toLowerCase()
       .replace(/^-/, '')
-      .replace(/\.tsx$/, '') // Remove .tsx extension
+      .replace(/\.(tsx|ts|js|jsx)$/, '') // Remove known extensions
       .replace(/-+$/, '') // Remove trailing hyphens
       .replace(/-+/g, '-'); // Replace multiple hyphens with single
     
@@ -605,7 +652,7 @@ export class EffectDiscovery {
   private getFileNameFromId(id: string): string {
     // console.log(`🔍 getFileNameFromId called with id: "${id}"`);
     
-    // If the ID is already a simple filename (no hyphens), just add .tsx
+    // If the ID is already a simple filename (no hyphens), just add .tsx (legacy default)
     if (!id.includes('-')) {
       const fileName = `${id}.tsx`;
       // console.log(`🔍 Simple filename detected, returning: "${fileName}"`);
@@ -629,6 +676,254 @@ export class EffectDiscovery {
     this.discoveredEffects.clear();
     this.effectComponents.clear();
     await this.discoverEffects();
+  }
+
+  /**
+   * Load user effects from an external directory
+   * This allows users to load custom effects from any directory, including @src/
+   */
+  async loadUserEffectsFromDirectory(directoryPath: string): Promise<ReactSelfContainedEffect[]> {
+    console.log(`🔍 Loading user effects from directory: ${directoryPath}`);
+    const effects: ReactSelfContainedEffect[] = [];
+
+    try {
+      // Check if we're in Electron environment for filesystem access
+      if (typeof window !== 'undefined' && (window as any).require) {
+        const fs = (window as any).require('fs');
+        const path = (window as any).require('path');
+
+        if (!fs.existsSync(directoryPath)) {
+          console.warn(`❌ Directory does not exist: ${directoryPath}`);
+          return effects;
+        }
+
+        // Recursively scan the directory for .tsx files
+        const userEffectFiles = this.scanDirectoryRecursively(fs, path, directoryPath);
+        console.log(`🔍 Found ${userEffectFiles.length} user effect files in ${directoryPath}`);
+
+        for (const filePath of userEffectFiles) {
+          try {
+            const effect = await this.loadUserEffectFromPath(filePath, directoryPath);
+            if (effect) {
+              // Add user- prefix to distinguish from built-in effects
+              const userEffectId = `user-${effect.id}`;
+              const userEffect = {
+                ...effect,
+                id: userEffectId,
+                name: `${effect.name} (User)`,
+                author: effect.author || 'User',
+                metadata: {
+                  ...effect.metadata,
+                  folder: 'user-effects',
+                  isUserEffect: true
+                }
+              };
+
+              this.userEffects.set(userEffectId, userEffect);
+              effects.push(userEffect);
+              console.log(`✅ Loaded user effect: ${userEffectId} (${userEffect.name})`);
+            }
+          } catch (error) {
+            console.warn(`❌ Could not load user effect from ${filePath}:`, error);
+          }
+        }
+      } else {
+        console.warn('❌ User effect loading requires Electron environment for filesystem access');
+      }
+    } catch (error) {
+      console.error('❌ Error loading user effects:', error);
+    }
+
+    console.log(`🎯 Loaded ${effects.length} user effects from ${directoryPath}`);
+    return effects;
+  }
+
+  /**
+   * Load a user effect from a specific file path
+   */
+  private async loadUserEffectFromPath(filePath: string, baseDirectory: string): Promise<ReactSelfContainedEffect | null> {
+    try {
+      const path = (window as any).require('path');
+      
+      // Convert file path to a module that can be imported
+      // This is tricky in Electron - we need to handle dynamic imports properly
+      const absolutePath = path.resolve(filePath);
+      
+      // For now, we'll use a workaround - copy the file to a temporary location in our effects folder
+      // and then import it. This is not ideal but works for the current architecture.
+      console.log(`🔍 Attempting to load user effect from: ${absolutePath}`);
+      
+      // Read the file content
+      const fs = (window as any).require('fs');
+      const fileContent = fs.readFileSync(absolutePath, 'utf8');
+      
+      // Create a temporary file in our effects folder
+      const tempFileName = `temp-user-${Date.now()}-${path.basename(filePath)}`;
+      const tempPath = path.join(__dirname, '../effects', tempFileName);
+      
+      try {
+        // Write temporary file
+        fs.writeFileSync(tempPath, fileContent);
+        
+        // Import the temporary file
+        const module = await import(/* @vite-ignore */ `../effects/${tempFileName.replace('.tsx', '')}`);
+        
+        // Clean up temporary file
+        fs.unlinkSync(tempPath);
+        
+        // Process the module similar to built-in effects
+        const component = module.default || module[`${path.basename(filePath, '.tsx')}Component`];
+        const metadata = module.metadata || component?.metadata || module[`${path.basename(filePath, '.tsx')}Metadata`];
+        
+        if (!component) {
+          console.warn(`❌ No component found in user effect file: ${filePath}`);
+          return null;
+        }
+
+        const baseFileName = path.basename(filePath);
+        const id = this.generateEffectId(baseFileName);
+        const name = metadata?.name || this.generateEffectName(baseFileName);
+        const category = metadata?.category || 'User Effects';
+        const description = metadata?.description || `${name} (user effect)`;
+        const icon = metadata?.icon || '';
+
+        const effect: ReactSelfContainedEffect = {
+          id,
+          name,
+          description,
+          category,
+          icon,
+          author: metadata?.author || 'User',
+          version: metadata?.version || '1.0.0',
+          metadata: {
+            parameters: metadata?.parameters || [],
+            category,
+            type: 'react-component',
+            component,
+            folder: 'user-effects',
+            isUserEffect: true
+          },
+          createEffect: (width: number, height: number): ReactEffectInstance => {
+            return {
+              id,
+              name,
+              component,
+              width,
+              height
+            };
+          }
+        };
+
+        return effect;
+      } catch (importError) {
+        // Clean up temporary file if it exists
+        try {
+          if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+          }
+        } catch {}
+        throw importError;
+      }
+    } catch (error) {
+      console.error(`❌ Error loading user effect from ${filePath}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all effects including user effects
+   */
+  getAllEffects(): ReactSelfContainedEffect[] {
+    const builtInEffects = Array.from(this.discoveredEffects.values());
+    const userEffects = Array.from(this.userEffects.values());
+    return [...builtInEffects, ...userEffects];
+  }
+
+  /**
+   * Get user effects only
+   */
+  getUserEffects(): ReactSelfContainedEffect[] {
+    return Array.from(this.userEffects.values());
+  }
+
+  /**
+   * Clear user effects
+   */
+  clearUserEffects(): void {
+    this.userEffects.clear();
+    this.userEffectImports.clear();
+  }
+
+  /**
+   * Load a single user effect from raw JS module content (ESM), suitable for external .js files.
+   * The module must export default React component and optional `metadata`.
+   * Note: External JS must not use bare imports; rely on globals (window.React, window.THREE, window.r3f).
+   */
+  async loadUserEffectFromContent(moduleText: string, sourceName = 'user-effect.js'): Promise<ReactSelfContainedEffect | null> {
+    try {
+      // Build a blob URL for dynamic import (CSP allows blob: but may block data:)
+      const blob = new Blob([moduleText], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      const module: any = await import(/* @vite-ignore */ url);
+      try { URL.revokeObjectURL(url); } catch {}
+
+      const component = module.default;
+      const metadata = module.metadata || component?.metadata || {};
+      if (!component || typeof component !== 'function') {
+        console.warn('User JS did not export a default React component');
+        return null;
+      }
+
+      const baseFileName = sourceName.replace(/[^a-zA-Z0-9_.-]/g, '');
+      const idBase = baseFileName.replace(/\.(js|mjs)$/i, '') || 'user-effect';
+      const id = this.generateEffectId(`${idBase}.tsx`); // reuse normalization
+      const name = metadata?.name || this.generateEffectName(idBase);
+      const category = metadata?.category || (metadata?.isSource ? 'Sources' : 'Effects');
+      const description = metadata?.description || `${name} (user effect)`;
+      const icon = metadata?.icon || '';
+
+      const effectId = `user-${id}`;
+      // Attach metadata to component so UI/EffectChain can read params directly
+      try { (component as any).metadata = metadata; } catch {}
+
+      // Register with effect registry so synchronous lookups work
+      try {
+        const { registerEffect } = await import('./effectRegistry');
+        registerEffect(effectId, component as any);
+      } catch {}
+
+      const effect: ReactSelfContainedEffect = {
+        id: effectId,
+        name,
+        description,
+        category,
+        icon,
+        author: metadata?.author || 'User',
+        version: metadata?.version || '1.0.0',
+        metadata: {
+          parameters: metadata?.parameters || [],
+          category,
+          type: 'react-component',
+          component,
+          folder: 'user-effects',
+          isSource: !!metadata?.isSource,
+          isUserEffect: true,
+        },
+        createEffect: (width: number, height: number): ReactEffectInstance => ({
+          id: effectId,
+          name,
+          component,
+          width,
+          height,
+        }),
+      };
+
+      this.userEffects.set(effect.id, effect);
+      return effect;
+    } catch (e) {
+      console.error('Failed to load user effect from JS content:', e);
+      return null;
+    }
   }
 
   /**

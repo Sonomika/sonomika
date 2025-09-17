@@ -534,19 +534,16 @@ export const EffectChain: React.FC<EffectChainProps> = ({
 
   // Build portals for sources/effects
   const portals = useMemo(() => {
-    return items.map((item, idx) => {
-      if (item.type === 'video') return null;
+    const list: React.ReactNode[] = [];
+    items.forEach((item, idx) => {
+      if (item.type === 'video') return;
       const EffectComponent = getEffectComponentSync(item.effectId);
-      if (!EffectComponent) return null;
+      if (!EffectComponent) return;
       const params = item.params || {};
-      const extras: Record<string, any> = {
-        compositionWidth,
-        compositionHeight
-      };
+      const extras: Record<string, any> = { compositionWidth, compositionHeight };
       if (item.type === 'effect') {
         const stageRT = rtRefs.current[idx]!;
         const candidate = inputTextures[idx] || null;
-        // Guard against feedback: never sample from the same RT we're writing to
         extras.videoTexture = stageRT && candidate === stageRT.texture ? null : candidate;
         extras.isGlobal = false;
         const src = extras.videoTexture as any;
@@ -555,7 +552,6 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       }
       const md: any = (EffectComponent as any)?.metadata || {};
       const replacesVideo: boolean = md?.replacesVideo === true;
-      const portalsForStage: React.ReactNode[] = [];
       const bgTex = ((): THREE.Texture | null => {
         const stageRT = rtRefs.current[idx]!;
         const candidate = inputTextures[idx] || null;
@@ -563,13 +559,12 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         return candidate as THREE.Texture | null;
       })();
       if (((item.type === 'effect' && !replacesVideo) || item.type === 'source') && bgTex) {
-        // Draw background with current input texture for overlay effects
         const aspect = compositionWidth / compositionHeight;
-        portalsForStage.push(
+        list.push(
           createPortal(
             React.createElement(
               'mesh',
-                             { key: `bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, renderOrder: -1000 },
+              { key: `bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, renderOrder: -1000 },
               React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
               React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
             ),
@@ -577,15 +572,15 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           )
         );
       }
-      portalsForStage.push(
+      list.push(
         createPortal(
-                     React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras }),
+          React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras }),
           offscreenScenes[idx]
         )
       );
-      return portalsForStage;
     });
-  }, [items, offscreenScenes, inputTextures]);
+    return list;
+  }, [items, offscreenScenes, inputTextures, compositionWidth, compositionHeight]);
 
   // Display final texture
   // Always render the final texture on a plane matching the composition aspect

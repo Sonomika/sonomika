@@ -603,9 +603,14 @@ function App() {
           if (!result.canceled && result.filePaths && result.filePaths[0]) {
             const content = await (window as any).electron.readFileText(result.filePaths[0]);
             if (content) {
-              const blob = new Blob([content], { type: 'application/json' });
-              const file = new File([blob], result.filePaths[0]);
-              await loadPreset(file);
+              const { loadPresetFromContent } = useStore.getState() as any;
+              if (typeof loadPresetFromContent === 'function') {
+                await loadPresetFromContent(content, String(result.filePaths[0]).split(/[\\\/]/).pop());
+              } else {
+                const blob = new Blob([content], { type: 'application/json' });
+                const file = new File([blob], result.filePaths[0]);
+                await loadPreset(file);
+              }
             }
           }
         })();

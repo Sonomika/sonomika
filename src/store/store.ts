@@ -207,6 +207,7 @@ export const useStore = createWithEqualityFn<AppState & {
   moveBetweenColumns: (sourceColumnId: string, destinationColumnId: string, sourceIndex: number, destinationIndex: number) => void;
   savePreset: (presetName?: string) => string | null;
   loadPreset: (file: File) => Promise<boolean>;
+  loadPresetFromContent?: (content: string, name?: string) => Promise<boolean>;
   // Cloud presets (web via Supabase)
   listCloudPresets: () => Promise<Array<{ name: string; updated_at?: string }>>;
   loadPresetCloud: (name: string) => Promise<boolean>;
@@ -914,7 +915,7 @@ export const useStore = createWithEqualityFn<AppState & {
         }
       },
 
-               // Load a preset
+               // Load a preset from a File (browser path)
               loadPreset: (file: File) => {
         return new Promise<boolean>((resolve) => {
           try {
@@ -922,46 +923,7 @@ export const useStore = createWithEqualityFn<AppState & {
             reader.onload = (e) => {
               try {
                 const presetData = e.target?.result as string;
-                const preset = JSON.parse(presetData);
-                const presetName = preset.displayName || preset.name || file.name;
-                // console.log('Loading preset:', presetName);
-                
-                // Check if the preset data is too large for localStorage
-                const dataSize = new Blob([presetData]).size;
-                const maxSize = 4 * 1024 * 1024; // 4MB limit to be safe
-                
-                if (dataSize > maxSize) {
-                  console.warn('⚠️ Preset data is too large for localStorage:', Math.round(dataSize / 1024), 'KB');
-                  
-                  // Try to load without large assets
-                  const cleanedData = {
-                    ...preset.data,
-                                         assets: preset.data.assets?.filter((asset: any) => {
-                       // Remove assets with base64Data that are too large
-                       if (asset.base64Data && asset.size > 1024 * 1024) { // 1MB
-                         // console.log('Removing large asset from preset:', asset.name, 'size:', Math.round(asset.size / 1024), 'KB');
-                         return false;
-                       }
-                       return true;
-                     }) || []
-                  };
-                  
-                  // Clear localStorage first to make space
-                  try {
-                    localStorage.removeItem('vj-app-storage');
-                    // console.log('Cleared localStorage to make space for preset');
-                  } catch (clearError) {
-                    console.warn('Failed to clear localStorage:', clearError);
-                  }
-                  
-                  // Apply the cleaned preset data
-                  set({ ...cleanedData, currentPresetName: presetName } as any);
-                  resolve(true);
-                } else {
-                  // Apply the preset data to the store
-                  set({ ...preset.data, currentPresetName: presetName } as any);
-                  resolve(true);
-                }
+                ;(get() as any).loadPresetFromContent!(presetData, file.name).then(resolve).catch(() => resolve(false));
               } catch (error) {
                 console.error('Failed to parse preset file:', error);
                 resolve(false);
@@ -977,6 +939,36 @@ export const useStore = createWithEqualityFn<AppState & {
             resolve(false);
           }
         });
+      },
+
+      // Load a preset from raw JSON content (Electron path)
+      loadPresetFromContent: async (content: string, name?: string) => {
+        try {
+          const preset = JSON.parse(content);
+          const presetName = preset.displayName || preset.name || name || 'preset';
+
+          const dataSize = new Blob([content]).size;
+          const maxSize = 4 * 1024 * 1024; // ~4MB safety
+
+          if (dataSize > maxSize) {
+            console.warn('⚠️ Preset data is too large for localStorage:', Math.round(dataSize / 1024), 'KB');
+            const cleanedData = {
+              ...preset.data,
+              assets: preset.data?.assets?.filter((asset: any) => {
+                return !(asset?.base64Data && asset.size > 1024 * 1024);
+              }) || []
+            };
+            try { localStorage.removeItem('vj-app-storage'); } catch (clearError) { console.warn('Failed to clear localStorage:', clearError); }
+            set({ ...cleanedData, currentPresetName: presetName } as any);
+            return true;
+          }
+
+          set({ ...preset.data, currentPresetName: presetName } as any);
+          return true;
+        } catch (e) {
+          console.error('Failed to load preset from content:', e);
+          return false;
+        }
       },
       
       // Cloud preset management (web only)

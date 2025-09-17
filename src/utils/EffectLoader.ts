@@ -4,14 +4,14 @@ const DEBUG_EFFECTS = !!(typeof window !== 'undefined' && (window as any).__DEBU
 
 // Preload all effect modules eagerly once so they self-register synchronously
 try {
-  const eagerModules = (import.meta as any).glob('../effects/**/*.tsx', { eager: true });
+  const eagerModules = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}', { eager: true });
   if (DEBUG_EFFECTS) console.log('🧪 Eager-loaded effect modules:', Object.keys(eagerModules));
 } catch (e) {
   if (DEBUG_EFFECTS) console.warn('⚠️ Eager preload failed; will rely on lazy loading only');
 }
 
 // Test what modules are available (lazy map)
-const testModules = (import.meta as any).glob('../effects/**/*.tsx');
+const testModules = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}');
 if (DEBUG_EFFECTS) console.log('🧪 Available effect modules (lazy map):', Object.keys(testModules));
 
 /**
@@ -30,20 +30,24 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
 
   try {
     // Try to load the effect by filename directly (search subfolders)
-    const modules = (import.meta as any).glob('../effects/**/*.tsx');
+    const modules = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}');
     
     // Try the exact filename first
-    const exactPath = `../effects/${effectId}.tsx`;
+    const exactPathTsx = `../effects/${effectId}.tsx`;
+    const exactPathJs = `../effects/${effectId}.js`;
+    const exactPathTs = `../effects/${effectId}.ts`;
+    const exactPathJsx = `../effects/${effectId}.jsx`;
     
     if (DEBUG_EFFECTS) {
       console.log(`🔍 Loading effect: ${effectId}`);
       console.log(`🔍 Available modules:`, Object.keys(modules));
-      console.log(`🔍 Trying exact path: ${exactPath} - exists: ${!!modules[exactPath]}`);
+      console.log(`🔍 Trying exact paths:`, { exactPathTsx, exactPathJs, exactPathTs, exactPathJsx });
     }
-    
-    if (modules[exactPath]) {
+
+    const exact = modules[exactPathTsx] || modules[exactPathJs] || modules[exactPathTs] || modules[exactPathJsx];
+    if (exact) {
       if (DEBUG_EFFECTS) console.log(`✅ Found effect at: ${exactPath}`);
-      const mod = await modules[exactPath]();
+      const mod = await exact();
       if (DEBUG_EFFECTS) {
         console.log(`✅ Effect module loaded:`, mod);
         console.log(`🔍 Module keys:`, Object.keys(mod));
@@ -59,7 +63,7 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
     
     // Try to find a file that matches the effectId (could be kebab-case or original filename)
     const matchingFile = availableFiles.find(file => {
-      const fileName = file.replace('../effects/', '').replace('.tsx', '');
+      const fileName = file.replace('../effects/', '').replace(/\.(tsx|ts|js|jsx)$/,'');
       
       // Check if the effectId matches the filename directly
       if (fileName === effectId) return true;
@@ -133,8 +137,8 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
     const baseCandidates = [id, camelCase, `${camelCase}Effect`, withoutEffectSuffix];
     // Return the first candidate that matches a discovered module filename
     try {
-      const modules = (import.meta as any).glob('../effects/**/*.tsx');
-      const available = new Set(Object.keys(modules).map((p: string) => p.replace('../effects/', '').replace('.tsx', '')));
+      const modules = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}');
+      const available = new Set(Object.keys(modules).map((p: string) => p.replace('../effects/', '').replace(/\.(tsx|ts|js|jsx)$/,'')));
       // Expand candidates with subfolder prefixes to handle sources/ and visual-effects/
       const expanded: string[] = [];
       for (const c of baseCandidates) {

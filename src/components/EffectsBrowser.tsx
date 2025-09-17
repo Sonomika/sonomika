@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { HeartIcon } from '@radix-ui/react-icons';
+import { HeartIcon, PlusIcon } from '@radix-ui/react-icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent, Button } from './ui';
+import { UserEffectsLoader } from './UserEffectsLoader';
 
 interface EffectsBrowserProps {
   onClose?: () => void;
@@ -15,7 +16,7 @@ type LightEffect = {
   icon: string;
   author: string;
   version: string;
-  metadata: { folder?: string; isSource?: boolean; [key: string]: any };
+  metadata: { folder?: string; isSource?: boolean; isUserEffect?: boolean; [key: string]: any };
   fileKey?: string;
 };
 
@@ -24,9 +25,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingText, setLoadingText] = useState('Discovering effects...');
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'effects' | 'sources' | 'favorites'>('effects');
+  const [activeTab, setActiveTab] = useState<'effects' | 'sources' | 'user' | 'favorites'>('effects');
   const [effects, setEffects] = useState<LightEffect[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [userEffectsLoaderOpen, setUserEffectsLoaderOpen] = useState(false);
 
   const refreshEffects = async () => {
     let mounted = true;
@@ -98,8 +100,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     );
   }, [effects, search]);
 
-  const visualEffectsAll = filtered.filter((e) => !(e.metadata?.isSource || e.metadata?.folder === 'sources'));
-  const generativeSourcesAll = filtered.filter((e) => e.metadata?.isSource || e.metadata?.folder === 'sources');
+  const visualEffectsAll = filtered.filter((e) => !(e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect);
+  const generativeSourcesAll = filtered.filter((e) => (e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect);
+  const userEffectsAll = filtered.filter((e) => e.metadata?.isUserEffect);
 
   const visualEffects = Array.from(
     visualEffectsAll.reduce((map, e) => {
@@ -127,8 +130,19 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     }, new Map<string, LightEffect>()).values()
   );
 
+  const userEffects = Array.from(
+    userEffectsAll.reduce((map, e) => {
+      const existing = map.get(e.id);
+      if (!existing) {
+        map.set(e.id, e);
+      }
+      return map;
+    }, new Map<string, LightEffect>()).values()
+  );
+
   const favoritedVisualEffects = visualEffects.filter((e) => favorites.includes(effectKey(e)));
   const favoritedGenerativeSources = generativeSources.filter((e) => favorites.includes(effectKey(e)));
+  const favoritedUserEffects = userEffects.filter((e) => favorites.includes(effectKey(e)));
 
   if (isLoading) {
     return (
@@ -159,16 +173,18 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   return (
     <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
       <div className="tw-mb-2">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources' | 'favorites')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources' | 'user' | 'favorites')}>
           <TabsList>
             <TabsTrigger value="effects">Visual Effects</TabsTrigger>
             <TabsTrigger value="sources">Generative Sources</TabsTrigger>
+            <TabsTrigger value="user">User Effects</TabsTrigger>
             <TabsTrigger value="favorites" title="Favorites">
               <HeartIcon className="tw-w-4 tw-h-4" />
             </TabsTrigger>
           </TabsList>
           <TabsContent value="effects" />
           <TabsContent value="sources" />
+          <TabsContent value="user" />
           <TabsContent value="favorites" />
         </Tabs>
       </div>
@@ -181,6 +197,13 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           className="tw-flex-1 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
         />
         <Button 
+          onClick={() => setUserEffectsLoaderOpen(true)}
+          className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-3 tw-py-1 tw-text-sm"
+          title="Load user effects"
+        >
+          <PlusIcon className="tw-w-4 tw-h-4" />
+        </Button>
+        <Button 
           onClick={refreshEffects} 
           disabled={isLoading}
           className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-3 tw-py-1 tw-text-sm"
@@ -190,7 +213,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
         </Button>
       </div>
       <div className="tw-flex-1 tw-overflow-auto tw-p-3">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources' | 'favorites')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources' | 'user' | 'favorites')}>
           <TabsContent value="effects">
             <div className="tw-space-y-2">
               {visualEffects.map((e) => (
@@ -241,6 +264,50 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                 >
                   <div className="tw-flex tw-items-center tw-justify-between">
                     <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                      className={
+                        'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
+                      }
+                      title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="user">
+            <div className="tw-space-y-2">
+              {userEffects.length === 0 && (
+                <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
+                  <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No User Effects Loaded</h3>
+                  <p className="tw-text-neutral-300 tw-mb-4">Load custom effects from your @src/ directory or any other location.</p>
+                  <Button onClick={() => setUserEffectsLoaderOpen(true)}>
+                    Load User Effects
+                  </Button>
+                </div>
+              )}
+              {userEffects.map((e) => (
+                <div
+                  key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
+                  className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
+                  draggable
+                  onDragStart={(ev) => {
+                    ev.dataTransfer.setData('application/json', JSON.stringify({
+                      type: 'effect', isEffect: true, id: e.id, name: e.name,
+                      description: e.description, category: e.category, icon: e.icon,
+                      metadata: e.metadata, assetType: 'effect', isSource: e.metadata?.isSource || false,
+                    }));
+                  }}
+                  title={`${e.name}: ${e.description} (Author: ${e.author})`}
+                >
+                  <div className="tw-flex tw-items-center tw-justify-between">
+                    <div>
+                      <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                      <div className="tw-text-xs tw-text-neutral-400">by {e.author}</div>
+                    </div>
                     <button
                       onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
                       className={
@@ -329,10 +396,57 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   ))}
                 </div>
               </div>
+              <div>
+                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">User Effects</div>
+                <div className="tw-space-y-2">
+                  {favoritedUserEffects.length === 0 && (
+                    <div className="tw-text-xs tw-text-neutral-500">No favorited user effects yet.</div>
+                  )}
+                  {favoritedUserEffects.map((e) => (
+                    <div
+                      key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
+                      className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
+                      draggable
+                      onDragStart={(ev) => {
+                        ev.dataTransfer.setData('application/json', JSON.stringify({
+                          type: 'effect', isEffect: true, id: e.id, name: e.name,
+                          description: e.description, category: e.category, icon: e.icon,
+                          metadata: e.metadata, assetType: 'effect', isSource: e.metadata?.isSource || false,
+                        }));
+                      }}
+                      title={`${e.name}: ${e.description} (Author: ${e.author})`}
+                    >
+                      <div className="tw-flex tw-items-center tw-justify-between">
+                        <div>
+                          <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                          <div className="tw-text-xs tw-text-neutral-400">by {e.author}</div>
+                        </div>
+                        <button
+                          onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                          className={
+                            'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
+                          }
+                          title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
+                        >
+                          <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
       </div>
+      <UserEffectsLoader
+        open={userEffectsLoaderOpen}
+        onOpenChange={setUserEffectsLoaderOpen}
+        onEffectsLoaded={(count) => {
+          console.log(`Loaded ${count} user effects`);
+          refreshEffects(); // Refresh the effects list to show newly loaded effects
+        }}
+      />
     </div>
   );
 };
