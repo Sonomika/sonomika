@@ -26,7 +26,6 @@
   "license": "ISC",
   "devDependencies": {
     "@shadcn/ui": "^0.0.4",
-    "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^24.3.2",
     "@types/p5": "^1.7.6",
     "@types/react": "19.1.13",
@@ -39,8 +38,8 @@
     "electron": "^38.0.0",
     "electron-builder": "^26.0.12",
     "patch-package": "^8.0.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.13",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.14",
     "typescript": "^5.9.2",
     "vite": "^7.1.5",
     "vite-plugin-electron": "^0.29.0",
