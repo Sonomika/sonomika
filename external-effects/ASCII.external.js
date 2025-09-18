@@ -97,16 +97,24 @@ export default function ASCIIExternal({
   const asciiTexture = useMemo(() => createCharactersTexture(effectiveChars, nFontSize), [effectiveChars, nFontSize]);
   useEffect(() => () => { try { asciiTexture && asciiTexture.dispose && asciiTexture.dispose(); } catch {} }, [asciiTexture]);
 
-  const renderTarget = useMemo(() => {
-    if (isGlobal) {
-      return new THREE.WebGLRenderTarget(
-        Math.max(1, effectiveW), Math.max(1, effectiveH),
-        { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }
-      );
-    }
-    return null;
+  // Ping-pong targets to avoid framebuffer-texture feedback
+  const renderTargetA = useMemo(() => {
+    if (!isGlobal) return null;
+    return new THREE.WebGLRenderTarget(
+      Math.max(1, effectiveW), Math.max(1, effectiveH),
+      { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }
+    );
   }, [isGlobal, effectiveW, effectiveH]);
-  useEffect(() => () => { try { renderTarget && renderTarget.dispose && renderTarget.dispose(); } catch {} }, [renderTarget]);
+  const renderTargetB = useMemo(() => {
+    if (!isGlobal) return null;
+    return new THREE.WebGLRenderTarget(
+      Math.max(1, effectiveW), Math.max(1, effectiveH),
+      { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }
+    );
+  }, [isGlobal, effectiveW, effectiveH]);
+  const pingPongRef = useRef(true);
+  useEffect(() => () => { try { renderTargetA && renderTargetA.dispose && renderTargetA.dispose(); } catch {} }, [renderTargetA]);
+  useEffect(() => () => { try { renderTargetB && renderTargetB.dispose && renderTargetB.dispose(); } catch {} }, [renderTargetB]);
 
   const frag = `
 uniform sampler2D inputBuffer;
@@ -182,13 +190,18 @@ void main() {
 
   useFrame(() => {
     const m = materialRef.current; if (!m || !shaderMaterial) return;
-    if (isGlobal && renderTarget && gl && scene && camera) {
+    if (isGlobal && renderTargetA && renderTargetB && gl && scene && camera) {
       const currentRT = gl.getRenderTarget();
       const wasVisible = meshRef.current ? meshRef.current.visible : undefined;
       if (meshRef.current) meshRef.current.visible = false;
-      try { gl.setRenderTarget(renderTarget); gl.render(scene, camera); }
+      try {
+        const writeRT = pingPongRef.current ? renderTargetA : renderTargetB;
+        const readRT = pingPongRef.current ? renderTargetB : renderTargetA;
+        gl.setRenderTarget(writeRT); gl.render(scene, camera);
+        if (m.uniforms.inputBuffer.value !== readRT.texture) m.uniforms.inputBuffer.value = readRT.texture;
+        pingPongRef.current = !pingPongRef.current;
+      }
       finally { gl.setRenderTarget(currentRT); if (meshRef.current && wasVisible !== undefined) meshRef.current.visible = wasVisible; }
-      if (m.uniforms.inputBuffer.value !== renderTarget.texture) m.uniforms.inputBuffer.value = renderTarget.texture;
     } else if (!isGlobal && videoTexture) {
       if (m.uniforms.inputBuffer.value !== videoTexture) m.uniforms.inputBuffer.value = videoTexture;
     }
@@ -197,8 +210,11 @@ void main() {
   useEffect(() => {
     const m = materialRef.current; if (!m) return;
     m.uniforms.resolution.value.set(Math.max(1, effectiveW), Math.max(1, effectiveH));
-    if (isGlobal && renderTarget) renderTarget.setSize(Math.max(1, effectiveW), Math.max(1, effectiveH));
-  }, [effectiveW, effectiveH, isGlobal, renderTarget]);
+    if (isGlobal && renderTargetA && renderTargetB) {
+      renderTargetA.setSize(Math.max(1, effectiveW), Math.max(1, effectiveH));
+      renderTargetB.setSize(Math.max(1, effectiveW), Math.max(1, effectiveH));
+    }
+  }, [effectiveW, effectiveH, isGlobal, renderTargetA, renderTargetB]);
 
   const aspect = useMemo(() => {
     try { if (size && size.width > 0 && size.height > 0) return size.width / size.height; } catch {}

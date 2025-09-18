@@ -140,18 +140,26 @@ export const ASCII = React.memo(function ASCII({
     }
   }, [effectiveChars.length]);
 
-  // Render target for global path
-  const renderTarget = useMemo(() => {
-    if (isGlobal) {
-      return new THREE.WebGLRenderTarget(
-        Math.max(1, effectiveCompositionWidth),
-        Math.max(1, effectiveCompositionHeight),
-        { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }
-      );
-    }
-    return null;
+  // Ping-pong render targets for global path to avoid texture/framebuffer feedback
+  const renderTargetA = useMemo(() => {
+    if (!isGlobal) return null;
+    return new THREE.WebGLRenderTarget(
+      Math.max(1, effectiveCompositionWidth),
+      Math.max(1, effectiveCompositionHeight),
+      { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }
+    );
   }, [isGlobal, effectiveCompositionWidth, effectiveCompositionHeight]);
-  useEffect(() => () => { try { renderTarget && renderTarget.dispose && renderTarget.dispose(); } catch {} }, [renderTarget]);
+  const renderTargetB = useMemo(() => {
+    if (!isGlobal) return null;
+    return new THREE.WebGLRenderTarget(
+      Math.max(1, effectiveCompositionWidth),
+      Math.max(1, effectiveCompositionHeight),
+      { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }
+    );
+  }, [isGlobal, effectiveCompositionWidth, effectiveCompositionHeight]);
+  const pingPongRef = useRef(true);
+  useEffect(() => () => { try { renderTargetA && renderTargetA.dispose && renderTargetA.dispose(); } catch {} }, [renderTargetA]);
+  useEffect(() => () => { try { renderTargetB && renderTargetB.dispose && renderTargetB.dispose(); } catch {} }, [renderTargetB]);
 
   // Shader code
   const adaptedFragment = `
@@ -256,20 +264,24 @@ void main() {
   // Render loop
   useFrame(() => {
     if (materialRef.current && shaderMaterial) {
-      if (isGlobal && renderTarget) {
+      if (isGlobal && renderTargetA && renderTargetB) {
         const currentRenderTarget = gl.getRenderTarget();
         const wasVisible = meshRef.current ? meshRef.current.visible : undefined;
         if (meshRef.current) meshRef.current.visible = false;
         try {
-          gl.setRenderTarget(renderTarget);
+          const writeRT = pingPongRef.current ? renderTargetA : renderTargetB;
+          const readRT = pingPongRef.current ? renderTargetB : renderTargetA;
+          gl.setRenderTarget(writeRT);
           gl.render(scene, camera);
         } finally {
           gl.setRenderTarget(currentRenderTarget);
           if (meshRef.current && wasVisible !== undefined) meshRef.current.visible = wasVisible;
         }
-        if (materialRef.current.uniforms.inputBuffer.value !== renderTarget.texture) {
-          materialRef.current.uniforms.inputBuffer.value = renderTarget.texture;
+        const readRT = pingPongRef.current ? renderTargetB : renderTargetA;
+        if (materialRef.current.uniforms.inputBuffer.value !== readRT.texture) {
+          materialRef.current.uniforms.inputBuffer.value = readRT.texture;
         }
+        pingPongRef.current = !pingPongRef.current;
       } else if (!isGlobal && videoTexture) {
         if (materialRef.current.uniforms.inputBuffer.value !== videoTexture) {
           materialRef.current.uniforms.inputBuffer.value = videoTexture;
@@ -317,10 +329,11 @@ void main() {
         Math.max(1, effectiveCompositionHeight)
       );
     }
-    if (isGlobal && renderTarget) {
-      renderTarget.setSize(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
+    if (isGlobal && renderTargetA && renderTargetB) {
+      renderTargetA.setSize(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
+      renderTargetB.setSize(Math.max(1, effectiveCompositionWidth), Math.max(1, effectiveCompositionHeight));
     }
-  }, [effectiveCompositionWidth, effectiveCompositionHeight, isGlobal, renderTarget]);
+  }, [effectiveCompositionWidth, effectiveCompositionHeight, isGlobal, renderTargetA, renderTargetB]);
 
   // Aspect
   const compositionAspect = useMemo(() => (size.width > 0 && size.height > 0 ? size.width / size.height : 16 / 9), [size]);
