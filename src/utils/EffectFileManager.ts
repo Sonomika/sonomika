@@ -6,7 +6,7 @@ export interface GeneratedEffectCode {
   id: string;
   name: string;
   description: string;
-  category: 'visual-effects' | 'sources';
+  category: 'effects' | 'sources';
   code: string;
 }
 
@@ -14,7 +14,7 @@ export interface EffectFileInfo {
   id: string;
   name: string;
   description: string;
-  category: 'visual-effects' | 'sources';
+  category: 'effects' | 'sources';
   filePath: string;
   createdAt: Date;
   modifiedAt: Date;
@@ -44,7 +44,7 @@ export class EffectFileManager {
       await this.ensureDirectoryExists();
 
       // Determine the file path based on category
-      const categoryPath = effect.category === 'sources' ? 'sources' : 'visual-effects';
+      const categoryPath = effect.category === 'sources' ? 'sources' : 'effects';
       const fileName = this.generateFileName(effect.name);
       const filePath = `${this.aiGeneratedEffectsPath}/${categoryPath}/${fileName}`;
 
@@ -57,13 +57,13 @@ export class EffectFileManager {
         const path = (window as any).require('path');
         
         // Ensure the category directory exists
-        const categoryDir = path.join(__dirname, `../effects/ai-generated/${categoryPath}`);
+        const categoryDir = path.join(__dirname, `../bank/ai-generated/${categoryPath}`);
         if (!fs.existsSync(categoryDir)) {
           fs.mkdirSync(categoryDir, { recursive: true });
         }
 
         // Write the file
-        const fullPath = path.join(__dirname, `../effects/ai-generated/${categoryPath}/${fileName}`);
+        const fullPath = path.join(__dirname, `../bank/ai-generated/${categoryPath}/${fileName}`);
         fs.writeFileSync(fullPath, fileContent, 'utf8');
 
         // Get file stats
@@ -120,14 +120,14 @@ export class EffectFileManager {
         const path = (window as any).require('path');
         
         const effects: EffectFileInfo[] = [];
-        const basePath = path.join(__dirname, '../effects/ai-generated');
+        const basePath = path.join(__dirname, '../bank/ai-generated');
         
         if (!fs.existsSync(basePath)) {
           return effects;
         }
 
-        // Scan both visual-effects and sources directories
-        const categories = ['visual-effects', 'sources'];
+        // Scan both effects and sources directories (support legacy visual-effects if present)
+        const categories = ['effects', 'sources', 'visual-effects'];
         
         for (const category of categories) {
           const categoryPath = path.join(basePath, category);
@@ -147,7 +147,7 @@ export class EffectFileManager {
                   id,
                   name,
                   description: `AI-generated ${category === 'sources' ? 'source' : 'effect'}`,
-                  category: category as 'visual-effects' | 'sources',
+                  category: (category === 'visual-effects' ? 'effects' : (category as 'effects' | 'sources')),
                   filePath,
                   createdAt: stats.birthtime,
                   modifiedAt: stats.mtime,
@@ -228,13 +228,13 @@ export class EffectFileManager {
       const fs = (window as any).require('fs');
       const path = (window as any).require('path');
       
-      const basePath = path.join(__dirname, '../effects/ai-generated');
+      const basePath = path.join(__dirname, '../bank/ai-generated');
       if (!fs.existsSync(basePath)) {
         fs.mkdirSync(basePath, { recursive: true });
       }
 
-      // Ensure category directories exist
-      const categories = ['visual-effects', 'sources'];
+      // Ensure category directories exist (effects and sources)
+      const categories = ['effects', 'sources'];
       for (const category of categories) {
         const categoryPath = path.join(basePath, category);
         if (!fs.existsSync(categoryPath)) {

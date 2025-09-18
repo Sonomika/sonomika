@@ -4,14 +4,14 @@ const DEBUG_EFFECTS = !!(typeof window !== 'undefined' && (window as any).__DEBU
 
 // Preload all effect modules eagerly once so they self-register synchronously
 try {
-  const eagerModules = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}', { eager: true });
+  const eagerModules = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}', { eager: true });
   if (DEBUG_EFFECTS) console.log('🧪 Eager-loaded effect modules:', Object.keys(eagerModules));
 } catch (e) {
   if (DEBUG_EFFECTS) console.warn('⚠️ Eager preload failed; will rely on lazy loading only');
 }
 
 // Test what modules are available (lazy map)
-const testModules = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}');
+const testModules = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}');
 if (DEBUG_EFFECTS) console.log('🧪 Available effect modules (lazy map):', Object.keys(testModules));
 
 /**
@@ -30,13 +30,13 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
 
   try {
     // Try to load the effect by filename directly (search subfolders)
-    const modules = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}');
+    const modules = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}');
     
     // Try the exact filename first
-    const exactPathTsx = `../effects/${effectId}.tsx`;
-    const exactPathJs = `../effects/${effectId}.js`;
-    const exactPathTs = `../effects/${effectId}.ts`;
-    const exactPathJsx = `../effects/${effectId}.jsx`;
+    const exactPathTsx = `../bank/${effectId}.tsx`;
+    const exactPathJs = `../bank/${effectId}.js`;
+    const exactPathTs = `../bank/${effectId}.ts`;
+    const exactPathJsx = `../bank/${effectId}.jsx`;
     
     if (DEBUG_EFFECTS) {
       console.log(`🔍 Loading effect: ${effectId}`);
@@ -63,7 +63,7 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
     
     // Try to find a file that matches the effectId (could be kebab-case or original filename)
     const matchingFile = availableFiles.find(file => {
-      const fileName = file.replace('../effects/', '').replace(/\.(tsx|ts|js|jsx)$/,'');
+      const fileName = file.replace('../bank/', '').replace(/\.(tsx|ts|js|jsx)$/,'');
       
       // Check if the effectId matches the filename directly
       if (fileName === effectId) return true;
@@ -137,14 +137,18 @@ export const useEffectComponent = (effectId: string): React.ComponentType<any> |
     const baseCandidates = [id, camelCase, `${camelCase}Effect`, withoutEffectSuffix];
     // Return the first candidate that matches a discovered module filename
     try {
-      const modules = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}');
-      const available = new Set(Object.keys(modules).map((p: string) => p.replace('../effects/', '').replace(/\.(tsx|ts|js|jsx)$/,'')));
+      const modules = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}');
+      const available = new Set(
+        Object.keys(modules)
+          .map((p: string) => p.replace('../bank/', '').replace(/\.(tsx|ts|js|jsx)$/,''))
+      );
       // Expand candidates with subfolder prefixes to handle sources/ and visual-effects/
       const expanded: string[] = [];
       for (const c of baseCandidates) {
         expanded.push(c);
         expanded.push(`sources/${c}`);
-        expanded.push(`visual-effects/${c}`);
+        expanded.push(`effects/${c}`); // bank/effects
+        expanded.push(`visual-effects/${c}`); // legacy support
       }
       const match = expanded.find(c => available.has(c));
       return match || id;
@@ -216,13 +220,14 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
     const withoutEffectSuffix = camelCase.replace(/Effect$/, '');
     const candidates = [id, camelCase, `${camelCase}Effect`, withoutEffectSuffix];
     try {
-      const modules = (import.meta as any).glob('../effects/**/*.tsx');
-      const available = new Set(Object.keys(modules).map((p: string) => p.replace('../effects/', '').replace('.tsx', '')));
+      const modules = (import.meta as any).glob('../bank/**/*.tsx');
+      const available = new Set(Object.keys(modules).map((p: string) => p.replace('../bank/', '').replace('.tsx', '')));
       const expanded: string[] = [];
       for (const c of candidates) {
         expanded.push(c);
         expanded.push(`sources/${c}`);
-        expanded.push(`visual-effects/${c}`);
+        expanded.push(`effects/${c}`); // bank/effects
+        expanded.push(`visual-effects/${c}`); // legacy support
       }
       const match = expanded.find(c => available.has(c));
       return match || id;
@@ -246,7 +251,7 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
   }
   if (!registeredEffect) {
     // Try prefixed variants once more
-    registeredEffect = getEffect(`sources/${effectId}`) || getEffect(`visual-effects/${effectId}`) || null;
+    registeredEffect = getEffect(`sources/${effectId}`) || getEffect(`effects/${effectId}`) || getEffect(`visual-effects/${effectId}`) || null;
   }
   if (registeredEffect) {
     if (DEBUG_EFFECTS) console.log(`✅ Found effect in registry (sync):`, registeredEffect?.name || updatedEffectId);

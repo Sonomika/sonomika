@@ -116,14 +116,14 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
     }
   };
 
-  // Quick load from @external-effects/ (project examples) as if they were external files
+  // Quick load from @external-bank/ (project examples) as if they were external files
   const handleLoadFromExternalExamples = async () => {
     setIsLoading(true);
     try {
       const { EffectDiscovery } = await import('../utils/EffectDiscovery');
       const discovery = EffectDiscovery.getInstance();
-      // Import raw sources for all example effects
-      const modules: Record<string, () => Promise<string>> = (import.meta as any).glob('../../external-effects/*.js', { as: 'raw', eager: false });
+      // Import raw sources for all example effects (recursive, allow subfolders)
+      const modules: Record<string, () => Promise<string>> = (import.meta as any).glob('../../external-bank/**/*.{js,mjs}', { as: 'raw', eager: false });
       let count = 0;
       for (const [p, loader] of Object.entries(modules)) {
         try {
@@ -136,15 +136,15 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
         }
       }
       if (count > 0) {
-        toast({ title: 'Loaded', description: `Loaded ${count} effect(s) from @external-effects/` });
+        toast({ title: 'Loaded', description: `Loaded ${count} effect(s) from @external-bank/` });
         onEffectsLoaded?.(count);
         onOpenChange(false);
       } else {
-        toast({ title: 'No Effects Found', description: 'No .js effects found in @external-effects/' });
+        toast({ title: 'No Effects Found', description: 'No .js effects found in @external-bank/' });
       }
     } catch (e) {
-      console.error('Error loading @external-effects/', e);
-      toast({ title: 'Error', description: 'Failed to load from @external-effects/' });
+      console.error('Error loading @external-bank/', e);
+      toast({ title: 'Error', description: 'Failed to load from @external-bank/' });
     } finally {
       setIsLoading(false);
     }
@@ -228,10 +228,10 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
         
         <div className="tw-space-y-4">
           <div className="tw-space-y-2">
-            <h4 className="tw-text-sm tw-font-medium">Quick Load from @external-effects/</h4>
-            <p className="tw-text-xs tw-text-neutral-400">Load portable .js effects in the project external-effects folder.</p>
+            <h4 className="tw-text-sm tw-font-medium">Quick Load from @external-bank/</h4>
+            <p className="tw-text-xs tw-text-neutral-400">Load portable .js effects in the project external-bank folder (supports subfolders).</p>
             <Button onClick={handleLoadFromExternalExamples} disabled={isLoading} className="tw-w-full">
-              {isLoading ? 'Loading...' : 'Load from @external-effects/'}
+              {isLoading ? 'Loading...' : 'Load from @external-bank/'}
             </Button>
           </div>
 

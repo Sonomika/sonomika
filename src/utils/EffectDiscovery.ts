@@ -153,10 +153,10 @@ export class EffectDiscovery {
 
     try {
       // Build map of effect modules without importing them
-      const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}', { eager: false });
+      const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
       for (const [modulePath, importFn] of Object.entries(effectModules)) {
         // Normalize key to be relative to effects folder
-        const normalized = modulePath.replace('../effects/', '');
+        const normalized = modulePath.replace('../bank/', '');
         const folder = this.getFolderCategory(normalized);
         const baseFileName = normalized.split('/').pop() || normalized;
         const id = this.generateEffectId(baseFileName);
@@ -322,29 +322,47 @@ export class EffectDiscovery {
         const fs = (window as any).require('fs');
         const path = (window as any).require('path');
         
-        // Get the effects folder paths - now we have visual-effects and sources subfolders
-        const effectsFolder = path.join(__dirname, '../effects');
-        const visualEffectsFolder = path.join(effectsFolder, 'visual-effects');
+        // Get the effects folder paths - now we have effects and sources subfolders
+        const bankFolderRoot = path.join(__dirname, '../bank');
+        const effectsFolder = bankFolderRoot; // keep variable name for relative path calculations
+        const visualEffectsFolderLegacy = path.join(effectsFolder, 'visual-effects');
+        const visualEffectsFolderNew = path.join(effectsFolder, 'effects');
         const sourcesFolder = path.join(effectsFolder, 'sources');
+        const bankFolder = path.join(effectsFolder, 'bank');
+        const bankEffectsFolder = path.join(bankFolder, 'effects');
+        const bankSourcesFolder = path.join(bankFolder, 'sources');
         
         // Recursively scan for all .tsx files in all effect folders
         let effectFiles: string[] = [];
         
-        // Scan main effects folder (for any remaining effects)
-        if (fs.existsSync(effectsFolder)) {
-          effectFiles = effectFiles.concat(this.scanDirectoryRecursively(fs, path, effectsFolder));
+        // Scan root bank folder recursively
+        if (fs.existsSync(bankFolderRoot)) {
+          effectFiles = effectFiles.concat(this.scanDirectoryRecursively(fs, path, bankFolderRoot));
         }
         
-        // Scan visual-effects folder (visual effects that modify content)
-        if (fs.existsSync(visualEffectsFolder)) {
-          const visualEffectFiles = this.scanDirectoryRecursively(fs, path, visualEffectsFolder);
-          effectFiles = effectFiles.concat(visualEffectFiles);
+        // Scan effects folder (visual effects that modify content) - prefer new folder name, fallback to legacy
+        if (fs.existsSync(visualEffectsFolderNew)) {
+          const visualEffectFiles = this.scanDirectoryRecursively(fs, path, visualEffectsFolderNew);
+          effectFiles = effectFiles.concat(visualEffectFiles.map((p: string) => p.replace(/^visual-effects\//, 'effects/')));
+        } else if (fs.existsSync(visualEffectsFolderLegacy)) {
+          const visualEffectFiles = this.scanDirectoryRecursively(fs, path, visualEffectsFolderLegacy);
+          effectFiles = effectFiles.concat(visualEffectFiles.map((p: string) => p));
         }
         
         // Scan sources folder (generative content that creates new material)
         if (fs.existsSync(sourcesFolder)) {
           const sourceFiles = this.scanDirectoryRecursively(fs, path, sourcesFolder);
           effectFiles = effectFiles.concat(sourceFiles);
+        }
+        
+        // Scan bank folders (curated built-in effect bank)
+        if (fs.existsSync(bankEffectsFolder)) {
+          const bankEffectFiles = this.scanDirectoryRecursively(fs, path, bankEffectsFolder);
+          effectFiles = effectFiles.concat(bankEffectFiles);
+        }
+        if (fs.existsSync(bankSourcesFolder)) {
+          const bankSourceFiles = this.scanDirectoryRecursively(fs, path, bankSourcesFolder);
+          effectFiles = effectFiles.concat(bankSourceFiles);
         }
         
         return effectFiles;
@@ -361,7 +379,7 @@ export class EffectDiscovery {
           // console.log('🔍 Attempting to use import.meta.glob for dynamic discovery...');
           
           // This should dynamically discover all supported files in the effects directory and subdirectories
-          const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../effects/**/*.{tsx,jsx,ts,js}', { eager: false });
+          const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
           
           // console.log('🔍 Found effect modules:', Object.keys(effectModules));
           
@@ -372,7 +390,7 @@ export class EffectDiscovery {
               await (importFn as any)();
               
               // Extract the effect path from the glob key and preserve extension
-              const normalized = modulePath.replace('../effects/', '');
+              const normalized = modulePath.replace('../bank/', '');
               discoveredFiles.push(normalized);
               // Register import function so we can load deterministically later
               this.browserEffectImports.set(normalized, importFn);
@@ -421,7 +439,7 @@ export class EffectDiscovery {
         } else if ((/\.(tsx|ts|jsx|js)$/).test(item) && !item.startsWith('.')) {
           // Found a .tsx file, add it to the list
           // Convert to relative path from effects folder
-          const relativePath = path.relative(path.join(__dirname, '../effects'), fullPath);
+          const relativePath = path.relative(path.join(__dirname, '../bank'), fullPath);
           effectFiles.push(relativePath.replace(/\\/g, '/')); // Normalize path separators
         }
       }
@@ -453,8 +471,8 @@ export class EffectDiscovery {
       } else {
         // Fallback for Electron/Node where direct relative import works during build time
         const importPath = fileName.replace(/\.(tsx|ts|jsx|js)$/,'');
-        // console.log(`🔍 Importing from path (fallback): "../effects/${importPath}"`);
-        module = await import(/* @vite-ignore */ `../effects/${importPath}`);
+        // console.log(`🔍 Importing from path (fallback): "../bank/${importPath}"`);
+        module = await import(/* @vite-ignore */ `../bank/${importPath}`);
       }
       // console.log(`✅ Successfully imported module:`, module);
       
@@ -638,7 +656,7 @@ export class EffectDiscovery {
     try {
       const fileName = this.getFileNameFromId(id);
       const importPath = fileName.replace('.tsx', '');
-      const module = await import(/* @vite-ignore */ `../effects/${importPath}`);
+      const module = await import(/* @vite-ignore */ `../bank/${importPath}`);
       return module.default || module[`${importPath}Component`] || null;
     } catch (error) {
       console.warn(`Could not load component for effect ${id}:`, error);
@@ -930,11 +948,18 @@ export class EffectDiscovery {
    * Determine the folder category (visual-effects or sources) from a normalized path
    */
   private getFolderCategory(normalizedPath: string): string {
-    if (normalizedPath.includes('visual-effects')) {
-      return 'visual-effects';
+    if (normalizedPath.includes('/bank/sources/') || normalizedPath.startsWith('bank/sources/')) {
+      return 'sources';
+    }
+    if (normalizedPath.includes('/bank/effects/') || normalizedPath.startsWith('bank/effects/')) {
+      return 'effects';
+    }
+    if (normalizedPath.includes('effects') || normalizedPath.includes('visual-effects')) {
+      return 'effects';
     } else if (normalizedPath.includes('sources')) {
       return 'sources';
     }
+    if (normalizedPath.includes('external-bank')) return 'bank';
     return 'other'; // Default category
   }
 }

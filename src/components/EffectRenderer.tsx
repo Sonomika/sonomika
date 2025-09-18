@@ -46,8 +46,8 @@ export const EffectRenderer: React.FC<EffectRendererProps> = React.memo(({
 				// Dynamic discovery
 				let effectModule;
 				try {
-					const modules = (import.meta as any).glob('../effects/*.tsx');
-					const effectPath = `../effects/${effectFile}`;
+					const modules = (import.meta as any).glob('../bank/**/*.tsx');
+					const effectPath = `../bank/${effectFile}`;
 					if (modules[effectPath]) {
 						effectModule = await modules[effectPath]();
 					} else {

@@ -110,7 +110,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
       if (!existing) {
         map.set(e.id, e);
       } else {
-        const preferCurrent = (e.metadata?.folder === 'visual-effects') && existing.metadata?.folder !== 'visual-effects';
+        const preferCurrent = (e.metadata?.folder === 'effects') && existing.metadata?.folder !== 'effects';
         if (preferCurrent) map.set(e.id, e);
       }
       return map;
@@ -175,9 +175,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
       <div className="tw-mb-2">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources' | 'user' | 'favorites')}>
           <TabsList>
-            <TabsTrigger value="effects">Visual Effects</TabsTrigger>
-            <TabsTrigger value="sources">Generative Sources</TabsTrigger>
-            <TabsTrigger value="user">User Effects</TabsTrigger>
+            <TabsTrigger value="effects">Effects</TabsTrigger>
+            <TabsTrigger value="sources">Sources</TabsTrigger>
+            <TabsTrigger value="user">User Bank</TabsTrigger>
             <TabsTrigger value="favorites" title="Favorites">
               <HeartIcon className="tw-w-4 tw-h-4" />
             </TabsTrigger>
@@ -325,10 +325,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           <TabsContent value="favorites">
             <div className="tw-space-y-3">
               <div>
-                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">Visual Effects</div>
+                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">Effects</div>
                 <div className="tw-space-y-2">
                   {favoritedVisualEffects.length === 0 && (
-                    <div className="tw-text-xs tw-text-neutral-500">No favorited visual effects yet.</div>
+                    <div className="tw-text-xs tw-text-neutral-500">No favorited effects yet.</div>
                   )}
                   {favoritedVisualEffects.map((e) => (
                     <div
@@ -361,7 +361,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                 </div>
               </div>
               <div>
-                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">Generative Sources</div>
+                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">Sources</div>
                 <div className="tw-space-y-2">
                   {favoritedGenerativeSources.length === 0 && (
                     <div className="tw-text-xs tw-text-neutral-500">No favorited sources yet.</div>
@@ -397,10 +397,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                 </div>
               </div>
               <div>
-                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">User Effects</div>
+                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">User Bank</div>
                 <div className="tw-space-y-2">
                   {favoritedUserEffects.length === 0 && (
-                    <div className="tw-text-xs tw-text-neutral-500">No favorited user effects yet.</div>
+                    <div className="tw-text-xs tw-text-neutral-500">No favorited user bank items yet.</div>
                   )}
                   {favoritedUserEffects.map((e) => (
                     <div

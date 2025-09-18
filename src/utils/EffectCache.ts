@@ -171,7 +171,7 @@ export class EffectCache {
         
         // Try with the effect name as a fallback
         try {
-          const fallbackPath = `../effects/${effectName}`;
+          const fallbackPath = `../bank/${effectName}`;
           // console.log(`🔄 Trying fallback path: ${fallbackPath}`);
           module = await import(/* @vite-ignore */ fallbackPath);
         } catch (fallbackError) {
