@@ -705,38 +705,49 @@ export class EffectDiscovery {
     const effects: ReactSelfContainedEffect[] = [];
 
     try {
-      // Check if we're in Electron environment for filesystem access
-      if (typeof window !== 'undefined' && (window as any).require) {
+      // Prefer Electron preload bridges (no nodeIntegration required)
+      const fsApi = (window as any)?.fsApi;
+      const electron = (window as any)?.electron;
+      if (fsApi && electron && typeof fsApi.listDirectory === 'function' && typeof electron.readFileText === 'function') {
+        const exists = (() => { try { return !!fsApi.exists?.(directoryPath); } catch { return false; } })();
+        if (!exists) {
+          console.warn(`❌ Directory does not exist: ${directoryPath}`);
+          return effects;
+        }
+        const files = this.scanDirectoryRecursivelyFsApi(directoryPath);
+        console.log(`🔍 Found ${files.length} user effect files in ${directoryPath}`);
+        for (const absPath of files) {
+          try {
+            const code: string = await electron.readFileText(absPath);
+            const baseName = String(absPath).split(/[\\\/]/).pop() || 'user-effect.js';
+            const effect = await this.loadUserEffectFromContent(code, baseName);
+            if (effect) {
+              const userEffectId = `user-${effect.id}`;
+              const userEffect = { ...effect, id: userEffectId, name: `${effect.name} (User)`, author: effect.author || 'User', metadata: { ...effect.metadata, folder: 'user-effects', isUserEffect: true } } as any;
+              this.userEffects.set(userEffectId, userEffect);
+              effects.push(userEffect);
+              console.log(`✅ Loaded user effect: ${userEffectId} (${userEffect.name})`);
+            }
+          } catch (e) {
+            console.warn(`❌ Could not load user effect from ${absPath}:`, e);
+          }
+        }
+      } else if (typeof window !== 'undefined' && (window as any).require) {
+        // Legacy Electron with nodeIntegration
         const fs = (window as any).require('fs');
         const path = (window as any).require('path');
-
         if (!fs.existsSync(directoryPath)) {
           console.warn(`❌ Directory does not exist: ${directoryPath}`);
           return effects;
         }
-
-        // Recursively scan the directory for .tsx files
         const userEffectFiles = this.scanDirectoryRecursively(fs, path, directoryPath);
         console.log(`🔍 Found ${userEffectFiles.length} user effect files in ${directoryPath}`);
-
         for (const filePath of userEffectFiles) {
           try {
             const effect = await this.loadUserEffectFromPath(filePath, directoryPath);
             if (effect) {
-              // Add user- prefix to distinguish from built-in effects
               const userEffectId = `user-${effect.id}`;
-              const userEffect = {
-                ...effect,
-                id: userEffectId,
-                name: `${effect.name} (User)`,
-                author: effect.author || 'User',
-                metadata: {
-                  ...effect.metadata,
-                  folder: 'user-effects',
-                  isUserEffect: true
-                }
-              };
-
+              const userEffect = { ...effect, id: userEffectId, name: `${effect.name} (User)`, author: effect.author || 'User', metadata: { ...effect.metadata, folder: 'user-effects', isUserEffect: true } } as any;
               this.userEffects.set(userEffectId, userEffect);
               effects.push(userEffect);
               console.log(`✅ Loaded user effect: ${userEffectId} (${userEffect.name})`);
@@ -746,7 +757,8 @@ export class EffectDiscovery {
           }
         }
       } else {
-        console.warn('❌ User effect loading requires Electron environment for filesystem access');
+        // Non-Electron: silently skip to avoid console noise
+        console.info('User effect autoload skipped (non-Electron environment).');
       }
     } catch (error) {
       console.error('❌ Error loading user effects:', error);
@@ -761,42 +773,27 @@ export class EffectDiscovery {
    */
   private async loadUserEffectFromPath(filePath: string, baseDirectory: string): Promise<ReactSelfContainedEffect | null> {
     try {
+      // Prefer direct content load via preload bridge if present
+      const electron = (window as any)?.electron;
+      if (electron && typeof electron.readFileText === 'function') {
+        const code = await electron.readFileText(filePath);
+        return await this.loadUserEffectFromContent(code, String(filePath).split(/[\\\/]/).pop());
+      }
+
       const path = (window as any).require('path');
-      
-      // Convert file path to a module that can be imported
-      // This is tricky in Electron - we need to handle dynamic imports properly
-      const absolutePath = path.resolve(filePath);
-      
-      // For now, we'll use a workaround - copy the file to a temporary location in our effects folder
-      // and then import it. This is not ideal but works for the current architecture.
-      console.log(`🔍 Attempting to load user effect from: ${absolutePath}`);
-      
-      // Read the file content
       const fs = (window as any).require('fs');
+      const absolutePath = path.resolve(filePath);
+      console.log(`🔍 Attempting to load user effect from: ${absolutePath}`);
       const fileContent = fs.readFileSync(absolutePath, 'utf8');
-      
-      // Create a temporary file in our effects folder
       const tempFileName = `temp-user-${Date.now()}-${path.basename(filePath)}`;
       const tempPath = path.join(__dirname, '../effects', tempFileName);
-      
       try {
-        // Write temporary file
         fs.writeFileSync(tempPath, fileContent);
-        
-        // Import the temporary file
         const module = await import(/* @vite-ignore */ `../effects/${tempFileName.replace('.tsx', '')}`);
-        
-        // Clean up temporary file
         fs.unlinkSync(tempPath);
-        
-        // Process the module similar to built-in effects
         const component = module.default || module[`${path.basename(filePath, '.tsx')}Component`];
         const metadata = module.metadata || component?.metadata || module[`${path.basename(filePath, '.tsx')}Metadata`];
-        
-        if (!component) {
-          console.warn(`❌ No component found in user effect file: ${filePath}`);
-          return null;
-        }
+        if (!component) { console.warn(`❌ No component found in user effect file: ${filePath}`); return null; }
 
         const baseFileName = path.basename(filePath);
         const id = this.generateEffectId(baseFileName);
@@ -846,6 +843,28 @@ export class EffectDiscovery {
       console.error(`❌ Error loading user effect from ${filePath}:`, error);
       return null;
     }
+  }
+
+  // Recursively scan directory using fsApi bridge
+  private scanDirectoryRecursivelyFsApi(dirPath: string): string[] {
+    const fsApi = (window as any)?.fsApi;
+    const results: string[] = [];
+    if (!fsApi || typeof fsApi.listDirectory !== 'function') return results;
+    try {
+      const stack: string[] = [dirPath];
+      while (stack.length) {
+        const current = stack.pop() as string;
+        const entries: Array<{ name: string; path: string; isDirectory: boolean }>
+          = fsApi.listDirectory(current) || [];
+        for (const e of entries) {
+          if (e.isDirectory) stack.push(e.path);
+          else if (/\.(tsx?|jsx?|mjs)$/i.test(e.name) && !e.name.startsWith('.')) results.push(e.path);
+        }
+      }
+    } catch (e) {
+      console.warn('scanDirectoryRecursivelyFsApi error:', e);
+    }
+    return results;
   }
 
   /**

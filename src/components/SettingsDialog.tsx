@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/Dialog';
 import { Switch } from './ui/switch';
 import { useStore } from '../store/store';
 import { Button, Slider, Select, Input } from './ui';
+import { useToast } from '../hooks/use-toast';
 import { getSupabase } from '../lib/supabaseClient';
 
 interface SettingsDialogProps {
@@ -14,6 +15,15 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast } = useStore() as any;
   const [user, setUser] = useState<any>(null);
   // OpenAI settings removed
+  const { toast } = useToast();
+
+  // User FX directory + autoload
+  const [fxDir, setFxDir] = useState<string>(() => {
+    try { return localStorage.getItem('vj-fx-user-dir') || ''; } catch { return ''; }
+  });
+  const [autoloadUserFx, setAutoloadUserFx] = useState<boolean>(() => {
+    try { return localStorage.getItem('vj-autoload-user-effects-enabled') === '1'; } catch { return false; }
+  });
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -164,6 +174,68 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
             />
           </div>
           
+          <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
+
+          {/* User FX directory */}
+          <div className="tw-space-y-2">
+            <div className="tw-text-sm tw-text-neutral-200">User FX Directory</div>
+            <div className="tw-text-xs tw-text-neutral-400">Set a folder to auto-load portable/user effects at startup.</div>
+            <div className="tw-flex tw-items-center tw-gap-2">
+              <Input
+                readOnly
+                value={fxDir}
+                placeholder="Not set"
+                className="tw-flex-1"
+              />
+              <Button onClick={async ()=>{
+                try {
+                  if (!(window as any).electron?.showOpenDialog) {
+                    toast({ description: 'Directory selection is only available in the Electron app.' });
+                    return;
+                  }
+                  const result = await (window as any).electron.showOpenDialog({ title: 'Select User FX Directory', properties: ['openDirectory'], message: 'Choose a directory containing your custom effects (.tsx or portable .js).' });
+                  if (result.canceled || !result.filePaths?.[0]) return;
+                  const dir = String(result.filePaths[0]);
+                  setFxDir(dir);
+                  try {
+                    localStorage.setItem('vj-fx-user-dir', dir);
+                    localStorage.setItem('vj-autoload-user-effects-enabled', '1');
+                    try { localStorage.removeItem('vj-autoload-user-effects-dirs'); } catch {}
+                  } catch {}
+                  setAutoloadUserFx(true);
+                  try {
+                    const { EffectDiscovery } = await import('../utils/EffectDiscovery');
+                    const discovery = EffectDiscovery.getInstance();
+                    const effects = await discovery.loadUserEffectsFromDirectory(dir);
+                    toast({ description: `Loaded ${effects.length} effect(s) from ${dir}` });
+                  } catch (e) {
+                    console.warn('Immediate load failed', e);
+                  }
+                } catch (e) {
+                  console.error('Select FX dir failed', e);
+                }
+              }}>Browse…</Button>
+              {fxDir && (
+                <Button variant="outline" onClick={async ()=>{
+                  try {
+                    localStorage.removeItem('vj-fx-user-dir');
+                  } catch {}
+                  setFxDir('');
+                  toast({ description: 'User FX directory cleared.' });
+                  try {
+                    const { EffectDiscovery } = await import('../utils/EffectDiscovery');
+                    const discovery = EffectDiscovery.getInstance();
+                    discovery.clearUserEffects();
+                  } catch {}
+                }}>Clear</Button>
+              )}
+            </div>
+            <div className="tw-flex tw-items-center tw-justify-between">
+              <div className="tw-text-xs tw-text-neutral-400">Autoload user FX on startup</div>
+              <Switch checked={autoloadUserFx} onCheckedChange={(v)=>{ setAutoloadUserFx(Boolean(v)); try { localStorage.setItem('vj-autoload-user-effects-enabled', Boolean(v) ? '1' : '0'); } catch {} }} />
+            </div>
+          </div>
+
           <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
           
           {/* OpenAI section removed */}

@@ -167,6 +167,46 @@ function App() {
       console.error('Error checking Electron environment:', error);
     }
 
+    // Auto-load user effects from remembered directories (Electron only)
+    try {
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+      if (isElectron) {
+        const enabled = localStorage.getItem('vj-autoload-user-effects-enabled') === '1';
+        if (enabled) {
+          // Preferred single FX directory
+          const singleDir = localStorage.getItem('vj-fx-user-dir');
+          // Backward-compat: legacy array key
+          const legacyRaw = localStorage.getItem('vj-autoload-user-effects-dirs') || '[]';
+          let legacyDirs: string[] = [];
+          try { legacyDirs = JSON.parse(legacyRaw) || []; } catch {}
+
+          const dirs = singleDir ? [singleDir] : (Array.isArray(legacyDirs) ? legacyDirs.slice(0, 1) : []);
+          if (dirs.length > 0) {
+            (async () => {
+              try {
+                const { EffectDiscovery } = await import('./utils/EffectDiscovery');
+                const discovery = EffectDiscovery.getInstance();
+                let loaded = 0;
+                for (const d of dirs) {
+                  try {
+                    const items = await discovery.loadUserEffectsFromDirectory(String(d));
+                    loaded += items.length;
+                  } catch (e) {
+                    console.warn('Autoload user effects failed for dir:', d, e);
+                  }
+                }
+                if (loaded > 0) {
+                  console.log(`Autoloaded ${loaded} user effect(s) from ${dirs[0]}`);
+                }
+              } catch (e) {
+                console.warn('Autoload user effects init failed', e);
+              }
+            })();
+          }
+        }
+      }
+    } catch {}
+
     // Handle Dropbox OAuth redirect (web only)
     try {
       const isElectron = typeof window !== 'undefined' && !!(window as any).electron;

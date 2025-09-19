@@ -37,6 +37,14 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
       setLoadingText('Refreshing effects...');
       const { EffectDiscovery } = await import('../utils/EffectDiscovery');
       const discovery = EffectDiscovery.getInstance();
+      // Ensure user FX are autoloaded before listing
+      try {
+        const enabled = localStorage.getItem('vj-autoload-user-effects-enabled') === '1';
+        const dir = localStorage.getItem('vj-fx-user-dir') || '';
+        if (enabled && dir) {
+          await discovery.loadUserEffectsFromDirectory(dir);
+        }
+      } catch {}
       // Prefer filesystem-based discovery in Electron for immediate detection of new files
       const light = await discovery.listAvailableEffectsFromFilesystem();
       if (!mounted) return;
@@ -81,6 +89,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   };
 
   const effectKey = (e: LightEffect) => e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`;
+
+  // Utility: clean display name by removing trailing "(External)" and redundant whitespace
+  const displayName = (name: string) => (name || '').replace(/\s*\(External\)\s*$/i, '').trim();
 
   const toggleFavorite = (e: LightEffect) => {
     const key = effectKey(e);
@@ -132,9 +143,16 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
 
   const userEffects = Array.from(
     userEffectsAll.reduce((map, e) => {
-      const existing = map.get(e.id);
+      const norm = (e.name || '').replace(/\s*\(User\)\s*$/i, '').toLowerCase();
+      const existing = map.get(norm);
       if (!existing) {
-        map.set(e.id, e);
+        map.set(norm, e);
+      } else {
+        const existingHasSuffix = /\(User\)\s*$/i.test(existing.name || '');
+        const currentHasSuffix = /\(User\)\s*$/i.test(e.name || '');
+        if (existingHasSuffix && !currentHasSuffix) {
+          map.set(norm, e);
+        }
       }
       return map;
     }, new Map<string, LightEffect>()).values()
@@ -231,7 +249,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   title={`${e.name}: ${e.description}`}
                 >
                   <div className="tw-flex tw-items-center tw-justify-between">
-                    <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                    <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                     <button
                       onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
                       className={
@@ -263,7 +281,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   title={`${e.name}: ${e.description}`}
                 >
                   <div className="tw-flex tw-items-center tw-justify-between">
-                    <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                    <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                     <button
                       onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
                       className={
@@ -283,10 +301,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               {userEffects.length === 0 && (
                 <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
                   <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No User Effects Loaded</h3>
-                  <p className="tw-text-neutral-300 tw-mb-4">Load custom effects from your @src/ directory or any other location.</p>
-                  <Button onClick={() => setUserEffectsLoaderOpen(true)}>
-                    Load User Effects
-                  </Button>
+                  <p className="tw-text-neutral-300">Set a User FX Directory in Settings to auto-load on startup.</p>
                 </div>
               )}
               {userEffects.map((e) => (
@@ -305,7 +320,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                 >
                   <div className="tw-flex tw-items-center tw-justify-between">
                     <div>
-                      <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                      <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                       <div className="tw-text-xs tw-text-neutral-400">by {e.author}</div>
                     </div>
                     <button
@@ -344,8 +359,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       }}
                       title={`${e.name}: ${e.description}`}
                     >
-                      <div className="tw-flex tw-items-center tw-justify-between">
-                        <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                  <div className="tw-flex tw-items-center tw-justify-between">
+                    <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                         <button
                           onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
                           className={
@@ -380,8 +395,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       }}
                       title={`${e.name}: ${e.description}`}
                     >
-                      <div className="tw-flex tw-items-center tw-justify-between">
-                        <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                  <div className="tw-flex tw-items-center tw-justify-between">
+                    <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                         <button
                           onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
                           className={
@@ -418,7 +433,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                     >
                       <div className="tw-flex tw-items-center tw-justify-between">
                         <div>
-                          <div className="tw-text-sm tw-font-medium tw-text-left">{e.name}</div>
+                          <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                           <div className="tw-text-xs tw-text-neutral-400">by {e.author}</div>
                         </div>
                         <button

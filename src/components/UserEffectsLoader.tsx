@@ -98,6 +98,17 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
       
       const effects = await discovery.loadUserEffectsFromDirectory(selectedDirectory);
       
+      // Persist autoload preference and directory if requested
+      try {
+        localStorage.setItem('vj-autoload-user-effects-enabled', rememberAutoload ? '1' : '0');
+        if (rememberAutoload) {
+          // Single FX directory preference
+          localStorage.setItem('vj-fx-user-dir', selectedDirectory);
+          // Cleanup legacy multi-dir key to avoid confusion
+          try { localStorage.removeItem('vj-autoload-user-effects-dirs'); } catch {}
+        }
+      } catch {}
+
       toast({
         title: 'Success',
         description: `Loaded ${effects.length} user effects from ${selectedDirectory}.`,
