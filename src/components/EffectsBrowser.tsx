@@ -22,10 +22,17 @@ type LightEffect = {
 
 export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   const FAVORITES_KEY = 'vj-effect-favorites';
+  const BANK_TAB_KEY = 'vj-bank-last-tab';
   const [isLoading, setIsLoading] = useState(true);
   const [loadingText, setLoadingText] = useState('Discovering effects...');
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'effects' | 'sources' | 'user' | 'external' | 'favorites'>('effects');
+  const [activeTab, setActiveTab] = useState<'effects' | 'sources' | 'user' | 'external' | 'favorites'>(() => {
+    try {
+      const stored = localStorage.getItem(BANK_TAB_KEY) as 'user' | 'external' | null;
+      if (stored === 'user' || stored === 'external') return stored;
+    } catch {}
+    return 'external';
+  });
   const [externalFilter, setExternalFilter] = useState<'all' | 'effects' | 'sources'>('all');
   const [userFilter, setUserFilter] = useState<'all' | 'effects' | 'sources'>('all');
   const [effects, setEffects] = useState<LightEffect[]>([]);
@@ -222,10 +229,16 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   return (
     <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
       <div className="tw-mb-2">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'user' | 'external' | 'favorites')}>
+        <Tabs value={activeTab} onValueChange={(v) => {
+          const val = v as 'user' | 'external' | 'favorites';
+          setActiveTab(val);
+          if (val === 'user' || val === 'external') {
+            try { localStorage.setItem(BANK_TAB_KEY, val); } catch {}
+          }
+        }}>
           <TabsList>
-            <TabsTrigger value="user">User</TabsTrigger>
             <TabsTrigger value="external">System</TabsTrigger>
+            <TabsTrigger value="user">User</TabsTrigger>
             <TabsTrigger value="favorites" title="Favorites">
               <HeartIcon className="tw-w-4 tw-h-4" />
             </TabsTrigger>
@@ -255,7 +268,13 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
         </button>
       </div>
       <div className="tw-flex-1 tw-overflow-auto tw-p-3">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'user' | 'external' | 'favorites')}>
+        <Tabs value={activeTab} onValueChange={(v) => {
+          const val = v as 'user' | 'external' | 'favorites';
+          setActiveTab(val);
+          if (val === 'user' || val === 'external') {
+            try { localStorage.setItem(BANK_TAB_KEY, val); } catch {}
+          }
+        }}>
           <TabsContent value="user">
             <div className="tw-space-y-2">
               <div className="tw-mb-1">
