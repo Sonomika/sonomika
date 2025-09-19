@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { HeartIcon, PlusIcon } from '@radix-ui/react-icons';
-import { Tabs, TabsList, TabsTrigger, TabsContent, Button } from './ui';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { UserEffectsLoader } from './UserEffectsLoader';
 
 interface EffectsBrowserProps {
@@ -73,8 +73,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   useEffect(() => {
     refreshEffects();
     const handler = () => refreshEffects();
-    window.addEventListener('vj-external-bank-updated', handler as any);
-    return () => { window.removeEventListener('vj-external-bank-updated', handler as any); };
+    window.addEventListener('vj-bank-updated', handler as any);
+    return () => { window.removeEventListener('vj-bank-updated', handler as any); };
   }, []);
 
   // Load favorites from localStorage once
@@ -118,7 +118,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
 
   const isExternalBank = (e: LightEffect) => {
     const src = (e as any)?.fileKey || '';
-    return typeof src === 'string' && src.includes('external-bank/');
+    return typeof src === 'string' && src.includes('bank/');
   };
 
   const visualEffectsAll = filtered.filter((e) => !(e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect && !isExternalBank(e));
@@ -243,21 +243,16 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           onChange={(e) => setSearch(e.target.value)}
           className="tw-flex-1 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
         />
-        <Button 
-          onClick={() => setUserEffectsLoaderOpen(true)}
-          className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-3 tw-py-1 tw-text-sm"
-          title="Load user effects"
-        >
-          <PlusIcon className="tw-w-4 tw-h-4" />
-        </Button>
-        <Button 
-          onClick={refreshEffects} 
+        {/* Refresh effects using compact param button styling */}
+        <button
+          type="button"
+          onClick={refreshEffects}
           disabled={isLoading}
-          className="tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-3 tw-py-1 tw-text-sm"
           title="Refresh effects list"
+          className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-5 tw-h-5 xl:tw-w-6 xl:tw-h-6 leading-[1] hover:tw-bg-neutral-700"
         >
           {isLoading ? '⟳' : '↻'}
-        </Button>
+        </button>
       </div>
       <div className="tw-flex-1 tw-overflow-auto tw-p-3">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'user' | 'external' | 'favorites')}>
@@ -339,7 +334,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               {externalBankEffects.length === 0 && (
                 <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
                   <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No System items</h3>
-                  <p className="tw-text-neutral-300">Portable items in project external-bank will appear here.</p>
+                  <p className="tw-text-neutral-300">Portable items in project bank will appear here.</p>
                 </div>
               )}
               {externalFiltered.map((e) => (

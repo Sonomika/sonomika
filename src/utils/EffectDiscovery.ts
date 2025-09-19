@@ -34,7 +34,7 @@ export interface ReactEffectMetadata {
   folder?: string; // Add folder information for categorization
   isSource?: boolean; // Add source flag for categorization
   isUserEffect?: boolean; // Add user effect flag for categorization
-  // Optional original path (for classification like @external-bank)
+  // Optional original path (for classification like @bank)
   sourcePath?: string;
 }
 
@@ -944,9 +944,9 @@ export class EffectDiscovery {
           category,
           type: 'react-component',
           component,
-          folder: String(sourceName || '').includes('external-bank/') ? 'external-bank' : 'user-effects',
+          folder: String(sourceName || '').includes('bank/') ? 'bank' : 'user-effects',
           isSource: !!metadata?.isSource,
-          isUserEffect: !String(sourceName || '').includes('external-bank/'),
+          isUserEffect: !String(sourceName || '').includes('bank/'),
           sourcePath: sourceName,
         },
         createEffect: (width: number, height: number): ReactEffectInstance => ({

@@ -2,7 +2,7 @@
 module.exports = {
   prefix: 'tw-',
   corePlugins: { preflight: false },
-  content: ['index.html', 'src/**/*.{ts,tsx}'],
+  content: ['index.html', 'src/**/*.{ts,tsx}', '!src/bank/**/*'],
   theme: {
     // Use Tailwind's default border radius scale so shadcn components are rounded
     borderRadius: {
