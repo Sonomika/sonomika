@@ -34,6 +34,8 @@ export interface ReactEffectMetadata {
   folder?: string; // Add folder information for categorization
   isSource?: boolean; // Add source flag for categorization
   isUserEffect?: boolean; // Add user effect flag for categorization
+  // Optional original path (for classification like @external-bank)
+  sourcePath?: string;
 }
 
 /**
@@ -205,11 +207,11 @@ export class EffectDiscovery {
           parameters: userEffect.metadata.parameters || [],
           category: userEffect.category,
           type: 'react-component',
-          folder: 'user-effects',
+          folder: userEffect.metadata.folder || 'user-effects',
           isSource: userEffect.metadata.isSource || false,
-          isUserEffect: true,
+          isUserEffect: userEffect.metadata.isUserEffect !== false,
         },
-        fileKey: `user-${userEffect.id}`,
+        fileKey: (userEffect as any)?.metadata?.sourcePath || `user-${userEffect.id}`,
       });
     }
 
@@ -911,7 +913,7 @@ export class EffectDiscovery {
         return null;
       }
 
-      const baseFileName = sourceName.replace(/[^a-zA-Z0-9_.-]/g, '');
+      const baseFileName = sourceName.replace(/[^a-zA-Z0-9_.\/-]/g, '');
       const idBase = baseFileName.replace(/\.(js|mjs)$/i, '') || 'user-effect';
       const id = this.generateEffectId(`${idBase}.tsx`); // reuse normalization
       const name = metadata?.name || this.generateEffectName(idBase);
@@ -942,9 +944,10 @@ export class EffectDiscovery {
           category,
           type: 'react-component',
           component,
-          folder: 'user-effects',
+          folder: String(sourceName || '').includes('external-bank/') ? 'external-bank' : 'user-effects',
           isSource: !!metadata?.isSource,
-          isUserEffect: true,
+          isUserEffect: !String(sourceName || '').includes('external-bank/'),
+          sourcePath: sourceName,
         },
         createEffect: (width: number, height: number): ReactEffectInstance => ({
           id: effectId,

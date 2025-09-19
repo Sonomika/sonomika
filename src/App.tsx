@@ -205,6 +205,44 @@ function App() {
           }
         }
       }
+      // Always autoload @external-bank portable items so the tab is populated
+      (async () => {
+        try {
+          const { EffectDiscovery } = await import('./utils/EffectDiscovery');
+          const discovery = EffectDiscovery.getInstance();
+          // Gather from multiple glob roots to avoid missing files across build contexts
+          const maps: Array<Record<string, () => Promise<string>>> = [
+            (import.meta as any).glob('../external-bank/**/*.{js,mjs}', { as: 'raw', eager: false }),
+            (import.meta as any).glob('../../external-bank/**/*.{js,mjs}', { as: 'raw', eager: false }),
+            (import.meta as any).glob('../external-bank/effects/**/*.js', { as: 'raw', eager: false }),
+            (import.meta as any).glob('../external-bank/sources/**/*.js', { as: 'raw', eager: false }),
+          ];
+          const combined: Record<string, () => Promise<string>> = Object.assign({}, ...maps);
+          let loaded = 0;
+          // Optional mtime hash skip
+          const COUNT_KEY = 'vj-external-bank-count';
+          let prevCount = 0; try { prevCount = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10) || 0; } catch {}
+          for (const [p, loader] of Object.entries(combined)) {
+            try {
+              const code = await (loader as any)();
+              await discovery.loadUserEffectFromContent(code, p);
+              loaded += 1;
+            } catch (e) {
+              console.warn('External-bank autoload item failed:', p, e);
+            }
+          }
+          if (loaded > 0) {
+            console.log(`Autoloaded ${loaded} @external-bank item(s)`);
+            try { window.dispatchEvent(new CustomEvent('vj-external-bank-updated')); } catch {}
+            try { localStorage.setItem(COUNT_KEY, String(loaded)); } catch {}
+          } else if (prevCount > 0) {
+            // No new items; still refresh list so UI stays in sync
+            try { window.dispatchEvent(new CustomEvent('vj-external-bank-updated')); } catch {}
+          }
+        } catch (e) {
+          console.warn('External-bank autoload failed', e);
+        }
+      })();
     } catch {}
 
     // Handle Dropbox OAuth redirect (web only)

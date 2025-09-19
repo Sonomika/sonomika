@@ -25,7 +25,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingText, setLoadingText] = useState('Discovering effects...');
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'effects' | 'sources' | 'user' | 'favorites'>('effects');
+  const [activeTab, setActiveTab] = useState<'effects' | 'sources' | 'user' | 'external' | 'favorites'>('effects');
+  const [externalFilter, setExternalFilter] = useState<'all' | 'effects' | 'sources'>('all');
+  const [userFilter, setUserFilter] = useState<'all' | 'effects' | 'sources'>('all');
   const [effects, setEffects] = useState<LightEffect[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [userEffectsLoaderOpen, setUserEffectsLoaderOpen] = useState(false);
@@ -70,6 +72,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
 
   useEffect(() => {
     refreshEffects();
+    const handler = () => refreshEffects();
+    window.addEventListener('vj-external-bank-updated', handler as any);
+    return () => { window.removeEventListener('vj-external-bank-updated', handler as any); };
   }, []);
 
   // Load favorites from localStorage once
@@ -111,9 +116,15 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     );
   }, [effects, search]);
 
-  const visualEffectsAll = filtered.filter((e) => !(e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect);
-  const generativeSourcesAll = filtered.filter((e) => (e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect);
-  const userEffectsAll = filtered.filter((e) => e.metadata?.isUserEffect);
+  const isExternalBank = (e: LightEffect) => {
+    const src = (e as any)?.fileKey || '';
+    return typeof src === 'string' && src.includes('external-bank/');
+  };
+
+  const visualEffectsAll = filtered.filter((e) => !(e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect && !isExternalBank(e));
+  const generativeSourcesAll = filtered.filter((e) => (e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect && !isExternalBank(e));
+  const userEffectsAll = filtered.filter((e) => e.metadata?.isUserEffect && !isExternalBank(e));
+  const externalBankAll = filtered.filter((e) => isExternalBank(e));
 
   const visualEffects = Array.from(
     visualEffectsAll.reduce((map, e) => {
@@ -158,6 +169,26 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     }, new Map<string, LightEffect>()).values()
   );
 
+  const userFiltered = useMemo(() => {
+    if (userFilter === 'effects') return userEffects.filter((e) => !e.metadata?.isSource);
+    if (userFilter === 'sources') return userEffects.filter((e) => !!e.metadata?.isSource);
+    return userEffects;
+  }, [userEffects, userFilter]);
+
+  const externalBankEffects = Array.from(
+    externalBankAll.reduce((map, e) => {
+      const existing = map.get(e.id);
+      if (!existing) map.set(e.id, e);
+      return map;
+    }, new Map<string, LightEffect>()).values()
+  );
+
+  const externalFiltered = useMemo(() => {
+    if (externalFilter === 'effects') return externalBankEffects.filter((e) => !e.metadata?.isSource);
+    if (externalFilter === 'sources') return externalBankEffects.filter((e) => !!e.metadata?.isSource);
+    return externalBankEffects;
+  }, [externalBankEffects, externalFilter]);
+
   const favoritedVisualEffects = visualEffects.filter((e) => favorites.includes(effectKey(e)));
   const favoritedGenerativeSources = generativeSources.filter((e) => favorites.includes(effectKey(e)));
   const favoritedUserEffects = userEffects.filter((e) => favorites.includes(effectKey(e)));
@@ -191,18 +222,16 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   return (
     <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
       <div className="tw-mb-2">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources' | 'user' | 'favorites')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'user' | 'external' | 'favorites')}>
           <TabsList>
-            <TabsTrigger value="effects">Effects</TabsTrigger>
-            <TabsTrigger value="sources">Sources</TabsTrigger>
-            <TabsTrigger value="user">User Bank</TabsTrigger>
+            <TabsTrigger value="user">User</TabsTrigger>
+            <TabsTrigger value="external">System</TabsTrigger>
             <TabsTrigger value="favorites" title="Favorites">
               <HeartIcon className="tw-w-4 tw-h-4" />
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="effects" />
-          <TabsContent value="sources" />
           <TabsContent value="user" />
+          <TabsContent value="external" />
           <TabsContent value="favorites" />
         </Tabs>
       </div>
@@ -231,80 +260,32 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
         </Button>
       </div>
       <div className="tw-flex-1 tw-overflow-auto tw-p-3">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'effects' | 'sources' | 'user' | 'favorites')}>
-          <TabsContent value="effects">
-            <div className="tw-space-y-2">
-              {visualEffects.map((e) => (
-                <div
-                  key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
-                  className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
-                  draggable
-                  onDragStart={(ev) => {
-                    ev.dataTransfer.setData('application/json', JSON.stringify({
-                      type: 'effect', isEffect: true, id: e.id, name: e.name,
-                      description: e.description, category: e.category, icon: e.icon,
-                      metadata: e.metadata, assetType: 'effect', isSource: false,
-                    }));
-                  }}
-                  title={`${e.name}: ${e.description}`}
-                >
-                  <div className="tw-flex tw-items-center tw-justify-between">
-                    <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
-                    <button
-                      onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
-                      className={
-                        'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
-                      }
-                      title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
-                    >
-                      <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </TabsContent>
-          <TabsContent value="sources">
-            <div className="tw-space-y-2">
-              {generativeSources.map((e) => (
-                <div
-                  key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
-                  className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
-                  draggable
-                  onDragStart={(ev) => {
-                    ev.dataTransfer.setData('application/json', JSON.stringify({
-                      type: 'effect', isEffect: true, id: e.id, name: e.name,
-                      description: e.description, category: e.category, icon: e.icon,
-                      metadata: e.metadata, assetType: 'effect', isSource: true,
-                    }));
-                  }}
-                  title={`${e.name}: ${e.description}`}
-                >
-                  <div className="tw-flex tw-items-center tw-justify-between">
-                    <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
-                    <button
-                      onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
-                      className={
-                        'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
-                      }
-                      title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
-                    >
-                      <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </TabsContent>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'user' | 'external' | 'favorites')}>
           <TabsContent value="user">
             <div className="tw-space-y-2">
+              <div className="tw-mb-1">
+                <div className="tw-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                  <button
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    onClick={() => setUserFilter('all')}
+                  >All</button>
+                  <button
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    onClick={() => setUserFilter('effects')}
+                  >Effects</button>
+                  <button
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    onClick={() => setUserFilter('sources')}
+                  >Sources</button>
+                </div>
+              </div>
               {userEffects.length === 0 && (
                 <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
                   <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No User Effects Loaded</h3>
                   <p className="tw-text-neutral-300">Set a User FX Directory in Settings to auto-load on startup.</p>
                 </div>
               )}
-              {userEffects.map((e) => (
+              {userFiltered.map((e) => (
                 <div
                   key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
                   className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
@@ -328,6 +309,58 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       className={
                         'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
                       }
+                      title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="external">
+            <div className="tw-space-y-2">
+              <div className="tw-mb-1">
+                <div className="tw-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                  <button
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    onClick={() => setExternalFilter('all')}
+                  >All</button>
+                  <button
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    onClick={() => setExternalFilter('effects')}
+                  >Effects</button>
+                  <button
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    onClick={() => setExternalFilter('sources')}
+                  >Sources</button>
+                </div>
+              </div>
+              {externalBankEffects.length === 0 && (
+                <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
+                  <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No System items</h3>
+                  <p className="tw-text-neutral-300">Portable items in project external-bank will appear here.</p>
+                </div>
+              )}
+              {externalFiltered.map((e) => (
+                <div
+                  key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
+                  className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
+                  draggable
+                  onDragStart={(ev) => {
+                    ev.dataTransfer.setData('application/json', JSON.stringify({
+                      type: 'effect', isEffect: true, id: e.id, name: e.name,
+                      description: e.description, category: e.category, icon: e.icon,
+                      metadata: e.metadata, assetType: 'effect', isSource: e.metadata?.isSource || false,
+                    }));
+                  }}
+                  title={`${e.name}: ${e.description}`}
+                >
+                  <div className="tw-flex tw-items-center tw-justify-between">
+                    <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                      className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'}
                       title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                     >
                       <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
@@ -412,7 +445,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                 </div>
               </div>
               <div>
-                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">User Bank</div>
+                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">User</div>
                 <div className="tw-space-y-2">
                   {favoritedUserEffects.length === 0 && (
                     <div className="tw-text-xs tw-text-neutral-500">No favorited user bank items yet.</div>

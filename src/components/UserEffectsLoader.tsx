@@ -139,8 +139,19 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
       for (const [p, loader] of Object.entries(modules)) {
         try {
           const code = await (loader as any)();
-          const name = p.split('/').pop() || 'user-effect.js';
-          const effect = await discovery.loadUserEffectFromContent(code, name);
+          // Tag origin so browser classifies under @external-bank tab
+          const effect = await discovery.loadUserEffectFromContent(code, p);
+          if (effect) {
+            try {
+              // Patch metadata for tab classification and source path
+              (effect as any).metadata = {
+                ...(effect as any).metadata,
+                folder: 'external-bank',
+                isUserEffect: false,
+                sourcePath: p,
+              };
+            } catch {}
+          }
           if (effect) count++;
         } catch (e) {
           console.warn('Failed to load example effect', p, e);
