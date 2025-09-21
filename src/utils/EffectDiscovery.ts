@@ -900,8 +900,21 @@ export class EffectDiscovery {
    */
   async loadUserEffectFromContent(moduleText: string, sourceName = 'user-effect.js'): Promise<ReactSelfContainedEffect | null> {
     try {
+      // Sanitize TS-style `as any` casts in external JS to avoid syntax errors
+      // Only for .js/.mjs portable modules
+      let sanitized = moduleText;
+      try {
+        if (/\bas\s+any\b|\bas\s+number\b|\bas\s+string\b|\bas\s+unknown\b|\bas\s+boolean\b/.test(moduleText)) {
+          sanitized = sanitized
+            .replace(/\s+as\s+any\b/g, '')
+            .replace(/\s+as\s+number\b/g, '')
+            .replace(/\s+as\s+string\b/g, '')
+            .replace(/\s+as\s+unknown\b/g, '')
+            .replace(/\s+as\s+boolean\b/g, '');
+        }
+      } catch {}
       // Build a blob URL for dynamic import (CSP allows blob: but may block data:)
-      const blob = new Blob([moduleText], { type: 'text/javascript' });
+      const blob = new Blob([sanitized], { type: 'text/javascript' });
       const url = URL.createObjectURL(blob);
       const module: any = await import(/* @vite-ignore */ url);
       try { URL.revokeObjectURL(url); } catch {}

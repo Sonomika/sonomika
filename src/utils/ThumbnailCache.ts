@@ -305,7 +305,12 @@ async function generateVideoThumbnailInternal(
     });
 
     // Offload scaling/encoding to worker when possible
-    const useWorker = typeof OffscreenCanvas !== 'undefined' && typeof (window as any).createImageBitmap === 'function';
+    const supportsWorker = typeof OffscreenCanvas !== 'undefined' && typeof (window as any).createImageBitmap === 'function';
+    // Ensure a usable frame exists before attempting createImageBitmap(video)
+    try { if (!video.paused) video.pause(); } catch {}
+    await new Promise<void>((resolve) => { try { requestAnimationFrame(() => resolve()); } catch { resolve(); } });
+    const hasUsableFrame = (video.readyState >= 2) && (video.videoWidth > 0) && (video.videoHeight > 0);
+    const useWorker = supportsWorker && hasUsableFrame;
     let dataUrl: string | null = null;
     if (useWorker) {
       try {
@@ -341,7 +346,9 @@ async function generateVideoThumbnailInternal(
           }, [bitmap as any]);
         });
       } catch (e) {
-        console.warn('📸 Worker thumbnail generation failed, falling back:', e);
+        // Common when video element doesn't expose a decodable frame yet
+        // Fall back to canvas path silently to avoid noisy logs
+        try { /* noop */ } catch {}
       }
     }
 

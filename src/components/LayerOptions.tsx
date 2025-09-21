@@ -681,7 +681,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                             <ParamRow
                               key={param.name}
                               label={param.description || param.name}
-                              value={uiValue}
+                              value={Number.isFinite(Number(uiValue)) ? Number(uiValue) : (typeof param.min === 'number' ? param.min : 0)}
                               min={param.min || 0}
                               max={param.max || 1}
                               step={param.step || 0.1}
@@ -689,22 +689,26 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               layout="stacked"
                               onChange={(value) => {
                                 if (isLocked) return;
-                                setLocalParamValues(prev => ({ ...prev, [param.name]: value }));
-                                handleEffectParamChange(param.name, value);
+                                const v = Number(value);
+                                if (!Number.isFinite(v)) return;
+                                setLocalParamValues(prev => ({ ...prev, [param.name]: v }));
+                                handleEffectParamChange(param.name, v);
                               }}
                               onIncrement={() => {
                                 if (isLocked) return;
-                                const currentVal = localParamValues[param.name] ?? currentValue;
+                                const currentVal = Number(localParamValues[param.name] ?? currentValue);
                                 const step = param.step || 0.1;
-                                const newValue = Math.min(param.max || 1, currentVal + step);
+                                const base = Number.isFinite(currentVal) ? currentVal : (typeof param.min === 'number' ? param.min : 0);
+                                const newValue = Math.min(param.max || 1, base + step);
                                 setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
                                 handleEffectParamChange(param.name, newValue);
                               }}
                               onDecrement={() => {
                                 if (isLocked) return;
-                                const currentVal = localParamValues[param.name] ?? currentValue;
+                                const currentVal = Number(localParamValues[param.name] ?? currentValue);
                                 const step = param.step || 0.1;
-                                const newValue = Math.max(param.min || 0, currentVal - step);
+                                const base = Number.isFinite(currentVal) ? currentVal : (typeof param.min === 'number' ? param.min : 0);
+                                const newValue = Math.max(param.min || 0, base - step);
                                 setLocalParamValues(prev => ({ ...prev, [param.name]: newValue }));
                                 handleEffectParamChange(param.name, newValue);
                               }}
