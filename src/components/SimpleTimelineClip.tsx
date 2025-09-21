@@ -1,4 +1,5 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
+import AudioWaveform from './AudioWaveform.tsx';
 
 interface TimelineClip {
   id: string;
@@ -26,6 +27,7 @@ interface SimpleTimelineClipProps {
   allClips?: TimelineClip[];
   trackDuration?: number;
   allTracks?: Array<{ id: string; type: string; name: string }>;
+  audioSrc?: string;
 }
 
 export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
@@ -44,6 +46,7 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
   allClips = [],
   trackDuration = 0,
   allTracks = [],
+  audioSrc,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -52,6 +55,8 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
   const [isSnapped, setIsSnapped] = useState(false);
   const [hoveredTrackId, setHoveredTrackId] = useState<string | null>(null);
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<number>(20);
 
   // Track detection helper
   const getTrackAtPosition = useCallback((x: number, y: number) => {
@@ -395,6 +400,31 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
   const translateX = clip.startTime * pixelsPerSecond;
   const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
   const background = '#1e88e5';
+  const showWaveform = clip.type === 'audio' && Boolean(audioSrc);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      try { setContainerHeight(Math.max(12, el.clientHeight - 4)); } catch {}
+    };
+    measure();
+    let ro: ResizeObserver | null = null;
+    try {
+      const RObs = (window as any).ResizeObserver as typeof ResizeObserver | undefined;
+      if (RObs) {
+        ro = new RObs(() => measure());
+        if (ro && el) ro.observe(el);
+      }
+    } catch {}
+    const onResize = () => measure();
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      try { if (ro && el) ro.unobserve(el); } catch {}
+      try { ro && ro.disconnect && ro.disconnect(); } catch {}
+    };
+  }, [widthPx]);
 
   // Determine visual state
   const isHoveringValidTrack = hoveredTrackId && canMoveToTrack(hoveredTrackId);
@@ -419,6 +449,7 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
+      ref={containerRef}
     >
       {/* Left resize handle */}
       <div
@@ -427,9 +458,22 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
       />
       
       {/* Clip content */}
-      <span className="tw-text-xs tw-whitespace-nowrap tw-overflow-hidden tw-text-ellipsis tw-pointer-events-none">
-        {clip.name}
-      </span>
+      {showWaveform ? (
+        <div className="tw-absolute tw-inset-0 tw-pointer-events-none">
+          <AudioWaveform
+            src={audioSrc as string}
+            width={widthPx}
+            height={containerHeight}
+            color="#404040"
+            secondaryColor="#aaaaaa"
+            backgroundColor="transparent"
+          />
+        </div>
+      ) : (
+        <span className="tw-text-xs tw-whitespace-nowrap tw-overflow-hidden tw-text-ellipsis tw-pointer-events-none">
+          {clip.name}
+        </span>
+      )}
       
       {/* Right resize handle */}
       <div

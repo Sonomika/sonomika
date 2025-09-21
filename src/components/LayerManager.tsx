@@ -281,6 +281,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       return (saved === 'global' || saved === 'layer' || saved === 'sequence') ? (saved as any) : 'layer';
     } catch { return 'layer'; }
   });
+  // Hide Sequence tab in timeline mode by forcing a safe tab selection
+  useEffect(() => {
+    if (showTimeline && middlePanelTab === 'sequence') {
+      setMiddlePanelTab('layer');
+      try { localStorage.setItem('vj-ui-middle-tab', 'layer'); } catch {}
+    }
+  }, [showTimeline, middlePanelTab]);
   const [draggedLayer, setDraggedLayer] = useState<any>(null);
   const [dragOverLayer, setDragOverLayer] = useState<string | null>(null);
   const [contextHighlightedCell, setContextHighlightedCell] = useState<string | null>(null);
@@ -2226,10 +2233,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="tw-flex-1 tw-min-w-[260px] tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-flex tw-flex-col tw-h-full tw-overflow-hidden">
               <div className="tw-border-b tw-border-neutral-800 tw-px-3 tw-py-2">
                 <Tabs value={middlePanelTab} onValueChange={(value) => { setMiddlePanelTab(value as 'global' | 'layer' | 'sequence'); try { localStorage.setItem('vj-ui-middle-tab', value); } catch {} }} className="tw-w-full">
-                  <TabsList className="tw-grid tw-w-full tw-grid-cols-3">
+                  <TabsList className={`tw-grid tw-w-full ${showTimeline ? 'tw-grid-cols-2' : 'tw-grid-cols-3'}`}>
                     <TabsTrigger value="global">Global</TabsTrigger>
                     <TabsTrigger value="layer">Layer</TabsTrigger>
-                    <TabsTrigger value="sequence">Sequence</TabsTrigger>
+                    {!showTimeline && (<TabsTrigger value="sequence">Sequence</TabsTrigger>)}
                   </TabsList>
                 </Tabs>
               </div>
@@ -2282,13 +2289,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                      }, []);
                      return (
                        <ScrollArea.Viewport ref={viewportRef as any} className="vj-scroll-viewport tw-h-full tw-w-full tw-overflow-auto scroll-touch drag-scroll tw-pr-0 sm:tw-pr-3 tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
-                         {/* Keep tabs mounted to allow Sequence to keep running */}
+                         {/* Keep tabs mounted; Sequence is hidden entirely in timeline mode */}
                          <div className={`tw-h-full ${middlePanelTab === 'global' ? '' : 'tw-hidden'}`}>
                            <GlobalEffectsTab className="tw-h-full" />
                          </div>
-                         <div className={`tw-h-full ${middlePanelTab === 'sequence' ? '' : 'tw-hidden'}`}>
-                           <SequenceTab />
-                         </div>
+                         {!showTimeline && (
+                           <div className={`tw-h-full ${middlePanelTab === 'sequence' ? '' : 'tw-hidden'}`}>
+                             <SequenceTab />
+                           </div>
+                         )}
                          <div className={`tw-h-full tw-min-h-0 ${middlePanelTab === 'layer' || (middlePanelTab !== 'global' && middlePanelTab !== 'sequence') ? '' : 'tw-hidden'}`}>
                            <LayerOptions 
                              key={(effectiveSelectedLayer || selectedLayer)?.id || 'none'}

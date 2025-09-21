@@ -2940,26 +2940,35 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                       return clipEnd >= startWindow && clipStart <= endWindow;
                     });
                     let waveformBudget = 8;
-                    return visibleClips.map((clip) => (
-                      <SimpleTimelineClip
+                    return visibleClips.map((clip) => {
+                      let audioSrc: string | undefined = undefined;
+                      try {
+                        if (track.type === 'audio' && clip.type === 'audio') {
+                          audioSrc = getAudioSrc(clip.asset);
+                        }
+                      } catch {}
+                      return (
+                        <SimpleTimelineClip
                           key={clip.id}
-                        clip={clip}
-                        trackId={track.id}
-                        pixelsPerSecond={pixelsPerSecond}
-                        isSelected={selectedClips.has(clip.id)}
-                        onSelect={handleClipSelect}
-                        onUpdate={handleClipUpdate}
-                        onDelete={handleClipDelete}
-                        onMoveToTrack={handleClipMoveToTrack}
-                        onContextMenu={handleClipRightClick}
-                        timelineRef={timelineRef as React.RefObject<HTMLDivElement>}
-                        snapToGrid={timelineSnapEnabled}
-                        snapThreshold={20}
-                        allClips={tracks.flatMap(t => t.clips)}
-                        trackDuration={duration}
-                        allTracks={tracks.map(t => ({ id: t.id, type: t.type, name: t.name }))}
-                      />
-                    ));
+                          clip={clip}
+                          trackId={track.id}
+                          pixelsPerSecond={pixelsPerSecond}
+                          isSelected={selectedClips.has(clip.id)}
+                          onSelect={handleClipSelect}
+                          onUpdate={handleClipUpdate}
+                          onDelete={handleClipDelete}
+                          onMoveToTrack={handleClipMoveToTrack}
+                          onContextMenu={handleClipRightClick}
+                          timelineRef={timelineRef as React.RefObject<HTMLDivElement>}
+                          snapToGrid={timelineSnapEnabled}
+                          snapThreshold={20}
+                          allClips={tracks.flatMap(t => t.clips)}
+                          trackDuration={duration}
+                          allTracks={tracks.map(t => ({ id: t.id, type: t.type, name: t.name }))}
+                          audioSrc={audioSrc}
+                        />
+                      );
+                    });
                   })()}
                   {draggedAsset && (
                     <div className="drag-preview">
