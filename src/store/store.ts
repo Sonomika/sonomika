@@ -413,6 +413,17 @@ export const useStore = createWithEqualityFn<AppState & {
         } as Scene as any;
         const nextTimelineScenes = [...state.timelineScenes];
         nextTimelineScenes.splice(srcIndex + 1, 0, cloned);
+
+        // Duplicate timeline settings/data stored outside scene object (e.g., per-scene tracks in localStorage)
+        try {
+          const oldKey = `timeline-tracks-${sceneId}`;
+          const newKey = `timeline-tracks-${(cloned as any).id}`;
+          const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(oldKey) : null;
+          if (raw) {
+            localStorage.setItem(newKey, raw);
+          }
+        } catch {}
+
         return { timelineScenes: nextTimelineScenes } as any;
       }),
 

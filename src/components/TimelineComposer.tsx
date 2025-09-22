@@ -621,6 +621,7 @@ const TimelineScene: React.FC<{
         };
 
         // Build chains based on activeClips order
+        try { console.log('[TimelineScene] Build chains', { t: Number(currentTime.toFixed(3)), active: activeClips.length }); } catch {}
         activeClips.forEach((clip: any) => {
           const kind = classifyClip(clip);
           if (kind === 'video') {
@@ -651,9 +652,11 @@ const TimelineScene: React.FC<{
         // Compute blending across successive chains for a short window around cuts
         const CROSSFADE_MS = 160; // chosen for minimal perceptibility
         const chainsWithKeys = chains.map((chain, idx) => ({ chain, idx }));
-        // Persist last fully-built video chain to reuse briefly if incoming isn't ready
-        const lastVideoChainRef = (TimelineScene as any).__lastVideoChainRef || { current: null as any };
-        (TimelineScene as any).__lastVideoChainRef = lastVideoChainRef;
+        // Persist last fully-built chain (video or effect) to support crossfade at cuts
+        const lastChainRef = (TimelineScene as any).__lastChainRef || { current: null as any };
+        (TimelineScene as any).__lastChainRef = lastChainRef;
+        const lastChainKeyRef = (TimelineScene as any).__lastChainKeyRef || { current: '' as string };
+        (TimelineScene as any).__lastChainKeyRef = lastChainKeyRef;
         // Build quick lookups for active clips by asset
         const fadeWindowSec = CROSSFADE_MS / 1000;
         const byAsset: Record<string, { relativeTime: number; duration: number; startTime: number; trackId?: string }> = {} as any;
@@ -679,10 +682,15 @@ const TimelineScene: React.FC<{
 
         let appendedFallback = false;
         chainsWithKeys.forEach(({ chain, idx }) => {
-          const chainKey = chain.map((it) => it.type === 'video' ? 'video' : `${it.type}:${(it as any).effectId || 'eff'}`).join('|');
+          const chainKey = chain.map((it) => {
+            if (it.type === 'video') return 'video';
+            const uk = (it as any).__uniqueKey || '';
+            return `${it.type}:${(it as any).effectId || 'eff'}#${uk}`;
+          }).join('|');
           const chainWithGlobals: ChainItem[] = enabledGlobals.length > 0
             ? ([...chain, ...enabledGlobals.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {} }))] as ChainItem[])
             : chain;
+          try { console.log('[TimelineScene] Chain', { idx, key: chainKey, items: chainWithGlobals.length }); } catch {}
 
           // Determine crossfade factor based on currentTime proximity to neighboring clip boundaries
           let opacity = 1;
@@ -720,14 +728,29 @@ const TimelineScene: React.FC<{
               } else {
                 opacity = f; // default crossfade
               }
+              try { console.log('[TimelineScene] Crossfade', { idx, key: chainKey, f: Number(f.toFixed(2)), incoming: isIncoming, outgoing: isOutgoing, holdIncoming: isIncoming && !produced, anyIncomingNotReady }); } catch {}
+
+              // Also render previous chain behind with 1 - f to avoid black at effect-only cuts
+              const prevChain = lastChainRef.current as ChainItem[] | null;
+              const prevKey = lastChainKeyRef.current;
+              const outOpacity = 1 - f;
+              if (prevChain && prevKey && prevKey !== chainKey && outOpacity > 0) {
+                try { console.log('[TimelineScene] Prev overlay', { prevKey, key: chainKey, outOpacity: Number(outOpacity.toFixed(2)) }); } catch {}
+                elements.push(
+                  <EffectChain
+                    key={`chain-prev-${prevKey}-${idx}`}
+                    items={prevChain}
+                    compositionWidth={compositionWidth}
+                    compositionHeight={compositionHeight}
+                    opacity={outOpacity}
+                    baseAssetId={(prevChain.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === (prevChain.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
+                  />
+                );
+              }
             }
           } catch {}
 
           const containsVideo = chainWithGlobals.some((it) => it.type === 'video');
-          if (containsVideo && !anyIncomingNotReady) {
-            // Update last chain snapshot only when stable
-            lastVideoChainRef.current = chainWithGlobals;
-          }
 
           if (chainWithGlobals.length === 1 && chainWithGlobals[0].type === 'video') {
             const v = chainWithGlobals[0] as Extract<ChainItem, { type: 'video' }>;
@@ -772,11 +795,16 @@ const TimelineScene: React.FC<{
             );
             if (baseVid) renderedBaseThisFrame = true;
           }
+
+          // Update last chain snapshot for next-frame crossfade
+          lastChainRef.current = chainWithGlobals;
+          lastChainKeyRef.current = chainKey;
+          try { console.log('[TimelineScene] Last chain updated', { key: chainKey }); } catch {}
         });
 
-        // If incoming isn't ready, re-append the last video chain so it continues to display beneath overlays
-        if (anyIncomingNotReady && lastVideoChainRef.current && !appendedFallback) {
-          const chainWithGlobals = lastVideoChainRef.current as ChainItem[];
+        // If incoming isn't ready, re-append the last chain so it continues to display beneath overlays
+        if (anyIncomingNotReady && lastChainRef.current && !appendedFallback) {
+          const chainWithGlobals = lastChainRef.current as ChainItem[];
           const chainKey = 'last-video-fallback';
           elements.push(
             <EffectChain
@@ -792,8 +820,8 @@ const TimelineScene: React.FC<{
         }
 
         // Safety: if no base video was rendered at all this frame, draw the last stable video chain
-        if (!renderedBaseThisFrame && lastVideoChainRef.current) {
-          const chainWithGlobals = lastVideoChainRef.current as ChainItem[];
+        if (!renderedBaseThisFrame && lastChainRef.current) {
+          const chainWithGlobals = lastChainRef.current as ChainItem[];
           elements.push(
             <EffectChain
               key={`chain-last-video-safety`}

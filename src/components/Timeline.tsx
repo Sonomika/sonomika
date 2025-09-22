@@ -1927,13 +1927,17 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             // Find the original clip
             const originalClip = track.clips.find(clip => clip.id === contextMenu.clipId);
             if (originalClip) {
-              // Create a duplicate with new ID and offset position
+              // Create a duplicate with new ID and snapped position immediately after original
               const duplicatedClip: TimelineClip = {
                 ...originalClip,
                 id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                startTime: originalClip.startTime + originalClip.duration + 0.1, // Place after original with small gap
+                startTime: Math.max(0, (originalClip.startTime || 0) + (originalClip.duration || 0)),
               };
               
+              // Snap to end of original or next available gap if overlapping
+              const snappedStart = clampStartToNeighbors(track.clips, duplicatedClip.startTime, duplicatedClip.duration, duplicatedClip.id);
+              duplicatedClip.startTime = snappedStart;
+
               // Insert the duplicate after the original clip
               const originalIndex = track.clips.findIndex(clip => clip.id === contextMenu.clipId);
               const newClips = [...track.clips];
