@@ -11,10 +11,22 @@ interface GlobalEffectsTabProps {
 }
 
 export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = '' }) => {
-  const { scenes, currentSceneId, updateScene } = useStore() as any;
-  const currentScene = scenes.find((s: any) => s.id === currentSceneId);
+  const { 
+    scenes, 
+    currentSceneId, 
+    updateScene,
+    showTimeline,
+    timelineScenes,
+    currentTimelineSceneId,
+    updateTimelineScene,
+  } = useStore() as any;
 
-  const effects: any[] = currentScene?.globalEffects || [];
+  const activeScene = showTimeline
+    ? (timelineScenes || []).find((s: any) => s.id === currentTimelineSceneId)
+    : (scenes || []).find((s: any) => s.id === currentSceneId);
+  const activeSceneId = showTimeline ? currentTimelineSceneId : currentSceneId;
+
+  const effects: any[] = activeScene?.globalEffects || [];
 
   const [openMap, setOpenMap] = React.useState<Record<string, boolean>>({});
   React.useEffect(() => {
@@ -30,7 +42,14 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effects.length]);
 
-  const setEffects = (next: any[]) => updateScene(currentSceneId, { globalEffects: next });
+  const setEffects = (next: any[]) => {
+    if (!activeSceneId) return;
+    if (showTimeline) {
+      updateTimelineScene(activeSceneId, { globalEffects: next });
+    } else {
+      updateScene(activeSceneId, { globalEffects: next });
+    }
+  };
 
   const handleAddEffect = () => {
     // Placeholder effect slot; user will assign via drag/drop into the slot or future selector

@@ -1208,7 +1208,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               height={compositionSettings.height}
               isPlaying={Boolean(previewContent.isPlaying)}
               bpm={bpm}
-              globalEffects={currentScene?.globalEffects || []}
+              globalEffects={(timelineScenes?.find((s: any) => s.id === currentTimelineSceneId)?.globalEffects) || []}
               overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
             />
           </div>
@@ -1372,7 +1372,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     width={compositionSettings.width}
                     height={compositionSettings.height}
                     bpm={bpm}
-                    globalEffects={[]} // Add global effects support here if needed
+                    globalEffects={(timelineScenes?.find((s: any) => s.id === currentTimelineSceneId)?.globalEffects) || []}
                   />
                 </div>
                 

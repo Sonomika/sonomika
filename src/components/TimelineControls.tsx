@@ -62,19 +62,19 @@ const TimelineControls: React.FC = () => {
       <div className="tw-flex tw-items-center tw-gap-2 tw-ml-4">
         <button
           onClick={() => setTimelineSnapEnabled(!timelineSnapEnabled)}
-          className={`tw-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-border tw-rounded tw-text-white ${
+          className={`tw-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-border tw-rounded ${
             timelineSnapEnabled
-              ? 'tw-bg-green-600 tw-border-green-500 hover:tw-bg-green-500'
-              : 'tw-bg-neutral-800 tw-border-neutral-700 hover:tw-bg-neutral-700'
+              ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black'
+              : 'tw-bg-neutral-800 tw-border-neutral-700 tw-text-white hover:tw-bg-neutral-700'
           }`}
           title={timelineSnapEnabled ? 'Magnet: ON' : 'Magnet: OFF'}
           aria-label={timelineSnapEnabled ? 'Disable magnet snapping' : 'Enable magnet snapping'}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          {/* Link icon */}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M3.9 12a4.1 4.1 0 0 1 4.1-4.1h3a1 1 0 1 1 0 2h-3A2.1 2.1 0 0 0 5.9 12a2.1 2.1 0 0 0 2.1 2.1h3a1 1 0 1 1 0 2h-3A4.1 4.1 0 0 1 3.9 12zm7-1h2.2a1 1 0 1 1 0 2H10.9a1 1 0 1 1 0-2zM12 7h3a4.1 4.1 0 1 1 0 8h-3a1 1 0 1 1 0-2h3a2.1 2.1 0 1 0 0-4h-3a1 1 0 1 1 0-2z"/>
           </svg>
         </button>
-        <span className="tw-text-xs tw-text-neutral-300">Magnet</span>
       </div>
     </div>
   );
