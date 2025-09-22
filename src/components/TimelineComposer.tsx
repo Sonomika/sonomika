@@ -633,10 +633,10 @@ const TimelineScene: React.FC<{
             currentChain.push({ type: 'video', video, opacity: clip.opacity, blendMode: clip.blendMode, assetId: clip.asset?.id });
           } else if (kind === 'source') {
             const eid = resolveEffectId(clip.asset);
-            if (eid) currentChain.push({ type: 'source', effectId: eid, params: mergeParams(clip) });
+            if (eid) currentChain.push({ type: 'source', effectId: eid, params: mergeParams(clip), __uniqueKey: `timeline-${clip.id}` });
           } else if (kind === 'effect') {
             const eid = resolveEffectId(clip.asset);
-            if (eid) currentChain.push({ type: 'effect', effectId: eid, params: mergeParams(clip) });
+            if (eid) currentChain.push({ type: 'effect', effectId: eid, params: mergeParams(clip), __uniqueKey: `timeline-${clip.id}` });
           } else {
             if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
           }

@@ -1278,8 +1278,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                 safeStartForNew = 0;
               }
             } else {
-              // Use original logic: video/audio at 0, effects at drop position
-              safeStartForNew = clipType === 'video' || clipType === 'audio' ? 0 : findFirstAvailableStart(track.clips, Math.max(0, desiredStart), desiredDuration);
+              // Place new clip at the intended drop position (respecting gaps), regardless of type
+              safeStartForNew = findFirstAvailableStart(track.clips, Math.max(0, desiredStart), desiredDuration);
             }
 
             const newClip: TimelineClip = {
@@ -1547,8 +1547,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           duration: draggedAsset.duration,
         };
 
-        // Always place video and audio clips at 0 seconds
-        const finalStartTime = clipType === 'video' || clipType === 'audio' ? 0 : newStartTime;
+        // Place clip at computed start time for all types
+        const finalStartTime = newStartTime;
         
         const newClip: TimelineClip = {
           id: `clip-${Date.now()}`,
@@ -1631,11 +1631,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   // Start timeline playback (requestAnimationFrame-driven)
   const startTimelinePlayback = () => {
-    // Reset and pause all audio elements before starting
+    // Pause all audio elements before starting (do not reset time to preserve resume position)
     try {
       audioElementsRef.current.forEach((audio) => {
         audio.pause();
-        audio.currentTime = 0;
       });
       lastActiveAudioIdsRef.current.clear();
     } catch {}
@@ -1654,15 +1653,14 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       rafRef.current = null;
     }
     
-    // Always start from the earliest clip time (fallback to 0 if none)
-    const earliest = getEarliestClipTime();
-    const startAt = earliest > 0 ? earliest : 0;
-    setCurrentTime(startAt);
+    // Resume from current playhead time without forcing a reset
     
     // Mark timeline as playing before starting the loop so first frame proceeds
     setIsPlaying(true);
     isPlayingRef.current = true;
     try { (window as any).__vj_timeline_is_playing__ = true; } catch {}
+    // Notify transport UI (TimelineControls) that playback started
+    try { document.dispatchEvent(new Event('globalPlay')); } catch {}
 
     // RAF accumulator
     lastTsRef.current = null;
@@ -1730,6 +1728,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       (window as any).__vj_timeline_is_playing__ = false;
       (window as any).__vj_timeline_active_layers__ = [];
     } catch {}
+    // Notify transport UI (TimelineControls) that playback stopped/paused
+    try { document.dispatchEvent(new Event('globalPause')); } catch {}
     // Pause all audio elements when stopping
     try {
       audioElementsRef.current.forEach((audio) => {
@@ -2114,6 +2114,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   // Playhead drag handlers
   const handlePlayheadMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setIsDraggingPlayhead(true);
     // Pause playback when starting to drag playhead
@@ -2238,6 +2239,15 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   const handlePlayheadMouseUp = () => {
     setIsDraggingPlayhead(false);
+  };
+
+  // Click-to-seek on the top time ruler
+  const handleRulerMouseDown = (e: React.MouseEvent) => {
+    const viewport = timelineRef.current?.getBoundingClientRect();
+    if (!viewport) return;
+    const clickX = e.clientX - viewport.left;
+    const newTime = Math.max(0, Math.min(duration, (clickX + scrollLeft) / Math.max(1, pixelsPerSecond)));
+    setCurrentTime(newTime);
   };
 
   // Global mouse event listeners for playhead dragging
@@ -2893,7 +2903,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             onMouseUp={handleTimelineMouseUp}
           >
         <div className="tw-relative tw-pb-2 tw-overflow-visible tw-min-h-[400px] tw-[will-change:transform]" style={{ width: `${timelinePixelWidth}px` }}>
-          <div className="tw-sticky tw-top-0 tw-h-6 tw-pointer-events-none tw-z-30">
+          <div className="tw-sticky tw-top-0 tw-h-6 tw-z-30 tw-cursor-pointer" onMouseDown={handleRulerMouseDown}>
             {(() => {
               const start = Math.max(0, Math.floor(visibleStartSec) - 1);
               const end = Math.min(Math.ceil(duration), Math.ceil(visibleEndSec) + 1);
@@ -3006,6 +3016,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               transition: isPlaying ? 'none' : 'transform 0.1s ease',
               height: '100%' // Ensure it covers the full timeline height
             }}
+            onMouseDown={handlePlayheadMouseDown}
+            onMouseMove={handlePlayheadMouseMove}
+            onMouseUp={handlePlayheadMouseUp}
             onContextMenu={handlePlayheadRightClick}
           />
         </div>
