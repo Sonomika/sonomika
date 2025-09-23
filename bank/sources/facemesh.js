@@ -1,4 +1,4 @@
-// Portable external Webcam Source (no imports). Uses globals: window.React, window.THREE, window.r3f, window.ml5
+// sonomika template
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
@@ -9,7 +9,7 @@ export const metadata = {
   description: 'Live webcam feed as a source layer with optional ml5.js FaceMesh overlay.',
   category: 'Sources',
   icon: '',
-  author: 'VJ System',
+  author: 'AI',
   version: '2.0.0',
   folder: 'sources',
   isSource: true,

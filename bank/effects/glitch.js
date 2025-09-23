@@ -1,4 +1,4 @@
-// Portable external DATA GLITCH effect (no imports). Use with globals:
+// sonomika template
 // window.React, window.THREE, window.r3f
 const React = globalThis.React;
 const THREE = globalThis.THREE;
@@ -8,10 +8,10 @@ const useThree = (r3f && r3f.useThree) || (() => null);
 const useFrame = (r3f && r3f.useFrame) || (() => {});
 
 export const metadata = {
-  name: 'Spectral DataGlitch (External)',
+  name: 'Spectral DataGlitch',
   description: 'Blocky temporal tears, scanlines and spectral drift. Designed to sit on top of an input stream.',
-  category: 'Video Effects',
-  author: 'You',
+  category: 'Effects',
+  author: 'AI',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,
