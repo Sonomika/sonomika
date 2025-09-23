@@ -1,4 +1,304 @@
-"use strict";const r=require("electron"),g=require("fs"),u=require("path"),F=r.app.requestSingleInstanceLock();F?r.app.on("second-instance",()=>{const o=r.BrowserWindow.getAllWindows();o.length>0&&(o[0].isMinimized()&&o[0].restore(),o[0].focus())}):(console.log("Another instance is already running, quitting..."),r.app.quit());let n=null,a=null,y=null,S=null,v=null,w=null;const h=new Map;let d={};function k(){const o=r.app.getPath("userData");return u.join(o,"auth_store.json")}function A(){try{const o=k();if(g.existsSync(o)){const t=g.readFileSync(o,"utf8"),e=JSON.parse(t);d=Object.fromEntries(Object.entries(e).map(([i,s])=>[i,Buffer.from(s,"base64")]))}}catch(o){console.warn("Failed to load encrypted auth store, starting empty:",o),d={}}}function b(){try{const o=k(),t=u.dirname(o);g.existsSync(t)||g.mkdirSync(t,{recursive:!0});const e=Object.fromEntries(Object.entries(d).map(([i,s])=>[i,s.toString("base64")]));g.writeFileSync(o,JSON.stringify(e),"utf8")}catch(o){console.warn("Failed to persist encrypted auth store:",o)}}function x(){n=new r.BrowserWindow({width:1200,height:800,frame:!1,titleBarStyle:"hidden",webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:u.join(__dirname,"preload.js"),backgroundThrottling:!1},show:!1});const o=u.join(__dirname,"preload.js");if(console.log("Preload script path:",o),console.log("Preload script exists:",require("fs").existsSync(o)),require("fs").existsSync(o)){const e=require("fs").readFileSync(o,"utf8");console.log("Preload script first 200 chars:",e.substring(0,200))}n.webContents.session.webRequest.onHeadersReceived((e,i)=>{console.log("Setting CSP headers for URL:",e.url);const s={...e.responseHeaders,"Content-Security-Policy":[]};console.log("CSP headers disabled for development"),i({responseHeaders:s})}),n.once("ready-to-show",()=>{n.show(),n.webContents.setBackgroundThrottling(!1)});try{n.webContents.setWindowOpenHandler(e=>e.frameName==="output-canvas"?{action:"allow",overrideBrowserWindowOptions:{title:"Output",frame:!1,titleBarStyle:"hidden",autoHideMenuBar:!0,backgroundColor:"#000000",fullscreenable:!0,resizable:!0,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,backgroundThrottling:!1}}}:{action:"allow"}),n.webContents.on("did-create-window",(e,i)=>{try{if(i?.frameName==="output-canvas"){S=e;try{e.removeMenu()}catch{}try{e.setMenuBarVisibility(!1)}catch{}try{e.webContents.setBackgroundThrottling(!1)}catch{}try{v&&isFinite(v)&&v>0&&e.setAspectRatio(v)}catch{}try{e.on("closed",()=>{S=null})}catch{}}}catch{}})}catch{}if(n.on("maximize",()=>{try{n?.webContents.send("window-state",{maximized:!0})}catch{}}),n.on("unmaximize",()=>{try{n?.webContents.send("window-state",{maximized:!1})}catch{}}),process.env.NODE_ENV==="development"||!r.app.isPackaged){console.log("Running in development mode");const e=(i,s=0)=>{const l=`http://localhost:${i}`;console.log(`Trying to load: ${l} (attempt ${s+1})`),n.loadURL(l).then(()=>{console.log(`Successfully loaded: ${l}`),n.webContents.openDevTools()}).catch(c=>{if(console.log(`Failed to load ${l}:`,c.message),s<3){const p=Math.min(1e3*Math.pow(2,s),5e3);console.log(`Retrying in ${p}ms...`),setTimeout(()=>e(i,s+1),p)}else{console.log("All ports failed, loading fallback HTML");const m=[u.join(__dirname,"../web/index.html"),u.join(__dirname,"../dist/index.html"),u.join(__dirname,"../index.html"),u.join(__dirname,"../../index.html")].find(f=>{try{return g.existsSync(f)}catch{return!1}});m?(console.log("Loading fallback file:",m),n.loadFile(m).catch(f=>{console.error("Failed to load fallback HTML:",f),n.loadURL("data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>")})):(console.warn("No fallback index.html found. Loading data URL."),n.loadURL("data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>"))}})};setTimeout(()=>e(5173),500)}else{console.log("Running in production mode");const e=[u.join(__dirname,"../web/index.html"),u.join(__dirname,"../dist/index.html")],i=e.find(s=>{try{return g.existsSync(s)}catch{return!1}});i?(console.log("Loading production file:",i),n.loadFile(i)):(console.error("No production index.html found at",e),n.loadURL("data:text/html,<html><body><h1>VJ App</h1><p>Missing build.</p></body></html>"))}n.webContents.on("did-finish-load",()=>{console.log("Window loaded successfully")});try{n.webContents.on("render-process-gone",(e,i)=>{console.error("[electron] render-process-gone",i)}),n.webContents.on("unresponsive",()=>{console.error("[electron] webContents became unresponsive")}),n.webContents.on("media-started-playing",()=>{console.log("[electron] media-started-playing")}),n.webContents.on("media-paused",()=>{console.log("[electron] media-paused")})}catch{}n.webContents.on("did-fail-load",(e,i,s)=>{console.error("Failed to load:",i,s)}),n.on("closed",()=>{n=null})}function D(){if(a&&!a.isDestroyed()){a.focus();return}a=new r.BrowserWindow({width:1920,height:1080,title:"sonomika",webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:u.join(__dirname,"mirror-preload.js"),backgroundThrottling:!1},show:!1,resizable:!0,maximizable:!0,fullscreen:!1,kiosk:!1,alwaysOnTop:!0,skipTaskbar:!1,focusable:!0,movable:!0,frame:!1,titleBarStyle:"hidden",transparent:!1,fullscreenable:!0,autoHideMenuBar:!0,minWidth:480,minHeight:270}),a.loadURL(`data:text/html,${encodeURIComponent(`
+"use strict";
+const electron = require("electron");
+const fs = require("fs");
+const path = require("path");
+const gotTheLock = electron.app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.log("Another instance is already running, quitting...");
+  electron.app.quit();
+} else {
+  electron.app.on("second-instance", () => {
+    const windows = electron.BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      if (windows[0].isMinimized()) windows[0].restore();
+      windows[0].focus();
+    }
+  });
+}
+let mainWindow = null;
+let mirrorWindow = null;
+let mirrorPowerSaveBlockId = null;
+let outputWindow = null;
+let outputAspectRatio = null;
+let mirrorAspectRatio = null;
+const advancedMirrorWindows = /* @__PURE__ */ new Map();
+let encryptedAuthStore = {};
+function getAuthStoreFilePath() {
+  const userData = electron.app.getPath("userData");
+  return path.join(userData, "auth_store.json");
+}
+function loadEncryptedAuthStoreFromDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    if (fs.existsSync(fp)) {
+      const raw = fs.readFileSync(fp, "utf8");
+      const json = JSON.parse(raw);
+      encryptedAuthStore = Object.fromEntries(
+        Object.entries(json).map(([k, base64]) => [k, Buffer.from(base64, "base64")])
+      );
+    }
+  } catch (e) {
+    console.warn("Failed to load encrypted auth store, starting empty:", e);
+    encryptedAuthStore = {};
+  }
+}
+function persistEncryptedAuthStoreToDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    const dir = path.dirname(fp);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const json = Object.fromEntries(
+      Object.entries(encryptedAuthStore).map(([k, buf]) => [k, buf.toString("base64")])
+    );
+    fs.writeFileSync(fp, JSON.stringify(json), "utf8");
+  } catch (e) {
+    console.warn("Failed to persist encrypted auth store:", e);
+  }
+}
+function createWindow() {
+  mainWindow = new electron.BrowserWindow({
+    width: 1200,
+    height: 800,
+    frame: false,
+    // Remove default window frame
+    titleBarStyle: "hidden",
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, "preload.js"),
+      backgroundThrottling: false
+    },
+    show: false
+    // Don't show until ready
+  });
+  const preloadPath = path.join(__dirname, "preload.js");
+  console.log("Preload script path:", preloadPath);
+  console.log("Preload script exists:", require("fs").existsSync(preloadPath));
+  if (require("fs").existsSync(preloadPath)) {
+    const preloadContent = require("fs").readFileSync(preloadPath, "utf8");
+    console.log("Preload script first 200 chars:", preloadContent.substring(0, 200));
+  }
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    console.log("Setting CSP headers for URL:", details.url);
+    const responseHeaders = {
+      ...details.responseHeaders,
+      "Content-Security-Policy": []
+    };
+    console.log("CSP headers disabled for development");
+    callback({
+      responseHeaders
+    });
+  });
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
+    mainWindow.webContents.setBackgroundThrottling(false);
+  });
+  try {
+    mainWindow.webContents.setWindowOpenHandler((details) => {
+      const isOutput = details.frameName === "output-canvas";
+      if (isOutput) {
+        return {
+          action: "allow",
+          overrideBrowserWindowOptions: {
+            title: "Output",
+            frame: false,
+            titleBarStyle: "hidden",
+            autoHideMenuBar: true,
+            backgroundColor: "#000000",
+            fullscreenable: true,
+            resizable: true,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true,
+              sandbox: false,
+              backgroundThrottling: false
+            }
+          }
+        };
+      }
+      return { action: "allow" };
+    });
+    mainWindow.webContents.on("did-create-window", (childWindow, details) => {
+      try {
+        if (details?.frameName === "output-canvas") {
+          outputWindow = childWindow;
+          try {
+            childWindow.removeMenu();
+          } catch {
+          }
+          try {
+            childWindow.setMenuBarVisibility(false);
+          } catch {
+          }
+          try {
+            childWindow.webContents.setBackgroundThrottling(false);
+          } catch {
+          }
+          try {
+            if (outputAspectRatio && isFinite(outputAspectRatio) && outputAspectRatio > 0) {
+              childWindow.setAspectRatio(outputAspectRatio);
+            }
+          } catch {
+          }
+          try {
+            childWindow.on("closed", () => {
+              outputWindow = null;
+            });
+          } catch {
+          }
+        }
+      } catch {
+      }
+    });
+  } catch {
+  }
+  mainWindow.on("maximize", () => {
+    try {
+      mainWindow?.webContents.send("window-state", { maximized: true });
+    } catch {
+    }
+  });
+  mainWindow.on("unmaximize", () => {
+    try {
+      mainWindow?.webContents.send("window-state", { maximized: false });
+    } catch {
+    }
+  });
+  const isDev = process.env.NODE_ENV === "development" || !electron.app.isPackaged;
+  if (isDev) {
+    console.log("Running in development mode");
+    const loadDevURL = (port, retryCount = 0) => {
+      const url = `http://localhost:${port}`;
+      console.log(`Trying to load: ${url} (attempt ${retryCount + 1})`);
+      mainWindow.loadURL(url).then(() => {
+        console.log(`Successfully loaded: ${url}`);
+        mainWindow.webContents.openDevTools();
+      }).catch((error) => {
+        console.log(`Failed to load ${url}:`, error.message);
+        if (retryCount < 3) {
+          const delay = Math.min(1e3 * Math.pow(2, retryCount), 5e3);
+          console.log(`Retrying in ${delay}ms...`);
+          setTimeout(() => loadDevURL(port, retryCount + 1), delay);
+        } else {
+          console.log("All ports failed, loading fallback HTML");
+          const candidatePaths = [
+            path.join(__dirname, "../web/index.html"),
+            path.join(__dirname, "../dist/index.html"),
+            path.join(__dirname, "../index.html"),
+            path.join(__dirname, "../../index.html")
+          ];
+          const found = candidatePaths.find((p) => {
+            try {
+              return fs.existsSync(p);
+            } catch {
+              return false;
+            }
+          });
+          if (found) {
+            console.log("Loading fallback file:", found);
+            mainWindow.loadFile(found).catch((error2) => {
+              console.error("Failed to load fallback HTML:", error2);
+              mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+            });
+          } else {
+            console.warn("No fallback index.html found. Loading data URL.");
+            mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+          }
+        }
+      });
+    };
+    setTimeout(() => loadDevURL(5173), 500);
+  } else {
+    console.log("Running in production mode");
+    const prodCandidates = [
+      path.join(__dirname, "../web/index.html"),
+      path.join(__dirname, "../dist/index.html")
+    ];
+    const found = prodCandidates.find((p) => {
+      try {
+        return fs.existsSync(p);
+      } catch {
+        return false;
+      }
+    });
+    if (found) {
+      console.log("Loading production file:", found);
+      mainWindow.loadFile(found);
+    } else {
+      console.error("No production index.html found at", prodCandidates);
+      mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Missing build.</p></body></html>`);
+    }
+  }
+  mainWindow.webContents.on("did-finish-load", () => {
+    console.log("Window loaded successfully");
+  });
+  try {
+    mainWindow.webContents.on("render-process-gone", (_e, details) => {
+      console.error("[electron] render-process-gone", details);
+    });
+    mainWindow.webContents.on("unresponsive", () => {
+      console.error("[electron] webContents became unresponsive");
+    });
+    mainWindow.webContents.on("media-started-playing", () => {
+      console.log("[electron] media-started-playing");
+    });
+    mainWindow.webContents.on("media-paused", () => {
+      console.log("[electron] media-paused");
+    });
+  } catch {
+  }
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
+    console.error("Failed to load:", errorCode, errorDescription);
+  });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+}
+function createMirrorWindow() {
+  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+    mirrorWindow.focus();
+    return;
+  }
+  mirrorWindow = new electron.BrowserWindow({
+    width: 1920,
+    // Start with standard HD size; will be resized to canvas dimensions
+    height: 1080,
+    // Start with standard HD size; will be resized to canvas dimensions
+    title: "sonomika",
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, "mirror-preload.js"),
+      backgroundThrottling: false
+    },
+    show: false,
+    resizable: true,
+    // Allow resizing
+    maximizable: true,
+    // Allow maximizing
+    fullscreen: false,
+    kiosk: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    focusable: true,
+    movable: true,
+    frame: false,
+    // Keep borderless but add custom controls
+    titleBarStyle: "hidden",
+    transparent: false,
+    fullscreenable: true,
+    autoHideMenuBar: true,
+    minWidth: 480,
+    // Minimum size
+    minHeight: 270
+  });
+  const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -126,11 +426,108 @@
       <\/script>
     </body>
     </html>
-  `)}`),a.once("ready-to-show",()=>{a.show(),a.center();try{a.setAspectRatio(w||1920/1080)}catch{}try{y==null&&(y=r.powerSaveBlocker.start("prevent-display-sleep")),a.webContents.setBackgroundThrottling(!1)}catch{}}),a.webContents.on("before-input-event",(t,e)=>{e.key==="Escape"&&a.close()}),a.on("closed",()=>{try{y!=null&&r.powerSaveBlocker.stop(y)}catch{}y=null,console.log("Mirror window closed, notifying main app"),n&&!n.isDestroyed()&&n.webContents.send("mirror-window-closed"),a=null})}function B(){a&&!a.isDestroyed()&&(a.close(),a=null)}function R(o,t){const e=h.get(o);if(e&&!e.isDestroyed()){try{e.focus()}catch{}return e}const i=u.join(__dirname,"mirror-preload.js"),s=u.join(__dirname,"preload.js"),l=g.existsSync(i)?i:s,c=new r.BrowserWindow({width:t?.width??960,height:t?.height??540,x:t?.x,y:t?.y,title:t?.title??`VJ Mirror Slice: ${o}`,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:l},show:!1,resizable:!0,maximizable:!0,fullscreen:!1,kiosk:!1,alwaysOnTop:!0,skipTaskbar:!1,focusable:!0,movable:!0,frame:!1,titleBarStyle:"hidden",transparent:!1,thickFrame:!1,hasShadow:!1,backgroundColor:"#000000",fullscreenable:!0,autoHideMenuBar:!0,minWidth:320,minHeight:180});try{c.setMenuBarVisibility(!1)}catch{}try{c.removeMenu()}catch{}const p=`
+  `;
+  mirrorWindow.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
+  mirrorWindow.once("ready-to-show", () => {
+    mirrorWindow.show();
+    mirrorWindow.center();
+    try {
+      mirrorWindow.setAspectRatio(mirrorAspectRatio || 1920 / 1080);
+    } catch {
+    }
+    try {
+      if (mirrorPowerSaveBlockId == null) {
+        mirrorPowerSaveBlockId = electron.powerSaveBlocker.start("prevent-display-sleep");
+      }
+      mirrorWindow.webContents.setBackgroundThrottling(false);
+    } catch {
+    }
+  });
+  mirrorWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.key === "Escape") {
+      mirrorWindow.close();
+    }
+  });
+  mirrorWindow.on("closed", () => {
+    try {
+      if (mirrorPowerSaveBlockId != null) {
+        electron.powerSaveBlocker.stop(mirrorPowerSaveBlockId);
+      }
+    } catch {
+    }
+    mirrorPowerSaveBlockId = null;
+    console.log("Mirror window closed, notifying main app");
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("mirror-window-closed");
+    }
+    mirrorWindow = null;
+  });
+}
+function closeMirrorWindow() {
+  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+    mirrorWindow.close();
+    mirrorWindow = null;
+  }
+}
+function createAdvancedMirrorWindow(id, opts) {
+  const existing = advancedMirrorWindows.get(id);
+  if (existing && !existing.isDestroyed()) {
+    try {
+      existing.focus();
+    } catch {
+    }
+    return existing;
+  }
+  const mirrorPreload = path.join(__dirname, "mirror-preload.js");
+  const fallbackPreload = path.join(__dirname, "preload.js");
+  const preloadPath = fs.existsSync(mirrorPreload) ? mirrorPreload : fallbackPreload;
+  const win = new electron.BrowserWindow({
+    width: opts?.width ?? 960,
+    height: opts?.height ?? 540,
+    x: opts?.x,
+    y: opts?.y,
+    title: opts?.title ?? `VJ Mirror Slice: ${id}`,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: preloadPath
+    },
+    show: false,
+    resizable: true,
+    maximizable: true,
+    fullscreen: false,
+    kiosk: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    focusable: true,
+    movable: true,
+    frame: false,
+    titleBarStyle: "hidden",
+    transparent: false,
+    thickFrame: false,
+    hasShadow: false,
+    backgroundColor: "#000000",
+    fullscreenable: true,
+    autoHideMenuBar: true,
+    minWidth: 320,
+    minHeight: 180
+  });
+  try {
+    win.setMenuBarVisibility(false);
+  } catch {
+  }
+  try {
+    win.removeMenu();
+  } catch {
+  }
+  const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${t?.title??`VJ Mirror Slice: ${o}`}</title>
+      <title>${opts?.title ?? `VJ Mirror Slice: ${id}`}</title>
       <style>
         body {
           margin: 0;
@@ -163,33 +560,707 @@
       <img id="mirror-image" style="display: none;" onload="this.classList.add('loaded');">
       <script>
         function toggleFullscreen() {
-          try { window.advancedMirror && window.advancedMirror.toggleSliceFullscreen && window.advancedMirror.toggleSliceFullscreen('${o}'); } catch {}
+          try { window.advancedMirror && window.advancedMirror.toggleSliceFullscreen && window.advancedMirror.toggleSliceFullscreen('${id}'); } catch {}
         }
       <\/script>
     </body>
     </html>
-  `;c.loadURL(`data:text/html,${encodeURIComponent(p)}`);try{c.show(),c.center()}catch{}return c.once("ready-to-show",()=>{try{c.isVisible()||(c.show(),c.center())}catch{}}),c.on("closed",()=>{h.delete(o)}),c.webContents.on("before-input-event",(m,f)=>{f.key==="Escape"&&c.close()}),h.set(o,c),c}function P(){const o=[{label:"VJ App",submenu:[{label:"About VJ App",role:"about"},{type:"separator"},{label:"Quit",accelerator:"CmdOrCtrl+Q",click:()=>{r.app.quit()}}]},{label:"External",submenu:[{label:"Mirror Window",accelerator:"CmdOrCtrl+M",click:()=>{n&&n.webContents.send("toggle-mirror")}},{label:"Advanced Mirror",accelerator:"CmdOrCtrl+Shift+M",click:()=>{n&&n.webContents.send("toggle-advanced-mirror")}}]},{label:"Record",submenu:[{label:"Record",accelerator:"CmdOrCtrl+Shift+R",click:()=>{n&&n.webContents.send("record:start")}},{label:"Record Settings",click:()=>{n&&n.webContents.send("record:settings")}}]},{label:"View",submenu:[{label:"Toggle Mirror Window",accelerator:"CmdOrCtrl+M",click:()=>{n&&n.webContents.send("toggle-mirror")}},{type:"separator"},{label:"Toggle Debug Overlay",accelerator:"CmdOrCtrl+Shift+D",click:()=>{try{n?.webContents.send("debug:toggleOverlay")}catch{}}},{label:"Show Debug Panel",accelerator:"CmdOrCtrl+Alt+D",click:()=>{try{n?.webContents.send("debug:openPanel")}catch{}}},{type:"separator"},{label:"Reload",accelerator:"CmdOrCtrl+R",click:()=>{n&&n.reload()}},{label:"Toggle Developer Tools",accelerator:"F12",click:()=>{n&&n.webContents.toggleDevTools()}}]},{label:"Window",submenu:[{label:"Minimize",accelerator:"CmdOrCtrl+M",role:"minimize"},{label:"Close",accelerator:"CmdOrCtrl+W",role:"close"}]}],t=r.Menu.buildFromTemplate(o);r.Menu.setApplicationMenu(t)}r.app.whenReady().then(()=>{console.log("Electron app is ready");try{r.app.commandLine.appendSwitch("autoplay-policy","no-user-gesture-required")}catch{}r.app.commandLine.appendSwitch("disable-background-timer-throttling"),r.app.commandLine.appendSwitch("disable-renderer-backgrounding"),P(),A(),r.protocol.registerFileProtocol("local-file",(o,t)=>{const e=o.url.replace("local-file://","");console.log("Loading local file:",e),console.log("Request URL:",o.url),console.log("File path resolved:",e),t(e)}),r.ipcMain.handle("show-open-dialog",async(o,t)=>await r.dialog.showOpenDialog(n,t)),r.ipcMain.handle("show-save-dialog",async(o,t)=>{console.log("Show save dialog called with options:",t);const e=await r.dialog.showSaveDialog(n,t);return console.log("Save dialog result:",e),e}),r.ipcMain.handle("save-file",async(o,t,e)=>{try{return await g.promises.writeFile(t,e,"utf8"),!0}catch(i){return console.error("Failed to save file:",i),!1}}),r.ipcMain.handle("save-binary-file",async(o,t,e)=>{try{return console.log("Saving binary file to:",t,"Size:",e.length,"bytes"),await g.promises.writeFile(t,Buffer.from(e)),console.log("Binary file saved successfully"),!0}catch(i){return console.error("Failed to save binary file:",i),!1}}),r.ipcMain.handle("get-system-audio-stream",async()=>{try{const{desktopCapturer:o}=require("electron"),t=await o.getSources({types:["screen"],thumbnailSize:{width:1,height:1}});if(t.length===0)throw new Error("No screen sources available");return{success:!0,sourceId:(t.find(i=>i.name==="Entire Screen")||t[0]).id}}catch(o){return console.error("Failed to get system audio stream:",o),{success:!1,error:String(o)}}}),r.ipcMain.handle("read-file-text",async(o,t)=>{try{return await g.promises.readFile(t,"utf8")}catch(e){return console.error("Failed to read file:",e),null}}),r.ipcMain.handle("read-local-file-base64",async(o,t)=>{try{return(await g.promises.readFile(t)).toString("base64")}catch(e){throw console.error("Failed to read local file:",t,e),e}}),r.ipcMain.handle("read-audio-bytes",async(o,t)=>{try{const{fileURLToPath:e}=require("url"),i=typeof t=="string"&&t.startsWith("file:")?e(t):t,s=await g.promises.readFile(i);return s.buffer.slice(s.byteOffset,s.byteOffset+s.byteLength)}catch(e){return console.error("read-audio-bytes failed for",t,e),new ArrayBuffer(0)}}),r.ipcMain.handle("authStorage:isEncryptionAvailable",()=>{try{return r.safeStorage.isEncryptionAvailable()}catch{return!1}}),r.ipcMain.on("authStorage:isEncryptionAvailableSync",o=>{try{o.returnValue=r.safeStorage.isEncryptionAvailable()}catch{o.returnValue=!1}}),r.ipcMain.handle("authStorage:save",async(o,t,e)=>{try{return t?e==null||e===""?(delete d[t],b(),!0):(r.safeStorage.isEncryptionAvailable()?d[t]=r.safeStorage.encryptString(e):d[t]=Buffer.from(e,"utf8"),b(),!0):!1}catch(i){return console.error("Failed to save auth blob:",i),!1}}),r.ipcMain.on("authStorage:saveSync",(o,t,e)=>{try{if(!t){o.returnValue=!1;return}if(e==null||e===""){delete d[t],b(),o.returnValue=!0;return}r.safeStorage.isEncryptionAvailable()?d[t]=r.safeStorage.encryptString(e):d[t]=Buffer.from(e,"utf8"),b(),o.returnValue=!0}catch(i){console.error("Failed to save auth blob (sync):",i),o.returnValue=!1}}),r.ipcMain.handle("authStorage:load",async(o,t)=>{try{if(!t)return null;const e=d[t];return e?r.safeStorage.isEncryptionAvailable()?r.safeStorage.decryptString(e):e.toString("utf8"):null}catch(e){return console.error("Failed to load auth blob:",e),null}}),r.ipcMain.on("authStorage:loadSync",(o,t)=>{try{if(!t){o.returnValue=null;return}const e=d[t];if(!e){o.returnValue=null;return}r.safeStorage.isEncryptionAvailable()?o.returnValue=r.safeStorage.decryptString(e):o.returnValue=e.toString("utf8")}catch(e){console.error("Failed to load auth blob (sync):",e),o.returnValue=null}}),r.ipcMain.handle("authStorage:remove",async(o,t)=>{try{return t?(delete d[t],b(),!0):!1}catch(e){return console.error("Failed to remove auth blob:",e),!1}}),r.ipcMain.on("authStorage:removeSync",(o,t)=>{try{if(!t){o.returnValue=!1;return}delete d[t],b(),o.returnValue=!0}catch(e){console.error("Failed to remove auth blob (sync):",e),o.returnValue=!1}}),r.ipcMain.handle("authStorage:loadAll",async()=>{try{const o={};for(const[t,e]of Object.entries(d))try{r.safeStorage.isEncryptionAvailable()?o[t]=r.safeStorage.decryptString(e):o[t]=e.toString("utf8")}catch{}return o}catch(o){return console.error("Failed to loadAll auth blobs:",o),{}}}),r.ipcMain.on("toggle-app-fullscreen",()=>{if(n&&!n.isDestroyed()){const{screen:o}=require("electron");if(n.isKiosk()||n.isFullScreen())n.setKiosk(!1),n.setFullScreen(!1),n.setBounds({width:1200,height:800}),n.center();else{const t=n.getBounds(),e=o.getDisplayMatching(t);n.setBounds({x:e.bounds.x,y:e.bounds.y,width:e.bounds.width,height:e.bounds.height}),n.setMenuBarVisibility(!1),n.setFullScreenable(!0),n.setAlwaysOnTop(!0),n.setKiosk(!0),n.setFullScreen(!0)}}}),r.ipcMain.on("window-minimize",()=>{console.log("Main: window-minimize IPC received"),n?(console.log("Main: calling mainWindow.minimize()"),n.minimize()):console.log("Main: mainWindow is null")}),r.ipcMain.on("window-maximize",()=>{if(console.log("Main: window-maximize IPC received"),n)if(n.isMaximized()){console.log("Main: calling mainWindow.unmaximize()"),n.unmaximize();try{n.webContents.send("window-state",{maximized:!1})}catch{}}else{console.log("Main: calling mainWindow.maximize()"),n.maximize();try{n.webContents.send("window-state",{maximized:!0})}catch{}}else console.log("Main: mainWindow is null")}),r.ipcMain.on("window-close",()=>{console.log("Main: window-close IPC received"),n?(console.log("Main: calling mainWindow.close()"),n.close()):console.log("Main: mainWindow is null")}),r.ipcMain.on("toggle-mirror",()=>{n&&n.webContents.send("toggle-mirror")}),r.ipcMain.on("open-mirror-window",()=>{D()}),r.ipcMain.on("close-mirror-window",()=>{B()}),r.ipcMain.on("set-mirror-bg",(o,t)=>{if(a&&!a.isDestroyed()){const e=typeof t=="string"?t.replace(/'/g,"\\'"):"#000000";a.webContents.executeJavaScript(`document.body.style.background='${e}'`)}}),r.ipcMain.on("canvas-data",(o,t)=>{a&&!a.isDestroyed()&&a.webContents.send("update-canvas",t)}),r.ipcMain.on("sendCanvasData",(o,t)=>{if(a&&!a.isDestroyed())try{const e=(typeof t=="string"?t:"").replace(/'/g,"\\'");a.webContents.executeJavaScript(`
+  `;
+  win.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
+  try {
+    win.show();
+    win.center();
+  } catch {
+  }
+  win.once("ready-to-show", () => {
+    try {
+      if (!win.isVisible()) {
+        win.show();
+        win.center();
+      }
+    } catch {
+    }
+  });
+  win.on("closed", () => {
+    advancedMirrorWindows.delete(id);
+  });
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.key === "Escape") {
+      win.close();
+    }
+  });
+  advancedMirrorWindows.set(id, win);
+  return win;
+}
+function createCustomMenu() {
+  const template = [
+    {
+      label: "VJ App",
+      submenu: [
+        {
+          label: "About VJ App",
+          role: "about"
+        },
+        { type: "separator" },
+        {
+          label: "Quit",
+          accelerator: "CmdOrCtrl+Q",
+          click: () => {
+            electron.app.quit();
+          }
+        }
+      ]
+    },
+    {
+      label: "External",
+      submenu: [
+        {
+          label: "Mirror Window",
+          accelerator: "CmdOrCtrl+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-mirror");
+            }
+          }
+        },
+        {
+          label: "Advanced Mirror",
+          accelerator: "CmdOrCtrl+Shift+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-advanced-mirror");
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Record",
+      submenu: [
+        {
+          label: "Record",
+          accelerator: "CmdOrCtrl+Shift+R",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("record:start");
+            }
+          }
+        },
+        {
+          label: "Record Settings",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("record:settings");
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "View",
+      submenu: [
+        {
+          label: "Toggle Mirror Window",
+          accelerator: "CmdOrCtrl+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-mirror");
+            }
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Toggle Debug Overlay",
+          accelerator: "CmdOrCtrl+Shift+D",
+          click: () => {
+            try {
+              mainWindow?.webContents.send("debug:toggleOverlay");
+            } catch {
+            }
+          }
+        },
+        {
+          label: "Show Debug Panel",
+          accelerator: "CmdOrCtrl+Alt+D",
+          click: () => {
+            try {
+              mainWindow?.webContents.send("debug:openPanel");
+            } catch {
+            }
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Reload",
+          accelerator: "CmdOrCtrl+R",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.reload();
+            }
+          }
+        },
+        {
+          label: "Toggle Developer Tools",
+          accelerator: "F12",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.toggleDevTools();
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Window",
+      submenu: [
+        {
+          label: "Minimize",
+          accelerator: "CmdOrCtrl+M",
+          role: "minimize"
+        },
+        {
+          label: "Close",
+          accelerator: "CmdOrCtrl+W",
+          role: "close"
+        }
+      ]
+    }
+  ];
+  const menu = electron.Menu.buildFromTemplate(template);
+  electron.Menu.setApplicationMenu(menu);
+}
+electron.app.whenReady().then(() => {
+  console.log("Electron app is ready");
+  try {
+    electron.app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+  } catch {
+  }
+  electron.app.commandLine.appendSwitch("disable-background-timer-throttling");
+  electron.app.commandLine.appendSwitch("disable-renderer-backgrounding");
+  createCustomMenu();
+  loadEncryptedAuthStoreFromDisk();
+  electron.protocol.registerFileProtocol("local-file", (request, callback) => {
+    const filePath = request.url.replace("local-file://", "");
+    console.log("Loading local file:", filePath);
+    console.log("Request URL:", request.url);
+    console.log("File path resolved:", filePath);
+    callback(filePath);
+  });
+  electron.ipcMain.handle("show-open-dialog", async (event, options) => {
+    const result = await electron.dialog.showOpenDialog(mainWindow, options);
+    return result;
+  });
+  electron.ipcMain.handle("show-save-dialog", async (event, options) => {
+    console.log("Show save dialog called with options:", options);
+    const result = await electron.dialog.showSaveDialog(mainWindow, options);
+    console.log("Save dialog result:", result);
+    return result;
+  });
+  electron.ipcMain.handle("save-file", async (event, filePath, content) => {
+    try {
+      await fs.promises.writeFile(filePath, content, "utf8");
+      return true;
+    } catch (e) {
+      console.error("Failed to save file:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.handle("save-binary-file", async (event, filePath, data) => {
+    try {
+      console.log("Saving binary file to:", filePath, "Size:", data.length, "bytes");
+      await fs.promises.writeFile(filePath, Buffer.from(data));
+      console.log("Binary file saved successfully");
+      return true;
+    } catch (e) {
+      console.error("Failed to save binary file:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.handle("get-system-audio-stream", async () => {
+    try {
+      const { desktopCapturer } = require("electron");
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: { width: 1, height: 1 }
+      });
+      if (sources.length === 0) {
+        throw new Error("No screen sources available");
+      }
+      const primarySource = sources.find((source) => source.name === "Entire Screen") || sources[0];
+      return {
+        success: true,
+        sourceId: primarySource.id
+      };
+    } catch (e) {
+      console.error("Failed to get system audio stream:", e);
+      return {
+        success: false,
+        error: String(e)
+      };
+    }
+  });
+  electron.ipcMain.handle("read-file-text", async (event, filePath) => {
+    try {
+      const data = await fs.promises.readFile(filePath, "utf8");
+      return data;
+    } catch (e) {
+      console.error("Failed to read file:", e);
+      return null;
+    }
+  });
+  electron.ipcMain.handle("read-local-file-base64", async (event, filePath) => {
+    try {
+      const data = await fs.promises.readFile(filePath);
+      return data.toString("base64");
+    } catch (err) {
+      console.error("Failed to read local file:", filePath, err);
+      throw err;
+    }
+  });
+  electron.ipcMain.handle("read-audio-bytes", async (_e, urlOrPath) => {
+    try {
+      const { fileURLToPath } = require("url");
+      const asPath = typeof urlOrPath === "string" && urlOrPath.startsWith("file:") ? fileURLToPath(urlOrPath) : urlOrPath;
+      const buf = await fs.promises.readFile(asPath);
+      return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    } catch (err) {
+      console.error("read-audio-bytes failed for", urlOrPath, err);
+      return new ArrayBuffer(0);
+    }
+  });
+  electron.ipcMain.handle("authStorage:isEncryptionAvailable", () => {
+    try {
+      return electron.safeStorage.isEncryptionAvailable();
+    } catch {
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:isEncryptionAvailableSync", (event) => {
+    try {
+      event.returnValue = electron.safeStorage.isEncryptionAvailable();
+    } catch {
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:save", async (event, key, plainText) => {
+    try {
+      if (!key) return false;
+      if (plainText === void 0 || plainText === null || plainText === "") {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        return true;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = electron.safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, "utf8");
+      }
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error("Failed to save auth blob:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:saveSync", (event, key, plainText) => {
+    try {
+      if (!key) {
+        event.returnValue = false;
+        return;
+      }
+      if (plainText === void 0 || plainText === null || plainText === "") {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        event.returnValue = true;
+        return;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = electron.safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, "utf8");
+      }
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error("Failed to save auth blob (sync):", e);
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:load", async (event, key) => {
+    try {
+      if (!key) return null;
+      const buf = encryptedAuthStore[key];
+      if (!buf) return null;
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        return electron.safeStorage.decryptString(buf);
+      }
+      return buf.toString("utf8");
+    } catch (e) {
+      console.error("Failed to load auth blob:", e);
+      return null;
+    }
+  });
+  electron.ipcMain.on("authStorage:loadSync", (event, key) => {
+    try {
+      if (!key) {
+        event.returnValue = null;
+        return;
+      }
+      const buf = encryptedAuthStore[key];
+      if (!buf) {
+        event.returnValue = null;
+        return;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        event.returnValue = electron.safeStorage.decryptString(buf);
+      } else {
+        event.returnValue = buf.toString("utf8");
+      }
+    } catch (e) {
+      console.error("Failed to load auth blob (sync):", e);
+      event.returnValue = null;
+    }
+  });
+  electron.ipcMain.handle("authStorage:remove", async (event, key) => {
+    try {
+      if (!key) return false;
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error("Failed to remove auth blob:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:removeSync", (event, key) => {
+    try {
+      if (!key) {
+        event.returnValue = false;
+        return;
+      }
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error("Failed to remove auth blob (sync):", e);
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:loadAll", async () => {
+    try {
+      const result = {};
+      for (const [k, v] of Object.entries(encryptedAuthStore)) {
+        try {
+          if (electron.safeStorage.isEncryptionAvailable()) {
+            result[k] = electron.safeStorage.decryptString(v);
+          } else {
+            result[k] = v.toString("utf8");
+          }
+        } catch {
+        }
+      }
+      return result;
+    } catch (e) {
+      console.error("Failed to loadAll auth blobs:", e);
+      return {};
+    }
+  });
+  electron.ipcMain.on("toggle-app-fullscreen", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const { screen } = require("electron");
+      if (mainWindow.isKiosk() || mainWindow.isFullScreen()) {
+        mainWindow.setKiosk(false);
+        mainWindow.setFullScreen(false);
+        mainWindow.setBounds({ width: 1200, height: 800 });
+        mainWindow.center();
+      } else {
+        const bounds = mainWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mainWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mainWindow.setMenuBarVisibility(false);
+        mainWindow.setFullScreenable(true);
+        mainWindow.setAlwaysOnTop(true);
+        mainWindow.setKiosk(true);
+        mainWindow.setFullScreen(true);
+      }
+    }
+  });
+  electron.ipcMain.on("window-minimize", () => {
+    console.log("Main: window-minimize IPC received");
+    if (mainWindow) {
+      console.log("Main: calling mainWindow.minimize()");
+      mainWindow.minimize();
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("window-maximize", () => {
+    console.log("Main: window-maximize IPC received");
+    if (mainWindow) {
+      if (mainWindow.isMaximized()) {
+        console.log("Main: calling mainWindow.unmaximize()");
+        mainWindow.unmaximize();
+        try {
+          mainWindow.webContents.send("window-state", { maximized: false });
+        } catch {
+        }
+      } else {
+        console.log("Main: calling mainWindow.maximize()");
+        mainWindow.maximize();
+        try {
+          mainWindow.webContents.send("window-state", { maximized: true });
+        } catch {
+        }
+      }
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("window-close", () => {
+    console.log("Main: window-close IPC received");
+    if (mainWindow) {
+      console.log("Main: calling mainWindow.close()");
+      mainWindow.close();
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("toggle-mirror", () => {
+    if (mainWindow) {
+      mainWindow.webContents.send("toggle-mirror");
+    }
+  });
+  electron.ipcMain.on("open-mirror-window", () => {
+    createMirrorWindow();
+  });
+  electron.ipcMain.on("close-mirror-window", () => {
+    closeMirrorWindow();
+  });
+  electron.ipcMain.on("set-mirror-bg", (event, color) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const safe = typeof color === "string" ? color.replace(/'/g, "\\'") : "#000000";
+      mirrorWindow.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+    }
+  });
+  electron.ipcMain.on("canvas-data", (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      mirrorWindow.webContents.send("update-canvas", dataUrl);
+    }
+  });
+  electron.ipcMain.on("sendCanvasData", (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      try {
+        const escaped = (typeof dataUrl === "string" ? dataUrl : "").replace(/'/g, "\\'");
+        mirrorWindow.webContents.executeJavaScript(`
           (function(){
             try {
               var noStream = document.getElementById('no-stream');
               var img = document.getElementById('mirror-image');
               if (noStream) noStream.style.display = 'none';
               if (img) {
-                if (img.src !== '${e}') {
-                  img.src = '${e}';
+                if (img.src !== '${escaped}') {
+                  img.src = '${escaped}';
                   img.style.display = 'block';
                 }
               }
             } catch(e) {}
           })();
-        `)}catch{}}),r.ipcMain.on("toggle-fullscreen",()=>{if(a&&!a.isDestroyed()){const{screen:o}=require("electron");if(a.isKiosk()||a.isFullScreen())a.setKiosk(!1),a.setFullScreen(!1),a.setBounds({x:void 0,y:void 0,width:1920,height:1080}),a.center();else{const t=a.getBounds(),e=o.getDisplayMatching(t);a.setBounds({x:e.bounds.x,y:e.bounds.y,width:e.bounds.width,height:e.bounds.height}),a.setMenuBarVisibility(!1),a.setFullScreenable(!0),a.setAlwaysOnTop(!0),a.setKiosk(!0),a.setFullScreen(!0)}}}),r.ipcMain.on("resize-mirror-window",(o,t,e)=>{if(a&&!a.isDestroyed()){try{let i=Math.max(1,Number(t)||1),s=Math.max(1,Number(e)||1);const{screen:l}=require("electron"),p=l.getPrimaryDisplay().workArea,m=Math.floor(p.width*.9),f=Math.floor(p.height*.9),I=i/s;if(i>m||s>f){const C=m/i,z=f/s,M=Math.min(C,z);i=Math.floor(i*M),s=Math.floor(s*M)}i=Math.max(480,i),s=Math.max(270,s),w&&isFinite(w)&&w>0&&(s=Math.max(1,Math.round(i/w))),console.log("Resizing mirror window to:",i,"x",s,"(aspect locked:",!!w,")"),a.setSize(i,s)}catch{}a.center()}}),r.ipcMain.on("set-mirror-aspect",(o,t,e)=>{try{const i=Math.max(1,Number(t)||1),s=Math.max(1,Number(e)||1),l=i/s;if(w=l,v=l,a&&!a.isDestroyed())try{a.setAspectRatio(l)}catch{}if(S&&!S.isDestroyed())try{S.setAspectRatio(l)}catch{}}catch{}}),r.ipcMain.on("advanced-mirror:open",(o,t)=>{try{if(console.log("[main] advanced-mirror:open",Array.isArray(t)?t.map(e=>e?.id):t),Array.isArray(t))for(const e of t)console.log("[main] createAdvancedMirrorWindow",e?.id),R(String(e.id),e)}catch(e){console.warn("advanced-mirror:open error",e)}}),r.ipcMain.on("advanced-mirror:closeAll",()=>{try{h.forEach((o,t)=>{try{o.isDestroyed()||o.close()}catch{}h.delete(t)})}catch(o){console.warn("advanced-mirror:closeAll error",o)}}),r.ipcMain.on("advanced-mirror:sendSliceData",(o,t,e)=>{const i=h.get(String(t));if(i&&!i.isDestroyed()){const s=(typeof e=="string"?e:"").replace(/'/g,"\\'");i.webContents.executeJavaScript(`
+        `);
+      } catch {
+      }
+    }
+  });
+  electron.ipcMain.on("toggle-fullscreen", () => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const { screen } = require("electron");
+      if (mirrorWindow.isKiosk() || mirrorWindow.isFullScreen()) {
+        mirrorWindow.setKiosk(false);
+        mirrorWindow.setFullScreen(false);
+        mirrorWindow.setBounds({
+          x: void 0,
+          y: void 0,
+          width: 1920,
+          // Will be updated by renderer
+          height: 1080
+          // Will be updated by renderer
+        });
+        mirrorWindow.center();
+      } else {
+        const bounds = mirrorWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mirrorWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mirrorWindow.setMenuBarVisibility(false);
+        mirrorWindow.setFullScreenable(true);
+        mirrorWindow.setAlwaysOnTop(true);
+        mirrorWindow.setKiosk(true);
+        mirrorWindow.setFullScreen(true);
+      }
+    }
+  });
+  electron.ipcMain.on("resize-mirror-window", (event, width, height) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      try {
+        let targetW = Math.max(1, Number(width) || 1);
+        let targetH = Math.max(1, Number(height) || 1);
+        const { screen } = require("electron");
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const workArea = primaryDisplay.workArea;
+        const maxW = Math.floor(workArea.width * 0.9);
+        const maxH = Math.floor(workArea.height * 0.9);
+        const aspectRatio = targetW / targetH;
+        if (targetW > maxW || targetH > maxH) {
+          const scaleW = maxW / targetW;
+          const scaleH = maxH / targetH;
+          const scale = Math.min(scaleW, scaleH);
+          targetW = Math.floor(targetW * scale);
+          targetH = Math.floor(targetH * scale);
+        }
+        targetW = Math.max(480, targetW);
+        targetH = Math.max(270, targetH);
+        if (mirrorAspectRatio && isFinite(mirrorAspectRatio) && mirrorAspectRatio > 0) {
+          targetH = Math.max(1, Math.round(targetW / mirrorAspectRatio));
+        }
+        console.log("Resizing mirror window to:", targetW, "x", targetH, "(aspect locked:", !!mirrorAspectRatio, ")");
+        mirrorWindow.setSize(targetW, targetH);
+      } catch {
+      }
+      mirrorWindow.center();
+    }
+  });
+  electron.ipcMain.on("set-mirror-aspect", (event, width, height) => {
+    try {
+      const w = Math.max(1, Number(width) || 1);
+      const h = Math.max(1, Number(height) || 1);
+      const ratio = w / h;
+      mirrorAspectRatio = ratio;
+      outputAspectRatio = ratio;
+      if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+        try {
+          mirrorWindow.setAspectRatio(ratio);
+        } catch {
+        }
+      }
+      if (outputWindow && !outputWindow.isDestroyed()) {
+        try {
+          outputWindow.setAspectRatio(ratio);
+        } catch {
+        }
+      }
+    } catch {
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:open", (event, slices) => {
+    try {
+      console.log("[main] advanced-mirror:open", Array.isArray(slices) ? slices.map((s) => s?.id) : slices);
+      if (Array.isArray(slices)) {
+        for (const s of slices) {
+          console.log("[main] createAdvancedMirrorWindow", s?.id);
+          createAdvancedMirrorWindow(String(s.id), s);
+        }
+      }
+    } catch (e) {
+      console.warn("advanced-mirror:open error", e);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:closeAll", () => {
+    try {
+      advancedMirrorWindows.forEach((win, id) => {
+        try {
+          if (!win.isDestroyed()) win.close();
+        } catch {
+        }
+        advancedMirrorWindows.delete(id);
+      });
+    } catch (e) {
+      console.warn("advanced-mirror:closeAll error", e);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:sendSliceData", (event, id, dataUrl) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const escaped = (typeof dataUrl === "string" ? dataUrl : "").replace(/'/g, "\\'");
+      win.webContents.executeJavaScript(`
         (function() {
           const mirrorImage = document.getElementById('mirror-image');
           if (mirrorImage) {
-            if (mirrorImage.src !== '${s}') {
-              mirrorImage.src = '${s}';
+            if (mirrorImage.src !== '${escaped}') {
+              mirrorImage.src = '${escaped}';
               mirrorImage.style.display = 'block';
             }
           }
         })();
-      `)}}),r.ipcMain.on("advanced-mirror:setBg",(o,t,e)=>{const i=h.get(String(t));if(i&&!i.isDestroyed()){const s=typeof e=="string"?e.replace(/'/g,"\\'"):"#000000";i.webContents.executeJavaScript(`document.body.style.background='${s}'`)}}),r.ipcMain.on("advanced-mirror:resize",(o,t,e,i)=>{const s=h.get(String(t));if(s&&!s.isDestroyed())try{s.setSize(e,i),s.center()}catch{}}),r.ipcMain.on("advanced-mirror:toggleFullscreen",(o,t)=>{const e=h.get(String(t));if(e&&!e.isDestroyed()){const{screen:i}=require("electron");if(e.isKiosk()||e.isFullScreen())try{e.setKiosk(!1),e.setFullScreen(!1),e.setBounds({width:960,height:540}),e.center()}catch{}else try{const s=e.getBounds(),l=i.getDisplayMatching(s);e.setBounds({x:l.bounds.x,y:l.bounds.y,width:l.bounds.width,height:l.bounds.height}),e.setMenuBarVisibility(!1),e.setFullScreenable(!0),e.setAlwaysOnTop(!0),e.setKiosk(!0),e.setFullScreen(!0)}catch{}}}),x(),r.app.on("activate",()=>{r.BrowserWindow.getAllWindows().length===0&&x()})});r.app.on("window-all-closed",()=>{process.platform!=="darwin"&&r.app.quit()});process.on("uncaughtException",o=>{console.error("Uncaught Exception:",o)});process.on("unhandledRejection",(o,t)=>{console.error("Unhandled Rejection at:",t,"reason:",o)});
+      `);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:setBg", (event, id, color) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const safe = typeof color === "string" ? color.replace(/'/g, "\\'") : "#000000";
+      win.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:resize", (event, id, width, height) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      try {
+        win.setSize(width, height);
+        win.center();
+      } catch {
+      }
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:toggleFullscreen", (event, id) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const { screen } = require("electron");
+      if (win.isKiosk() || win.isFullScreen()) {
+        try {
+          win.setKiosk(false);
+          win.setFullScreen(false);
+          win.setBounds({ width: 960, height: 540 });
+          win.center();
+        } catch {
+        }
+      } else {
+        try {
+          const bounds = win.getBounds();
+          const display = screen.getDisplayMatching(bounds);
+          win.setBounds({ x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height });
+          win.setMenuBarVisibility(false);
+          win.setFullScreenable(true);
+          win.setAlwaysOnTop(true);
+          win.setKiosk(true);
+          win.setFullScreen(true);
+        } catch {
+        }
+      }
+    }
+  });
+  createWindow();
+  electron.app.on("activate", () => {
+    if (electron.BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+electron.app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    electron.app.quit();
+  }
+});
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});

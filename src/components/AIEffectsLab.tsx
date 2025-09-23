@@ -45,8 +45,7 @@ export const AIEffectsLab: React.FC = () => {
       return id ? String(id) : null;
     } catch { return null; }
   }, [selectedLayer]);
-  const [availableRefs, setAvailableRefs] = useState<RefEffectOption[]>([]);
-  const [refId, setRefId] = useState<string>('');
+  // Reference effect selection removed; editor is now the single source of truth
   const [apiKey, setApiKey] = useState<string>(() => {
     try { return localStorage.getItem(STORAGE_KEY_API) || ''; } catch { return ''; }
   });
@@ -55,7 +54,9 @@ export const AIEffectsLab: React.FC = () => {
   });
   const [thinking, setThinking] = useState<boolean>(false);
   const [prompt, setPrompt] = useState<string>(DEFAULT_PROMPT);
-  const [code, setCode] = useState<string>('');
+  const [code, setCode] = useState<string>(() => {
+    try { return localStorage.getItem('vj-ai-last-code') || ''; } catch { return ''; }
+  });
   const [status, setStatus] = useState<string>('');
   const [isSource, setIsSource] = useState<boolean>(false);
   const lastLoadedForEffectRef = useRef<string | null>(null);
@@ -111,7 +112,7 @@ export const AIEffectsLab: React.FC = () => {
         } catch {}
       }
       if (!entry) return false;
-      try { setRefId(entry.id); } catch {}
+      // reference selection removed
       const rawGlobs: Record<string, () => Promise<string>> = {
         ...(import.meta as any).glob('../../bank/**/*.{tsx,ts,js,jsx,mjs}', { as: 'raw', eager: false }),
         ...(import.meta as any).glob('../effects/**/*.{tsx,ts,js,jsx}', { as: 'raw', eager: false }),
@@ -138,25 +139,7 @@ export const AIEffectsLab: React.FC = () => {
     return false;
   }, []);
 
-  // Load effects for reference selector
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const { EffectDiscovery } = await import('../utils/EffectDiscovery');
-        const discovery = EffectDiscovery.getInstance();
-        const list = await discovery.listAvailableEffectsFromFilesystem();
-        if (!mounted) return;
-        const norm = list.map((e: any) => ({ id: e.id, name: e.name, fileKey: e.fileKey, category: e.metadata?.folder, isSource: !!e.metadata?.isSource }));
-        setAvailableRefs(norm);
-        // Preselect first effect
-        if (norm.length > 0 && !refId) setRefId(norm[0].id);
-      } catch (e) {
-        setStatus('Failed to load effects list');
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
+  // Reference list disabled
 
   // When the user selects a layer with an effect, auto-load its source into the editor
   useEffect(() => {
@@ -171,18 +154,7 @@ export const AIEffectsLab: React.FC = () => {
     })();
   }, [selectedEffectId, loadSourceForEffectId]);
 
-  // Also load when the reference dropdown changes
-  useEffect(() => {
-    (async () => {
-      if (!refId) return;
-      if (lastLoadedForEffectRef.current === refId) return;
-      const ok = await loadSourceForEffectId(refId);
-      if (!ok) {
-        // Don't override existing code; just inform status
-        setStatus('Could not find source for selected reference');
-      }
-    })();
-  }, [refId, loadSourceForEffectId]);
+  // Reference dropdown removed
 
   const onSaveApiKey = () => {
     try { localStorage.setItem(STORAGE_KEY_API, apiKey.trim()); setStatus('Saved API key'); } catch {}
@@ -201,7 +173,7 @@ export const AIEffectsLab: React.FC = () => {
       // Lightweight client via fetch to avoid SDK dependency; Electron only recommended
       const truncated = (code && code.trim()) ? (code.length > 50000 ? code.slice(0, 50000) + "\n/* …truncated… */" : code) : '';
       const combined = truncated
-        ? `${String(prompt || '')}\n\n\`\`\`js\n${truncated}\n\`\`\``
+        ? `${String(prompt || '')}\n\nExample:\n\`\`\`js\n${truncated}\n\`\`\``
         : String(prompt || '');
       const body: any = {
         model,
@@ -248,6 +220,7 @@ export const AIEffectsLab: React.FC = () => {
       const discovery = EffectDiscovery.getInstance();
       const effect = await discovery.loadUserEffectFromContent(code, `ai-generated-${Date.now()}.js`);
       if (effect) {
+        try { localStorage.setItem('vj-ai-last-code', code); } catch {}
         setStatus(`Loaded user effect: ${effect.name}`);
       } else {
         setStatus('Failed to load effect. Ensure it exports default component and metadata.');
@@ -267,6 +240,7 @@ export const AIEffectsLab: React.FC = () => {
       // Use a stable sourceName so repeated applies hot-replace the same effect id
       const effect = await discovery.loadUserEffectFromContent(code, 'ai-live-edit.js');
       if (!effect) { setStatus('Failed to load effect for apply'); return; }
+      try { localStorage.setItem('vj-ai-last-code', code); } catch {}
       // Update current layer to reference the user effect
       try {
         const id = effect.id; // e.g., user-ai-live-edit
@@ -274,7 +248,7 @@ export const AIEffectsLab: React.FC = () => {
           type: 'effect',
           asset: { id, name: id, type: 'effect', isEffect: true },
         });
-        setRefId(effect.id);
+        // reference selection removed
         lastLoadedForEffectRef.current = effect.id;
         setStatus(`Applied to selected slot: ${effect.name}`);
       } catch (e) {
@@ -323,12 +297,8 @@ export const AIEffectsLab: React.FC = () => {
           filters: [{ name: 'JavaScript', extensions: ['js'] }],
         });
         if (result?.canceled || !result?.filePath) { setStatus('Save canceled'); return; }
-        if (typeof (window as any).electron.writeFileText !== 'function') {
-          setStatus('Cannot save: writeFileText not available');
-          return;
-        }
-        await (window as any).electron.writeFileText(result.filePath, code);
-        setStatus(`Saved: ${result.filePath}`);
+        const ok = await (window as any).electron.saveFile(result.filePath, code);
+        setStatus(ok ? `Saved: ${result.filePath}` : 'Failed to save file');
         return;
       }
       // Web fallback: File System Access API
@@ -338,6 +308,7 @@ export const AIEffectsLab: React.FC = () => {
         const writable = await handle.createWritable();
         await writable.write(code);
         await writable.close();
+        try { localStorage.setItem('vj-ai-last-code', code); } catch {}
         setStatus('Saved file');
       } catch (e) {
         setStatus('Save canceled or unsupported');
@@ -370,7 +341,7 @@ export const AIEffectsLab: React.FC = () => {
         '- Avoid JSX; use React.createElement or return primitives via React APIs.',
         '- Keep it self-contained and executable.',
       ].join('\n');
-      const combined = `${instructions}\n\n\`\`\`js\n${code}\n\`\`\``;
+      const combined = `${instructions}\n\nExample:\n\`\`\`js\n${code}\n\`\`\``;
       const body: any = {
         model,
         messages: [ { role: 'user', content: combined } ],
@@ -398,10 +369,7 @@ export const AIEffectsLab: React.FC = () => {
     }
   };
 
-  const refOptions = useMemo(() => {
-    const list = availableRefs.slice();
-    return list.map((e) => ({ value: e.id, label: e.name }));
-  }, [availableRefs]);
+  // Reference options removed
 
   return (
     <div className="tw-flex tw-flex-col tw-h-full tw-gap-3">
@@ -409,10 +377,6 @@ export const AIEffectsLab: React.FC = () => {
 
       <div className="tw-grid tw-grid-cols-1 tw-gap-3">
         <div className="tw-col-span-1 tw-space-y-3">
-          <div className="tw-space-y-1">
-            <Label className="tw-text-xs">Reference Effect</Label>
-            <Select value={refId} onChange={(v) => setRefId(String(v))} options={refOptions} className="tw-text-xs" />
-          </div>
           <div className="tw-space-y-1">
             <Label className="tw-text-xs">OpenAI API Key</Label>
             <Input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." className="tw-text-xs" />

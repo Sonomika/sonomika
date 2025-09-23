@@ -210,6 +210,18 @@ function App() {
         try {
           const { EffectDiscovery } = await import('./utils/EffectDiscovery');
           const discovery = EffectDiscovery.getInstance();
+          // Try to restore last AI effect so it persists across refresh/crash
+          try {
+            const last = localStorage.getItem('vj-ai-last-code');
+            if (last && last.trim()) {
+              try {
+                await discovery.loadUserEffectFromContent(last, 'ai-live-edit.js');
+                console.log('Restored last AI effect from localStorage');
+              } catch (e) {
+                console.warn('Failed to restore last AI effect', e);
+              }
+            }
+          } catch {}
           // Gather from multiple glob roots to avoid missing files across build contexts
           const maps: Array<Record<string, () => Promise<string>>> = [
             (import.meta as any).glob('../bank/**/*.{js,mjs}', { as: 'raw', eager: false }),

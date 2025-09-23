@@ -60,7 +60,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         type: THREE.UnsignedByteType,
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
-        depthBuffer: false,
+        depthBuffer: true,
         stencilBuffer: false
       })));
       // Set render target textures to linear color space to avoid double sRGB decoding
@@ -82,7 +82,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           type: THREE.UnsignedByteType,
           minFilter: THREE.LinearFilter,
           magFilter: THREE.LinearFilter,
-          depthBuffer: false,
+          depthBuffer: true,
           stencilBuffer: false
         });
         try {
@@ -97,7 +97,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           type: THREE.UnsignedByteType,
           minFilter: THREE.LinearFilter,
           magFilter: THREE.LinearFilter,
-          depthBuffer: false,
+          depthBuffer: true,
           stencilBuffer: false
         });
         try {
@@ -568,14 +568,16 @@ export const EffectChain: React.FC<EffectChainProps> = ({
               React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
               React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
             ),
-            offscreenScenes[idx]
+            offscreenScenes[idx],
+            `portal-bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`
           )
         );
       }
       list.push(
         createPortal(
           React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras }),
-          offscreenScenes[idx]
+          offscreenScenes[idx],
+          `portal-fx-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`
         )
       );
     });
