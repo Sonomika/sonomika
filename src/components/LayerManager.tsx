@@ -18,6 +18,7 @@ import { handleSceneRename } from '../utils/SceneManagementHandlers';
 import EffectsBrowser from './EffectsBrowser';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
+import AIEffectsLab from './AIEffectsLab';
 // Scenes header now uses ContextMenu for actions
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui/ContextMenu';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
@@ -2328,6 +2329,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <TabsTrigger value="files">Files</TabsTrigger>
                   <TabsTrigger value="midi">MIDI</TabsTrigger>
                   <TabsTrigger value="lfo">LFO</TabsTrigger>
+                  <TabsTrigger value="ai">AI</TabsTrigger>
                 </TabsList>
               </Tabs>
               </div>
@@ -2358,6 +2360,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                             selectedLayer={effectiveSelectedLayer || selectedLayer}
                             onUpdateLayer={handleUpdateSelectedLayer}
                           />
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="ai">
+                        <div className="tw-h-full tw-flex tw-flex-col">
+                          <AIEffectsLab />
                         </div>
                       </TabsContent>
                     </Tabs>
