@@ -62,6 +62,8 @@ export const AIEffectsLab: React.FC = () => {
   const lastLoadedForEffectRef = useRef<string | null>(null);
   const [addonSelection, setAddonSelection] = useState<string>('');
 
+  // Editor interactions are minimal; controls live in effect parameters
+
   // Suggested add-on prompt snippets
   const addonOptions = useMemo(() => (
     [
