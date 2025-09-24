@@ -483,7 +483,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
             )}
             {param.type === 'select' && (
               <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
-                <div className="tw-w-full sm:tw-w-[240px]">
+                <div className="tw-w-full xl:tw-w-[240px] tw-min-w-0">
                   <Select
                     value={String(uiValue)}
                     onChange={(val) => {

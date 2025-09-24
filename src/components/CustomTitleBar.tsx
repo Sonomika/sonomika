@@ -226,9 +226,15 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                   <div className="tw-flex tw-flex-col tw-py-1">
                     <button 
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
-                      onClick={(e) => { e.stopPropagation(); onMirror && onMirror(); setExternalMenuOpen(false); }}
+                      onClick={(e) => { e.stopPropagation(); try { (useStore.getState() as any).setMirrorKeepPreview?.(true); } catch {} onMirror && onMirror(); setExternalMenuOpen(false); }}
                     >
                       Mirror
+                    </button>
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => { e.stopPropagation(); try { (useStore.getState() as any).setMirrorKeepPreview?.(false); } catch {} onMirror && onMirror(); setExternalMenuOpen(false); }}
+                    >
+                      Mirror (No preview)
                     </button>
                     <button 
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"

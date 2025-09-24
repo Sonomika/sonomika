@@ -1060,7 +1060,7 @@ const SequenceTab: React.FC = () => {
       {/* Waveform Display */}
       <div className="tw-flex-1 tw-min-h-0">
         <div 
-          className="tw-w-full tw-h-full tw-rounded-lg tw-bg-neutral-800/50"
+          className="tw-w-full tw-h-full tw-rounded-lg"
           onDragOver={(e) => {
             e.preventDefault();
             try { e.dataTransfer.dropEffect = 'copy'; } catch {}
@@ -1107,7 +1107,7 @@ const SequenceTab: React.FC = () => {
             <div className="tw-space-y-3">
               <div className="tw-space-y-2">
                 {/* Zoom Controls and Add Button */}
-                <div className="tw-flex tw-items-center tw-justify-between tw-bg-neutral-800/50 tw-rounded-lg">
+                <div className="tw-flex tw-items-center tw-justify-between tw-rounded-lg">
                   <div className="tw-flex tw-items-center tw-space-x-2">
                     <button
                       onClick={() => waveformRef.current?.zoomIn?.()}
@@ -1140,30 +1140,24 @@ const SequenceTab: React.FC = () => {
                   </button>
                 </div>
 
-                {hasHydrated ? (
-                  <CustomWaveform
-                    key={`${audioUrl}-${triggerPoints.length}`}
-                    ref={waveformRef}
-                    audioUrl={audioUrl}
-                    onTimeUpdate={handleTimeUpdate}
-                    onDurationChange={handleDurationChange}
-                    onPlay={handlePlay}
-                    onPause={handlePause}
-                    onEnded={handleEnded}
-                    isPlaying={isPlaying}
-                    currentTime={currentTime}
-                    height={150}
-                    waveColor="#404040"
-                    progressColor="#aaaaaa"
-                    triggerPoints={triggerPoints}
-                    onTriggerClick={addTriggerPoint}
-                    triggersEnabled={triggersEnabled}
-                  />
-                ) : (
-                  <div className="tw-flex tw-items-center tw-justify-center tw-h-[150px] tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded">
-                    <div className="tw-text-sm tw-text-neutral-400">Loading markers...</div>
-                  </div>
-                )}
+                <CustomWaveform
+                  key={audioUrl}
+                  ref={waveformRef}
+                  audioUrl={audioUrl}
+                  onTimeUpdate={handleTimeUpdate}
+                  onDurationChange={handleDurationChange}
+                  onPlay={handlePlay}
+                  onPause={handlePause}
+                  onEnded={handleEnded}
+                  isPlaying={isPlaying}
+                  currentTime={currentTime}
+                  height={150}
+                  waveColor="#404040"
+                  progressColor="#aaaaaa"
+                  triggerPoints={triggerPoints}
+                  onTriggerClick={addTriggerPoint}
+                  triggersEnabled={triggersEnabled}
+                />
 
               </div>
               
@@ -1221,7 +1215,7 @@ const SequenceTab: React.FC = () => {
       </div>
 
       {/* Trigger Controls + End Action */}
-      <div className="tw-flex tw-items-center tw-justify-between tw-bg-neutral-800/50 tw-rounded-lg tw-border tw-border-neutral-600">
+      <div className="tw-flex tw-items-center tw-justify-between tw-rounded-lg tw-border tw-border-neutral-600">
         <div className="tw-flex tw-items-center tw-space-x-3">
         </div>
         {/* Controls arranged on two lines to avoid overflow */}
@@ -1288,7 +1282,7 @@ const SequenceTab: React.FC = () => {
               Clear markers
             </button>
           </div>
-          <div className="tw-bg-neutral-800/50 tw-rounded-lg tw-p-3 tw-max-h-48 tw-overflow-y-auto">
+          <div className="tw-rounded-lg tw-p-3 tw-max-h-48 tw-overflow-y-auto">
             <div className="tw-space-y-2">
               {triggerPoints.map((triggerTime, index) => {
                 const config = triggerConfigs[triggerTime];
@@ -1518,13 +1512,7 @@ const SequenceTab: React.FC = () => {
         </div>
       )}
 
-      {/* Instructions */}
-      {audioFiles.length === 0 && (
-        <div className="tw-text-center tw-text-neutral-500 tw-text-xs tw-py-8">
-          <div className="tw-mb-2">No audio files loaded</div>
-          <div>Click "Add" or drag files from the Files tab</div>
-        </div>
-      )}
+      {/* Instructions removed (duplicate elsewhere) */}
     </div>
   );
 };

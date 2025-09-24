@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
-import { Button, Input, Label, Select, Switch } from './ui';
+import { Input, Label, Select, Switch } from './ui';
 import { MIDIManager } from '../midi/MIDIManager';
 import { MIDIProcessor } from '../utils/MIDIProcessor';
 import { MIDIMapping } from '../store/types';
@@ -228,9 +228,9 @@ export const MIDIMapper: React.FC = () => {
             <Label className="tw-text-xs">Force Channel 1</Label>
             <Switch checked={!!midiForceChannel1} onCheckedChange={(val: boolean) => setMIDIForceChannel1(!!val)} />
           </div>
-          <div className="tw-flex tw-gap-2 tw-flex-wrap">
-            <Button variant="secondary" onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>
-            <Button variant="secondary" onClick={() => {
+          <div className="tw-flex tw-flex-wrap tw-gap-2">
+            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-700 tw-text-white" title="Add a new mapping" onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</button>
+            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-800 tw-text-neutral-200" title="Duplicate selected mapping" onClick={() => {
               if (!selectedMapping) return;
               const clone = JSON.parse(JSON.stringify(selectedMapping)) as MIDIMapping;
               const next = mappings.slice();
@@ -238,10 +238,10 @@ export const MIDIMapper: React.FC = () => {
               next.splice(insertAt, 0, clone);
               updateMappings(next);
               setSelectedIndex(insertAt);
-            }}>Duplicate</Button>
-            <Button variant="destructive" onClick={() => { if (selectedMapping) { const next = mappings.filter((_, i) => i !== selectedIndex); updateMappings(next); setSelectedIndex(Math.max(0, selectedIndex - 1)); } }}>Remove</Button>
-            <Button variant="secondary" onClick={() => { saveMappingsToFile(); }}>Save Preset</Button>
-            <Button variant="secondary" onClick={() => {
+            }}>Duplicate</button>
+            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-700 tw-text-white" title="Remove selected mapping" onClick={() => { if (selectedMapping) { const next = mappings.filter((_, i) => i !== selectedIndex); updateMappings(next); setSelectedIndex(Math.max(0, selectedIndex - 1)); } }}>Remove</button>
+            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-800 tw-text-neutral-200" title="Save mappings to file" onClick={() => { saveMappingsToFile(); }}>Save Preset</button>
+            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-800 tw-text-neutral-200" title="Load mappings from file" onClick={() => {
               try {
                 const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
                 if (isElectron) {
@@ -268,7 +268,7 @@ export const MIDIMapper: React.FC = () => {
                   fileInputRef.current?.click();
                 }
               } catch {}
-            }}>Load Preset</Button>
+            }}>Load Preset</button>
           </div>
         </div>
         
@@ -327,13 +327,34 @@ export const MIDIMapper: React.FC = () => {
           )}
           <div className="tw-space-y-2">
             <Label className="tw-text-xs">Action</Label>
-            <Select value={selectedMapping && (selectedMapping.target as any)?.type || 'transport'} onChange={(v) => {
-              const val = String(v);
-              if (val === 'transport') updateSelected(m => ({ ...m, target: { type: 'transport', action: 'play' } as any }));
-              else if (val === 'column') updateSelected(m => ({ ...m, target: { type: 'column', index: 1 } as any }));
-              else if (val === 'cell') updateSelected(m => ({ ...m, target: { type: 'cell', row: 1, column: 1 } as any }));
-              else if (val === 'scene') updateSelected(m => ({ ...m, target: { type: 'scene', id: (useStore.getState() as any).currentSceneId } as any }));
-            }} options={actionTypeOptions} />
+            <Select
+              value={selectedMapping && (selectedMapping.target as any)?.type || 'transport'}
+              onChange={(v) => {
+                const val = String(v);
+                // Ensure a mapping exists so the dropdown works even when none were added yet
+                if (!selectedMapping) {
+                  const newMapping: MIDIMapping = {
+                    type: 'note',
+                    channel: 1,
+                    number: 60,
+                    target: { type: 'transport', action: 'play' } as any,
+                    enabled: true,
+                  } as any;
+                  const next = [...(mappings || []), newMapping];
+                  updateMappings(next);
+                  setSelectedIndex(next.length - 1);
+                }
+                // Apply the selected action to the (now guaranteed) selected mapping
+                updateSelected((m) => {
+                  if (val === 'transport') return { ...m, target: { type: 'transport', action: 'play' } as any };
+                  if (val === 'column') return { ...m, target: { type: 'column', index: 1 } as any };
+                  if (val === 'cell') return { ...m, target: { type: 'cell', row: 1, column: 1 } as any };
+                  if (val === 'scene') return { ...m, target: { type: 'scene', id: (useStore.getState() as any).currentSceneId } as any };
+                  return m;
+                });
+              }}
+              options={actionTypeOptions}
+            />
         </div>
 
           {selectedMapping?.target?.type === 'transport' && (
@@ -386,7 +407,7 @@ export const MIDIMapper: React.FC = () => {
             <span className={`tw-inline-block tw-w-2 tw-h-2 tw-rounded-full ${lastEventAt && Date.now() - lastEventAt < 500 ? 'tw-bg-emerald-400' : 'tw-bg-neutral-700'}`}></span>
           </div>
           <div className="tw-flex tw-gap-2">
-            <Button variant="secondary" onClick={() => setMonitorEnabled(!monitorEnabled)}>{monitorEnabled ? 'Pause' : 'Resume'}</Button>
+            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-800 tw-text-neutral-200" onClick={() => setMonitorEnabled(!monitorEnabled)}>{monitorEnabled ? 'Pause' : 'Resume'}</button>
           </div>
         </div>
         <div>

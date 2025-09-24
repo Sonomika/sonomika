@@ -643,7 +643,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
               <div className="lfo-parameters tw-space-y-3">
                 <div className="tw-flex tw-items-center tw-gap-2">
                   <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Waveform</label>
-                  <div className="tw-w-[240px]">
+                  <div className="tw-w-full xl:tw-w-[240px] tw-min-w-0">
                     <Select
                       value={(lfo.waveform as any) || 'sine'}
                       onChange={(v) => lid && setLFOForLayer(lid, { waveform: String(v) })}
@@ -661,7 +661,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                 </div>
                 <div className="tw-flex tw-items-center tw-gap-2">
                   <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Timing</label>
-                  <div className="tw-w-[240px] tw-flex tw-gap-2">
+                  <div className="tw-w-full xl:tw-w-[240px] tw-flex tw-gap-2">
                     <button
                       className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.lfoTimingMode as any) || 'hz') === 'sync' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
                       onClick={() => lid && setLFOForLayer(lid, { lfoTimingMode: 'sync' })}
@@ -722,7 +722,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                   <div className="tw-flex tw-items-center tw-gap-2">
                     <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Range</label>
                     <div className="tw-flex-1 tw-flex tw-items-center tw-gap-3">
-                      <div className="tw-w-[240px]">
+                      <div className="tw-w-full xl:tw-w-[240px] tw-min-w-0">
                         <Slider
                           value={[toNumberOr(Number((lfo.lfoMin as any) ?? 0), 0), toNumberOr(Number((lfo.lfoMax as any) ?? 100), 100)]}
                           min={0}
