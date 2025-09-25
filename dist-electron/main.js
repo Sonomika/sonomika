@@ -804,22 +804,6 @@ electron.app.whenReady().then(() => {
       return { success: false, error: String(e) };
     }
   });
-  electron.ipcMain.handle("offline-render:audio", async (_e, payload) => {
-    try {
-      if (!offlineSession) return { success: false, error: "No session" };
-      const p = offlineSession;
-      const ext = payload?.ext && typeof payload.ext === "string" ? payload.ext : "webm";
-      const file = path.join(p.dir, `audio_capture.${ext}`);
-      const base64 = String(payload?.base64 || "").replace(/^data:[^;]+;base64,/, "");
-      await fs.promises.writeFile(file, Buffer.from(base64, "base64"));
-      offlineAudioPath = file;
-      console.log("[offline] saved audio blob:", file);
-      return { success: true, path: file };
-    } catch (e) {
-      console.error("[offline] audio save error", e);
-      return { success: false, error: String(e) };
-    }
-  });
   electron.ipcMain.handle("offline-render:frame", async (_e, payload) => {
     if (!offlineSession) return { success: false, error: "No session" };
     try {
@@ -857,17 +841,43 @@ electron.app.whenReady().then(() => {
       const inputFrames = path.join(p.dir, "frame_%06d.png");
       const fpsOverride = Number(payload?.fps) || 0;
       const effectiveFps = fpsOverride > 0 ? fpsOverride : p.fps && p.fps > 0 ? p.fps : 0;
+      const globPattern = path.join(p.dir, "frame_*.png").replace(/\\/g, "/");
       const args = [
         "-y",
         // Use measured/override fps when available to match preview timing
         ...effectiveFps > 0 ? ["-framerate", String(effectiveFps)] : [],
+        "-safe",
+        "0",
+        "-pattern_type",
+        "glob",
         "-i",
-        inputFrames
+        globPattern
       ];
-      const audioInput = payload?.audioPath || offlineAudioPath;
+      let audioInput = void 0;
+      const fileReady = async (fp) => {
+        try {
+          const st = await fs.promises.stat(fp);
+          return st.isFile() && st.size > 0;
+        } catch {
+          return false;
+        }
+      };
+      if (audioInput) {
+        try {
+          for (let i = 0; i < 15; i++) {
+            if (await fileReady(audioInput)) break;
+            await new Promise((r) => setTimeout(r, 100));
+          }
+          if (!await fileReady(audioInput)) {
+            console.warn("[offline] audio not ready, skipping audio mux");
+            audioInput = void 0;
+          }
+        } catch {
+          audioInput = void 0;
+        }
+      }
       if (audioInput) {
         args.push("-i", audioInput, "-shortest");
-        args.push("-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2");
       }
       const crf = p.quality === "high" ? "16" : p.quality === "low" ? "24" : "18";
       args.push(
@@ -881,12 +891,51 @@ electron.app.whenReady().then(() => {
         crf,
         outFile
       );
-      console.log("[offline] finish: spawning ffmpeg", ffmpegPath, args.join(" "));
-      await new Promise((resolve, reject) => {
-        const proc = spawn(ffmpegPath, args, { stdio: "inherit" });
+      const runFfmpeg = (argv) => new Promise((resolve, reject) => {
+        console.log("[offline] finish: spawning ffmpeg", ffmpegPath, argv.join(" "));
+        const proc = spawn(ffmpegPath, argv, { stdio: ["ignore", "pipe", "pipe"], windowsVerbatimArguments: true });
+        let errBuf = "";
+        proc.stderr?.on("data", (d) => {
+          try {
+            const t = d.toString();
+            errBuf += t;
+            console.log("[ffmpeg]", t.trim());
+          } catch {
+          }
+        });
         proc.on("error", reject);
-        proc.on("close", (code) => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+        proc.on("close", (code) => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${errBuf.split("\n").slice(-6).join("\n")}`)));
       });
+      try {
+        await runFfmpeg(args);
+      } catch (err) {
+        if (audioInput) {
+          console.warn("[offline] mux with audio failed, retrying without audio");
+          const noAudioArgs = args.slice(0, 0);
+          const baseArgs = [
+            "-y",
+            ...effectiveFps > 0 ? ["-framerate", String(effectiveFps)] : [],
+            "-safe",
+            "0",
+            "-pattern_type",
+            "glob",
+            "-i",
+            globPattern,
+            "-pix_fmt",
+            "yuv420p",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            crf,
+            outFile
+          ];
+          await runFfmpeg(baseArgs);
+        } else {
+          throw err;
+        }
+      }
       console.log("[offline] finished. Video at", outFile);
       try {
         if (offlineAudioPath) {

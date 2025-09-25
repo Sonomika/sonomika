@@ -9,6 +9,7 @@ export class AudioContextManager {
   private destinationNode: MediaStreamAudioDestinationNode | null = null;
   private appAudioStream: MediaStream | null = null;
   private audioElements: Set<HTMLAudioElement> = new Set();
+  private audioSourceNodes: Map<HTMLAudioElement, MediaElementAudioSourceNode> = new Map();
   private isInitialized = false;
 
   private constructor() {}
@@ -50,9 +51,40 @@ export class AudioContextManager {
 
   /**
    * Get the app audio stream for recording
+   * Creates a fresh destination node if needed (required after MediaRecorder stops)
    */
   getAppAudioStream(): MediaStream | null {
-    return this.appAudioStream;
+    if (!this.isInitialized || !this.audioContext || !this.destinationNode) {
+      return null;
+    }
+
+    // Check if the current stream is still active
+    if (this.appAudioStream && this.appAudioStream.active) {
+      return this.appAudioStream;
+    }
+
+    // If stream is inactive, recreate the destination node
+    console.log('[AudioContextManager] Recreating destination node - previous stream was inactive');
+    try {
+      this.destinationNode = this.audioContext.createMediaStreamDestination();
+      this.appAudioStream = this.destinationNode.stream;
+      
+      // Reconnect existing source nodes to the new destination
+      this.audioSourceNodes.forEach((sourceNode) => {
+        try {
+          sourceNode.connect(this.destinationNode!);
+          sourceNode.connect(this.audioContext!.destination);
+        } catch (error) {
+          console.warn('[AudioContextManager] Failed to reconnect source node:', error);
+        }
+      });
+      
+      console.log('[AudioContextManager] Destination node recreated successfully');
+      return this.appAudioStream;
+    } catch (error) {
+      console.error('[AudioContextManager] Failed to recreate destination node:', error);
+      return null;
+    }
   }
 
   /**
@@ -61,6 +93,12 @@ export class AudioContextManager {
   registerAudioElement(audioElement: HTMLAudioElement): void {
     if (!this.isInitialized || !this.audioContext || !this.destinationNode) {
       console.warn('[AudioContextManager] Not initialized, cannot register audio element');
+      return;
+    }
+
+    // Skip if already registered
+    if (this.audioElements.has(audioElement)) {
+      console.log('[AudioContextManager] Audio element already registered:', audioElement.src);
       return;
     }
 
@@ -75,6 +113,7 @@ export class AudioContextManager {
       source.connect(this.audioContext.destination);
       
       this.audioElements.add(audioElement);
+      this.audioSourceNodes.set(audioElement, source);
       console.log('[AudioContextManager] Registered audio element:', audioElement.src);
     } catch (error) {
       console.error('[AudioContextManager] Failed to register audio element:', error);
@@ -86,6 +125,7 @@ export class AudioContextManager {
    */
   unregisterAudioElement(audioElement: HTMLAudioElement): void {
     this.audioElements.delete(audioElement);
+    this.audioSourceNodes.delete(audioElement);
     console.log('[AudioContextManager] Unregistered audio element:', audioElement.src);
   }
 
@@ -113,6 +153,29 @@ export class AudioContextManager {
   }
 
   /**
+   * Get count of registered audio elements
+   */
+  getRegisteredAudioElementCount(): number {
+    return this.audioElements.size;
+  }
+
+  /**
+   * Get debug info about the audio context state
+   */
+  getDebugInfo(): any {
+    return {
+      isInitialized: this.isInitialized,
+      audioContextState: this.audioContext?.state || 'null',
+      hasDestinationNode: !!this.destinationNode,
+      hasAppAudioStream: !!this.appAudioStream,
+      appAudioStreamActive: this.appAudioStream?.active || false,
+      registeredAudioElementCount: this.audioElements.size,
+      audioSourceNodeCount: this.audioSourceNodes.size,
+      audioElementSources: Array.from(this.audioElements).map(el => el.src)
+    };
+  }
+
+  /**
    * Cleanup resources
    */
   cleanup(): void {
@@ -123,6 +186,7 @@ export class AudioContextManager {
     this.destinationNode = null;
     this.appAudioStream = null;
     this.audioElements.clear();
+    this.audioSourceNodes.clear();
     this.isInitialized = false;
     console.log('[AudioContextManager] Cleaned up');
   }

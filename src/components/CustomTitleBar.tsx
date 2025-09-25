@@ -255,17 +255,8 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                             });
                             if (!result || result.canceled || !result.filePath) { setExternalMenuOpen(false); return; }
                             const fps = Math.round(((window as any).__offlineRecord?.fpsEstimate || 0));
-                            let audioPath: string | undefined = undefined;
-                            try {
-                              const rs: any = (useStore.getState() as any).recordSettings || {};
-                              // Automatically include captured audio when available
-                              if (rs.audioSource && rs.audioSource !== 'none') {
-                                // For app audio, the audio should already be captured and saved
-                                // The offlineAudioPath will be automatically used by the finish handler
-                                console.log('[offline] Audio source configured:', rs.audioSource);
-                              }
-                            } catch {}
-                            const res = await (window as any).electron?.offlineRenderFinish?.({ destPath: result.filePath, fps: (fps > 0 ? fps : undefined), audioPath });
+                            // App audio is captured automatically during recording; just finish with destPath
+                            const res = await (window as any).electron?.offlineRenderFinish?.({ destPath: result.filePath, fps: (fps > 0 ? fps : undefined) });
                             if (!res?.success) {
                               const msg = res?.error || 'Unknown error';
                               (window as any).alert?.(`Saved MP4 failed: ${msg}`);

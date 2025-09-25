@@ -1969,6 +1969,29 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     console.log('🕒 currentTime changed to:', currentTime);
   }, [currentTime]);
 
+  // Listen for force audio registration event (for recording)
+  useEffect(() => {
+    const handleForceRegistration = () => {
+      try {
+        console.log('[Timeline] Force audio registration requested');
+        // Ensure audio context manager is initialized
+        audioContextManager.initialize().then(() => {
+          // Register any existing audio elements that might not be registered yet
+          audioElementsRef.current.forEach((audio) => {
+            audioContextManager.registerAudioElement(audio);
+          });
+        }).catch(console.warn);
+      } catch (err) {
+        console.warn('[Timeline] Force registration error:', err);
+      }
+    };
+    
+    document.addEventListener('forceTimelineAudioRegistration', handleForceRegistration);
+    return () => {
+      document.removeEventListener('forceTimelineAudioRegistration', handleForceRegistration);
+    };
+  }, []);
+
   // Update preview content for timeline
   useEffect(() => {
     if (onPreviewUpdate) {

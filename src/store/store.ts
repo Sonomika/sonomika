@@ -128,6 +128,8 @@ const initialState: AppState = {
   defaultVideoRenderScale: 0.5,
   mirrorQuality: 'medium',
   mirrorKeepPreview: true,
+  // Track last saved/loaded preset file path (Electron)
+  currentPresetPath: null as any,
 };
 
 initialState.currentSceneId = initialState.scenes[0].id;
@@ -265,7 +267,9 @@ export const useStore = createWithEqualityFn<AppState & {
       }),
       setSequenceEnabledGlobal: (enabled: boolean) => set({ sequenceEnabledGlobal: !!enabled } as any),
       currentPresetName: null as any,
+      currentPresetPath: null as any,
       setCurrentPresetName: (name: string | null) => set({ currentPresetName: name } as any),
+      setCurrentPresetPath: (path: string | null) => set({ currentPresetPath: path } as any),
       recordSettings: initialRecordSettings,
       setRecordSettings: (rs) => set({ recordSettings: { ...get().recordSettings, ...rs } }),
       setDefaultVideoRenderScale: (scale: number) => set({ defaultVideoRenderScale: Math.max(0.1, Math.min(1, Number(scale) || 1)) }),
@@ -1131,6 +1135,7 @@ export const useStore = createWithEqualityFn<AppState & {
            timelineScenes: sanitizedTimelineScenes,
            currentTimelineSceneId: state.currentTimelineSceneId,
            currentPresetName: (state as any).currentPresetName,
+          currentPresetPath: (state as any).currentPresetPath,
            playingColumnId: state.playingColumnId,
            bpm: state.bpm,
            sidebarVisible: state.sidebarVisible,

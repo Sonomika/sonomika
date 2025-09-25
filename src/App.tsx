@@ -86,6 +86,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
 
 function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
+  const recordingAudioStreamRef = useRef<MediaStream | null>(null);
   const [compositionSettingsOpen, setCompositionSettingsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showUIDemo, setShowUIDemo] = useState(false);
@@ -622,44 +623,37 @@ function App() {
       const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showSaveDialog;
       if (isElectron) {
         (async () => {
-          const presetName = `preset-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.vjpreset`;
-          const result = await (window as any).electron.showSaveDialog({
-            title: 'Save Set',
-            defaultPath: presetName,
-            filters: [{ name: 'VJ Preset', extensions: ['vjpreset', 'json'] }]
-          });
-          if (!result.canceled && result.filePath) {
-            const { savePreset } = useStore.getState();
-            const base = String(result.filePath).split(/[\\\/]/).pop() || presetName;
-            const chosenName = base.replace(/\.(vjpreset|json)$/i, '');
-            const key = savePreset(chosenName);
-            if (key) {
-              // regenerate content using current store for reliable save
-              const state = useStore.getState() as any;
-              const preset = {
-                name: key,
-                displayName: key,
-                timestamp: Date.now(),
-                version: '1.0.0',
-                description: `VJ Preset: ${key}`,
-                data: {
-                  scenes: state.scenes,
-                  currentSceneId: state.currentSceneId,
-                  playingColumnId: state.playingColumnId,
-                  bpm: state.bpm,
-                  sidebarVisible: state.sidebarVisible,
-                  midiMappings: state.midiMappings,
-                  selectedLayerId: state.selectedLayerId,
-                  previewMode: state.previewMode,
-                  transitionType: state.transitionType,
-                  transitionDuration: state.transitionDuration,
-                  compositionSettings: state.compositionSettings,
-                  assets: state.assets,
-                }
-              };
-              await (window as any).electron.saveFile(result.filePath, JSON.stringify(preset, null, 2));
-            }
+          const existingPath = (useStore.getState() as any).currentPresetPath as string | null;
+          if (existingPath && existingPath.trim()) {
+            const state = useStore.getState() as any;
+            const key = state.currentPresetName || (String(existingPath).split(/[\\/]/).pop() || 'preset').replace(/\.(sonomika|json)$/i, '');
+            const preset = {
+              name: key,
+              displayName: key,
+              timestamp: Date.now(),
+              version: '1.0.0',
+              description: `VJ Preset: ${key}`,
+              data: {
+                scenes: state.scenes,
+                currentSceneId: state.currentSceneId,
+                timelineScenes: state.timelineScenes,
+                currentTimelineSceneId: state.currentTimelineSceneId,
+                playingColumnId: state.playingColumnId,
+                bpm: state.bpm,
+                sidebarVisible: state.sidebarVisible,
+                midiMappings: state.midiMappings,
+                selectedLayerId: state.selectedLayerId,
+                previewMode: state.previewMode,
+                transitionType: state.transitionType,
+                transitionDuration: state.transitionDuration,
+                compositionSettings: state.compositionSettings,
+                assets: state.assets,
+              }
+            };
+            await (window as any).electron.saveFile(existingPath, JSON.stringify(preset, null, 2));
+            return;
           }
+          await handleSaveAsPreset();
         })();
       } else {
         // Fallback to existing web modal flow
@@ -680,6 +674,60 @@ function App() {
     }
   };
 
+  const handleSaveAsPreset = async () => {
+    // Prefer current set name (or file base) as suggested name
+    const stAny: any = useStore.getState();
+    let suggested = '';
+    try {
+      suggested = String(stAny.currentPresetName || '').trim();
+      if (!suggested && stAny.currentPresetPath) {
+        const base = String(stAny.currentPresetPath).split(/[/\\]/).pop() || '';
+        suggested = base.replace(/\.(sonomika|json)$/i, '').trim();
+      }
+    } catch {}
+    const presetName = `${suggested || `preset-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`}.sonomika`;
+    const result = await (window as any).electron.showSaveDialog({
+      title: 'Save Set As',
+      defaultPath: presetName,
+      filters: [{ name: 'sonomika Set', extensions: ['sonomika', 'json'] }]
+    });
+    if (!result.canceled && result.filePath) {
+      const { savePreset } = useStore.getState();
+      const base = String(result.filePath).split(/[\\\/]/).pop() || presetName;
+      const chosenName = base.replace(/\.(sonomika|json)$/i, '');
+      const key = savePreset(chosenName);
+      if (key) {
+        const state = useStore.getState() as any;
+        const preset = {
+          name: key,
+          displayName: key,
+          timestamp: Date.now(),
+          version: '1.0.0',
+          description: `VJ Preset: ${key}`,
+          data: {
+            scenes: state.scenes,
+            currentSceneId: state.currentSceneId,
+            timelineScenes: state.timelineScenes,
+            currentTimelineSceneId: state.currentTimelineSceneId,
+            playingColumnId: state.playingColumnId,
+            bpm: state.bpm,
+            sidebarVisible: state.sidebarVisible,
+            midiMappings: state.midiMappings,
+            selectedLayerId: state.selectedLayerId,
+            previewMode: state.previewMode,
+            transitionType: state.transitionType,
+            transitionDuration: state.transitionDuration,
+            compositionSettings: state.compositionSettings,
+            assets: state.assets,
+          }
+        };
+        await (window as any).electron.saveFile(result.filePath, JSON.stringify(preset, null, 2));
+        try { (useStore.getState() as any).setCurrentPresetPath?.(result.filePath); } catch {}
+        try { (useStore.getState() as any).setCurrentPresetName?.(key); } catch {}
+      }
+    }
+  };
+
   const handleLoadPreset = () => {
     try {
       const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
@@ -688,7 +736,7 @@ function App() {
           const result = await (window as any).electron.showOpenDialog({
             title: 'Load Set',
             properties: ['openFile'],
-            filters: [{ name: 'VJ Preset', extensions: ['vjpreset', 'json'] }]
+            filters: [{ name: 'sonomika Set', extensions: ['sonomika', 'json'] }]
           });
           if (!result.canceled && result.filePaths && result.filePaths[0]) {
             const content = await (window as any).electron.readFileText(result.filePaths[0]);
@@ -1063,64 +1111,12 @@ function App() {
               const quality = (useStore.getState() as any).recordSettings?.quality || 'medium';
               await (window as any).electron?.offlineRenderStart?.({ name, fps, width, height, quality });
               (window as any).__offlineRecord = { active: true, fps, width, height, off: null, ctx: null, fpsEstimate: 0 };
-
-              // Capture app audio via AudioContextDestination as a WebM/Opus blob
-              try {
-                const { audioContextManager } = await import('./utils/AudioContextManager');
-                await audioContextManager.initialize();
-                const stream = audioContextManager.getAppAudioStream();
-                if (stream && (window as any).MediaRecorder) {
-                  // Try different audio formats in order of preference
-                  let mime = 'audio/webm;codecs=opus';
-                  if (!MediaRecorder.isTypeSupported(mime)) {
-                    mime = 'audio/webm';
-                  }
-                  if (!MediaRecorder.isTypeSupported(mime)) {
-                    mime = 'audio/mp4';
-                  }
-                  if (!MediaRecorder.isTypeSupported(mime)) {
-                    mime = 'audio/wav';
-                  }
-                  
-                  const mr = new MediaRecorder(stream, { 
-                    mimeType: mime, 
-                    audioBitsPerSecond: 128000 // Lower bitrate for better compatibility
-                  });
-                  const chunks: BlobPart[] = [];
-                  mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-                  mr.onstop = async () => {
-                    try {
-                      const blob = new Blob(chunks, { type: mime });
-                      const base64 = await new Promise<string>((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(String(reader.result));
-                        reader.onerror = reject;
-                        reader.readAsDataURL(blob);
-                      });
-                      // Determine file extension based on mime type
-                      let ext = 'webm';
-                      if (mime.includes('mp4')) ext = 'mp4';
-                      else if (mime.includes('wav')) ext = 'wav';
-                      
-                      await (window as any).electron?.offlineRenderSaveAudio?.({ base64, ext });
-                    } catch (error) {
-                      console.error('[offline] Audio save error:', error);
-                    }
-                  };
-                  mr.start();
-                  (window as any).__offlineRecordAudio = mr;
-                  console.log('[offline] Audio recording started with mime type:', mime);
-                }
-              } catch (error) {
-                console.error('[offline] Audio capture setup error:', error);
-              }
             } catch {}
           })();
         }}
         onOfflineStop={() => {
           (async () => {
             try { if ((window as any).__offlineRecord) (window as any).__offlineRecord.active = false; } catch {}
-            try { (window as any).__offlineRecordAudio?.stop?.(); } catch {}
           })();
         }}
         onOfflineSave={undefined}
@@ -1135,14 +1131,20 @@ function App() {
                   recorderRef.current.stop(); 
                   // Update state immediately when stop is pressed
                   setIsRecording(false);
-                  // Clean up any active audio streams
-                  const audioTracks = document.querySelectorAll('audio');
-                  audioTracks.forEach(audio => {
-                    if (audio.srcObject) {
-                      const stream = audio.srcObject as MediaStream;
-                      stream.getTracks().forEach(track => track.stop());
-                    }
-                  });
+                  // Clean up only recording-specific audio streams (not app audio context)
+                  // Note: Don't stop all audio tracks as this breaks AudioContextManager connections
+                  if (recordingAudioStreamRef.current) {
+                    console.log('Cleaning up recording-specific audio stream');
+                    recordingAudioStreamRef.current.getTracks().forEach(track => track.stop());
+                    recordingAudioStreamRef.current = null;
+                  }
+                  // Log audio context state after recording stop
+                  try {
+                    const { audioContextManager } = await import('./utils/AudioContextManager');
+                    const debugInfo = audioContextManager.getDebugInfo();
+                    console.log('[Recording Stop] AudioContextManager state preserved:', debugInfo);
+                  } catch {}
+                  console.log('Recording stopped - preserving app audio context connections');
                   console.log('Recording stop requested');
                 } catch (error) {
                   console.error('Error stopping recording:', error);
@@ -1185,6 +1187,7 @@ function App() {
               if (audioSource === 'microphone') {
                 try {
                   audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                  recordingAudioStreamRef.current = audioStream; // Track for cleanup
                 } catch (err) {
                   console.warn('Failed to get microphone access:', err);
                   toast({ description: 'Microphone access denied. Recording without audio.' });
@@ -1194,11 +1197,29 @@ function App() {
                   // Use app audio context manager to get internal audio
                   const { audioContextManager } = await import('./utils/AudioContextManager');
                   await audioContextManager.initialize();
+                  
+                  // Force timeline to register any existing audio elements before getting stream
+                  // This ensures audio elements are registered even if timeline isn't currently playing
+                  const store = useStore.getState() as any;
+                  if (store.showTimeline) {
+                    // Trigger a timeline preview update to ensure audio elements are created/registered
+                    try {
+                      document.dispatchEvent(new CustomEvent('forceTimelineAudioRegistration'));
+                    } catch {}
+                  }
+                  
+                  // Small delay to allow audio element registration to complete
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  
                   audioStream = audioContextManager.getAppAudioStream();
                   
                   if (!audioStream) {
                     throw new Error('Failed to get app audio stream');
                   }
+                  
+                  const debugInfo = audioContextManager.getDebugInfo();
+                  console.log('[Recording] App audio stream obtained with', audioStream.getAudioTracks().length, 'audio tracks');
+                  console.log('[Recording] AudioContextManager debug info:', debugInfo);
                 } catch (err) {
                   console.warn('Failed to get app audio access:', err);
                   toast({ description: 'App audio access failed. Recording without audio.' });
@@ -1217,6 +1238,7 @@ function App() {
                       }, 
                       video: false 
                     });
+                    recordingAudioStreamRef.current = audioStream; // Track for cleanup
                   } else {
                     // Use Electron's native desktop capturer for system audio
                     const result = await (window as any).electron.getSystemAudioStream();
@@ -1231,6 +1253,7 @@ function App() {
                         } as any
                       });
                       audioStream = stream;
+                      recordingAudioStreamRef.current = audioStream; // Track for cleanup
                     } else {
                       throw new Error(result.error || 'Failed to get system audio source');
                     }
