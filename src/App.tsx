@@ -956,6 +956,69 @@ function App() {
     };
   }, [toast, isRecording]);
 
+  // Offline recording frame loop: copies preview canvas into an offscreen canvas and sends PNGs to main via IPC
+  useEffect(() => {
+    let rafId: number;
+    let sending = false;
+    const loop = async (ts: number) => {
+      try {
+        const sess: any = (window as any).__offlineRecord;
+        if (sess && sess.active) {
+          const fps = Number(sess.fps) || 0; // 0 => match preview (send every RAF)
+          const interval = fps > 0 ? (1000 / Math.max(1, fps)) : 0;
+          if (!sess.off) {
+            // Initialize offscreen at composition size
+            sess.off = document.createElement('canvas');
+            sess.off.width = Number(sess.width) || 1920;
+            sess.off.height = Number(sess.height) || 1080;
+            sess.ctx = sess.off.getContext('2d');
+            sess.last = ts;
+            sess.fpsEstimate = 0;
+            sess._emaDt = undefined;
+            console.log('[offline] Initialized offscreen canvas', sess.off.width, 'x', sess.off.height, '@', (fps||'preview'), 'fps');
+          }
+          const shouldSend = interval === 0 ? !sending : (ts - (sess.last || 0) >= interval && !sending);
+          if (shouldSend) {
+            sess.last = ts;
+            const preview = document.querySelector('canvas') as HTMLCanvasElement | null;
+            if (preview && sess.ctx) {
+              try {
+                sess.ctx.drawImage(preview, 0, 0, sess.off.width, sess.off.height);
+              } catch (e) {}
+              try {
+                const dataUrl = (sess.off as HTMLCanvasElement).toDataURL('image/png');
+                sending = true;
+                const res = await (window as any).electron?.offlineRenderFrame?.({ dataUrl });
+                if (!res?.success) {
+                  // Log once per issue; keep lightweight
+                  if (res?.error) console.warn('[offline] frame send failed:', res.error);
+                }
+                // Update FPS estimate using exponential moving average of dt
+                try {
+                  const now = performance.now();
+                  const dt = (sess._lastSendTs ? (now - sess._lastSendTs) : 0);
+                  sess._lastSendTs = now;
+                  if (dt > 0) {
+                    const alpha = 0.2; // smooth
+                    if (typeof sess._emaDt !== 'number') sess._emaDt = dt;
+                    sess._emaDt = alpha * dt + (1 - alpha) * sess._emaDt;
+                    sess.fpsEstimate = 1000 / Math.max(0.0001, sess._emaDt);
+                  }
+                } catch {}
+              } catch (e) {
+              } finally {
+                sending = false;
+              }
+            }
+          }
+        }
+      } catch (e) {}
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+    return () => { try { cancelAnimationFrame(rafId); } catch {} };
+  }, []);
+
   return (
     <ErrorBoundary>
       <CustomTitleBar
@@ -987,6 +1050,80 @@ function App() {
           } catch {}
         }}
         onAdvancedMirror={() => { setAdvMirrorOpen(true); }}
+        onRenderMovie={undefined}
+        onOfflineStart={() => {
+          (async () => {
+            try {
+              const comp: any = (useStore.getState() as any).compositionSettings || {};
+              // Use chosen FPS from settings; 0 => match preview (send every RAF)
+              const fps = Number((useStore.getState() as any).recordSettings?.fps ?? 0) || 0;
+              const width = Number(comp.width) || 1920;
+              const height = Number(comp.height) || 1080;
+              const name = (useStore.getState() as any).currentPresetName || 'movie';
+              const quality = (useStore.getState() as any).recordSettings?.quality || 'medium';
+              await (window as any).electron?.offlineRenderStart?.({ name, fps, width, height, quality });
+              (window as any).__offlineRecord = { active: true, fps, width, height, off: null, ctx: null, fpsEstimate: 0 };
+
+              // Capture app audio via AudioContextDestination as a WebM/Opus blob
+              try {
+                const { audioContextManager } = await import('./utils/AudioContextManager');
+                await audioContextManager.initialize();
+                const stream = audioContextManager.getAppAudioStream();
+                if (stream && (window as any).MediaRecorder) {
+                  // Try different audio formats in order of preference
+                  let mime = 'audio/webm;codecs=opus';
+                  if (!MediaRecorder.isTypeSupported(mime)) {
+                    mime = 'audio/webm';
+                  }
+                  if (!MediaRecorder.isTypeSupported(mime)) {
+                    mime = 'audio/mp4';
+                  }
+                  if (!MediaRecorder.isTypeSupported(mime)) {
+                    mime = 'audio/wav';
+                  }
+                  
+                  const mr = new MediaRecorder(stream, { 
+                    mimeType: mime, 
+                    audioBitsPerSecond: 128000 // Lower bitrate for better compatibility
+                  });
+                  const chunks: BlobPart[] = [];
+                  mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+                  mr.onstop = async () => {
+                    try {
+                      const blob = new Blob(chunks, { type: mime });
+                      const base64 = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(String(reader.result));
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                      });
+                      // Determine file extension based on mime type
+                      let ext = 'webm';
+                      if (mime.includes('mp4')) ext = 'mp4';
+                      else if (mime.includes('wav')) ext = 'wav';
+                      
+                      await (window as any).electron?.offlineRenderSaveAudio?.({ base64, ext });
+                    } catch (error) {
+                      console.error('[offline] Audio save error:', error);
+                    }
+                  };
+                  mr.start();
+                  (window as any).__offlineRecordAudio = mr;
+                  console.log('[offline] Audio recording started with mime type:', mime);
+                }
+              } catch (error) {
+                console.error('[offline] Audio capture setup error:', error);
+              }
+            } catch {}
+          })();
+        }}
+        onOfflineStop={() => {
+          (async () => {
+            try { if ((window as any).__offlineRecord) (window as any).__offlineRecord.active = false; } catch {}
+            try { (window as any).__offlineRecordAudio?.stop?.(); } catch {}
+          })();
+        }}
+        onOfflineSave={undefined}
         isRecording={isRecording}
         onRecord={() => {
           // Reuse the same startHandler logic inline
@@ -1252,6 +1389,7 @@ function App() {
       />
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <RecordSettingsDialog open={recordSettingsOpen} onOpenChange={setRecordSettingsOpen} />
+      {/* Offline render control (temporary UI hook via keyboard) */}
       <AdvancedMirrorDialog open={advMirrorOpen} onOpenChange={setAdvMirrorOpen} onStart={(opts) => handleAdvancedMirror(opts)} />
       <Toaster />
       <CloudPresetBrowser open={cloudBrowserOpen} onOpenChange={setCloudBrowserOpen} />

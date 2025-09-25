@@ -138,7 +138,8 @@ export type RecordSettings = {
   quality: 'low' | 'medium' | 'high';
   audioSource: 'none' | 'microphone' | 'system' | 'app';
   audioBitrate: number;
-  fps?: 30 | 60;
+  // 0 = match preview (variable), else fixed FPS number
+  fps?: number;
   autoStartOnPlay?: boolean;
 };
 

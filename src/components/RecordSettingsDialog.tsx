@@ -13,7 +13,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
   const [quality, setQuality] = useState<'low' | 'medium' | 'high'>(recordSettings?.quality ?? 'medium');
   const [audioSource, setAudioSource] = useState<'none' | 'microphone' | 'system' | 'app'>(recordSettings?.audioSource ?? 'none');
   const [audioBitrate, setAudioBitrate] = useState<number>(recordSettings?.audioBitrate ?? 128000);
-  const [fps, setFps] = useState<30 | 60>((recordSettings?.fps as 30 | 60) ?? 60);
+  const [fps, setFps] = useState<number>(typeof recordSettings?.fps === 'number' ? recordSettings.fps : 0);
   const [autoStartOnPlay, setAutoStartOnPlay] = useState<boolean>(recordSettings?.autoStartOnPlay ?? true);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       setQuality(recordSettings?.quality ?? 'medium');
       setAudioSource(recordSettings?.audioSource ?? 'none');
       setAudioBitrate(recordSettings?.audioBitrate ?? 128000);
-      setFps((recordSettings?.fps as 30 | 60) ?? 60);
+      setFps(typeof recordSettings?.fps === 'number' ? recordSettings.fps : 0);
       setAutoStartOnPlay(Boolean(recordSettings?.autoStartOnPlay ?? true));
     }
   }, [open]);
@@ -38,10 +38,14 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
             <label className="tw-block tw-text-xs tw-text-neutral-300 tw-mb-1">Frame Rate</label>
             <select
               className="tw-w-full tw-bg-neutral-900 tw-text-neutral-100 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
-              value={fps}
-              onChange={(e) => setFps((Number(e.target.value) as 30 | 60) || 60)}
+              value={String(fps)}
+              onChange={(e) => setFps(Number(e.target.value))}
             >
+              <option value={0}>Match Preview (variable)</option>
+              <option value={24}>24 fps</option>
+              <option value={25}>25 fps (PAL)</option>
               <option value={30}>30 fps</option>
+              <option value={50}>50 fps</option>
               <option value={60}>60 fps</option>
             </select>
           </div>
@@ -113,7 +117,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
             </button>
             <button
               className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-rounded tw-text-white tw-bg-neutral-700 hover:tw-bg-neutral-600 tw-border tw-border-neutral-600 tw-px-3"
-              onClick={() => { setRecordSettings({ codec, quality, audioSource, audioBitrate, fps, autoStartOnPlay }); onOpenChange(false); }}
+              onClick={() => { setRecordSettings({ codec, quality, audioSource, audioBitrate, fps: Number(fps) || 0, autoStartOnPlay }); onOpenChange(false); }}
             >
               Save
             </button>

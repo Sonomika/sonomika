@@ -797,6 +797,129 @@ app.whenReady().then(() => {
     }
   });
 
+  // Offline render: save frames then stitch to MP4
+  const os = require('os');
+  const { spawn } = require('child_process');
+  const ffmpegPath = (() => { 
+    try { 
+      const p = require('ffmpeg-static'); 
+      console.log('[offline] ffmpeg-static path:', p);
+      return p; 
+    } catch (e) { 
+      console.warn('[offline] ffmpeg-static not found');
+      return null; 
+    } 
+  })();
+  let offlineSession: null | { dir: string; name: string; fps: number; index: number; width: number; height: number; quality?: 'low'|'medium'|'high' } = null;
+  let offlineAudioPath: string | null = null;
+
+  ipcMain.handle('offline-render:start', async (_e, opts: { name: string; fps: number; width: number; height: number; quality?: 'low'|'medium'|'high' }) => {
+    try {
+      const base = path.join(app.getPath('userData'), 'offline-renders');
+      const dir = path.join(base, `${Date.now()}_${(opts?.name||'movie').replace(/[^a-z0-9_-]/ig,'_')}`);
+      await fs.promises.mkdir(dir, { recursive: true });
+      offlineSession = { dir, name: String(opts?.name || 'movie'), fps: Number(opts?.fps)||0, index: 0, width: Number(opts?.width)||1920, height: Number(opts?.height)||1080, quality: (opts?.quality || 'medium') };
+      offlineAudioPath = null;
+      console.log('[offline] start', { dir, fps: offlineSession.fps || 'preview', quality: offlineSession.quality, size: `${offlineSession.width}x${offlineSession.height}` });
+      return { success: true, dir };
+    } catch (e) {
+      console.error('[offline] start error', e);
+      return { success: false, error: String(e) };
+    }
+  });
+  // Allow renderer to upload an audio blob to be muxed
+  ipcMain.handle('offline-render:audio', async (_e, payload: { base64: string; ext?: string }) => {
+    try {
+      if (!offlineSession) return { success: false, error: 'No session' };
+      const p = offlineSession;
+      const ext = (payload?.ext && typeof payload.ext === 'string') ? payload.ext : 'webm';
+      const file = path.join(p.dir, `audio_capture.${ext}`);
+      const base64 = String(payload?.base64 || '').replace(/^data:[^;]+;base64,/, '');
+      await fs.promises.writeFile(file, Buffer.from(base64, 'base64'));
+      offlineAudioPath = file;
+      console.log('[offline] saved audio blob:', file);
+      return { success: true, path: file };
+    } catch (e) {
+      console.error('[offline] audio save error', e);
+      return { success: false, error: String(e) };
+    }
+  });
+
+  ipcMain.handle('offline-render:frame', async (_e, payload: { dataUrl: string }) => {
+    if (!offlineSession) return { success: false, error: 'No session' };
+    try {
+      const p = offlineSession;
+      const file = path.join(p.dir, `frame_${String(p.index).padStart(6,'0')}.png`);
+      const base64 = String(payload?.dataUrl || '').replace(/^data:image\/png;base64,/, '');
+      await fs.promises.writeFile(file, Buffer.from(base64, 'base64'));
+      p.index += 1;
+      if (p.index % 60 === 0) { console.log('[offline] saved frames:', p.index); }
+      return { success: true, index: p.index };
+    } catch (e) {
+      console.error('[offline] frame error', e);
+      return { success: false, error: String(e) };
+    }
+  });
+
+  ipcMain.handle('offline-render:finish', async (_e, payload: { audioPath?: string; destPath?: string; fps?: number }) => {
+    if (!offlineSession) return { success: false, error: 'No session' };
+    const p = offlineSession; offlineSession = null;
+    try {
+      if (!p || !isFinite(p.index) || p.index <= 0) {
+        return { success: false, error: 'No frames captured' };
+      }
+      if (!ffmpegPath) throw new Error('ffmpeg-static not found');
+      // Destination: use user-selected path when provided
+      const desired = (payload?.destPath && typeof payload.destPath === 'string') ? String(payload.destPath) : '';
+      const outFile = desired && desired.trim().length > 0
+        ? (desired.toLowerCase().endsWith('.mp4') ? desired : `${desired}.mp4`)
+        : path.join(p.dir, `${p.name}.mp4`);
+      const outDir = path.dirname(outFile);
+      try { await fs.promises.mkdir(outDir, { recursive: true }); } catch {}
+      // Build ffmpeg args: read PNG sequence -> H.264 MP4
+      const inputPattern = path.join(outDir, 'frame_%06d.png');
+      // IMPORTANT: input frames are always in p.dir
+      const inputFrames = path.join(p.dir, 'frame_%06d.png');
+      const fpsOverride = Number(payload?.fps) || 0;
+      const effectiveFps = fpsOverride > 0 ? fpsOverride : (p.fps && p.fps > 0 ? p.fps : 0);
+      const args = [
+        '-y',
+        // Use measured/override fps when available to match preview timing
+        ...(effectiveFps > 0 ? ['-framerate', String(effectiveFps)] : []),
+        '-i', inputFrames,
+      ];
+      const audioInput = payload?.audioPath || offlineAudioPath;
+      if (audioInput) {
+        // Add audio input with robust format handling
+        args.push('-i', audioInput, '-shortest');
+        // Use more compatible audio codec settings
+        args.push('-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '2');
+      }
+      // Map quality to CRF
+      const crf = p.quality === 'high' ? '16' : p.quality === 'low' ? '24' : '18';
+      args.push(
+        '-pix_fmt', 'yuv420p',
+        '-c:v', 'libx264',
+        '-preset', 'medium',
+        '-crf', crf,
+        outFile
+      );
+      console.log('[offline] finish: spawning ffmpeg', ffmpegPath, args.join(' '));
+      await new Promise<void>((resolve, reject) => {
+        const proc = spawn(ffmpegPath, args, { stdio: 'inherit' });
+        proc.on('error', reject);
+        proc.on('close', (code: number) => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`)));
+      });
+      console.log('[offline] finished. Video at', outFile);
+      try { if (offlineAudioPath) { await fs.promises.unlink(offlineAudioPath); } } catch {}
+      offlineAudioPath = null;
+      return { success: true, videoPath: outFile };
+    } catch (e) {
+      console.error('[offline] finish error', e);
+      return { success: false, error: String(e) };
+    }
+  });
+
   // System audio capture for recording
   ipcMain.handle('get-system-audio-stream', async () => {
     try {

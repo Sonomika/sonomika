@@ -24,6 +24,10 @@ interface CustomTitleBarProps {
   onRecord?: () => void;
   onRecordSettings?: () => void;
   isRecording?: boolean;
+  onRenderMovie?: () => void;
+  onOfflineStart?: () => void;
+  onOfflineStop?: () => void;
+  onOfflineSave?: () => void;
 }
 
 export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
@@ -47,7 +51,11 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onAdvancedMirror,
   onRecord,
   onRecordSettings,
-  isRecording
+  isRecording,
+  onRenderMovie,
+  onOfflineStart,
+  onOfflineStop,
+  onOfflineSave
 }) => {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -56,6 +64,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const fileMenuRef = useRef<HTMLDivElement>(null);
   const [externalMenuOpen, setExternalMenuOpen] = useState(false);
   const externalMenuRef = useRef<HTMLDivElement>(null);
+  const [offlineActive, setOfflineActive] = useState<boolean>(false);
   
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const helpMenuRef = useRef<HTMLDivElement>(null);
@@ -230,6 +239,55 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                     >
                       Mirror
                     </button>
+                    {offlineActive ? (
+                      <button 
+                        className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                        onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          setOfflineActive(false); 
+                          try { onOfflineStop && onOfflineStop(); } catch {}
+                          try { 
+                            // Ask user where to save
+                            const result = await (window as any).electron?.showSaveDialog?.({
+                              title: 'Save Movie',
+                              defaultPath: `${(useStore.getState() as any).currentPresetName || 'movie'}.mp4`,
+                              filters: [{ name: 'MP4 Video', extensions: ['mp4'] }]
+                            });
+                            if (!result || result.canceled || !result.filePath) { setExternalMenuOpen(false); return; }
+                            const fps = Math.round(((window as any).__offlineRecord?.fpsEstimate || 0));
+                            let audioPath: string | undefined = undefined;
+                            try {
+                              const rs: any = (useStore.getState() as any).recordSettings || {};
+                              // Automatically include captured audio when available
+                              if (rs.audioSource && rs.audioSource !== 'none') {
+                                // For app audio, the audio should already be captured and saved
+                                // The offlineAudioPath will be automatically used by the finish handler
+                                console.log('[offline] Audio source configured:', rs.audioSource);
+                              }
+                            } catch {}
+                            const res = await (window as any).electron?.offlineRenderFinish?.({ destPath: result.filePath, fps: (fps > 0 ? fps : undefined), audioPath });
+                            if (!res?.success) {
+                              const msg = res?.error || 'Unknown error';
+                              (window as any).alert?.(`Saved MP4 failed: ${msg}`);
+                            } else {
+                              (window as any).alert?.(`Saved MP4: ${res.videoPath}`);
+                            }
+                          } catch (err) {
+                            (window as any).alert?.('Saved MP4 failed. Is ffmpeg-static installed?');
+                          }
+                          setExternalMenuOpen(false); 
+                        }}
+                      >
+                        Stop Recording (offline)
+                      </button>
+                    ) : (
+                      <button 
+                        className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                        onClick={(e) => { e.stopPropagation(); setOfflineActive(true); onOfflineStart && onOfflineStart(); setExternalMenuOpen(false); }}
+                      >
+                        Start Recording (offline)
+                      </button>
+                    )}
                     <button 
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
                       onClick={(e) => { e.stopPropagation(); try { (useStore.getState() as any).setMirrorKeepPreview?.(false); } catch {} onMirror && onMirror(); setExternalMenuOpen(false); }}

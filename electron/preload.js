@@ -65,6 +65,20 @@ try {
         saveBinaryFile: (filePath, data) => {
             return electron_1.ipcRenderer.invoke('save-binary-file', filePath, data);
         },
+        // Offline render IPC
+        offlineRenderStart: (opts) => {
+            return electron_1.ipcRenderer.invoke('offline-render:start', opts);
+        },
+        offlineRenderFrame: (payload) => {
+            return electron_1.ipcRenderer.invoke('offline-render:frame', payload);
+        },
+        offlineRenderFinish: (payload) => {
+            return electron_1.ipcRenderer.invoke('offline-render:finish', payload);
+        },
+        // Save complete audio blob for offline render (e.g., WebM/Opus)
+        offlineRenderSaveAudio: (payload) => {
+            return electron_1.ipcRenderer.invoke('offline-render:audio', payload);
+        },
         // Efficient audio bytes reader for renderer
         readAudioBytes: (urlOrPath) => {
             return electron_1.ipcRenderer.invoke('read-audio-bytes', urlOrPath);
