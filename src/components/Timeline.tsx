@@ -2789,7 +2789,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
              overflow: hidden;
              z-index: 2;
              box-sizing: border-box;
-             background: #1e88e5 !important; /* force blue background */
+             background: #404040 !important; /* neutral-600 lighter grey */
            }
            .timeline-clip .clip-name { font-size: 12px; text-shadow: 0 1px 2px rgba(0,0,0,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
            .timeline-clip .clip-handle { position: absolute; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.8); opacity: 0.6; transition: opacity 0.15s ease; cursor: ew-resize; }
@@ -2797,11 +2797,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
            .timeline-clip .clip-handle.right { right: 0; border-radius: 0 4px 4px 0; }
            .timeline-clip:hover .clip-handle { opacity: 1; }
            .timeline-clip.playing { outline: none; box-shadow: none; border: none !important; }
-           .timeline-clip.selected { 
-             border: none !important; 
-             background: #ff6b35 !important; /* Orange color for selected clips */
-             box-shadow: 0 0 0 2px #ff8c42 !important; /* Orange glow */
-           }
+           .timeline-clip.selected {
+            border: none !important;
+             background: #262626 !important; /* neutral-700 for selected */
+            box-shadow: 0 0 0 2px rgba(170,170,170,0.15) !important; /* subtle highlight */
+          }
            
            /* Lasso selection */
            .lasso-selection {

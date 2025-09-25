@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Checkbox, Label } from './ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Checkbox, Label, Switch } from './ui';
 import { useStore } from '../store/store';
 
 interface Props {
@@ -9,19 +9,21 @@ interface Props {
 
 export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) => {
   const { recordSettings, setRecordSettings } = useStore() as any;
-  // Fixed export FPS (30) – remove user control
   const [codec, setCodec] = useState<'vp8' | 'vp9'>(recordSettings?.codec ?? 'vp9');
   const [quality, setQuality] = useState<'low' | 'medium' | 'high'>(recordSettings?.quality ?? 'medium');
   const [audioSource, setAudioSource] = useState<'none' | 'microphone' | 'system' | 'app'>(recordSettings?.audioSource ?? 'none');
   const [audioBitrate, setAudioBitrate] = useState<number>(recordSettings?.audioBitrate ?? 128000);
+  const [fps, setFps] = useState<30 | 60>((recordSettings?.fps as 30 | 60) ?? 60);
+  const [autoStartOnPlay, setAutoStartOnPlay] = useState<boolean>(recordSettings?.autoStartOnPlay ?? true);
 
   useEffect(() => {
     if (open) {
-      // no-op: fixed FPS
       setCodec(recordSettings?.codec ?? 'vp9');
       setQuality(recordSettings?.quality ?? 'medium');
       setAudioSource(recordSettings?.audioSource ?? 'none');
       setAudioBitrate(recordSettings?.audioBitrate ?? 128000);
+      setFps((recordSettings?.fps as 30 | 60) ?? 60);
+      setAutoStartOnPlay(Boolean(recordSettings?.autoStartOnPlay ?? true));
     }
   }, [open]);
 
@@ -32,6 +34,24 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
           <DialogTitle>Record Settings</DialogTitle>
         </DialogHeader>
         <div className="tw-space-y-3">
+          <div>
+            <label className="tw-block tw-text-xs tw-text-neutral-300 tw-mb-1">Frame Rate</label>
+            <select
+              className="tw-w-full tw-bg-neutral-900 tw-text-neutral-100 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
+              value={fps}
+              onChange={(e) => setFps((Number(e.target.value) as 30 | 60) || 60)}
+            >
+              <option value={30}>30 fps</option>
+              <option value={60}>60 fps</option>
+            </select>
+          </div>
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">Start recording on first Play</div>
+              <div className="tw-text-xs tw-text-neutral-400">Automatically begin recording when playback starts</div>
+            </div>
+            <Switch checked={autoStartOnPlay} onCheckedChange={(v: boolean) => setAutoStartOnPlay(Boolean(v))} />
+          </div>
           {/* FPS fixed at 30 for export */}
           <div>
             <label className="tw-block tw-text-xs tw-text-neutral-300 tw-mb-1">Codec</label>
@@ -93,7 +113,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
             </button>
             <button
               className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-rounded tw-text-white tw-bg-neutral-700 hover:tw-bg-neutral-600 tw-border tw-border-neutral-600 tw-px-3"
-              onClick={() => { setRecordSettings({ codec, quality, audioSource, audioBitrate }); onOpenChange(false); }}
+              onClick={() => { setRecordSettings({ codec, quality, audioSource, audioBitrate, fps, autoStartOnPlay }); onOpenChange(false); }}
             >
               Save
             </button>

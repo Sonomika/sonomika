@@ -399,7 +399,8 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
 
   const translateX = clip.startTime * pixelsPerSecond;
   const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
-  const background = '#1e88e5';
+  // Lighter grey bars: use neutral-600 for normal, neutral-700 when selected
+  const background = '#404040';
   const showWaveform = clip.type === 'audio' && Boolean(audioSrc);
 
   useEffect(() => {
@@ -435,7 +436,7 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
       data-clip-id={clip.id}
       className={`group tw-absolute tw-top-1 tw-bottom-1 tw-rounded tw-text-white tw-overflow-hidden tw-z-20 tw-box-border tw-flex tw-items-center tw-px-2 tw-cursor-move ${
         isSelected
-          ? 'tw-bg-orange-600 tw-ring-2 tw-ring-orange-400'
+          ? 'tw-ring-2 tw-ring-neutral-600'
           : ''
       } ${isDragging ? 'tw-opacity-80' : ''} ${isResizing ? 'tw-opacity-80' : ''} ${isSnapped ? 'tw-ring-2 tw-ring-green-400' : ''} ${
         isVerticalDragging ? 'tw-cursor-ns-resize' : ''
@@ -443,7 +444,7 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
       style={{
         transform: `translate3d(${translateX}px, 0, 0)`,
         width: `${widthPx}px`,
-        background: isSelected ? undefined : background,
+        background: isSelected ? '#262626' : background,
         willChange: 'transform,width',
       }}
       onMouseDown={handleMouseDown}
@@ -464,7 +465,7 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
             src={audioSrc as string}
             width={widthPx}
             height={containerHeight}
-            color="#404040"
+            color="#aaaaaa"
             secondaryColor="#aaaaaa"
             backgroundColor="transparent"
           />

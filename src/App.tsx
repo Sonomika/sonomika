@@ -938,10 +938,23 @@ function App() {
     };
     try { (window as any).electron?.onRecordStart?.(startHandler); } catch {}
     try { (window as any).electron?.onRecordSettings?.(settingsHandler); } catch {}
+    // Optionally auto-start recording on first global play
+    const autoStartOnce = async () => {
+      try {
+        const rs: any = (useStore.getState() as any).recordSettings;
+        const enabled = rs?.autoStartOnPlay !== false;
+        if (!enabled) return;
+        if (isRecording || recorderRef.current) return;
+        // Trigger the same handler
+        await startHandler();
+      } catch {}
+      document.removeEventListener('globalPlay', autoStartOnce as any);
+    };
+    document.addEventListener('globalPlay', autoStartOnce as any, { once: true } as any);
     return () => {
       // no-op: listeners are process-wide; safe to leave in dev
     };
-  }, [toast]);
+  }, [toast, isRecording]);
 
   return (
     <ErrorBoundary>
@@ -1002,9 +1015,31 @@ function App() {
                 return; 
               }
               const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-              if (!canvas || !(canvas as any).captureStream) return;
-              const fps = 30; // Fixed export FPS
-              const videoStream: MediaStream = (canvas as any).captureStream(fps);
+              if (!canvas) return;
+              const fps = (recordSettings?.fps === 30 || recordSettings?.fps === 60) ? recordSettings.fps : 60;
+              // Create an offscreen canvas at composition resolution so recording size matches composition
+              const comp = (useStore.getState() as any).compositionSettings || {};
+              const targetW = Math.max(1, Number(comp.width) || 1920);
+              const targetH = Math.max(1, Number(comp.height) || 1080);
+              const recordCanvas: HTMLCanvasElement = document.createElement('canvas');
+              recordCanvas.width = targetW;
+              recordCanvas.height = targetH;
+              const rctx = recordCanvas.getContext('2d');
+              if (!rctx || !(recordCanvas as any).captureStream) return;
+              // Copy frames from the preview canvas into the record canvas at the selected FPS
+              const copyIntervalMs = Math.max(1, Math.round(1000 / fps));
+              let copyTimer: any = null;
+              const startCopy = () => {
+                try { if (copyTimer) clearInterval(copyTimer); } catch {}
+                copyTimer = setInterval(() => {
+                  try {
+                    // Draw preview canvas into recording canvas (scaled to comp size)
+                    rctx.drawImage(canvas, 0, 0, targetW, targetH);
+                  } catch {}
+                }, copyIntervalMs);
+              };
+              startCopy();
+              const videoStream: MediaStream = (recordCanvas as any).captureStream(fps);
               
               // Get audio stream based on settings
               let audioStream: MediaStream | null = null;
@@ -1169,6 +1204,7 @@ function App() {
                 if (audioStream) {
                   audioStream.getTracks().forEach(track => track.stop());
                 }
+                try { if (copyTimer) clearInterval(copyTimer); } catch {}
                 setIsRecording(false);
                 recorderRef.current = null;
                 console.log('Recording cleanup completed');
@@ -1176,7 +1212,7 @@ function App() {
               recorder.start();
               recorderRef.current = recorder;
               const audioInfo = audioSource === 'none' ? 'no audio' : `${audioSource} @ ${audioBitrate/1000}kbps`;
-              toast({ description: `Recording started (@ 30fps, ${quality}, ${audioInfo})...` });
+              toast({ description: `Recording started (@ ${fps}fps, ${quality}, ${audioInfo})...` });
               setIsRecording(true);
               console.log('Recording started, isRecording set to true');
             } catch {}
@@ -1191,7 +1227,7 @@ function App() {
           {showUIDemo ? (
             <UIDemo onClose={() => setShowUIDemo(false)} />
           ) : (
-            <LayerManager onClose={() => {}} debugMode={debugMode} />
+      <LayerManager onClose={() => {}} debugMode={debugMode} />
           )}
         </div>
       </div>

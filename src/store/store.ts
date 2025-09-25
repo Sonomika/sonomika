@@ -138,13 +138,17 @@ export type RecordSettings = {
   quality: 'low' | 'medium' | 'high';
   audioSource: 'none' | 'microphone' | 'system' | 'app';
   audioBitrate: number;
+  fps?: 30 | 60;
+  autoStartOnPlay?: boolean;
 };
 
 const initialRecordSettings: RecordSettings = {
   codec: 'vp9',
   quality: 'high',
   audioSource: 'app',
-  audioBitrate: 256000
+  audioBitrate: 256000,
+  fps: 60,
+  autoStartOnPlay: true
 };
 
 export const useStore = createWithEqualityFn<AppState & {

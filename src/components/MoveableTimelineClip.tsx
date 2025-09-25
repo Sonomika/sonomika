@@ -218,7 +218,7 @@ export const MoveableTimelineClip: React.FC<MoveableTimelineClipProps> = ({
 
   const translateX = clip.startTime * pixelsPerSecond;
   const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
-  const background = '#1e88e5';
+  const background = '#404040';
 
   return (
     <>
@@ -226,14 +226,12 @@ export const MoveableTimelineClip: React.FC<MoveableTimelineClipProps> = ({
         ref={targetRef}
         data-clip-id={clip.id}
         className={`group tw-absolute tw-top-1 tw-bottom-1 tw-rounded tw-text-white tw-overflow-hidden tw-z-20 tw-box-border tw-flex tw-items-center tw-px-2 tw-cursor-move ${
-          isSelected
-            ? 'tw-bg-orange-600 tw-ring-2 tw-ring-orange-400'
-            : ''
+          isSelected ? 'tw-ring-2 tw-ring-neutral-600' : ''
         } ${isDragging ? 'tw-opacity-80' : ''} ${isResizing ? 'tw-opacity-80' : ''}`}
         style={{
           transform: `translate3d(${translateX}px, 0, 0)`,
           width: `${widthPx}px`,
-          background: isSelected ? undefined : background,
+          background: isSelected ? '#262626' : background,
           willChange: 'transform,width',
         }}
         onClick={handleClick}
