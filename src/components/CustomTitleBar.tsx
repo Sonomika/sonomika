@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Popover, PopoverTrigger, PopoverContent, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
+import { Popover, PopoverTrigger, PopoverContent, Dialog, DialogContent, DialogHeader, DialogTitle, Button } from './ui';
 import { useStore } from '../store/store';
 
 interface CustomTitleBarProps {
@@ -145,9 +145,9 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         )}
         {!isElectron && onSignOut && (
           <div className="tw-flex tw-items-center tw-gap-1 app-no-drag">
-            <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border tw-border-neutral-700 hover:tw-bg-neutral-800" onClick={() => onSignOut?.()}>
+            <Button variant="outline" size="sm" onClick={() => onSignOut?.()}>
               Sign out
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -201,7 +201,10 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           </div>
           
           {isElectron && (
-            <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onToggleAppFullscreen}>
+            <button 
+              className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
+              onClick={onToggleAppFullscreen}
+            >
               Fullscreen
             </button>
           )}
@@ -217,7 +220,10 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           >
             UI Demo
           </button>
-          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onCompositionSettings}>
+          <button 
+            className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
+            onClick={onCompositionSettings}
+          >
             Composition Settings
           </button>
           {/* External dropdown before Settings */}
@@ -334,7 +340,10 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               </PopoverContent>
             </Popover>
           </div>
-          <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onOpenSettings}>
+          <button 
+            className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
+            onClick={onOpenSettings}
+          >
             Settings
           </button>
           {/* Help dropdown */}
@@ -357,13 +366,16 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
             </Popover>
           </div>
           {process.env.NODE_ENV === 'development' && onStyleGuide && (
-            <button className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" onClick={onStyleGuide}>
+            <button 
+              className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
+              onClick={onStyleGuide}
+            >
               Style Guide
             </button>
           )}
           {process.env.NODE_ENV === 'development' && onToggleDebug && (
             <button 
-              className={`tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag`} 
+              className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
               onClick={onToggleDebug}
               title={debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
             >

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Input, Label, Select, Textarea, Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea, Separator, Switch } from './ui';
+import { Input, Label, Select, Textarea, Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea, Separator, Switch, Button } from './ui';
 import { useStore } from '../store/store';
 
 interface RefEffectOption {
@@ -409,10 +409,10 @@ export const AIEffectsLab: React.FC = () => {
             </div>
           </div>
           <div className="tw-flex tw-gap-2">
-            <button className={btnClass} onClick={handleGenerate} disabled={thinking || !apiKey}>
+            <Button variant="secondary" onClick={handleGenerate} disabled={thinking || !apiKey}>
               {thinking ? 'Generating…' : 'Generate with AI'}
-            </button>
-            <button className={btnClass} onClick={() => setPrompt(DEFAULT_PROMPT)}>Reset Prompt</button>
+            </Button>
+            <Button variant="secondary" onClick={() => setPrompt(DEFAULT_PROMPT)}>Reset Prompt</Button>
           </div>
           <div className="tw-text-xs tw-text-neutral-400">{status}</div>
         </div>
@@ -420,10 +420,10 @@ export const AIEffectsLab: React.FC = () => {
           <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
             <div className="tw-text-xs tw-text-neutral-400">Editable Code</div>
             <div className="tw-flex tw-gap-2 tw-flex-wrap">
-              <button className={btnClass} onClick={handleLoadAsNewEffect} disabled={!code.trim()}>Load as New</button>
-              <button className={btnClass} onClick={handleApplyToSelectedSlot} disabled={!code.trim()}>Apply to Slot</button>
-              <button className={btnClass} onClick={handleFixOutput} disabled={!code.trim()}>Fix Output</button>
-              <button className={btnClass} onClick={handleSaveToFile} disabled={!code.trim()}>Save…</button>
+              <Button variant="secondary" onClick={handleLoadAsNewEffect} disabled={!code.trim()}>Load as New</Button>
+              <Button variant="secondary" onClick={handleApplyToSelectedSlot} disabled={!code.trim()}>Apply to Slot</Button>
+              <Button variant="secondary" onClick={handleFixOutput} disabled={!code.trim()}>Fix Output</Button>
+              <Button variant="secondary" onClick={handleSaveToFile} disabled={!code.trim()}>Save…</Button>
             </div>
           </div>
           <div className="tw-flex-1 tw-min-h-0">

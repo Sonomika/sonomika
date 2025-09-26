@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/store';
 import { MIDIManager } from '../midi/MIDIManager';
 import { AppState } from '../store/types';
-import { Dialog, Select } from './ui';
+import { Dialog, Select, Button } from './ui';
 
 interface SceneMIDIMapping {
   sceneId: string;
@@ -194,7 +194,7 @@ export const MIDISceneMapper: React.FC<{ onClose: () => void }> = ({ onClose }) 
             <div className="tw-fixed tw-left-1/2 tw-top-1/2 tw--translate-x-1/2 tw--translate-y-1/2 tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-4 tw-text-neutral-100 tw-shadow-xl">
               <h3 className="tw-text-base tw-font-semibold">Waiting for MIDI Note...</h3>
               <p className="tw-text-sm tw-text-neutral-300 tw-mt-1">Press any key on your MIDI controller to assign it to the scene.</p>
-              <button className="tw-mt-3 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-px-3 tw-py-1.5" onClick={handleStopListening}>Cancel</button>
+              <Button variant="secondary" onClick={handleStopListening}>Cancel</Button>
             </div>
           </div>
         )}

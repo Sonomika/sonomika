@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useLayoutEffect, useCallback, useState } from
 import { useStore } from '../store/store';
 import { Layer } from '../store/types';
 import { useLFOStore, type LFOMapping } from '../store/lfoStore';
-import { ParamRow, Select, Tabs, TabsList, TabsTrigger, TabsContent, Switch, Slider } from './ui';
+import { ParamRow, Select, Tabs, TabsList, TabsTrigger, TabsContent, Switch, Slider, Button } from './ui';
 import { getClock } from '../engine/Clock';
 import { getEffect } from '../utils/effectRegistry';
 import { getEffectComponentSync } from '../utils/EffectLoader';
@@ -804,9 +804,9 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       <div className="tw-space-y-2 tw-mt-3">
             <div className="tw-space-y-2 tw-pl-0">
               <h4 className="tw-text-sm tw-font-semibold tw-text-white">Parameter Mappings</h4>
-              <button className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700 tw-self-start" onClick={addMappingHandler}>
+              <Button variant="secondary" onClick={addMappingHandler}>
                 + Map
-              </button>
+              </Button>
             </div>
         {/* existing mappings list preserved */}
             <div className="tw-space-y-2">
@@ -866,15 +866,16 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                           />
                           Enabled
                         </label>
-                        <button 
-                          className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-w-6 tw-h-6 hover:tw-bg-neutral-800"
+                        <Button 
+                          size="icon"
+                          variant="ghost"
                           onClick={() => {
                             const lid = selectedLayerRef.current?.id;
                             if (lid) removeMappingForLayerMode(lid, mapping.id, showTimeline);
                           }}
                         >
                           ×
-                        </button>
+                        </Button>
                       </div>
                     </div>
                     {/* Min/Max controls removed per design; mapping uses parameter metadata bounds */}

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
-import { Input, Label, Select, Switch } from './ui';
+import { Input, Label, Select, Switch, Button } from './ui';
 import { MIDIManager } from '../midi/MIDIManager';
 import { MIDIProcessor } from '../utils/MIDIProcessor';
 import { MIDIMapping } from '../store/types';
@@ -229,8 +229,8 @@ export const MIDIMapper: React.FC = () => {
             <Switch checked={!!midiForceChannel1} onCheckedChange={(val: boolean) => setMIDIForceChannel1(!!val)} />
           </div>
           <div className="tw-flex tw-flex-wrap tw-gap-2">
-            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-700 tw-text-white" title="Add a new mapping" onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</button>
-            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-800 tw-text-neutral-200" title="Duplicate selected mapping" onClick={() => {
+            <Button title="Add a new mapping" onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>
+            <Button variant="secondary" title="Duplicate selected mapping" onClick={() => {
               if (!selectedMapping) return;
               const clone = JSON.parse(JSON.stringify(selectedMapping)) as MIDIMapping;
               const next = mappings.slice();
@@ -238,10 +238,10 @@ export const MIDIMapper: React.FC = () => {
               next.splice(insertAt, 0, clone);
               updateMappings(next);
               setSelectedIndex(insertAt);
-            }}>Duplicate</button>
-            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-700 tw-text-white" title="Remove selected mapping" onClick={() => { if (selectedMapping) { const next = mappings.filter((_, i) => i !== selectedIndex); updateMappings(next); setSelectedIndex(Math.max(0, selectedIndex - 1)); } }}>Remove</button>
-            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-800 tw-text-neutral-200" title="Save mappings to file" onClick={() => { saveMappingsToFile(); }}>Save Preset</button>
-            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-800 tw-text-neutral-200" title="Load mappings from file" onClick={() => {
+            }}>Duplicate</Button>
+            <Button title="Remove selected mapping" onClick={() => { if (selectedMapping) { const next = mappings.filter((_, i) => i !== selectedIndex); updateMappings(next); setSelectedIndex(Math.max(0, selectedIndex - 1)); } }}>Remove</Button>
+            <Button variant="secondary" title="Save mappings to file" onClick={() => { saveMappingsToFile(); }}>Save Preset</Button>
+            <Button variant="secondary" title="Load mappings from file" onClick={() => {
               try {
                 const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
                 if (isElectron) {
@@ -268,7 +268,7 @@ export const MIDIMapper: React.FC = () => {
                   fileInputRef.current?.click();
                 }
               } catch {}
-            }}>Load Preset</button>
+            }}>Load Preset</Button>
           </div>
         </div>
         
@@ -407,7 +407,7 @@ export const MIDIMapper: React.FC = () => {
             <span className={`tw-inline-block tw-w-2 tw-h-2 tw-rounded-full ${lastEventAt && Date.now() - lastEventAt < 500 ? 'tw-bg-emerald-400' : 'tw-bg-neutral-700'}`}></span>
           </div>
           <div className="tw-flex tw-gap-2">
-            <button type="button" className="tw-rounded tw-px-2 tw-py-1 tw-text-sm tw-bg-neutral-800 tw-text-neutral-200" onClick={() => setMonitorEnabled(!monitorEnabled)}>{monitorEnabled ? 'Pause' : 'Resume'}</button>
+            <Button variant="secondary" onClick={() => setMonitorEnabled(!monitorEnabled)}>{monitorEnabled ? 'Pause' : 'Resume'}</Button>
           </div>
         </div>
         <div>

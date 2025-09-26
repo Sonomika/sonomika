@@ -1,5 +1,6 @@
 import React from 'react';
 import { Slider } from './Slider';
+import { Button } from './button';
 
 interface ParamRowProps {
   label: string;
@@ -53,12 +54,12 @@ export const ParamRow: React.FC<ParamRowProps> = ({
 
   const Buttons = showButtons && onIncrement && onDecrement ? (
     <div className="param-buttons tw-inline-flex tw-items-center tw-gap-1">
-      <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-5 tw-h-5 xl:tw-w-6 xl:tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onDecrement}>
+      <Button size="icon" variant="secondary" onClick={onDecrement}>
         -
-      </button>
-      <button type="button" className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-5 tw-h-5 xl:tw-w-6 xl:tw-h-6 leading-[1] hover:tw-bg-neutral-700" onClick={onIncrement}>
+      </Button>
+      <Button size="icon" variant="secondary" onClick={onIncrement}>
         +
-      </button>
+      </Button>
     </div>
   ) : null;
 

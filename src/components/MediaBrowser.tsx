@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Tabs, TabsList, TabsTrigger, Select } from './ui';
+import { Tabs, TabsList, TabsTrigger, Select, Button } from './ui';
 import { generateVideoThumbnail } from '../utils/ThumbnailCache';
 import { getAllRegisteredEffects, getEffect } from '../utils/effectRegistry';
 import { effectCache, CachedEffect } from '../utils/EffectCache';
@@ -686,12 +686,12 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
           </div>
           
           <div className="tw-flex tw-gap-2">
-            <button onClick={handlePreview} className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-1.5 hover:tw-bg-neutral-700">
+            <Button variant="secondary" onClick={handlePreview}>
               Preview
-            </button>
-            <button onClick={handleAddToLayer} className="tw-border tw-border-neutral-700 tw-bg-graphite tw-text-white tw-px-3 tw-py-1.5 hover:tw-bg-neutral-600">
+            </Button>
+            <Button onClick={handleAddToLayer}>
               Add to Layer
-            </button>
+            </Button>
           </div>
         </div>
       )}

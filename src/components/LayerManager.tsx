@@ -18,6 +18,7 @@ import { handleSceneRename } from '../utils/SceneManagementHandlers';
 import EffectsBrowser from './EffectsBrowser';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
+import { Button } from './ui';
 import AIEffectsLab from './AIEffectsLab';
 // Scenes header now uses ContextMenu for actions
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui/ContextMenu';
@@ -1416,7 +1417,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="tw-text-center tw-space-y-2">
               <h3 className="tw-text-lg">Welcome to VJ</h3>
               <p className="tw-text-sm tw-text-neutral-300">Create your first scene to get started</p>
-              <button onClick={addScene} className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-px-3 tw-py-1.5 tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-800 hover:tw-bg-neutral-700">Create New Scene</button>
+              <Button variant="secondary" onClick={addScene}>Create New Scene</Button>
             </div>
           </div>
         </div>

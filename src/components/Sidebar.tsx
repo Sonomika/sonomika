@@ -56,9 +56,9 @@ export const Sidebar: React.FC = () => {
                 </div>
               ))}
             </div>
-            <button onClick={addScene} className="tw-mt-2 tw-w-full tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700">
+            <Button variant="secondary" onClick={addScene} className="tw-mt-2 tw-w-full">
               Add Scene
-            </button>
+            </Button>
           </section>
 
           {/* Layer Management */}
@@ -222,12 +222,12 @@ export const Sidebar: React.FC = () => {
             <h2 className="tw-text-sm tw-font-semibold tw-text-neutral-300 tw-mb-2">MIDI Devices</h2>
             <div className="tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-3 tw-text-neutral-400">No MIDI devices connected</div>
             <div className="tw-mt-2 tw-flex tw-gap-2">
-              <button className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700">
+              <Button variant="secondary">
                 Map MIDI Controls
-              </button>
-              <button className="tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-3 tw-py-2 hover:tw-bg-neutral-700">
+              </Button>
+              <Button variant="secondary">
                 Map MIDI to Scenes
-              </button>
+              </Button>
             </div>
           </section>
         </div>

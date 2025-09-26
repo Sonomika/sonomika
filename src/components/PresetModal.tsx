@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Button } from './ui';
 
 interface PresetModalProps {
   isOpen: boolean;
@@ -76,16 +76,16 @@ export const PresetModal: React.FC<PresetModalProps> = ({
           )}
           <div className="tw-flex tw-justify-end tw-gap-2 tw-pt-2">
             {secondaryText && onSecondary && (
-              <button className="tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={() => { onSecondary(); onClose(); }}>
+              <Button variant="secondary" onClick={() => { onSecondary(); onClose(); }}>
                 {secondaryText}
-              </button>
+              </Button>
             )}
-            <button className="tw-bg-neutral-800 tw-px-3 tw-py-1.5 tw-text-neutral-200 hover:tw-bg-neutral-700" onClick={onClose}>
+            <Button variant="secondary" onClick={onClose}>
               {cancelText}
-            </button>
-            <button className="tw-px-3 tw-py-1.5 tw-text-neutral-200 tw-bg-neutral-800 tw-border tw-border-neutral-800 hover:tw-bg-neutral-700" onClick={handleConfirm}>
+            </Button>
+            <Button onClick={handleConfirm}>
               {confirmText}
-            </button>
+            </Button>
           </div>
         </div>
       </DialogContent>
