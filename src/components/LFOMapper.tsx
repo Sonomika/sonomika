@@ -636,14 +636,14 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
         <TabsContent value="lfo">
       <div className="lfo-content-wrapper">
-        <div className="lfo-main">
+        <div className="lfo-main tw-pr-4 sm:tw-pr-8">
           <div className="waveform-section">
                 <canvas ref={canvasRef} width={300} height={120} className="waveform-canvas" />
               </div>
               <div className="lfo-parameters tw-space-y-3">
-                <div className="tw-flex tw-items-center tw-gap-2">
-                  <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Waveform</label>
-                  <div className="tw-w-full xl:tw-w-[240px] tw-min-w-0">
+                <div className="tw-w-full tw-min-w-0 tw-flex tw-flex-col xxl:tw-grid xxl:tw-items-center tw-gap-1 xxl:tw-gap-2" style={{ gridTemplateColumns: '180px 1fr' }}>
+                  <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xxl:tw-w-[180px] xxl:tw-shrink-0">Waveform</label>
+                  <div className="tw-w-full xxl:tw-w-[240px] tw-min-w-0">
                     <Select
                       value={(lfo.waveform as any) || 'sine'}
                       onChange={(v) => lid && setLFOForLayer(lid, { waveform: String(v) })}
@@ -659,9 +659,9 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                     />
                   </div>
                 </div>
-                <div className="tw-flex tw-items-center tw-gap-2">
-                  <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Timing</label>
-                  <div className="tw-w-full xl:tw-w-[240px] tw-flex tw-gap-2">
+                <div className="tw-w-full tw-min-w-0 tw-flex tw-flex-col xxl:tw-grid xxl:tw-items-center tw-gap-1 xxl:tw-gap-2" style={{ gridTemplateColumns: '180px 1fr' }}>
+                  <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xxl:tw-w-[180px] xxl:tw-shrink-0">Timing</label>
+                  <div className="tw-w-full xxl:tw-w-[240px] tw-flex tw-gap-2">
                     <button
                       className={`tw-rounded tw-border tw-border-neutral-700 tw-px-2 tw-py-1 tw-text-sm ${ ((lfo.lfoTimingMode as any) || 'hz') === 'sync' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200' }`}
                       onClick={() => lid && setLFOForLayer(lid, { lfoTimingMode: 'sync' })}
@@ -677,7 +677,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                   </div>
                 </div>
                 {(((lfo.lfoTimingMode as any) || 'hz') as string) === 'sync' ? (
-                  <div className="param-row">
+                  <div className="tw-w-full tw-min-w-0 tw-flex tw-flex-col xxl:tw-grid xxl:tw-items-center tw-gap-1 xxl:tw-gap-2" style={{ gridTemplateColumns: '180px 1fr' }}>
                     {(() => {
                       const allowedDivisions = ['1/64', '1/32', '1/16', '1/8', '1/4', '1/2', '1', '2', '4', '8', '16', '32'];
                       const normDiv = normalizeDivision((lfo.lfoDivision as any));
@@ -690,39 +690,71 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                         if (lid) setLFOForLayer(lid, { lfoDivision: division as any, lfoDivisionIndex: clamped as any });
                       };
                       return (
-                        <ParamRow
-                          label="Division"
-                          value={currentIndex}
-                          min={0}
-                          max={allowedDivisions.length - 1}
-                          step={1}
-                          onChange={setByIndex}
-                          onIncrement={() => setByIndex(currentIndex + 1)}
-                          onDecrement={() => setByIndex(currentIndex - 1)}
-                          valueDisplay={allowedDivisions[currentIndex]}
-                        />
+                        <>
+                          <div className="tw-flex tw-items-center tw-justify-between tw-h-6 xxl:tw-w-[180px]">
+                            <span className="tw-text-xs tw-uppercase tw-text-neutral-400">Division</span>
+                            <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums">{allowedDivisions[currentIndex]}</span>
+                          </div>
+                          <div className="tw-flex-1 tw-min-w-0">
+                            <ParamRow
+                              label="Division"
+                              showLabel={false}
+                              showValue={false}
+                              layout="stacked"
+                              value={currentIndex}
+                              min={0}
+                              max={allowedDivisions.length - 1}
+                              step={1}
+                              onChange={setByIndex}
+                              onIncrement={() => setByIndex(currentIndex + 1)}
+                              onDecrement={() => setByIndex(currentIndex - 1)}
+                              buttonsAfter
+                            />
+                          </div>
+                        </>
                       );
                     })()}
                   </div>
                 ) : (
-                  <div className="param-row">
-                    <ParamRow
-                      label="Hz"
-                      value={Number((lfo.lfoHz as any) || Number(lfo.rate || 1))}
-                      min={0.01}
-                      max={20}
-                      step={0.01}
-                      onChange={(value) => lid && setLFOForLayer(lid, { lfoHz: value, rate: value })}
-                      onIncrement={() => lid && setLFOForLayer(lid, { lfoHz: Math.min(20, Number((lfo.lfoHz as any) || Number(lfo.rate || 1)) + 0.01), rate: Math.min(20, Number((lfo.lfoHz as any) || Number(lfo.rate || 1)) + 0.01) })}
-                      onDecrement={() => lid && setLFOForLayer(lid, { lfoHz: Math.max(0.01, Number((lfo.lfoHz as any) || Number(lfo.rate || 1)) - 0.01), rate: Math.max(0.01, Number((lfo.lfoHz as any) || Number(lfo.rate || 1)) - 0.01) })}
-                    />
+                  <div className="tw-w-full tw-min-w-0 tw-flex tw-flex-col xxl:tw-grid xxl:tw-items-center tw-gap-1 xxl:tw-gap-2" style={{ gridTemplateColumns: '180px 1fr' }}>
+                    {(() => {
+                      const hzVal = Number((lfo.lfoHz as any) || Number(lfo.rate || 1));
+                      const formatted = hzVal < 1 ? hzVal.toFixed(2) : hzVal.toFixed(2);
+                      return (
+                        <>
+                          <div className="tw-flex tw-items-center tw-justify-between tw-h-6 xxl:tw-w-[180px]">
+                            <span className="tw-text-xs tw-uppercase tw-text-neutral-400">Hz</span>
+                            <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums">{formatted}</span>
+                          </div>
+                          <div className="tw-flex-1 tw-min-w-0">
+                            <ParamRow
+                              label="Hz"
+                              showLabel={false}
+                              showValue={false}
+                              layout="stacked"
+                              value={hzVal}
+                              min={0.01}
+                              max={20}
+                              step={0.01}
+                              onChange={(value) => lid && setLFOForLayer(lid, { lfoHz: value, rate: value })}
+                              onIncrement={() => lid && setLFOForLayer(lid, { lfoHz: Math.min(20, hzVal + 0.01), rate: Math.min(20, hzVal + 0.01) })}
+                              onDecrement={() => lid && setLFOForLayer(lid, { lfoHz: Math.max(0.01, hzVal - 0.01), rate: Math.max(0.01, hzVal - 0.01) })}
+                              buttonsAfter
+                            />
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
                 <div className="param-row">
-                  <div className="tw-flex tw-items-center tw-gap-2">
-                    <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-[180px]">Range</label>
-                    <div className="tw-flex-1 tw-flex tw-items-center tw-gap-3">
-                      <div className="tw-w-full xl:tw-w-[240px] tw-min-w-0">
+                <div className="tw-w-full tw-min-w-0 tw-flex tw-flex-col xxl:tw-grid xxl:tw-items-center tw-gap-1 xxl:tw-gap-2" style={{ gridTemplateColumns: '180px 1fr' }}>
+                    <div className="tw-flex tw-items-center tw-justify-between tw-h-6 xxl:tw-w-[180px] tw-pb-1 xxl:tw-pb-0">
+                      <span className="tw-text-xs tw-uppercase tw-text-neutral-400">Range</span>
+                      <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums">{toNumberOr(Number((lfo.lfoMin as any) ?? 0), 0)}% / {toNumberOr(Number((lfo.lfoMax as any) ?? 100), 100)}%</span>
+                    </div>
+                    <div className="tw-flex-1 tw-flex tw-items-center tw-gap-3 tw-mt-1 xxl:tw-mt-0">
+                      <div className="tw-w-full xxl:tw-w-[240px] tw-min-w-0">
                         <Slider
                           value={[toNumberOr(Number((lfo.lfoMin as any) ?? 0), 0), toNumberOr(Number((lfo.lfoMax as any) ?? 100), 100)]}
                           min={0}
@@ -737,16 +769,29 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                           }}
                         />
                       </div>
-                      <div className="tw-text-xs tw-text-neutral-400">{toNumberOr(Number((lfo.lfoMin as any) ?? 0), 0)}% / {toNumberOr(Number((lfo.lfoMax as any) ?? 100), 100)}%</div>
                     </div>
                   </div>
                 </div>
-                <div className="param-row">
-                  <ParamRow label="Skip %" value={toNumberOr(Number((lfo.lfoSkipPercent as any) ?? 0), 0)} min={0} max={100} step={1}
-                    onChange={(value) => lid && setLFOForLayer(lid, { lfoSkipPercent: value })}
-                    onIncrement={() => lid && setLFOForLayer(lid, { lfoSkipPercent: Math.min(100, toNumberOr(Number((lfo.lfoSkipPercent as any) ?? 0), 0) + 1) })}
-                    onDecrement={() => lid && setLFOForLayer(lid, { lfoSkipPercent: Math.max(0, toNumberOr(Number((lfo.lfoSkipPercent as any) ?? 0), 0) - 1) })}
-                  />
+                <div className="tw-w-full tw-min-w-0 tw-flex tw-flex-col xxl:tw-grid xxl:tw-items-center tw-gap-1 xxl:tw-gap-2" style={{ gridTemplateColumns: '180px 1fr' }}>
+                  {(() => {
+                    const skipVal = toNumberOr(Number((lfo.lfoSkipPercent as any) ?? 0), 0);
+                    return (
+                      <>
+                        <div className="tw-flex tw-items-center tw-justify-between tw-h-6 xxl:tw-w-[180px]">
+                          <span className="tw-text-xs tw-uppercase tw-text-neutral-400">Skip %</span>
+                          <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums">{skipVal}</span>
+                        </div>
+                        <div className="tw-flex-1 tw-min-w-0">
+                          <ParamRow label="Skip %" showLabel={false} showValue={false} layout="stacked" value={skipVal} min={0} max={100} step={1}
+                            onChange={(value) => lid && setLFOForLayer(lid, { lfoSkipPercent: value })}
+                            onIncrement={() => lid && setLFOForLayer(lid, { lfoSkipPercent: Math.min(100, skipVal + 1) })}
+                            onDecrement={() => lid && setLFOForLayer(lid, { lfoSkipPercent: Math.max(0, skipVal - 1) })}
+                            buttonsAfter
+                          />
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
                 
               </div>
@@ -757,9 +802,9 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
       {/* Mappings section retained */}
       <div className="tw-space-y-2 tw-mt-3">
-            <div className="tw-flex tw-items-center tw-justify-between">
+            <div className="tw-space-y-2 tw-pl-0">
               <h4 className="tw-text-sm tw-font-semibold tw-text-white">Parameter Mappings</h4>
-              <button className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700" onClick={addMappingHandler}>
+              <button className="tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700 tw-self-start" onClick={addMappingHandler}>
                 + Map
               </button>
             </div>
@@ -769,7 +814,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                 <div className="tw-text-sm tw-text-neutral-400">No parameters mapped. Click '+ Map' to start modulating parameters.</div>
                 ) : (
                 mappings.map(mapping => (
-                  <div key={mapping.id} className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2">
+                  <div key={mapping.id} className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-pr-2 tw-pl-0 tw-py-2">
                     <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
                       <div className="tw-min-w-[240px]">
                         <Select 
@@ -841,4 +886,5 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     </div>
   );
 };
+
 

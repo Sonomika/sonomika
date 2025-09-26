@@ -32,6 +32,10 @@ module.exports = {
       '9xl': ['14px', { lineHeight: '20px' }],
     },
     extend: {
+      screens: {
+        lg: '1240px',
+        xxl: '1569px',
+      },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'sans-serif'],
       },

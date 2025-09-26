@@ -25,6 +25,17 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     try { return localStorage.getItem('vj-autoload-user-effects-enabled') === '1'; } catch { return false; }
   });
 
+  // OpenAI API key settings
+  const STORAGE_KEY_API = 'vj-ai-openai-api-key';
+  const STORAGE_KEY_MODEL = 'vj-ai-openai-model';
+  const [apiKey, setApiKey] = useState<string>(() => {
+    try { return localStorage.getItem(STORAGE_KEY_API) || ''; } catch { return ''; }
+  });
+  const [model, setModel] = useState<string>(() => {
+    try { return localStorage.getItem(STORAGE_KEY_MODEL) || 'gpt-5-mini'; } catch { return 'gpt-5-mini'; }
+  });
+  const [showApiKey, setShowApiKey] = useState<boolean>(false);
+
   useEffect(() => {
     const supabase = getSupabase();
     let unsub: any;
@@ -50,9 +61,30 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     } catch {}
   };
 
-  // Removed OpenAI key saving
+  const handleSaveApiKey = () => {
+    try { 
+      localStorage.setItem(STORAGE_KEY_API, apiKey.trim()); 
+      toast({ description: 'API key saved' });
+    } catch (e) {
+      toast({ description: 'Failed to save API key' });
+    }
+  };
 
-  // Removed OpenAI connection test
+  const handleSaveModel = (m: string) => {
+    setModel(m);
+    try { 
+      localStorage.setItem(STORAGE_KEY_MODEL, m); 
+      toast({ description: 'Model saved' });
+    } catch (e) {
+      toast({ description: 'Failed to save model' });
+    }
+  };
+
+  const getMaskedApiKey = () => {
+    if (!apiKey) return '';
+    if (apiKey.length <= 8) return '*'.repeat(apiKey.length);
+    return apiKey.slice(0, 4) + '*'.repeat(apiKey.length - 8) + apiKey.slice(-4);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -229,7 +261,55 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
 
           <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
           
-          {/* OpenAI section removed */}
+          {/* OpenAI API Settings */}
+          <div className="tw-space-y-3">
+            <div className="tw-text-sm tw-text-neutral-200">OpenAI API</div>
+            <div className="tw-text-xs tw-text-neutral-400">Configure your OpenAI API key and model for AI effects generation</div>
+            
+            <div className="tw-space-y-2">
+              <div className="tw-text-xs tw-text-neutral-400">API Key</div>
+              <div className="tw-flex tw-items-center tw-gap-2">
+                <Input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={showApiKey ? apiKey : getMaskedApiKey()}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="tw-flex-1 tw-text-xs"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="tw-text-xs"
+                >
+                  {showApiKey ? 'Hide' : 'Show'}
+                </Button>
+                <Button
+                  onClick={handleSaveApiKey}
+                  className="tw-text-xs"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            <div className="tw-space-y-2">
+              <div className="tw-text-xs tw-text-neutral-400">Model</div>
+              <div className="tw-flex tw-items-center tw-gap-2">
+                <Select
+                  value={model}
+                  onChange={(val) => handleSaveModel(String(val))}
+                  options={[
+                    { value: 'gpt-5', label: 'gpt-5' },
+                    { value: 'gpt-5-mini', label: 'gpt-5-mini' },
+                    { value: 'gpt-4o', label: 'gpt-4o' },
+                    { value: 'gpt-4o-mini', label: 'gpt-4o-mini' },
+                    { value: 'o4-mini', label: 'o4-mini' },
+                  ]}
+                  className="tw-text-xs"
+                />
+              </div>
+            </div>
+          </div>
 
           <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
           <div className="tw-flex tw-items-center tw-justify-between">

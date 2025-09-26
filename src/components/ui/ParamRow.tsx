@@ -97,16 +97,16 @@ export const ParamRow: React.FC<ParamRowProps> = ({
     <div className={
       layout === 'inline'
         ? 'effect-param tw-w-full tw-min-w-0 tw-pr-0 tw-flex tw-items-center tw-gap-1'
-        : 'effect-param tw-w-full tw-min-w-0 tw-pr-0 tw-flex tw-flex-col tw-gap-1 xl:tw-flex-row xl:tw-items-center xl:tw-gap-1'
+        : 'effect-param tw-w-full tw-min-w-0 tw-pr-0 tw-flex tw-flex-col tw-gap-1 xxl:tw-flex-row xxl:tw-items-center xxl:tw-gap-1'
     }>
       {showLabel && (
-        <label className="param-label tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xl:tw-w-[180px] xl:tw-shrink-0">
+        <label className="param-label tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xxl:tw-w-[180px] xxl:tw-shrink-0">
           {label}
         </label>
       )}
 
       {showValue && (
-        <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums tw-w-full tw-text-right xl:tw-w-[36px]">
+        <span className="param-value tw-text-xs tw-text-neutral-300 tw-tabular-nums tw-w-full tw-text-right xxl:tw-w-[36px]">
           {displayValue}
         </span>
       )}

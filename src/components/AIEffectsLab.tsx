@@ -46,11 +46,12 @@ export const AIEffectsLab: React.FC = () => {
     } catch { return null; }
   }, [selectedLayer]);
   // Reference effect selection removed; editor is now the single source of truth
+  // API key and model now managed in Settings dialog
   const [apiKey, setApiKey] = useState<string>(() => {
     try { return localStorage.getItem(STORAGE_KEY_API) || ''; } catch { return ''; }
   });
   const [model, setModel] = useState<string>(() => {
-    try { return localStorage.getItem(STORAGE_KEY_MODEL) || 'gpt-5'; } catch { return 'gpt-5'; }
+    try { return localStorage.getItem(STORAGE_KEY_MODEL) || 'gpt-5-mini'; } catch { return 'gpt-5-mini'; }
   });
   const [thinking, setThinking] = useState<boolean>(false);
   const [prompt, setPrompt] = useState<string>(DEFAULT_PROMPT);
@@ -156,19 +157,27 @@ export const AIEffectsLab: React.FC = () => {
     })();
   }, [selectedEffectId, loadSourceForEffectId]);
 
-  // Reference dropdown removed
+  // Listen for API key changes from Settings dialog
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const newApiKey = localStorage.getItem(STORAGE_KEY_API) || '';
+        const newModel = localStorage.getItem(STORAGE_KEY_MODEL) || 'gpt-5-mini';
+        setApiKey(newApiKey);
+        setModel(newModel);
+      } catch {}
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
-  const onSaveApiKey = () => {
-    try { localStorage.setItem(STORAGE_KEY_API, apiKey.trim()); setStatus('Saved API key'); } catch {}
-  };
-  const onSaveModel = (m: string) => {
-    setModel(m);
-    try { localStorage.setItem(STORAGE_KEY_MODEL, m); } catch {}
-  };
+  // Reference dropdown removed
+  // API key and model saving now handled in Settings dialog
 
   // Generate effect code with OpenAI
   const handleGenerate = async () => {
-    if (!apiKey) { setStatus('Enter your OpenAI API key first'); return; }
+    if (!apiKey) { setStatus('Configure your OpenAI API key in Settings first'); return; }
     setThinking(true);
     setStatus('Generating with AI...');
     try {
@@ -379,20 +388,6 @@ export const AIEffectsLab: React.FC = () => {
 
       <div className="tw-grid tw-grid-cols-1 tw-gap-3">
         <div className="tw-col-span-1 tw-space-y-3">
-          <div className="tw-space-y-1">
-            <Label className="tw-text-xs">OpenAI API Key</Label>
-            <Input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." className="tw-text-xs" />
-            <div className="tw-flex tw-gap-2">
-              <button className={btnClass} onClick={onSaveApiKey}>Save Key</button>
-              <Select value={model} onChange={(v) => onSaveModel(String(v))} options={[
-                { value: 'gpt-5', label: 'gpt-5' },
-                { value: 'gpt-5-mini', label: 'gpt-5-mini' },
-                { value: 'gpt-4o', label: 'gpt-4o' },
-                { value: 'gpt-4o-mini', label: 'gpt-4o-mini' },
-                { value: 'o4-mini', label: 'o4-mini' },
-              ]} className="tw-text-xs" />
-            </div>
-          </div>
           <div className="tw-space-y-1">
             <Label className="tw-text-xs">Prompt</Label>
             <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={8} className="tw-text-xs" />
