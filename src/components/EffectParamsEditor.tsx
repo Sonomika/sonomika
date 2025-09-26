@@ -354,9 +354,9 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
         const uiValue = localParamValues[param.name] ?? currentValue;
         const isLocked = !!lockedParams[param.name];
         return (
-          <div key={param.name} className="tw-w-full tw-min-w-0 tw-flex tw-flex-col xl:tw-grid xl:tw-items-center tw-gap-1 xl:tw-gap-2" style={{ gridTemplateColumns: '160px 1fr 40px' }}>
+          <div key={param.name} className="tw-w-full tw-min-w-0 tw-flex tw-flex-col xxl:tw-grid xxl:tw-items-center tw-gap-1 xxl:tw-gap-2" style={{ gridTemplateColumns: '160px 1fr 40px' }}>
             {/* Label */}
-            <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xl:tw-w-[160px] xl:tw-shrink-0">{param.description || param.name}</label>
+            <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xxl:tw-w-[160px] xxl:tw-shrink-0">{param.description || param.name}</label>
 
             {/* Numeric inline */}
             {param.type === 'number' && (
@@ -395,7 +395,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                     showLabel={false}
                   />
                 </div>
-                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xxl:tw-hidden">
                   <button
                     type="button"
                     onClick={() => randomizeSingle(param)}
@@ -426,7 +426,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                   className="tw-h-8 tw-w-12 tw-rounded tw-bg-transparent tw-border tw-border-neutral-700"
                   disabled={isLocked}
                 />
-                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xxl:tw-hidden">
                   <button
                     type="button"
                     onClick={() => randomizeSingle(param)}
@@ -460,7 +460,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                     }}
                   />
                 </div>
-                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xxl:tw-hidden">
                   <button
                     type="button"
                     onClick={() => randomizeSingle(param)}
@@ -483,7 +483,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
             )}
             {param.type === 'select' && (
               <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
-                <div className="tw-w-full xl:tw-w-[240px] tw-min-w-0">
+                <div className="tw-w-full xxl:tw-w-[240px] tw-min-w-0">
                   <Select
                     value={String(uiValue)}
                     onChange={(val) => {
@@ -494,7 +494,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                     options={(param.options || []).map((opt: any) => (typeof opt === 'string' ? { value: opt, label: opt } : { value: opt.value, label: opt.label || opt.value }))}
                   />
                 </div>
-                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xxl:tw-hidden">
                   <button
                     type="button"
                     onClick={() => randomizeSingle(param)}
@@ -530,7 +530,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                 >
                   {Boolean(currentValue) ? 'ON' : 'OFF'}
                 </button>
-                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xl:tw-hidden">
+                <div className="tw-flex tw-items-center tw-gap-1 tw-ml-2 tw-flex-none tw-w-[40px] tw-justify-end xxl:tw-hidden">
                   <button
                     type="button"
                     onClick={() => randomizeSingle(param)}
@@ -553,7 +553,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
             )}
 
             {/* Trailing icons column for xl+ to align across rows */}
-            <div className="tw-hidden xl:tw-flex tw-items-center tw-gap-1 tw-justify-end">
+            <div className="tw-hidden xxl:tw-flex tw-items-center tw-gap-1 tw-justify-end">
               <button
                 type="button"
                 onClick={() => randomizeSingle(param)}

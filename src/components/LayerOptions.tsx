@@ -67,13 +67,11 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const [loopCount, setLoopCount] = useState(
     videoOptions?.loopCount || 1
   );
-  const [blendMode, setBlendMode] = useState(videoOptions?.blendMode || 'add');
-  const [opacity, setOpacity] = useState(videoOptions?.opacity || 1.0);
+  // Blend mode and opacity controls removed; values still exist in rendering but are no longer editable here
   const [playMode, setPlayMode] = useState<'restart' | 'continue'>(
     videoOptions?.playMode || 'restart'
   );
-  const opacityRafRef = useRef<number | null>(null);
-  const opacityPendingRef = useRef<number>(selectedLayer?.opacity || 1.0);
+  // Removed opacity RAF bookkeeping (UI removed)
   const [localParamValues, setLocalParamValues] = useState<Record<string, any>>({});
   const [lockedParams, setLockedParams] = useState<Record<string, boolean>>({});
   // Global randomization smoothing
@@ -330,8 +328,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       
       setLoopMode(options.loopMode || LOOP_MODES.NONE);
       setLoopCount(options.loopCount || 1);
-      setBlendMode(options.blendMode || 'add');
-      setOpacity(options.opacity || 1.0);
+      // Blend mode and opacity no longer controlled via UI
       
       if (hasEffect && effectMetadata?.parameters) {
         const baseParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
@@ -385,15 +382,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     }
   }, [selectedLayer?.id, selectedLayer?.params, hasEffect, effectMetadata?.parameters, showTimeline, ensureVideoOptionsForLayer, getVideoOptionsForLayer, setVideoOptionsForLayerMode]);
 
-  // Reflect external opacity changes (e.g., LFO) into the local UI state
-  React.useEffect(() => {
-    if (selectedLayer) {
-      const options = getVideoOptionsForLayer(selectedLayer.id, showTimeline);
-      if (typeof options.opacity === 'number') {
-        setOpacity(options.opacity);
-      }
-    }
-  }, [selectedLayer?.id, showTimeline, getVideoOptionsForLayer]);
+  // Opacity UI removed
 
   const handleLoopModeChange = (mode: LoopMode) => {
     setLoopMode(mode);
@@ -452,29 +441,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     } catch {}
   };
 
-  const handleBlendModeChange = (mode: string) => {
-    setBlendMode(mode as any);
-    if (selectedLayer) {
-      setVideoOptionsForLayerMode(selectedLayer.id, {
-        blendMode: mode as any
-      }, showTimeline);
-      
-      // Also update the layer data in the main store for immediate rendering
-      onUpdateLayer(selectedLayer.id, {
-        blendMode: mode as any
-      });
-    }
-
-    // In timeline mode, also update the selectedTimelineClip data
-    try {
-      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
-        const prev = selectedTimelineClip as any;
-        const nextData = { ...(prev.data || {}) } as any;
-        nextData.blendMode = mode;
-        setSelectedTimelineClip({ ...prev, data: nextData });
-      }
-    } catch {}
-  };
+  // Blend mode UI removed
 
   const handlePlayModeChange = (mode: 'restart' | 'continue') => {
     setPlayMode(mode);
@@ -500,45 +467,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     } catch {}
   };
 
-  const commitOpacity = (value: number) => {
-    if (!selectedLayer) return;
-    setVideoOptionsForLayerMode(selectedLayer.id, {
-      opacity: value,
-    }, showTimeline);
-    
-    // Also update the layer data in the main store for immediate rendering
-    onUpdateLayer(selectedLayer.id, {
-      opacity: value,
-    });
-
-    // In timeline mode, also update the selectedTimelineClip data
-    try {
-      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
-        const prev = selectedTimelineClip as any;
-        const nextData = { ...(prev.data || {}) } as any;
-        nextData.opacity = value;
-        setSelectedTimelineClip({ ...prev, data: nextData });
-      }
-    } catch {}
-  };
-
-  const handleOpacityChange = (value: number) => {
-    setOpacity(value);
-    opacityPendingRef.current = value;
-    if (opacityRafRef.current == null) {
-      opacityRafRef.current = requestAnimationFrame(() => {
-        commitOpacity(opacityPendingRef.current);
-        // Reassert global play when sequence mode is active
-        try {
-          const st: any = useStore.getState();
-          if (st.sequenceEnabledGlobal && typeof st.globalPlay === 'function') {
-            st.globalPlay();
-          }
-        } catch {}
-        opacityRafRef.current = null;
-      });
-    }
-  };
+  // Opacity UI removed
 
   const handleRenderScaleChange = (value: number) => {
     if (!selectedLayer) return;
@@ -1118,74 +1047,10 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         )}
 
         <div className="tw-space-y-2">
-          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Blend Mode</h4>
-          <div>
-            <div className="tw-flex tw-flex-wrap tw-gap-2">
-              <button
-                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'add' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                onClick={() => handleBlendModeChange('add')}
-                title="Add - Brightens overlapping areas"
-              >
-                Add
-              </button>
-              <button
-                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'multiply' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                onClick={() => handleBlendModeChange('multiply')}
-                title="Multiply - Darkens overlapping areas"
-              >
-                Multiply
-              </button>
-              <button
-                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'screen' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                onClick={() => handleBlendModeChange('screen')}
-                title="Screen - Lightens overlapping areas"
-              >
-                Screen
-              </button>
-              <button
-                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'overlay' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                onClick={() => handleBlendModeChange('overlay')}
-                title="Overlay - Combines multiply and screen"
-              >
-                Overlay
-              </button>
-              <button
-                className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${blendMode === 'difference' ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200'}`}
-                onClick={() => handleBlendModeChange('difference')}
-                title="Difference - Shows differences between layers"
-              >
-                Difference
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="tw-space-y-2">
-          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">General</h4>
-          <div className="tw-flex tw-flex-col xxl:tw-flex-row xxl:tw-items-center tw-gap-1 xxl:tw-gap-2 tw-pr-0">
-            <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xxl:tw-w-[180px] xxl:tw-shrink-0">Opacity</label>
-            <div className="tw-flex-1 tw-min-w-0">
-              <ParamRow
-                label="Opacity"
-                value={
-                  // Reflect LFO opacity in timeline: mapping typically uses 0..100, convert to 0..1
-                  (showTimeline && isTimelinePlaying && liveModulatedByParam['opacity'] !== undefined)
-                    ? Math.max(0, Math.min(1, Number(liveModulatedByParam['opacity']) / 100))
-                    : opacity
-                }
-                min={0}
-                max={1}
-                step={0.01}
-                buttonsAfter
-                showLabel={false}
-                onChange={(value) => handleOpacityChange(value)}
-                onIncrement={() => handleOpacityChange(Math.min(1, opacity + 0.01))}
-                onDecrement={() => handleOpacityChange(Math.max(0, opacity - 0.01))}
-              />
-            </div>
-            {/* Spacer to align with random/lock icons column on other rows */}
-            <div className="tw-ml-2 tw-w-[48px] tw-shrink-0 sm:tw-block tw-hidden" />
-          </div>
+          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Description</h4>
+          <p className="tw-text-xs tw-text-neutral-400">
+            {hasEffect ? (effectMetadata?.description || 'No description available.') : 'Video layer'}
+          </p>
         </div>
 
 

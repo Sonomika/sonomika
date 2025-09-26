@@ -29,6 +29,25 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
   const effects: any[] = activeScene?.globalEffects || [];
 
   const [openMap, setOpenMap] = React.useState<Record<string, boolean>>({});
+  const [contextMenu, setContextMenu] = React.useState<{
+    x: number;
+    y: number;
+    index: number;
+  } | null>(null);
+  React.useEffect(() => {
+    const handleGlobalClick = () => setContextMenu(null);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu(null);
+    };
+    window.addEventListener('click', handleGlobalClick);
+    window.addEventListener('contextmenu', handleGlobalClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleGlobalClick);
+      window.removeEventListener('contextmenu', handleGlobalClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
   React.useEffect(() => {
     // Ensure new slots have a default open state
     const next: Record<string, boolean> = { ...openMap };
@@ -52,15 +71,8 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
   };
 
   const handleAddEffect = () => {
-    // Placeholder effect slot; user will assign via drag/drop into the slot or future selector
-    const newSlot = {
-      id: uuidv4(),
-      effectId: '',
-      name: 'Empty',
-      enabled: true,
-      params: {}
-    };
-    setEffects([...effects, newSlot]);
+    // Instead of inserting an effect, increase the number of visible empty slots
+    setMinSlots((prev) => prev + 1);
   };
 
   const handleRemove = (index: number) => {
@@ -105,6 +117,15 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
     setEffects(next);
   };
 
+  const handleDeleteSlot = (index: number) => {
+    if (index < effects.length) {
+      handleRemove(index);
+    } else {
+      setMinSlots((prev) => Math.max(0, prev - 1));
+    }
+    setContextMenu(null);
+  };
+
   const onDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData('application/x-global-effect-index', String(index));
     e.dataTransfer.effectAllowed = 'move';
@@ -130,20 +151,13 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
     } catch {}
   };
 
-  const minSlots = 5;
+  const [minSlots, setMinSlots] = React.useState(5);
   const numSlots = Math.max(minSlots, effects.length);
 
   return (
     <div className={`tw-h-full tw-flex tw-flex-col ${className}`}>
       <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
         <h3 className="tw-text-sm tw-font-semibold tw-text-neutral-200">Global Effects</h3>
-        <button
-          className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700"
-          onClick={handleAddEffect}
-          title="Add global effect slot"
-        >
-          + Slot
-        </button>
       </div>
       <ScrollArea.Root className="vj-scroll-root tw-h-full" type="always">
         <ScrollArea.Viewport className="vj-scroll-viewport tw-h-full tw-w-full">
@@ -159,14 +173,19 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
                   className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900"
                   onDragOver={onDragOver}
                   onDrop={(e) => onDropReorder(e, index)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setContextMenu({ x: e.clientX, y: e.clientY, index });
+                  }}
                 >
                   <div
-                    className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800"
+                    className="tw-flex tw-items-center tw-justify-between tw-pr-3 tw-pl-0 tw-py-2 tw-border-b tw-border-neutral-800"
                     draggable={Boolean(slot)}
                     onDragStart={(e) => onDragStart(e, index)}
                   >
                     <button
-                      className="tw-flex tw-items-center tw-gap-2 tw-text-left"
+                      className="tw-flex tw-items-center tw-gap-2 tw-text-left tw-bg-transparent tw-border-none tw-appearance-none tw-p-0"
                       onClick={() => slot?.id && setOpenMap((prev) => ({ ...prev, [slot.id]: !Boolean(prev[slot.id]) }))}
                       disabled={!slot}
                     >
@@ -231,12 +250,36 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
                 </div>
               );
             })}
+            {/* Add-slot button at the bottom */}
+            <div className="tw-flex tw-justify-start tw-pt-2">
+              <button
+                className="tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700"
+                onClick={handleAddEffect}
+                title="Add global effect slot"
+              >
+                + Slot
+              </button>
+            </div>
           </div>
         </ScrollArea.Viewport>
         <ScrollArea.Scrollbar className="tw-z-10 tw-flex tw-w-2" orientation="vertical">
           <ScrollArea.Thumb className="tw-flex-1 tw-bg-neutral-500 tw-rounded-[10px]" />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
+      {contextMenu && (
+        <div
+          className="context-menu tw-fixed tw-z-[10000] tw-min-w-[160px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg"
+          style={{ left: contextMenu.x, top: Math.min(contextMenu.y, (typeof window !== 'undefined' ? window.innerHeight - 120 : contextMenu.y)) }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="context-menu-item tw-select-none tw-cursor-pointer tw-text-red-400 tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5 tw-w-full tw-text-left"
+            onClick={() => handleDeleteSlot(contextMenu.index)}
+          >
+            Delete Slot
+          </button>
+        </div>
+      )}
     </div>
   );
 };

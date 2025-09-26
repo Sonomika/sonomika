@@ -65,26 +65,20 @@ export const AIEffectsLab: React.FC = () => {
 
   // Editor interactions are minimal; controls live in effect parameters
 
-  // Suggested add-on prompt snippets
+  // Suggested prompt ideas
   const addonOptions = useMemo(() => (
     [
-      { value: 'based-on-template', label: 'Based on this template' },
-      { value: 'optimize-performance', label: 'Optimize GPU performance and avoid per-frame allocations' },
-      { value: 'no-jsx', label: 'Do not use JSX; only React.createElement' },
-      { value: 'fiber-global', label: 'Ensure global mode works via render target pattern' },
+      { value: 'make-new-version', label: 'Make a new version based on this template' },
+      { value: 'make-amazing-original', label: 'Make a new amazing and original version' },
     ]
   ), []);
 
   const addonTextFromValue = (val: string): string => {
     switch (val) {
-      case 'based-on-template':
-        return 'Based on this template.';
-      case 'optimize-performance':
-        return 'Optimize GPU performance and avoid per-frame allocations; reuse materials and buffers.';
-      case 'no-jsx':
-        return 'Do not use JSX; return with React.createElement calls only.';
-      case 'fiber-global':
-        return 'Ensure support for layer and global contexts using the render target pattern.';
+      case 'make-new-version':
+        return 'Make a new version based on this template';
+      case 'make-amazing-original':
+        return 'Make a new amazing and original version';
       default:
         return '';
     }
@@ -152,7 +146,7 @@ export const AIEffectsLab: React.FC = () => {
       if (lastLoadedForEffectRef.current === effId) return;
       const ok = await loadSourceForEffectId(effId);
       if (!ok) {
-        setStatus('Could not find source for selected layer effect');
+        setStatus('Could not find source for selected layer effect, Drag in external files');
       }
     })();
   }, [selectedEffectId, loadSourceForEffectId]);
@@ -252,16 +246,16 @@ export const AIEffectsLab: React.FC = () => {
       const effect = await discovery.loadUserEffectFromContent(code, 'ai-live-edit.js');
       if (!effect) { setStatus('Failed to load effect for apply'); return; }
       try { localStorage.setItem('vj-ai-last-code', code); } catch {}
-      // Update current layer to reference the user effect
+      // Update current layer to reference the user effect and use friendly name for cell
       try {
         const id = effect.id; // e.g., user-ai-live-edit
         (useStore.getState() as any).updateLayer(selectedLayerId, {
           type: 'effect',
-          asset: { id, name: id, type: 'effect', isEffect: true },
+          asset: { id, name: effect.name || id, type: 'effect', isEffect: true },
         });
         // reference selection removed
         lastLoadedForEffectRef.current = effect.id;
-        setStatus(`Applied to selected slot: ${effect.name}`);
+        setStatus(`Applied to selected slot: ${effect.name || id}`);
       } catch (e) {
         setStatus('Loaded effect, but failed to apply to the selected slot');
       }
@@ -392,14 +386,14 @@ export const AIEffectsLab: React.FC = () => {
             <Label className="tw-text-xs">Prompt</Label>
             <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={8} className="tw-text-xs" />
             <div className="tw-flex tw-items-center tw-gap-2">
-              <Label className="tw-text-xs">Add‑on</Label>
+            <Label className="tw-text-xs">Prompt ideas</Label>
               <Select
                 value={addonSelection}
                 onChange={(v) => {
                   const text = addonTextFromValue(String(v));
                   if (text) {
                     setPrompt((p) => (p ? `${p}\n\n${text}` : text));
-                    setStatus('Added add‑on to prompt');
+                  setStatus('Added prompt idea to prompt');
                   }
                   setAddonSelection('');
                 }}
@@ -408,23 +402,19 @@ export const AIEffectsLab: React.FC = () => {
               />
             </div>
           </div>
-          <div className="tw-flex tw-gap-2">
+          <div className="tw-flex tw-gap-2 tw-flex-wrap">
             <Button variant="secondary" onClick={handleGenerate} disabled={thinking || !apiKey}>
               {thinking ? 'Generating…' : 'Generate with AI'}
             </Button>
-            <Button variant="secondary" onClick={() => setPrompt(DEFAULT_PROMPT)}>Reset Prompt</Button>
+            <Button variant="secondary" onClick={handleApplyToSelectedSlot} disabled={!code.trim()}>Apply to Slot</Button>
+            <Button variant="secondary" onClick={handleFixOutput} disabled={!code.trim()}>Fix Output</Button>
+            <Button variant="secondary" onClick={handleSaveToFile} disabled={!code.trim()}>Save…</Button>
           </div>
           <div className="tw-text-xs tw-text-neutral-400">{status}</div>
         </div>
         <div className="tw-col-span-1 tw-flex tw-flex-col tw-min-h-0">
           <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
             <div className="tw-text-xs tw-text-neutral-400">Editable Code</div>
-            <div className="tw-flex tw-gap-2 tw-flex-wrap">
-              <Button variant="secondary" onClick={handleLoadAsNewEffect} disabled={!code.trim()}>Load as New</Button>
-              <Button variant="secondary" onClick={handleApplyToSelectedSlot} disabled={!code.trim()}>Apply to Slot</Button>
-              <Button variant="secondary" onClick={handleFixOutput} disabled={!code.trim()}>Fix Output</Button>
-              <Button variant="secondary" onClick={handleSaveToFile} disabled={!code.trim()}>Save…</Button>
-            </div>
           </div>
           <div className="tw-flex-1 tw-min-h-0">
             <Textarea value={code} onChange={(e) => setCode(e.target.value)} className="tw-w-full tw-h-full tw-min-h-[260px] tw-text-xs" />

@@ -65,6 +65,8 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const [externalMenuOpen, setExternalMenuOpen] = useState(false);
   const externalMenuRef = useRef<HTMLDivElement>(null);
   const [offlineActive, setOfflineActive] = useState<boolean>(false);
+  const [devMenuOpen, setDevMenuOpen] = useState(false);
+  const devMenuRef = useRef<HTMLDivElement>(null);
   
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const helpMenuRef = useRef<HTMLDivElement>(null);
@@ -214,12 +216,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           >
             Timeline
           </button>
-          <button 
-            className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
-            onClick={onToggleUIDemo}
-          >
-            UI Demo
-          </button>
+          
           <button 
             className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
             onClick={onCompositionSettings}
@@ -373,15 +370,39 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               Style Guide
             </button>
           )}
-          {process.env.NODE_ENV === 'development' && onToggleDebug && (
-            <button 
-              className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
-              onClick={onToggleDebug}
-              title={debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
-            >
-              Debug
-            </button>
-          )}
+
+          {/* Developer dropdown: move to far right */}
+          <div className="menu-item-dropdown app-no-drag tw-ml-auto" ref={devMenuRef}>
+            <Popover open={devMenuOpen} onOpenChange={setDevMenuOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent`}
+                >
+                  Developer
+                </button>
+              </PopoverTrigger>
+              {devMenuOpen && (
+                <PopoverContent className="tw-min-w-[200px] app-no-drag" align="end" side="bottom" >
+                  <div className="tw-flex tw-flex-col tw-py-1">
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => { e.stopPropagation(); onToggleUIDemo && onToggleUIDemo(); setDevMenuOpen(false); }}
+                    >
+                      UI Demo
+                    </button>
+                    {process.env.NODE_ENV === 'development' && onToggleDebug && (
+                      <button 
+                        className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                        onClick={(e) => { e.stopPropagation(); onToggleDebug?.(); setDevMenuOpen(false); }}
+                      >
+                        {debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
+                      </button>
+                    )}
+                  </div>
+                </PopoverContent>
+              )}
+            </Popover>
+          </div>
 
           
         </div>

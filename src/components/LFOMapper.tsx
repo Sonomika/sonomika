@@ -265,7 +265,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
       // Resolve to actual param key on the layer
       const parts = mapping.parameter.split(' - ');
-      const rawName = parts.length > 1 ? parts[1] : (parts[0].toLowerCase().includes('opacity') ? 'opacity' : undefined);
+      const rawName = parts.length > 1 ? parts[1] : undefined; // opacity removed
 
       // Default to parameter metadata min/max if mapping values are not set
       let defaultMin = 0;
@@ -407,11 +407,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       }
 
       // Normal continuous modulation
-      if (actualParamName === 'opacity') {
-        const clampedValue = Math.max(0, Math.min(1, modulatedValue / 100));
-        pendingOpacity = clampedValue;
-        anyChanged = true;
-      } else {
+      {
         const currentParams = pendingParams;
         // Allow creating numeric params even if not present yet by consulting metadata
         const paramDefMeta = metadata?.parameters?.find((p: any) => p?.name === actualParamName);
@@ -435,9 +431,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
 
       const key = `${currentSelectedLayer.id}-${actualParamName}`;
       // Base value display uses metadata min/max defaults too for consistency
-      let baseValueNum = 0;
-      if (actualParamName === 'opacity') baseValueNum = (currentSelectedLayer.opacity || 1) * 100;
-      else baseValueNum = isNumber((currentSelectedLayer.params || {})[actualParamName]?.value) ? Number((currentSelectedLayer.params as any)[actualParamName].value) : (typeof defaultMin === 'number' ? defaultMin : 0);
+      let baseValueNum = isNumber((currentSelectedLayer.params || {})[actualParamName]?.value) ? Number((currentSelectedLayer.params as any)[actualParamName].value) : (typeof defaultMin === 'number' ? defaultMin : 0);
       setLFOModulatedValue(key, {
         layerId: currentSelectedLayer.id,
         parameterName: actualParamName,
@@ -447,9 +441,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
       });
     });
     if (anyChanged) {
-      const update: any = { params: pendingParams };
-      if (typeof pendingOpacity === 'number') update.opacity = pendingOpacity;
-      currentOnUpdateLayer(currentSelectedLayer.id, update);
+      currentOnUpdateLayer(currentSelectedLayer.id, { params: pendingParams });
     }
   }, []);
 
@@ -589,7 +581,7 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
     const layer = selectedLayerRef.current;
     if (!layer) return options;
 
-    options.push({ value: 'Layer Opacity', label: 'Layer Opacity' });
+    // Layer Opacity removed from mapping options
 
     const effectId: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name || (layer as any)?.asset?.effectId || (layer as any)?.asset?.effect?.id;
     const isEffect = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;

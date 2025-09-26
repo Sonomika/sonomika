@@ -2936,9 +2936,21 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               const end = Math.min(Math.ceil(duration), Math.ceil(visibleEndSec) + 1);
               const marks: number[] = [];
               for (let i = start; i <= end; i++) marks.push(i);
+              // Adapt label density based on zoom so labels don't overlap when zoomed out
+              const pps = pixelsPerSecond;
+              const labelEvery = ((): number => {
+                if (pps >= 100) return 1;   // every second
+                if (pps >= 60) return 2;    // every 2s
+                if (pps >= 30) return 5;    // every 5s
+                if (pps >= 15) return 10;   // every 10s
+                if (pps >= 8) return 20;    // every 20s
+                return 30;                  // every 30s at extreme zoom-out
+              })();
               return marks.map((sec) => (
                 <div key={`major-${sec}`} className="tw-absolute tw-top-0 tw-h-6 tw-border-l tw-border-neutral-600 tw-w-px" style={{ left: `${sec * pixelsPerSecond}px` }}>
-                  <span className="tw-absolute tw-top-1.5 tw-left-1 tw-text-xs tw-text-neutral-400 tw-pointer-events-none">{sec}s</span>
+                  {sec % labelEvery === 0 && (
+                    <span className="tw-absolute tw-top-1.5 tw-left-1 tw-text-xs tw-text-neutral-400 tw-pointer-events-none">{sec}s</span>
+                  )}
                 </div>
               ));
             })()}

@@ -670,6 +670,20 @@ function createCustomMenu() {
         },
         { type: "separator" },
         {
+          label: "Reload",
+          accelerator: "CmdOrCtrl+R",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.reload();
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Developer",
+      submenu: [
+        {
           label: "Toggle Debug Overlay",
           accelerator: "CmdOrCtrl+Shift+D",
           click: () => {
@@ -690,15 +704,6 @@ function createCustomMenu() {
           }
         },
         { type: "separator" },
-        {
-          label: "Reload",
-          accelerator: "CmdOrCtrl+R",
-          click: () => {
-            if (mainWindow) {
-              mainWindow.reload();
-            }
-          }
-        },
         {
           label: "Toggle Developer Tools",
           accelerator: "F12",
