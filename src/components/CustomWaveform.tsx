@@ -80,6 +80,8 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [waveformData, setWaveformData] = useState<number[]>([])
+  // Persist last successful bars so brief decode failures or re-mounts still draw something
+  const lastGoodWaveformRef = useRef<number[] | null>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -167,6 +169,10 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     // Kick off real analysis immediately regardless of element events
     analyzeAudio(audioUrl).finally(() => {
       if (audioRef.current === audio) setIsLoading(false)
+      // If analyze produced nothing but we have a cached waveform, restore it
+      if ((!waveformData || waveformData.length === 0) && lastGoodWaveformRef.current?.length) {
+        setWaveformData([...lastGoodWaveformRef.current])
+      }
       drawSimpleWaveform()
     })
 
@@ -268,16 +274,23 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
       // If decode failed, we'll show empty waveform (honest approach)
       if (!audioBuffer || analysisAbortRef.current !== ticket || ticket.aborted) {
         try { console.warn('[CustomWaveform] no audio buffer available for waveform generation') } catch {}
-        setWaveformData([])
+        // Do not overwrite existing data with empty array; keep last good bars
+        if (!lastGoodWaveformRef.current || !lastGoodWaveformRef.current.length) {
+          setWaveformData([])
+        }
         return
       }
       const bars = computeWaveformBars(audioBuffer)
       try { console.log('[CustomWaveform] computed bars', { count: bars?.length }) } catch {}
       if (analysisAbortRef.current !== ticket || ticket.aborted) return
+      lastGoodWaveformRef.current = bars && bars.length ? [...bars] : lastGoodWaveformRef.current
       setWaveformData(bars)
     } catch {
       try { console.warn('[CustomWaveform] analyze error') } catch {}
-      setWaveformData([])
+      // Keep previous data on error
+      if (!lastGoodWaveformRef.current || !lastGoodWaveformRef.current.length) {
+        setWaveformData([])
+      }
     }
   }
 
@@ -541,12 +554,14 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     const canvas = canvasRef.current
     const audio = audioRef.current
     if (!canvas || !audio) return
-    if (!waveformData.length && !emptyDrawLoggedRef.current) {
+    // Use cached bars for drawing if state is currently empty
+    const barsToDraw = waveformData.length ? waveformData : (lastGoodWaveformRef.current || [])
+    if (!barsToDraw.length && !emptyDrawLoggedRef.current) {
       try { console.warn('[CustomWaveform] draw skipped: no waveformData', { waveformDataLength: waveformData.length }) } catch {}
       emptyDrawLoggedRef.current = true
-    } else if (waveformData.length) {
+    } else if (barsToDraw.length) {
       emptyDrawLoggedRef.current = false
-      try { console.log('[CustomWaveform] drawing waveform', { waveformDataLength: waveformData.length, audioDuration: audio.duration }) } catch {}
+      try { console.log('[CustomWaveform] drawing waveform', { waveformDataLength: barsToDraw.length, audioDuration: audio.duration }) } catch {}
     }
 
     const sized = resizeCanvasToDisplaySize(canvas)
@@ -556,7 +571,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const totalBars = waveformData.length
+    const totalBars = barsToDraw.length
     if (!totalBars) return
 
     const progress = audio.duration > 0 ? (audio.currentTime / audio.duration) : 0
@@ -575,7 +590,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     const centerY = cssHeight / 2
     
     for (let i = startBar; i < endBar; i++) {
-      const barHeight = (waveformData[i] || 0) * cssHeight * 0.8
+      const barHeight = (barsToDraw[i] || 0) * cssHeight * 0.8
       const x = (i - startBar) * barWidth
       const y = centerY - barHeight / 2
 
