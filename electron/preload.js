@@ -86,6 +86,14 @@ try {
         toggleAppFullscreen: () => {
             console.log('Preload: toggleAppFullscreen called');
             electron_1.ipcRenderer.send('toggle-app-fullscreen');
+        },
+        // Toggle the external mirror window fullscreen (contain fit)
+        toggleMirrorFullscreen: () => {
+            try {
+                electron_1.ipcRenderer.send('toggle-fullscreen');
+            } catch (e) {
+                console.warn('Preload: toggleMirrorFullscreen failed', e);
+            }
         }
     });
     console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');

@@ -149,6 +149,24 @@ body.is-electron html::-webkit-scrollbar-track {
     .vj-app-content { height: calc(100vh - 64px); }
 }
 
+/* Header-only breakpoint utilities (900px) */
+@media (min-width: 900px) {
+  /* Hide elements on >=900px (use for header hamburger) */
+  .hdr-900-hide { display: none !important; }
+  /* Show flex at >=900px (use for desktop-only header groups) */
+  .hdr-900-flex { display: flex !important; }
+  /* Header layout utilities at >=900px */
+  .hdr-900-order-none { order: 0 !important; }
+  .hdr-900-basis-auto { flex-basis: auto !important; }
+  .hdr-900-mt-0 { margin-top: 0 !important; }
+  .hdr-900-mb-0 { margin-bottom: 0 !important; }
+  .hdr-900-w-auto { width: auto !important; }
+  .hdr-900-justify-start { justify-content: flex-start !important; }
+  .hdr-900-h-16 { height: 4rem !important; }
+  .hdr-900-pt-16 { padding-top: 4rem !important; }
+  .hdr-900-pt-0 { padding-top: 0 !important; }
+}
+
 /* Enable momentum and touch panning for scrollable regions */
 .scroll-touch {
   -webkit-overflow-scrolling: touch;

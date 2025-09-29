@@ -1260,6 +1260,14 @@ electron.app.whenReady().then(() => {
       if (mirrorWindow.isKiosk() || mirrorWindow.isFullScreen()) {
         mirrorWindow.setKiosk(false);
         mirrorWindow.setFullScreen(false);
+        try {
+          mirrorWindow.setVisibleOnAllWorkspaces(false);
+        } catch {
+        }
+        try {
+          mirrorWindow.setAlwaysOnTop(true);
+        } catch {
+        }
         mirrorWindow.setBounds({
           x: void 0,
           y: void 0,
@@ -1268,7 +1276,14 @@ electron.app.whenReady().then(() => {
           height: 1080
           // Will be updated by renderer
         });
-        mirrorWindow.center();
+        try {
+          mirrorWindow.center();
+        } catch {
+        }
+        try {
+          mirrorWindow.focus();
+        } catch {
+        }
       } else {
         const bounds = mirrorWindow.getBounds();
         const display = screen.getDisplayMatching(bounds);
@@ -1278,11 +1293,48 @@ electron.app.whenReady().then(() => {
           width: display.bounds.width,
           height: display.bounds.height
         });
-        mirrorWindow.setMenuBarVisibility(false);
-        mirrorWindow.setFullScreenable(true);
-        mirrorWindow.setAlwaysOnTop(true);
+        try {
+          mirrorWindow.setMenuBarVisibility(false);
+        } catch {
+        }
+        try {
+          mirrorWindow.setFullScreenable(true);
+        } catch {
+        }
+        try {
+          if (process.platform === "darwin") {
+            mirrorWindow.setAlwaysOnTop(true, "screen-saver");
+          } else {
+            mirrorWindow.setAlwaysOnTop(true);
+          }
+        } catch {
+        }
+        try {
+          mirrorWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+        } catch {
+        }
+        try {
+          mirrorWindow.moveTop?.();
+        } catch {
+        }
+        try {
+          mirrorWindow.show();
+        } catch {
+        }
+        try {
+          mirrorWindow.focus();
+        } catch {
+        }
         mirrorWindow.setKiosk(true);
         mirrorWindow.setFullScreen(true);
+        try {
+          mirrorWindow.moveTop?.();
+        } catch {
+        }
+        try {
+          mirrorWindow.focus();
+        } catch {
+        }
       }
     }
   });

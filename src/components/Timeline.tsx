@@ -238,7 +238,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       });
     } catch {}
     // Use only the longest clip end, with a minimum of 1 second if no clips
-    return Math.max(maxEnd > 0 ? Math.ceil(maxEnd) : 1, 1);
+    const computed = Math.max(maxEnd > 0 ? Math.ceil(maxEnd) : 1, 1);
+    try {
+      // Keep store's timelineDuration in sync with computed duration
+      setTimelineDuration(computed);
+    } catch {}
+    return computed;
   }, [tracks]);
   
   // Reload timeline data when scene changes
@@ -401,7 +406,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       return updatedTracks;
     });
   };
-  const { timelineZoom, setTimelineZoom } = useStore();
+  const { timelineZoom, setTimelineZoom, setTimelineDuration } = useStore();
   const zoom = timelineZoom;
   const setZoom = setTimelineZoom;
   const [isPlaying, setIsPlaying] = useState(false);
@@ -427,7 +432,13 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const [lassoEnd, setLassoEnd] = useState<{ x: number; y: number } | null>(null);
   const PIXELS_PER_SECOND = 120;
   const pixelsPerSecond = useMemo(() => PIXELS_PER_SECOND * Math.max(0.05, zoom), [zoom]);
-  const timelinePixelWidth = useMemo(() => Math.max(1, duration * pixelsPerSecond), [duration, pixelsPerSecond]);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  // Ensure the timeline canvas is always at least as wide as the viewport (and a sensible minimum)
+  const timelinePixelWidth = useMemo(() => {
+    const base = Math.max(1, duration * pixelsPerSecond);
+    const minW = Math.max(800, viewportWidth || 0);
+    return Math.max(base, minW);
+  }, [duration, pixelsPerSecond, viewportWidth]);
   const TRACK_MIN_HEIGHT = 28; // slightly taller for readability
   const SHOW_AUDIO_WAVEFORM = false; // Temporarily disable WaveSurfer-based waveform for stability
   const timelineVisualHeight = useMemo(() => {
@@ -528,7 +539,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const lassoRef = useRef<HTMLDivElement>(null);
   // Virtualization & scroll state
   const [scrollLeft, setScrollLeft] = useState(0);
-  const [viewportWidth, setViewportWidth] = useState(0);
   const scrollRafRef = useRef<number | null>(null);
 
   const updateViewportMetrics = () => {
@@ -697,17 +707,32 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     console.log('Dragging clip:', draggingClip);
   };
 
-  // Ensure an audio lane exists in current state (one-time on mount)
+  // Ensure required baseline lanes exist in current state (one-time on mount)
   useEffect(() => {
     if (ensuredAudioTrackRef.current) return;
     ensuredAudioTrackRef.current = true;
     try {
-      if (!tracks.some((t) => t.type === 'audio')) {
-        updateTracks([
-          ...tracks,
-          { id: 'track-audio', name: 'Audio', type: 'audio', clips: [] },
-        ]);
-        console.log('Ensured audio track exists by appending to current tracks');
+      const next: TimelineTrack[] = [...tracks];
+      const hasAudio = next.some((t) => t.type === 'audio');
+      if (!hasAudio) {
+        next.push({ id: 'track-audio', name: 'Audio', type: 'audio', clips: [] });
+      }
+      // Ensure at least two video lanes and one effect lane so users can drag into lanes immediately
+      const videoCount = next.filter((t) => t.type === 'video').length;
+      const effectCount = next.filter((t) => t.type === 'effect').length;
+      if (videoCount < 2) {
+        const toAdd = 2 - videoCount;
+        for (let i = 0; i < toAdd; i++) {
+          const idx = videoCount + i + 1;
+          next.unshift({ id: `track-video-${idx}`, name: `Track ${idx}`, type: 'video', clips: [] });
+        }
+      }
+      if (effectCount < 1) {
+        next.push({ id: 'track-effect-1', name: 'Track 3', type: 'effect', clips: [] });
+      }
+      if (next.length !== tracks.length) {
+        updateTracks(next);
+        console.log('Ensured baseline timeline lanes (video/effect/audio)');
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1238,68 +1263,41 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           // For effects, allow arbitrary timeline length; for videos, use asset duration if known
           const desiredDuration = asset.type === 'effect' ? (asset.duration || 5) : (asset.duration || 5);
           
-          if (existingClip) {
-            // Replace the existing clip
-            console.log('Replacing existing clip:', existingClip.name, 'with:', asset.name);
-            const updatedTracks = tracks.map(t => 
-              t.id === trackId 
-                ? { 
-                    ...t, 
-                    clips: t.clips.map(c => 
-                      c.id === existingClip.id 
-                        ? {
-                            id: `clip-${Date.now()}`,
-                            startTime: existingClip.startTime,
-                            duration: desiredDuration,
-                            asset: assetRef,
-                            type: clipType,
-                            name: asset.name || 'Untitled Clip'
-                          }
-                        : c
-                    )
-                  }
-                : t
-            );
-            updateTracks(updatedTracks);
-          } else {
-            // Place in gap as normal
-            // When magnet is enabled, place behind the last clip; otherwise use drop position
-            let safeStartForNew;
-            if (timelineSnapEnabled && !e.shiftKey) {
-              // Find the last clip on the track to place behind it
-              const sortedClips = track.clips.sort((a, b) => a.startTime - b.startTime);
-              if (sortedClips.length > 0) {
-                // Place behind the last clip (not just the first)
-                const lastClip = sortedClips[sortedClips.length - 1];
-                const lastClipEnd = lastClip.startTime + lastClip.duration;
-                safeStartForNew = lastClipEnd;
-              } else {
-                // No clips on track, place at 0
-                safeStartForNew = 0;
-              }
+          // Never replace existing clips on drop; always place without overlap
+          // Determine a safe, non-overlapping start position
+          let safeStartForNew;
+          if (timelineSnapEnabled && !e.shiftKey) {
+            // Magnet on: place directly after the last clip on this track
+            const sortedClips = track.clips.sort((a, b) => a.startTime - b.startTime);
+            if (sortedClips.length > 0) {
+              const lastClip = sortedClips[sortedClips.length - 1];
+              const lastClipEnd = lastClip.startTime + lastClip.duration;
+              safeStartForNew = lastClipEnd;
             } else {
-              // Place new clip at the intended drop position (respecting gaps), regardless of type
-              safeStartForNew = findFirstAvailableStart(track.clips, Math.max(0, desiredStart), desiredDuration);
+              safeStartForNew = 0;
             }
-
-            const newClip: TimelineClip = {
-              id: `clip-${Date.now()}`,
-              startTime: safeStartForNew,
-              duration: desiredDuration, // Default 5 seconds
-              asset: assetRef,
-              type: clipType,
-              name: asset.name || 'Untitled Clip'
-            };
-
-            const updatedTracks = tracks.map(t => 
-              t.id === trackId 
-                ? { ...t, clips: [...t.clips, newClip] }
-                : t
-            );
-            
-            updateTracks(updatedTracks);
-            console.log('Successfully added clip to timeline:', newClip);
+          } else {
+            // Find first available gap at or after desiredStart
+            safeStartForNew = findFirstAvailableStart(track.clips, Math.max(0, desiredStart), desiredDuration);
           }
+
+          const newClip: TimelineClip = {
+            id: `clip-${Date.now()}`,
+            startTime: safeStartForNew,
+            duration: desiredDuration,
+            asset: assetRef,
+            type: clipType,
+            name: asset.name || 'Untitled Clip'
+          };
+
+          const updatedTracks = tracks.map(t => 
+            t.id === trackId 
+              ? { ...t, clips: [...t.clips, newClip] }
+              : t
+          );
+
+          updateTracks(updatedTracks);
+          console.log('Successfully added clip to timeline:', newClip);
 
           // If audio, fetch actual duration and update the clip (for both replacement and new clips)
           if (clipType === 'audio') {
@@ -2929,7 +2927,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             onMouseMove={handleTimelineMouseMove}
             onMouseUp={handleTimelineMouseUp}
           >
-        <div className="tw-relative tw-pb-2 tw-overflow-visible tw-min-h-[400px] tw-[will-change:transform]" style={{ width: `${timelinePixelWidth}px` }}>
+        <div className="tw-relative tw-pb-2 tw-overflow-visible tw-min-h-[400px] tw-[will-change:transform]" style={{ width: `${timelinePixelWidth}px`, minWidth: '100%' }}>
           <div className="tw-sticky tw-top-0 tw-h-6 tw-z-30 tw-cursor-pointer" onMouseDown={handleRulerMouseDown}>
             {(() => {
               const start = Math.max(0, Math.floor(visibleStartSec) - 1);
@@ -2960,7 +2958,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             className="tw-flex tw-flex-col tw-gap-2 tw-overflow-visible tw-min-h-0"
             onContextMenu={handleTrackRightClick}
           >
-            {displayTracks.map((track) => (
+            {displayTracks.map((track, trackIndex) => (
               <div 
                 key={track.id} 
                 className="tw-flex tw-flex-col tw-gap-1"
@@ -2980,6 +2978,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                   onClick={(e) => handleTrackClick(e, track.id)}
                   style={{ minHeight: TRACK_MIN_HEIGHT }}
                 >
+                  {/* Track number label (hide for audio tracks) */}
+                  {track.type !== 'audio' && (
+                    <span className="tw-absolute tw-left-1.5 tw-top-1 tw-text-xs tw-text-neutral-400 tw-select-none tw-pointer-events-none tw-z-10">{trackIndex + 1}</span>
+                  )}
                   {(() => {
                     const startWindow = Math.max(0, visibleStartSec - VISIBLE_BUFFER_SEC);
                     const endWindow = Math.min(duration, visibleEndSec + VISIBLE_BUFFER_SEC);
@@ -3019,6 +3021,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                       );
                     });
                   })()}
+                  {/* Active timeline highlight: lighten active region; leave beyond-duration dark */}
+                  <div
+                    className="tw-absolute tw-top-0 tw-bottom-0 tw-bg-neutral-800 tw-pointer-events-none tw-z-0"
+                    style={{ left: 0, width: `${Math.max(0, duration * pixelsPerSecond)}px` }}
+                  />
                   {draggedAsset && (
                     <div className="drag-preview">
                       <span>Drop to place: {draggedAsset.name}</span>

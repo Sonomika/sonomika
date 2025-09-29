@@ -1279,6 +1279,8 @@ app.whenReady().then(() => {
         // Exit full coverage
         mirrorWindow.setKiosk(false);
         mirrorWindow.setFullScreen(false);
+        try { mirrorWindow.setVisibleOnAllWorkspaces(false); } catch {}
+        try { mirrorWindow.setAlwaysOnTop(true); } catch {}
         // Restore to canvas dimensions when exiting fullscreen
         // The renderer will send the actual canvas size via resize-mirror-window
         mirrorWindow.setBounds({
@@ -1287,7 +1289,8 @@ app.whenReady().then(() => {
           width: 1920, // Will be updated by renderer
           height: 1080 // Will be updated by renderer
         });
-        mirrorWindow.center();
+        try { mirrorWindow.center(); } catch {}
+        try { mirrorWindow.focus(); } catch {}
       } else {
         // Ensure we target the display where the mirror window currently is
         const bounds = mirrorWindow.getBounds();
@@ -1299,11 +1302,23 @@ app.whenReady().then(() => {
           width: display.bounds.width,
           height: display.bounds.height
         });
-        mirrorWindow.setMenuBarVisibility(false);
-        mirrorWindow.setFullScreenable(true);
-        mirrorWindow.setAlwaysOnTop(true);
+        try { mirrorWindow.setMenuBarVisibility(false); } catch {}
+        try { mirrorWindow.setFullScreenable(true); } catch {}
+        try {
+          if (process.platform === 'darwin') {
+            (mirrorWindow as any).setAlwaysOnTop(true, 'screen-saver');
+          } else {
+            mirrorWindow.setAlwaysOnTop(true);
+          }
+        } catch {}
+        try { mirrorWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); } catch {}
+        try { (mirrorWindow as any).moveTop?.(); } catch {}
+        try { mirrorWindow.show(); } catch {}
+        try { mirrorWindow.focus(); } catch {}
         mirrorWindow.setKiosk(true);
         mirrorWindow.setFullScreen(true);
+        try { (mirrorWindow as any).moveTop?.(); } catch {}
+        try { mirrorWindow.focus(); } catch {}
       }
     }
   });

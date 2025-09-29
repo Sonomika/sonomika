@@ -1684,7 +1684,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 )}
                 {/* Mobile hamburger aligned to right of the row (same line) */}
                 <button
-                  className="tw-ml-auto tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-text-neutral-200 tw-bg-transparent tw-border tw-border-neutral-700 tw-rounded"
+                  className="tw-ml-auto tw-inline-flex hdr-900-hide tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-text-neutral-200 tw-bg-transparent tw-border tw-border-neutral-700 tw-rounded"
                   aria-label="Open menu"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); try { (window as any).__openMobileMenu?.(); } catch {} }}
                   title="Menu"
@@ -1697,7 +1697,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   </div>
                 )}
                 {/* Unified scene navigator: desktop shows list; mobile centers current scene with arrows */}
-                <div className="tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last lg:tw-order-none lg:tw-basis-auto tw-mt-2 tw-mb-2 lg:tw-mt-0 lg:tw-mb-0 tw-w-full lg:tw-w-auto tw-justify-between lg:tw-justify-start">
+                <div className="tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last hdr-900-order-none hdr-900-basis-auto tw-mt-2 tw-mb-2 hdr-900-mt-0 hdr-900-mb-0 tw-w-full hdr-900-w-auto tw-justify-between hdr-900-justify-start">
                 <button
                   onClick={() => {
                     const currentScenes = getScenes();
@@ -1713,7 +1713,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
                 </button>
                 {/* Mobile: single current scene label centered */}
-                <div className="tw-flex-1 tw-flex tw-justify-center lg:tw-hidden">
+                <div className="tw-flex-1 tw-flex tw-justify-center hdr-900-hide">
                   <button
                     className={`tw-text-xs tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${currentScene?.id === getCurrentSceneId() ? 'tw-text-[hsl(var(--accent))]' : 'tw-text-neutral-200'}`}
                     title={currentScene?.name || 'Current scene'}
@@ -1746,7 +1746,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
                 
 
-                <div className="tw-hidden lg:tw-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last lg:tw-order-none lg:tw-basis-auto tw-mt-2 lg:tw-mt-0">
+                <div className="tw-hidden hdr-900-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last hdr-900-order-none hdr-900-basis-auto tw-mt-2 hdr-900-mt-0">
                   {getScenes().map((scene: any, index: number) => (
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>

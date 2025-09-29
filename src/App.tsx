@@ -38,6 +38,7 @@ declare global {
       closeMirrorWindow: () => void;
       sendCanvasData: (dataUrl: string) => void;
         toggleAppFullscreen: () => void;
+        toggleMirrorFullscreen?: () => void;
         onWindowState?: (cb: (state: { maximized: boolean }) => void) => void;
         onRecordStart?: (handler: () => void) => void;
         onRecordSettings?: (handler: () => void) => void;
@@ -600,6 +601,16 @@ function App() {
     }
   };
 
+  // Ensure mirror window is open, then toggle its fullscreen (fit-to-height)
+  const handleMirrorFullscreen = async () => {
+    try {
+      if (!isMirrorOpen) {
+        await handleMirrorToggle();
+      }
+      try { (window as any).electron?.toggleMirrorFullscreen?.(); } catch {}
+    } catch {}
+  };
+
 
 
   const handleNewPreset = () => {
@@ -1075,6 +1086,7 @@ function App() {
         isMaximized={isMaximized}
         onClose={handleWindowClose}
         onMirror={handleMirrorToggle}
+        onMirrorFullscreen={handleMirrorFullscreen}
         onToggleAppFullscreen={handleToggleAppFullscreen}
         onNewPreset={handleNewPreset}
         onSavePreset={handleSavePreset}
@@ -1381,9 +1393,9 @@ function App() {
         onRecordSettings={() => { setRecordSettingsOpen(true); }}
       />
       
-      <div className="tw-bg-black tw-text-white tw-min-h-screen lg:tw-h-screen tw-flex tw-flex-col">
+      <div className="tw-bg-black tw-text-white tw-min-h-screen lg:tw-h-screen tw-flex tw-flex-col tw-pt-8 hdr-900-pt-16">
 
-        <div className="vj-app-content tw-flex-1 tw-pt-8 lg:tw-pt-16 tw-overflow-y-auto lg:tw-min-h-0 lg:tw-overflow-y-auto">
+        <div className="vj-app-content tw-flex-1 tw-pt-0 hdr-900-pt-0 tw-overflow-y-auto lg:tw-min-h-0 lg:tw-overflow-y-auto">
           {showUIDemo ? (
             <UIDemo onClose={() => setShowUIDemo(false)} />
           ) : (
