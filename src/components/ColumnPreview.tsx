@@ -993,15 +993,6 @@ const ColumnScene: React.FC<{
 
         const elements: React.ReactElement[] = [];
 
-        // Crossfade state across frames (persist on component function)
-        const CROSSFADE_MS = 160;
-        const lastChainRef = (ColumnScene as any).__lastChainRef || { current: null as any };
-        (ColumnScene as any).__lastChainRef = lastChainRef;
-        const lastChainKeyRef = (ColumnScene as any).__lastChainKeyRef || { current: '' as string };
-        (ColumnScene as any).__lastChainKeyRef = lastChainKeyRef;
-        const lastChangeTsRef = (ColumnScene as any).__lastChangeTsRef || { current: 0 as number };
-        (ColumnScene as any).__lastChangeTsRef = lastChangeTsRef;
-
         // Determine any enabled global effects to append to each chain
         const enabledGlobalEffects = Array.isArray(globalEffects)
           ? globalEffects.filter((ge: any) => ge && ge.enabled)
@@ -1018,8 +1009,7 @@ const ColumnScene: React.FC<{
               const bsm = (it as any).backgroundSizeMode || 'auto';
               return `video:${lid}:${fm}:${br}:${bsm}`;
             }
-            const uk = (it as any).__uniqueKey || '';
-            return `${it.type}:${(it as any).effectId || 'eff'}#${uk}`;
+            return `${it.type}:${(it as any).effectId || 'eff'}`;
           }).join('|');
           // Try to include the layer's row and source column id in the key for uniqueness
           const rowHint = (() => {
@@ -1046,51 +1036,19 @@ const ColumnScene: React.FC<{
                   type: 'effect' as const,
                   effectId: ge.effectId,
                   params: normalizedParams,
-                  __uniqueKey: `global-${chainIndex}-${globalIndex}`
                 };
               })] as ChainItem[])
             : chain;
-            
-
-
-          // Crossfade with last chain if the structure changed since last frame (handles effect-only cuts)
-          const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-          const prevKey = lastChainKeyRef.current;
-          const prevChain = lastChainRef.current as ChainItem[] | null;
-          const changed = Boolean(prevKey && prevKey !== chainKey);
-          if (changed) {
-            lastChangeTsRef.current = now;
-          }
-          const t = Math.max(0, now - (lastChangeTsRef.current || now));
-          const f = Math.max(0, Math.min(1, t / CROSSFADE_MS));
-
-          // Render previous chain beneath if changed and previous exists
-          if (changed && prevChain && f < 1) {
-            elements.push(
-              <EffectChain
-                key={`chain-prev-${rowHint}-${chainIndex}-${prevKey}`}
-                items={prevChain}
-                compositionWidth={compositionWidth}
-                compositionHeight={compositionHeight}
-                opacity={1 - f}
-              />
-            );
-          }
-
-          // Render current chain on top, with fade-in if just changed
+          
+          // Render current chain (no crossfade logic)
           elements.push(
             <EffectChain
               key={`chain-${column?.id || 'col'}-${rowHint}-${chainIndex}-${chainKey}`}
               items={chainWithGlobals}
               compositionWidth={compositionWidth}
               compositionHeight={compositionHeight}
-              opacity={changed ? f : 1}
             />
           );
-
-          // Update last snapshot for next frame
-          (lastChainRef as any).current = chainWithGlobals;
-          (lastChainKeyRef as any).current = chainKey;
         });
 
         return elements;
