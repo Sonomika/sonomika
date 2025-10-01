@@ -35,7 +35,7 @@
     "@vitejs/plugin-react": "^5.0.2",
     "autoprefixer": "^10.4.21",
     "concurrently": "^8.2.2",
-    "electron": "^38.0.0",
+    "electron": "^38.2.0",
     "electron-builder": "^26.0.12",
     "patch-package": "^8.0.0",
     "postcss": "^8.4.41",

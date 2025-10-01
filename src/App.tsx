@@ -945,6 +945,16 @@ function App() {
         const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
         if (!canvas || !(canvas as any).captureStream) return;
         const stream: MediaStream = (canvas as any).captureStream(30);
+        try {
+          const track = stream.getVideoTracks?.()[0] as any;
+          if (track && typeof track.requestFrame === 'function') {
+            const req = () => { try { track.requestFrame(); } catch {} };
+            // Nudge a few initial frames so the recording isn't empty
+            req();
+            setTimeout(req, 50);
+            setTimeout(req, 100);
+          }
+        } catch {}
         const supportsVP9 = (window as any).MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
         const mime = supportsVP9 ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp8';
         const recorder = new MediaRecorder(stream, { mimeType: mime });
@@ -997,19 +1007,7 @@ function App() {
     };
     try { (window as any).electron?.onRecordStart?.(startHandler); } catch {}
     try { (window as any).electron?.onRecordSettings?.(settingsHandler); } catch {}
-    // Optionally auto-start recording on first global play
-    const autoStartOnce = async () => {
-      try {
-        const rs: any = (useStore.getState() as any).recordSettings;
-        const enabled = rs?.autoStartOnPlay !== false;
-        if (!enabled) return;
-        if (isRecording || recorderRef.current) return;
-        // Trigger the same handler
-        await startHandler();
-      } catch {}
-      document.removeEventListener('globalPlay', autoStartOnce as any);
-    };
-    document.addEventListener('globalPlay', autoStartOnce as any, { once: true } as any);
+    // Removed: auto-start recording on first global play
     return () => {
       // no-op: listeners are process-wide; safe to leave in dev
     };
@@ -1177,6 +1175,9 @@ function App() {
               recordCanvas.height = targetH;
               const rctx = recordCanvas.getContext('2d');
               if (!rctx || !(recordCanvas as any).captureStream) return;
+              // Create capture stream ONCE and reuse its track
+              const videoStream: MediaStream = (recordCanvas as any).captureStream(fps);
+              const videoTrack: any = (videoStream && videoStream.getVideoTracks && videoStream.getVideoTracks()[0]) || null;
               // Copy frames from the preview canvas into the record canvas at the selected FPS
               const copyIntervalMs = Math.max(1, Math.round(1000 / fps));
               let copyTimer: any = null;
@@ -1186,11 +1187,11 @@ function App() {
                   try {
                     // Draw preview canvas into recording canvas (scaled to comp size)
                     rctx.drawImage(canvas, 0, 0, targetW, targetH);
+                    try { if (videoTrack && typeof videoTrack.requestFrame === 'function') videoTrack.requestFrame(); } catch {}
                   } catch {}
                 }, copyIntervalMs);
               };
               startCopy();
-              const videoStream: MediaStream = (recordCanvas as any).captureStream(fps);
               
               // Get audio stream based on settings
               let audioStream: MediaStream | null = null;

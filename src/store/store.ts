@@ -142,7 +142,6 @@ export type RecordSettings = {
   audioBitrate: number;
   // 0 = match preview (variable), else fixed FPS number
   fps?: number;
-  autoStartOnPlay?: boolean;
 };
 
 const initialRecordSettings: RecordSettings = {
@@ -151,7 +150,6 @@ const initialRecordSettings: RecordSettings = {
   audioSource: 'app',
   audioBitrate: 256000,
   fps: 60,
-  autoStartOnPlay: true
 };
 
 export const useStore = createWithEqualityFn<AppState & {

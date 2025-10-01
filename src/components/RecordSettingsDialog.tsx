@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Checkbox, Label, Switch } from './ui';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
 import { useStore } from '../store/store';
 
 interface Props {
@@ -14,7 +14,6 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
   const [audioSource, setAudioSource] = useState<'none' | 'microphone' | 'system' | 'app'>(recordSettings?.audioSource ?? 'none');
   const [audioBitrate, setAudioBitrate] = useState<number>(recordSettings?.audioBitrate ?? 128000);
   const [fps, setFps] = useState<number>(typeof recordSettings?.fps === 'number' ? recordSettings.fps : 0);
-  const [autoStartOnPlay, setAutoStartOnPlay] = useState<boolean>(recordSettings?.autoStartOnPlay ?? true);
 
   useEffect(() => {
     if (open) {
@@ -23,7 +22,6 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
       setAudioSource(recordSettings?.audioSource ?? 'none');
       setAudioBitrate(recordSettings?.audioBitrate ?? 128000);
       setFps(typeof recordSettings?.fps === 'number' ? recordSettings.fps : 0);
-      setAutoStartOnPlay(Boolean(recordSettings?.autoStartOnPlay ?? true));
     }
   }, [open]);
 
@@ -49,13 +47,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
               <option value={60}>60 fps</option>
             </select>
           </div>
-          <div className="tw-flex tw-items-center tw-justify-between">
-            <div>
-              <div className="tw-text-sm tw-text-neutral-200">Start recording on first Play</div>
-              <div className="tw-text-xs tw-text-neutral-400">Automatically begin recording when playback starts</div>
-            </div>
-            <Switch checked={autoStartOnPlay} onCheckedChange={(v: boolean) => setAutoStartOnPlay(Boolean(v))} />
-          </div>
+          
           {/* FPS fixed at 30 for export */}
           <div>
             <label className="tw-block tw-text-xs tw-text-neutral-300 tw-mb-1">Codec</label>
@@ -117,7 +109,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
             </button>
             <button
               className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-rounded tw-text-white tw-bg-neutral-700 hover:tw-bg-neutral-600 tw-border tw-border-neutral-600 tw-px-3"
-              onClick={() => { setRecordSettings({ codec, quality, audioSource, audioBitrate, fps: Number(fps) || 0, autoStartOnPlay }); onOpenChange(false); }}
+              onClick={() => { setRecordSettings({ codec, quality, audioSource, audioBitrate, fps: Number(fps) || 0 }); onOpenChange(false); }}
             >
               Save
             </button>

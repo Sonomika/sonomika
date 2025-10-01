@@ -237,8 +237,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         });
       });
     } catch {}
-    // Use only the longest clip end, with a minimum of 1 second if no clips
-    const computed = Math.max(maxEnd > 0 ? Math.ceil(maxEnd) : 1, 1);
+    // Snap timeline to the exact longest end (no rounding up)
+    // Keep 3-decimal precision to avoid floating noise in layout
+    const precise = maxEnd > 0 ? Number((maxEnd || 0).toFixed(3)) : 1;
+    const computed = Math.max(precise, 1);
     try {
       // Keep store's timelineDuration in sync with computed duration
       setTimelineDuration(computed);
@@ -430,6 +432,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const [isLassoSelecting, setIsLassoSelecting] = useState(false);
   const [lassoStart, setLassoStart] = useState<{ x: number; y: number } | null>(null);
   const [lassoEnd, setLassoEnd] = useState<{ x: number; y: number } | null>(null);
+  // Keep a ref of the latest computed duration so RAF loops use fresh value after trims
+  const durationRef = useRef<number>(0);
+  useEffect(() => { durationRef.current = duration; }, [duration]);
   const PIXELS_PER_SECOND = 120;
   const pixelsPerSecond = useMemo(() => PIXELS_PER_SECOND * Math.max(0.05, zoom), [zoom]);
   const [viewportWidth, setViewportWidth] = useState(0);
@@ -1669,7 +1674,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       lastTsRef.current = ts;
       setCurrentTime(prevTime => {
         const newTime = prevTime + dt;
-        if (newTime >= duration) {
+        const effectiveDuration = durationRef.current || duration;
+        if (newTime >= effectiveDuration) {
           setIsPlaying(false);
           isPlayingRef.current = false;
           try {

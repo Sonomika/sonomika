@@ -1412,8 +1412,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   if (!currentScene) {
     return (
-      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col lg:tw-overflow-hidden tw-overflow-auto">
-        <div className="tw-flex tw-flex-col tw-h-full lg:tw-overflow-hidden tw-overflow-auto">
+      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col tw-overflow-visible">
+        <div className="tw-flex tw-flex-col tw-h-full lg:tw-overflow-hidden tw-overflow-visible">
           <div className="tw-flex tw-items-center tw-justify-between tw-h-12 tw-px-4 tw-py-2 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <h2>No Scene Selected</h2>
             <div className="scene-controls">
@@ -1600,8 +1600,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     console.log('LayerManager about to render main content');
     
     return (
-      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col lg:tw-overflow-hidden tw-overflow-auto">
-        <div className="tw-flex tw-flex-col tw-h-full lg:tw-min-h-0 lg:tw-overflow-y-auto lg:tw-pb-0">
+      <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col tw-overflow-visible">
+        <div className="tw-flex tw-flex-col tw-h-full lg:tw-min-h-0 lg:tw-overflow-visible lg:tw-pb-0">
           <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <div className="header-left tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
 
@@ -1705,8 +1705,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     <TimelineControls />
                   </div>
                 )}
-                {/* Unified scene navigator: desktop shows list; mobile centers current scene with arrows */}
-                <div className="tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last hdr-900-order-none hdr-900-basis-auto tw-mt-2 tw-mb-2 hdr-900-mt-0 hdr-900-mb-0 tw-w-full hdr-900-w-auto tw-justify-between hdr-900-justify-start">
+                {/* Unified scene navigator: desktop (>=1240px) mirrors mobile arrows + centered label */}
+                <div className="scene-nav-wrap tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last hdr-900-order-none hdr-900-basis-auto tw-mt-2 tw-mb-2 hdr-900-mt-0 hdr-900-mb-0 tw-w-full hdr-900-w-auto tw-justify-between hdr-900-justify-start tw-min-h-10">
                 <button
                   onClick={() => {
                     const currentScenes = getScenes();
@@ -1716,13 +1716,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     setCurrentSceneFn(currentScenes[prevIndex].id);
                   }}
                   disabled={getScenes().length <= 1}
-                  className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                  className="tw-inline-flex lg:tw-hidden hdr-1240-show tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
                   title="Previous scene"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
                 </button>
-                {/* Mobile: single current scene label centered */}
-                <div className="tw-flex-1 tw-flex tw-justify-center hdr-900-hide">
+                {/* Single current scene label centered (mobile only) */}
+                <div className="tw-flex-1 tw-flex tw-justify-center hdr-900-hide hdr-1240-hide">
                   <button
                     className={`tw-text-xs tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${currentScene?.id === getCurrentSceneId() ? 'tw-text-[hsl(var(--accent))]' : 'tw-text-neutral-200'}`}
                     title={currentScene?.name || 'Current scene'}
@@ -1755,7 +1755,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
                 
 
-                <div className="tw-hidden hdr-900-flex tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last hdr-900-order-none hdr-900-basis-auto tw-mt-2 hdr-900-mt-0">
+                {/* Scenes list row (visible on 900–1239px only) */}
+                <div className="tw-hidden hdr-900-flex hdr-1240-hide tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last hdr-900-order-none hdr-900-basis-auto tw-mt-2 hdr-900-mt-0">
                   {getScenes().map((scene: any, index: number) => (
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>
@@ -1806,12 +1807,59 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       </ContextMenuContent>
                     </ContextMenu>
                   ))}
-                  <button onClick={() => {
-                    const { addScene: addSceneFn } = getSceneManagementFunctions();
-                    addSceneFn();
-                  }} className="tw-ml-2 tw-inline-flex tw-items-center tw-justify-center tw-bg-neutral-900 tw-text-neutral-100 tw-w-8 tw-h-10 hover:tw-bg-neutral-800" title="Add new scene">
-                    +
-                  </button>
+                </div>
+                {/* Desktop ≥1240px: show as many scene chips as fit, no trailing + */}
+                <div className="tw-hidden hdr-1240-flex tw-items-center tw-gap-2 tw-overflow-hidden tw-whitespace-nowrap tw-flex-1 tw-min-w-0">
+                  {getScenes().map((scene: any, index: number) => (
+                    <ContextMenu key={scene.id}>
+                      <ContextMenuTrigger asChild>
+                        <button
+                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === getCurrentSceneId() ? 'tw-text-[hsl(var(--accent))] tw-bg-neutral-800 tw-border-neutral-700' : 'tw-text-neutral-200'}`}
+                          onClick={() => {
+                            const { setCurrentScene: setCurrentSceneFn } = getSceneManagementFunctions();
+                            setCurrentSceneFn(scene.id);
+                          }}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('application/x-scene-index', String(index));
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                          }}
+                          onDrop={(e) => {
+                            const fromStr = e.dataTransfer.getData('application/x-scene-index');
+                            if (fromStr) {
+                              const from = parseInt(fromStr, 10);
+                              if (!Number.isNaN(from)) {
+                                const { reorderScenes: reorderScenesFn } = getSceneManagementFunctions();
+                                reorderScenesFn(from, index);
+                              }
+                            }
+                          }}
+                          title={"Right-click to rename, duplicate, or delete"}
+                        >
+                          {scene.name}
+                        </button>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem onSelect={() => {
+                          const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+                          handleSceneRename(scene, updateSceneFn);
+                        }}>Rename</ContextMenuItem>
+                        <ContextMenuItem onSelect={() => {
+                          const { duplicateScene: duplicateSceneFn } = getSceneManagementFunctions();
+                          duplicateSceneFn(scene.id);
+                        }}>Duplicate</ContextMenuItem>
+                        {getScenes().length > 1 && (
+                          <ContextMenuItem className="tw-text-red-400" onSelect={() => {
+                            const { removeScene: removeSceneFn } = getSceneManagementFunctions();
+                            removeSceneFn(scene.id);
+                          }}>Delete</ContextMenuItem>
+                        )}
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  ))}
                 </div>
                 <button
                   onClick={() => {
@@ -1822,7 +1870,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     setCurrentSceneFn(currentScenes[nextIndex].id);
                   }}
                   disabled={getScenes().length <= 1}
-                  className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
+                  className="tw-inline-flex lg:tw-hidden hdr-1240-show tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
                   title="Next scene"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
@@ -1830,7 +1878,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 {/* Mobile: add new scene button to the right of the right arrow */}
                 <button
                   onClick={addScene}
-                  className="tw-inline-flex lg:tw-hidden tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-rounded hover:tw-bg-neutral-800"
+                  className="tw-inline-flex lg:tw-hidden hdr-1240-show tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-rounded hover:tw-bg-neutral-800"
                   title="Add new scene"
                 >
                   +
@@ -2198,7 +2246,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div 
               className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-border-t-0 tw-rounded-md tw-rounded-t-none tw-overflow-hidden lg:tw-basis-[30%] lg:tw-flex-none tw-min-w-[200px] tw-w-full"
               ref={previewContainerRef}
-              style={fsFallbackActive ? { position: 'fixed', inset: 0, zIndex: 9999, width: '100vw', height: '100dvh' as any } : undefined}
+              style={fsFallbackActive ? { position: 'fixed', inset: 0, zIndex: 9999, width: '100%', height: '100dvh' as any } : undefined}
             >
               {!(isPreviewFullscreen || fsFallbackActive) && (
                 <div className="tw-border-b tw-border-neutral-800 tw-py-2 tw-pl-3 tw-pr-3 lg:tw-pl-0 lg:tw-pr-0" ref={previewHeaderRef}>
@@ -2226,7 +2274,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 <div
                   style={
                     (isPreviewFullscreen || fsFallbackActive)
-                      ? ({ width: '100vw', height: '100dvh' } as any)
+                      ? ({ width: '100%', height: '100dvh' } as any)
                       : ({ width: previewSize.width || undefined, height: previewSize.height || undefined } as any)
                   }
                 >
@@ -2299,7 +2347,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                        };
                      }, []);
                      return (
-                       <ScrollArea.Viewport ref={viewportRef as any} className="vj-scroll-viewport tw-h-full tw-w-full tw-overflow-auto scroll-touch drag-scroll tw-pr-0 sm:tw-pr-3 tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
+                  <ScrollArea.Viewport ref={viewportRef as any} className="vj-scroll-viewport tw-h-full tw-w-full lg:tw-overflow-visible tw-overflow-auto scroll-touch drag-scroll tw-pr-0 sm:tw-pr-3 tw-pb-8" style={{ scrollbarGutter: 'stable' }}>
                          {/* Keep tabs mounted; Sequence is hidden entirely in timeline mode */}
                          <div className={`tw-h-full ${middlePanelTab === 'global' ? '' : 'tw-hidden'}`}>
                            <GlobalEffectsTab className="tw-h-full" />
