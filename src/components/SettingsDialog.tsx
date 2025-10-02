@@ -95,13 +95,6 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
         <div className="tw-space-y-4">
           <div className="tw-flex tw-items-center tw-justify-between">
             <div>
-              <div className="tw-text-sm tw-text-neutral-200">Accessibility</div>
-              <div className="tw-text-xs tw-text-neutral-400">Enable high-contrast focus rings and highlights</div>
-            </div>
-            <Switch checked={!!accessibilityEnabled} onCheckedChange={(val) => setAccessibilityEnabled(Boolean(val))} />
-          </div>
-          <div className="tw-flex tw-items-center tw-justify-between">
-            <div>
               <div className="tw-text-sm tw-text-neutral-200">Accent Colour</div>
               <div className="tw-text-xs tw-text-neutral-400">Used for highlights and controls</div>
             </div>

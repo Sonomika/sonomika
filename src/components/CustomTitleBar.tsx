@@ -76,7 +76,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const helpMenuRef = useRef<HTMLDivElement>(null);
   // API docs removed
-  const { currentPresetName } = (useStore() as any) || {};
+  const { currentPresetName, showTimeline } = (useStore() as any) || {};
 
   // Detect Electron vs Web
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
@@ -239,10 +239,10 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           </div>
           
           <button 
-            className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
+            className="tw-px-2 tw-py-1 tw-text-xs tw-text-[hsl(var(--accent))] tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
             onClick={onToggleTimeline}
           >
-            Timeline
+            {showTimeline ? 'Columns' : 'Timeline'}
           </button>
           
           <button 
