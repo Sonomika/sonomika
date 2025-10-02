@@ -386,7 +386,7 @@ export const AIEffectsLab: React.FC = () => {
             <Label className="tw-text-xs">Prompt</Label>
             <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={8} className="tw-text-xs" />
             <div className="tw-flex tw-items-center tw-gap-2">
-            <Label className="tw-text-xs">Prompt ideas</Label>
+              <Label className="tw-text-xs tw-whitespace-nowrap">Prompt ideas</Label>
               <Select
                 value={addonSelection}
                 onChange={(v) => {

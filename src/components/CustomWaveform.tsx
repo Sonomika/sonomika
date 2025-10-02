@@ -646,12 +646,24 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     const handler = () => {
         drawSimpleWaveform()
     }
+    const visibilityHandler = () => {
+        // Redraw when app becomes visible again (after minimize/restore)
+        if (!document.hidden) {
+            requestAnimationFrame(() => {
+                drawSimpleWaveform()
+            })
+        }
+    }
     window.addEventListener('resize', handler)
+    document.addEventListener('visibilitychange', visibilityHandler)
     // Initial draw
     requestAnimationFrame(() => {
         drawSimpleWaveform()
     })
-    return () => window.removeEventListener('resize', handler)
+    return () => {
+        window.removeEventListener('resize', handler)
+        document.removeEventListener('visibilitychange', visibilityHandler)
+    }
   }, [])
 
   // Basic peak picker using the generated waveformData

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Popover, PopoverTrigger, PopoverContent, Dialog, DialogContent, DialogHeader, DialogTitle, Button } from './ui';
+import { Popover, PopoverTrigger, PopoverContent, Dialog, DialogContent, DialogClose, Button } from './ui';
 import { useStore } from '../store/store';
 
 interface CustomTitleBarProps {
@@ -139,6 +139,13 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
         {isElectron && (
           <div className="tw-flex tw-items-center tw-gap-1 app-no-drag">
             <button className="app-no-drag tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-bg-transparent tw-border-0 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
+              e.preventDefault(); e.stopPropagation(); onToggleAppFullscreen && onToggleAppFullscreen();
+            }} aria-label="Fullscreen" title="Fullscreen">
+              <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 3h4v2H5v2H3V3zm10 0H9v2h2v2h2V3zM3 11h2v2h2v2H3v-4zm10 0v4h-2v-2h-2v-2h4z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button className="app-no-drag tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-bg-transparent tw-border-0 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
               e.preventDefault(); e.stopPropagation(); onMinimize && onMinimize();
             }} aria-label="Minimize">
               <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -231,14 +238,6 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
             </Popover>
           </div>
           
-          {isElectron && (
-            <button 
-              className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
-              onClick={onToggleAppFullscreen}
-            >
-              Fullscreen
-            </button>
-          )}
           <button 
             className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
             onClick={onToggleTimeline}
@@ -445,11 +444,18 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
 
       {/* Mobile menu dialog */}
       <Dialog open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <DialogContent className="tw-w-[95vw] tw-max-w-sm tw-max-h-[85vh] tw-overflow-hidden tw-p-0">
-          <DialogHeader className="tw-px-4 tw-pt-4 tw-pb-2">
-            <DialogTitle className="tw-text-sm">Menu</DialogTitle>
-          </DialogHeader>
-          <div className="tw-border-t tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-200 tw-max-h-[70vh] tw-overflow-y-auto">
+        <DialogContent position="right" withClose={false} className="tw-w-[280px] tw-max-w-[280px] tw-rounded-none tw-border-l tw-border-neutral-800 tw-bg-neutral-900 tw-p-0 tw-shadow-lg">
+          <div className="tw-flex tw-items-center tw-justify-between tw-px-4 tw-pt-4 tw-pb-2 tw-border-b tw-border-neutral-800">
+            <div className="tw-text-sm tw-text-left">Menu</div>
+            <DialogClose className="tw-bg-transparent tw-text-neutral-300 hover:tw-text-neutral-100 tw-p-0 tw-w-6 tw-h-6 tw-inline-flex tw-items-center tw-justify-center focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-ring focus:tw-ring-offset-2">
+              <svg className="tw-w-4 tw-h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="4.2" y1="4.2" x2="11.8" y2="11.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="11.8" y1="4.2" x2="4.2" y2="11.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <span className="tw-sr-only">Close</span>
+            </DialogClose>
+          </div>
+          <div className="tw-bg-neutral-900 tw-text-neutral-200 tw-flex tw-flex-col tw-h-[calc(100vh-42px)] tw-overflow-y-auto">
             <div className="tw-p-2 tw-space-y-1">
               {/* File group */}
               <button
@@ -515,9 +521,6 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onRecord?.(); setMobileMenuOpen(false); }}>Record</button>
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onRecordSettings?.(); setMobileMenuOpen(false); }}>Record Settings</button>
                 </div>
-              )}
-              {isElectron && (
-                <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onToggleAppFullscreen?.(); setMobileMenuOpen(false); }}>Fullscreen</button>
               )}
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onCompositionSettings?.(); setMobileMenuOpen(false); }}>Composition Settings</button>
               {/* Developer dropdown (mobile) */}
