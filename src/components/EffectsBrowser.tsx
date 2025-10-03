@@ -202,11 +202,11 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
 
   if (isLoading) {
     return (
-      <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
+      <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
         <div className="tw-flex-1 tw-flex tw-items-center tw-justify-center tw-p-6">
           <div className="tw-flex tw-flex-col tw-items-center tw-gap-2">
             <div className="tw-h-6 tw-w-6 tw-animate-spin tw-rounded-full tw-border-2 tw-border-neutral-600 tw-border-t-transparent" />
-            <div className="tw-text-sm tw-text-neutral-300">{loadingText}</div>
+            <div className="tw-text-sm">{loadingText}</div>
           </div>
         </div>
       </div>
@@ -215,11 +215,11 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
 
   if (!isLoading && effects.length === 0) {
     return (
-      <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
+      <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
         <div className="tw-flex-1 tw-overflow-auto tw-p-4">
           <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
             <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No Effects Found</h3>
-            <p className="tw-text-neutral-300">No effects are available to display.</p>
+            <p>No effects are available to display.</p>
           </div>
         </div>
       </div>
@@ -227,7 +227,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-text-neutral-100 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
+    <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
       <div className="tw-mb-2">
         <Tabs value={activeTab} onValueChange={(v) => {
           const val = v as 'user' | 'external' | 'favorites';
@@ -258,7 +258,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           placeholder="Search effects..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="tw-flex-1 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+          className="tw-flex-1 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
         />
         {/* Refresh effects using compact param button styling */}
         <button
@@ -266,7 +266,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           onClick={refreshEffects}
           disabled={isLoading}
           title="Refresh effects list"
-          className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-neutral-100 tw-w-5 tw-h-5 xl:tw-w-6 xl:tw-h-6 leading-[1] hover:tw-bg-neutral-700"
+          className="param-btn tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-w-5 tw-h-5 xl:tw-w-6 xl:tw-h-6 leading-[1] hover:tw-bg-neutral-700"
         >
           {isLoading ? '⟳' : '↻'}
         </button>
@@ -284,15 +284,15 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               <div className="tw-mb-1">
                 <div className="tw-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                   <button
-                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setUserFilter('all')}
                   >All</button>
                   <button
-                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setUserFilter('effects')}
                   >Effects</button>
                   <button
-                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setUserFilter('sources')}
                   >Sources</button>
                 </div>
@@ -300,7 +300,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               {userEffects.length === 0 && (
                 <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
                   <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No User Effects Loaded</h3>
-                  <p className="tw-text-neutral-300">Set a User FX Directory in Settings to auto-load on startup.</p>
+                  <p>Set a User FX Directory in Settings to auto-load on startup.</p>
                 </div>
               )}
               {userFiltered.map((e) => (
@@ -320,7 +320,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   <div className="tw-flex tw-items-center tw-justify-between">
                     <div>
                       <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
-                      <div className="tw-text-xs tw-text-neutral-400">by {e.author}</div>
+                      <div className="tw-text-xs ">by {e.author}</div>
                     </div>
                     <button
                       onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
@@ -330,9 +330,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                     >
                       {favorites.includes(effectKey(e)) ? (
-                        <HeartFilledIcon className="tw-w-4 tw-h-4 tw-text-white" />
+                        <HeartFilledIcon className="tw-w-4 tw-h-4 " />
                       ) : (
-                        <HeartIcon className="tw-w-4 tw-h-4 tw-text-neutral-400" />
+                        <HeartIcon className="tw-w-4 tw-h-4 " />
                       )}
                     </button>
                   </div>
@@ -345,15 +345,15 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               <div className="tw-mb-1">
                 <div className="tw-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                   <button
-                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setExternalFilter('all')}
                   >All</button>
                   <button
-                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setExternalFilter('effects')}
                   >Effects</button>
                   <button
-                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setExternalFilter('sources')}
                   >Sources</button>
                 </div>
@@ -361,7 +361,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               {externalBankEffects.length === 0 && (
                 <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
                   <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No System items</h3>
-                  <p className="tw-text-neutral-300">Portable items in project bank will appear here.</p>
+                  <p>Portable items in project bank will appear here.</p>
                 </div>
               )}
               {externalFiltered.map((e) => (
@@ -386,9 +386,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                     >
                       {favorites.includes(effectKey(e)) ? (
-                        <HeartFilledIcon className="tw-w-4 tw-h-4 tw-text-white" />
+                        <HeartFilledIcon className="tw-w-4 tw-h-4 " />
                       ) : (
-                        <HeartIcon className="tw-w-4 tw-h-4 tw-text-neutral-400" />
+                        <HeartIcon className="tw-w-4 tw-h-4 " />
                       )}
                     </button>
                   </div>
@@ -399,10 +399,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           <TabsContent value="favorites">
             <div className="tw-space-y-3">
               <div>
-                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">Effects</div>
+                <div className="tw-text-xs  tw-mb-1">Effects</div>
                 <div className="tw-space-y-2">
                   {favoritedVisualEffects.length === 0 && (
-                    <div className="tw-text-xs tw-text-neutral-500">No favorited effects yet.</div>
+                    <div className="tw-text-xs ">No favorited effects yet.</div>
                   )}
                   {favoritedVisualEffects.map((e) => (
                     <div
@@ -428,9 +428,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                           title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                         >
                           {favorites.includes(effectKey(e)) ? (
-                            <HeartFilledIcon className="tw-w-4 tw-h-4 tw-text-white" />
+                            <HeartFilledIcon className="tw-w-4 tw-h-4 " />
                           ) : (
-                            <HeartIcon className="tw-w-4 tw-h-4 tw-text-neutral-400" />
+                            <HeartIcon className="tw-w-4 tw-h-4 " />
                           )}
                         </button>
                       </div>
@@ -439,10 +439,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                 </div>
               </div>
               <div>
-                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">Sources</div>
+                <div className="tw-text-xs  tw-mb-1">Sources</div>
                 <div className="tw-space-y-2">
                   {favoritedGenerativeSources.length === 0 && (
-                    <div className="tw-text-xs tw-text-neutral-500">No favorited sources yet.</div>
+                    <div className="tw-text-xs ">No favorited sources yet.</div>
                   )}
                   {favoritedGenerativeSources.map((e) => (
                     <div
@@ -468,9 +468,9 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                           title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                         >
                           {favorites.includes(effectKey(e)) ? (
-                            <HeartFilledIcon className="tw-w-4 tw-h-4 tw-text-white" />
+                            <HeartFilledIcon className="tw-w-4 tw-h-4 " />
                           ) : (
-                            <HeartIcon className="tw-w-4 tw-h-4 tw-text-neutral-400" />
+                            <HeartIcon className="tw-w-4 tw-h-4 " />
                           )}
                         </button>
                       </div>
@@ -479,10 +479,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                 </div>
               </div>
               <div>
-                <div className="tw-text-xs tw-text-neutral-400 tw-mb-1">User</div>
+                <div className="tw-text-xs  tw-mb-1">User</div>
                 <div className="tw-space-y-2">
                   {favoritedUserEffects.length === 0 && (
-                    <div className="tw-text-xs tw-text-neutral-500">No favorited user bank items yet.</div>
+                    <div className="tw-text-xs ">No favorited user bank items yet.</div>
                   )}
                   {favoritedUserEffects.map((e) => (
                     <div
@@ -501,7 +501,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       <div className="tw-flex tw-items-center tw-justify-between">
                         <div>
                           <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
-                          <div className="tw-text-xs tw-text-neutral-400">by {e.author}</div>
+                          <div className="tw-text-xs ">by {e.author}</div>
                         </div>
                         <button
                           onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
@@ -510,7 +510,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                           }
                           title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                         >
-                          <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                          <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? '' : ''}`} />
                         </button>
                       </div>
                     </div>

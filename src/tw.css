@@ -184,10 +184,10 @@ div.cell-name-hover:hover {
 .tw-text-neutral-800 { color: hsl(var(--neutral-800)) !important; }
 .tw-text-neutral-700 { color: hsl(var(--neutral-700)) !important; }
 .tw-text-neutral-600 { color: hsl(var(--neutral-600)) !important; }
-.tw-text-neutral-500 { color: hsl(var(--neutral-500)) !important; }
-.tw-text-neutral-400 { color: hsl(var(--neutral-400)) !important; }
-.tw-text-neutral-300 { color: hsl(var(--neutral-300)) !important; }
-.tw-text-neutral-200 { color: hsl(var(--neutral-200)) !important; }
+.tw-text-neutral-500 { color: var(--font-color) !important; }
+.tw-text-neutral-400 { color: var(--font-color) !important; }
+.tw-text-neutral-300 { color: var(--font-color) !important; }
+.tw-text-neutral-200 { color: var(--font-color) !important; }
 
 .tw-border-neutral-900 { border-color: hsl(var(--neutral-900)) !important; }
 .tw-border-neutral-800 { border-color: hsl(var(--neutral-800)) !important; }
@@ -197,5 +197,72 @@ div.cell-name-hover:hover {
 .tw-border-neutral-400 { border-color: hsl(var(--neutral-400)) !important; }
 .tw-border-neutral-300 { border-color: hsl(var(--neutral-300)) !important; }
 .tw-border-neutral-200 { border-color: hsl(var(--neutral-200)) !important; }
+
+/* Override foreground text colors to use font color setting */
+.tw-text-foreground { color: var(--font-color) !important; }
+.tw-text-muted-foreground { color: var(--font-color) !important; }
+
+/* Override hardcoded text colors to use font color setting */
+.tw-text-white { color: var(--font-color) !important; }
+.tw-text-gray-100 { color: var(--font-color) !important; }
+.tw-text-gray-200 { color: var(--font-color) !important; }
+.tw-text-gray-300 { color: var(--font-color) !important; }
+.tw-text-gray-400 { color: var(--font-color) !important; }
+.tw-text-gray-500 { color: var(--font-color) !important; }
+.tw-text-gray-600 { color: var(--font-color) !important; }
+.tw-text-gray-700 { color: var(--font-color) !important; }
+.tw-text-gray-800 { color: var(--font-color) !important; }
+.tw-text-gray-900 { color: var(--font-color) !important; }
+
+/* Override placeholder text colors to use font color setting */
+::placeholder { color: var(--font-color) !important; }
+::-webkit-input-placeholder { color: var(--font-color) !important; }
+::-moz-placeholder { color: var(--font-color) !important; }
+:-ms-input-placeholder { color: var(--font-color) !important; }
+
+/* Override form element text colors to use font color setting */
+input, select, textarea, option { color: var(--font-color) !important; }
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="search"] { color: var(--font-color) !important; }
+select option { color: var(--font-color) !important; }
+
+/* Override sky colors to use font color setting */
+.tw-text-sky-100 { color: var(--font-color) !important; }
+.tw-text-sky-200 { color: var(--font-color) !important; }
+.tw-text-sky-300 { color: var(--font-color) !important; }
+.tw-text-sky-400 { color: var(--font-color) !important; }
+.tw-text-sky-500 { color: var(--font-color) !important; }
+.tw-text-sky-600 { color: var(--font-color) !important; }
+.tw-text-sky-700 { color: var(--font-color) !important; }
+.tw-text-sky-800 { color: var(--font-color) !important; }
+.tw-text-sky-900 { color: var(--font-color) !important; }
+
+/* Override arbitrary hex colors to use font color setting */
+[class*="tw-text-[#"] { color: var(--font-color) !important; }
+
+/* Force all text elements to use font color setting - high specificity override */
+div, span, p, h1, h2, h3, h4, h5, h6, button, input, select, textarea, label, a, td, th, li {
+  color: var(--font-color) !important;
+}
+
+/* Additional specificity for nested elements */
+.tw-bg-neutral-900 *,
+.tw-bg-neutral-800 *,
+.tw-bg-neutral-700 * {
+  color: var(--font-color) !important;
+}
+
+/* Black text for active transport and scene buttons */
+.tw-bg-\[hsl\(var\(--accent\)\)\] *,
+button.tw-bg-\[hsl\(var\(--accent\)\)\] {
+  color: #000000 !important;
+}
+
+/* Ensure black text for active states with accent background */
+.tw-bg-\[hsl\(var\(--accent\)\)\] .tw-text-black,
+.tw-bg-\[hsl\(var\(--accent\)\)\] button,
+.tw-bg-\[hsl\(var\(--accent\)\)\] span,
+.tw-bg-\[hsl\(var\(--accent\)\)\] div {
+  color: #000000 !important;
+}
 
 

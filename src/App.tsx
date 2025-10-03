@@ -103,7 +103,7 @@ function App() {
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const advStreamRef = useRef<AdvancedMirrorStreamManager | null>(null);
   const usingDummyCanvas = useRef<boolean>(false);
-  const { savePreset, loadPreset, accessibilityEnabled, accentColor, midiMappings, neutralContrast } = useStore() as any;
+  const { savePreset, loadPreset, accessibilityEnabled, accentColor, midiMappings, neutralContrast, fontColor } = useStore() as any;
   const lastSaveRef = useRef<number>(0);
   
   // Modal states
@@ -367,10 +367,18 @@ function App() {
   // Apply neutral contrast CSS variables on mount and when it changes
   useEffect(() => {
     try {
-      const factor = typeof neutralContrast === 'number' ? neutralContrast : 1;
+      const factor = typeof neutralContrast === 'number' ? neutralContrast : 1.5;
       (useStore.getState() as any).setNeutralContrast(factor);
     } catch {}
   }, [neutralContrast]);
+
+  // Apply font color CSS variables on mount and when it changes
+  useEffect(() => {
+    try {
+      const color = fontColor || '#aaaaaa';
+      (useStore.getState() as any).setFontColor(color);
+    } catch {}
+  }, [fontColor]);
 
   // Background LFO/Random engine stays active regardless of which UI is focused
   // Removed background loop to avoid interference with panel engine

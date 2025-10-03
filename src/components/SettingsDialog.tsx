@@ -12,7 +12,7 @@ interface SettingsDialogProps {
 }
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
-  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast } = useStore() as any;
+  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast, fontColor, setFontColor } = useStore() as any;
   const [user, setUser] = useState<any>(null);
   // OpenAI settings removed
   const { toast } = useToast();
@@ -110,7 +110,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                 type="text"
                 value={(accentColor || '#00bcd4').replace(/^#/, '')}
                 onChange={(e) => setAccentColor(`#${e.target.value.replace(/[^0-9a-fA-F]/g,'').slice(0,6)}`)}
-                className="tw-w-24 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
+                className="tw-w-24 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900  tw-px-2 tw-py-1"
                 placeholder="00bcd4"
               />
             </div>
@@ -124,21 +124,43 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
             <div className="tw-flex tw-items-center tw-gap-2">
               <div className="tw-w-56">
                 <Slider
-                  min={0.5}
-                  max={1.5}
+                  min={0.75}
+                  max={2.25}
                   step={0.01}
-                  value={[Number(neutralContrast ?? 1)]}
+                  value={[Number(neutralContrast ?? 1.5)]}
                   onValueChange={(vals) => vals && vals.length > 0 && setNeutralContrast(vals[0])}
                 />
               </div>
               <input
                 type="number"
-                min={0.5}
-                max={1.5}
+                min={0.75}
+                max={2.25}
                 step={0.01}
-                value={Number(neutralContrast ?? 1).toFixed(2)}
+                value={Number(neutralContrast ?? 1.5).toFixed(2)}
                 onChange={(e) => setNeutralContrast(parseFloat(e.target.value))}
-                className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
+                className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900  tw-px-2 tw-py-1"
+              />
+            </div>
+          </div>
+
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">Font Colour</div>
+              <div className="tw-text-xs tw-text-neutral-400">Colour for all text elements</div>
+            </div>
+            <div className="tw-flex tw-items-center tw-gap-2">
+              <input
+                type="color"
+                value={fontColor || '#aaaaaa'}
+                onChange={(e) => setFontColor(e.target.value)}
+                className="tw-w-12 tw-h-8 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-cursor-pointer"
+              />
+              <input
+                type="text"
+                value={(fontColor || '#aaaaaa').replace(/^#/, '')}
+                onChange={(e) => setFontColor(`#${e.target.value.replace(/[^0-9a-fA-F]/g,'').slice(0,6)}`)}
+                className="tw-w-24 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900  tw-px-2 tw-py-1"
+                placeholder="aaaaaa"
               />
             </div>
           </div>
@@ -165,7 +187,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                 step={0.01}
                 value={Number(defaultVideoRenderScale ?? 1).toFixed(2)}
                 onChange={(e) => setDefaultVideoRenderScale(parseFloat(e.target.value))}
-                className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1"
+                className="tw-w-20 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900  tw-px-2 tw-py-1"
               />
             </div>
           </div>
@@ -311,7 +333,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
               <div className="tw-text-xs tw-text-neutral-400">{user ? (user.email || 'Signed in') : 'Not signed in'}</div>
             </div>
             {user ? (
-              <Button onClick={handleSignOut} className="!tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-none">Sign out</Button>
+              <Button onClick={handleSignOut} className="!tw-bg-neutral-800 ! !tw-border-none">Sign out</Button>
             ) : (
               <div className="tw-text-xs tw-text-neutral-500">Silent login; sign-in UI not required</div>
             )}

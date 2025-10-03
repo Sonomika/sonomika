@@ -1660,7 +1660,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       <PlayIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-bg-neutral-800 tw-rounded tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700"
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded ${transportState === 'pause' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       onClick={() => {
                         try { document.dispatchEvent(new CustomEvent('globalPause', { detail: { source: 'toolbar' } })); } catch {}
                       }}
@@ -1669,7 +1669,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       <PauseIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
-                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-bg-neutral-800 tw-rounded tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700"
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded ${transportState === 'stop' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       onClick={() => {
                         try { document.dispatchEvent(new CustomEvent('globalStop', { detail: { source: 'toolbar' } })); } catch {}
                       }}

@@ -370,14 +370,14 @@ const FileBrowser: React.FC = () => {
         <button
           onClick={handlePlay}
           title="Play"
-          className={`tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border tw-text-white ${isPlaying ? 'tw-bg-neutral-800 tw-border-neutral-700' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700'}`}
+          className={`tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border  ${isPlaying ? 'tw-bg-neutral-800 tw-border-neutral-700' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700'}`}
         >
           <PlayIcon className="tw-w-3 tw-h-3" />
         </button>
         <button
           onClick={handleStop}
           title="Stop"
-          className="tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border tw-text-white tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
+          className="tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border  tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
         >
           <StopIcon className="tw-w-3 tw-h-3" />
         </button>
@@ -444,9 +444,9 @@ const FileBrowser: React.FC = () => {
   };
 
   return (
-    <div className="tw-flex tw-flex-col tw-h-full tw-text-white">
+    <div className="tw-flex tw-flex-col tw-h-full">
       {!fsApi && (
-        <div className="tw-bg-[#ff6b6b] tw-text-white tw-p-2 tw-text-sm tw-text-center tw-mb-2">
+        <div className="tw-bg-[#ff6b6b]  tw-p-2 tw-text-sm tw-text-center tw-mb-2">
           File browser requires Electron. Run the app via Electron to access files.
         </div>
       )}
@@ -459,11 +459,11 @@ const FileBrowser: React.FC = () => {
           value={pathInput}
           onChange={(e) => setPathInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && pathInput) loadDirectory(pathInput); }}
-          className="tw-w-96 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
+          className="tw-w-96 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700  tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
           style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
         />
         <button
-          className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-3 tw-py-2 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800 tw-rounded"
+          className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-3 tw-py-2 tw-text-sm  hover:tw-bg-neutral-800 tw-rounded"
           onClick={() => pathInput && loadDirectory(pathInput)}
         >
           Go
@@ -478,7 +478,7 @@ const FileBrowser: React.FC = () => {
           <button
             onClick={navigateUp}
             title="Go to parent directory"
-            className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-3 tw-py-2 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800 tw-rounded"
+            className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-3 tw-py-2 tw-text-sm  hover:tw-bg-neutral-800 tw-rounded"
           >
             Up
           </button>
@@ -504,14 +504,14 @@ const FileBrowser: React.FC = () => {
               <button
                 onClick={() => loadDirectory(f.path)}
                 title={f.path}
-                className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm tw-text-neutral-100 hover:tw-bg-neutral-800 tw-rounded"
+                className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-px-2 tw-py-1 tw-text-sm  hover:tw-bg-neutral-800 tw-rounded"
               >
                 {f.label}
               </button>
               <button
                 onClick={() => removeFavorite(f.path)}
                 title="Remove favorite"
-                className="tw-inline-flex tw-items-center tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-300 tw-px-1 tw-py-1 hover:tw-bg-neutral-800 tw-rounded"
+                className="tw-inline-flex tw-items-center tw-border tw-border-neutral-800 tw-bg-neutral-900  tw-px-1 tw-py-1 hover:tw-bg-neutral-800 tw-rounded"
               >
                 ×
               </button>
@@ -526,12 +526,12 @@ const FileBrowser: React.FC = () => {
             placeholder="Favorite label"
             value={favLabel}
             onChange={(e) => setFavLabel(e.target.value)}
-            className="tw-w-40 tw-min-w-0 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
+            className="tw-w-40 tw-min-w-0 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700  tw-px-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
             style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
           />
           <button
             onClick={addFavorite}
-            className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-800 tw-text-white tw-px-3 tw-py-2 hover:tw-bg-neutral-700 tw-rounded"
+            className="tw-inline-flex tw-items-center tw-border tw-border-neutral-700 tw-bg-neutral-800  tw-px-3 tw-py-2 hover:tw-bg-neutral-700 tw-rounded"
           >
             Save Favorite
           </button>
@@ -543,8 +543,8 @@ const FileBrowser: React.FC = () => {
         <div className="tw-flex tw-gap-1.5 tw-flex-wrap tw-items-center">
           {breadcrumb.map((c, i) => (
             <React.Fragment key={c.full}>
-              <button className="tw-text-sm tw-text-sky-400 hover:tw-underline hover:tw-text-sky-300" onClick={() => loadDirectory(c.full)}>{c.label}</button>
-              {i < breadcrumb.length - 1 && <span className="tw-text-neutral-500">/</span>}
+              <button className="tw-text-sm  hover:tw-underline hover:" onClick={() => loadDirectory(c.full)}>{c.label}</button>
+              {i < breadcrumb.length - 1 && <span className="">/</span>}
             </React.Fragment>
           ))}
         </div>
@@ -560,9 +560,9 @@ const FileBrowser: React.FC = () => {
               onDoubleClick={() => loadDirectory(it.path)}
               title={it.path}
             >
-              <div className="tw-text-[#7fbfff] tw-flex-1 tw-min-w-0 tw-truncate">{it.name}</div>
-              <div className="tw-text-[#ccc] tw-text-sm tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">Folder</div>
-              <div className="tw-text-[#aaa] tw-text-xs tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded tw-hidden sm:tw-block">
+              <div className=" tw-flex-1 tw-min-w-0 tw-truncate">{it.name}</div>
+              <div className=" tw-text-sm tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">Folder</div>
+              <div className=" tw-text-xs tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded tw-hidden sm:tw-block">
                 {it.mtimeMs ? new Date(it.mtimeMs).toLocaleString() : ''}
               </div>
             </div>
@@ -573,11 +573,11 @@ const FileBrowser: React.FC = () => {
         <div className="tw-space-y-1">
           {/* Sort dropdown */}
           <div className="tw-flex tw-items-center tw-gap-2 tw-mb-3">
-            <label className="tw-text-sm tw-text-neutral-300">Sort by:</label>
+            <label className="tw-text-sm ">Sort by:</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-px-3 tw-py-2 tw-text-sm focus:tw-ring-2 focus:tw-ring-purple-600"
+              className="tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700  tw-px-3 tw-py-2 tw-text-sm focus:tw-ring-2 focus:tw-ring-purple-600"
               style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
             >
               <option value="">Name (A-Z)</option>
@@ -598,10 +598,10 @@ const FileBrowser: React.FC = () => {
                 placeholder=""
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="tw-w-60 tw-min-w-0 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-text-neutral-100 tw-pl-10 tw-pr-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
+                className="tw-w-60 tw-min-w-0 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700  tw-pl-10 tw-pr-3 tw-py-2 focus:tw-ring-2 focus:tw-ring-purple-600"
                 style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
               />
-              <div className="tw-absolute tw-left-3 tw-top-1/2 tw-transform tw--translate-y-1/2 tw-text-neutral-400 tw-pointer-events-none">
+              <div className="tw-absolute tw-left-3 tw-top-1/2 tw-transform tw--translate-y-1/2  tw-pointer-events-none">
                 <MagnifyingGlassIcon className="tw-w-4 tw-h-4" />
               </div>
             </div>
@@ -633,23 +633,23 @@ const FileBrowser: React.FC = () => {
                       )}
                     </div>
                     <div className="tw-min-w-0 tw-flex-1">
-                      <div className="tw-text-sm tw-font-medium tw-text-neutral-200 tw-truncate tw-max-w-48" title={it.name}>{it.name}</div>
-                      <div className="tw-text-xs tw-text-neutral-400 tw-mt-1">{type.toUpperCase()}</div>
+                      <div className="tw-text-sm tw-font-medium  tw-truncate tw-max-w-48" title={it.name}>{it.name}</div>
+                      <div className="tw-text-xs  tw-mt-1">{type.toUpperCase()}</div>
                     </div>
                   </div>
                   <div className="tw-flex tw-flex-wrap tw-gap-2 tw-text-xs">
                     {it.size && (
-                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                      <div className=" tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
                         Size: {formatFileSize(it.size)}
                       </div>
                     )}
                     {metadata.duration && (
-                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                      <div className=" tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
                         Duration: {metadata.duration}
                       </div>
                     )}
                     {metadata.dimensions && (
-                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                      <div className=" tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
                         {metadata.dimensions}
                       </div>
                     )}
@@ -673,25 +673,25 @@ const FileBrowser: React.FC = () => {
                     
                     {/* File name and type */}
                     <div className="tw-min-w-0 tw-flex-1">
-                      <div className="tw-text-sm tw-font-medium tw-text-neutral-200 tw-truncate tw-max-w-48" title={it.name}>{it.name}</div>
-                      <div className="tw-text-xs tw-text-neutral-400 tw-mt-1">{type.toUpperCase()}</div>
+                      <div className="tw-text-sm tw-font-medium  tw-truncate tw-max-w-48" title={it.name}>{it.name}</div>
+                      <div className="tw-text-xs  tw-mt-1">{type.toUpperCase()}</div>
                     </div>
                   </div>
                   
                   {/* Bottom row - Metadata */}
                   <div className="tw-flex tw-flex-wrap tw-gap-2 tw-text-xs">
                     {it.size && (
-                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                      <div className=" tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
                         Size: {formatFileSize(it.size)}
                       </div>
                     )}
                     {metadata.duration && (
-                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                      <div className=" tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
                         Duration: {metadata.duration}
                       </div>
                     )}
                     {metadata.dimensions && (
-                      <div className="tw-text-neutral-300 tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
+                      <div className=" tw-px-2 tw-py-1 tw-bg-neutral-800 tw-rounded">
                         {metadata.dimensions}
                       </div>
                     )}

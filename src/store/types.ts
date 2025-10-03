@@ -145,6 +145,8 @@ export interface AppState {
   accentColor?: string;
   // Multiplier to adjust brightness of neutral greys (0.5–1.5, default 1)
   neutralContrast?: number;
+  // Font color for all text elements (hex color string)
+  fontColor?: string;
   midiMappings: MIDIMapping[];
   // MIDI options
   midiForceChannel1?: boolean; // If true, remap incoming MIDI events to channel 1

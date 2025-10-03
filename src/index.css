@@ -25,24 +25,25 @@
 
 :root {
 	--background: 0 0% 8%;
-	--foreground: 0 0% 100%;
+	--foreground: #aaaaaa;
 	--card: 0 0% 10%;
-	--card-foreground: 0 0% 100%;
+	--card-foreground: #aaaaaa;
 	--popover: 0 0% 10%;
-	--popover-foreground: 0 0% 100%;
+	--popover-foreground: #aaaaaa;
 	--primary: 0 0% 14%;
-	--primary-foreground: 0 0% 100%;
+	--primary-foreground: #aaaaaa;
 	--secondary: 0 0% 16%;
-	--secondary-foreground: 0 0% 100%;
+	--secondary-foreground: #aaaaaa;
 	--muted: 0 0% 18%;
-	--muted-foreground: 0 0% 70%;
+	--muted-foreground: #aaaaaa;
 	--accent: 190 90% 45%;
-	--accent-foreground: 0 0% 100%;
+	--accent-foreground: #aaaaaa;
 	--destructive: 0 84% 60%;
-	--destructive-foreground: 0 0% 100%;
+	--destructive-foreground: #aaaaaa;
 	--border: 0 0% 20%;
 	--input: 0 0% 20%;
 	--ring: 190 90% 45%;
+	--font-color: #aaaaaa;
 }
 
 * { box-sizing: border-box; }

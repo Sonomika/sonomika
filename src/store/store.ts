@@ -106,7 +106,8 @@ const initialState: AppState = {
   sidebarVisible: true,
   accessibilityEnabled: false,
   accentColor: '#00bcd4',
-  neutralContrast: 1,
+  neutralContrast: 1.5,
+  fontColor: '#aaaaaa',
   midiMappings: [],
   midiForceChannel1: false,
   selectedLayerId: null,
@@ -192,6 +193,7 @@ export const useStore = createWithEqualityFn<AppState & {
   setTransitionType: (type: TransitionType) => void;
   setTransitionDuration: (duration: number) => void;
   setNeutralContrast: (factor: number) => void;
+  setFontColor: (color: string) => void;
   setSequenceEnabledGlobal: (enabled: boolean) => void;
   setPlayingColumn: (columnId: string | null) => void;
   playColumn: (columnId: string) => void;
@@ -231,10 +233,10 @@ export const useStore = createWithEqualityFn<AppState & {
     (set, get) => ({
       ...initialState,
       // Apply neutral contrast to CSS variables for grey tokens
-      // factor: 0.5–1.5; 1 = base palette
+      // factor: 0.75–2.25; 1.5 = base palette
       setNeutralContrast: (factor: number) => set((state) => {
         const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-        const safe = clamp(Number(factor) || 1, 0.5, 1.5);
+        const safe = clamp(Number(factor) || 1.5, 0.75, 2.25);
         try {
           const apply = (l: number) => clamp(l * safe, 0, 100);
           // Base lightness values for our four greys (in HSL L%)
@@ -262,6 +264,23 @@ export const useStore = createWithEqualityFn<AppState & {
           document.documentElement.style.setProperty('--input', `0 0% ${apply(L700)}%`);
         } catch {}
         return { neutralContrast: safe } as any;
+      }),
+      setFontColor: (color: string) => set((state) => {
+        try {
+          // Validate hex color format
+          const hexColor = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color) ? color : '#aaaaaa';
+          // Apply font color to CSS variables for text elements
+          document.documentElement.style.setProperty('--font-color', hexColor);
+          document.documentElement.style.setProperty('--foreground', hexColor);
+          document.documentElement.style.setProperty('--card-foreground', hexColor);
+          document.documentElement.style.setProperty('--popover-foreground', hexColor);
+          document.documentElement.style.setProperty('--primary-foreground', hexColor);
+          document.documentElement.style.setProperty('--secondary-foreground', hexColor);
+          document.documentElement.style.setProperty('--accent-foreground', hexColor);
+          document.documentElement.style.setProperty('--destructive-foreground', hexColor);
+          document.documentElement.style.setProperty('--muted-foreground', hexColor);
+        } catch {}
+        return { fontColor: color } as any;
       }),
       setSequenceEnabledGlobal: (enabled: boolean) => set({ sequenceEnabledGlobal: !!enabled } as any),
       currentPresetName: null as any,
