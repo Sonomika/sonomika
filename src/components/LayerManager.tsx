@@ -1417,7 +1417,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           <div className="tw-flex tw-items-center tw-justify-between tw-h-12 tw-px-4 tw-py-2 tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <h2>No Scene Selected</h2>
             <div className="scene-controls">
-              <button onClick={addScene} className="add-scene-btn">
+              <button onClick={() => { const { addScene: addSceneFn } = getSceneManagementFunctions(); addSceneFn(); }} className="add-scene-btn">
                 + Create Scene
               </button>
             </div>
@@ -1426,7 +1426,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="tw-text-center tw-space-y-2">
               <h3 className="tw-text-lg">Welcome to VJ</h3>
               <p className="tw-text-sm tw-text-neutral-300">Create your first scene to get started</p>
-              <Button variant="secondary" onClick={addScene}>Create New Scene</Button>
+              <Button variant="secondary" onClick={() => { const { addScene: addSceneFn } = getSceneManagementFunctions(); addSceneFn(); }}>Create New Scene</Button>
             </div>
           </div>
         </div>
@@ -1605,7 +1605,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border-b tw-border-neutral-800">
             <div className="header-left tw-flex tw-items-center tw-gap-2 tw-flex-wrap">
 
-              <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap tw-w-full">
+              <div className="tw-flex tw-items-center tw-gap-2 tw-flex-wrap tw-flex-1">
                 {/* BPM Controls moved to the far left (before global playback controls) */}
                 <div className="tw-flex tw-items-center tw-gap-2">
                   <button 
@@ -1665,8 +1665,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   />
                 </div>
                 
-                {/* Global playback controls */}
-                {!showTimeline && (
+                 {/* Global playback controls */}
+                 {!showTimeline && (
                   <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-my-2 tw-mr-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
                     <button
                       onClick={globalPlay}
@@ -1691,22 +1691,24 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     </button>
                   </div>
                 )}
-                {/* Mobile hamburger aligned to right of the row (same line) */}
-                <button
-                  className="tw-ml-auto tw-inline-flex hdr-900-hide tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-text-neutral-200 tw-bg-transparent tw-border tw-border-neutral-700 tw-rounded"
-                  aria-label="Open menu"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); try { (window as any).__openMobileMenu?.(); } catch {} }}
-                  title="Menu"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
-                </button>
-                {showTimeline && (
-                  <div className="tw-mr-3">
-                    <TimelineControls />
-                  </div>
-                )}
-                {/* Unified scene navigator: desktop (>=1240px) mirrors mobile arrows + centered label */}
-                <div className="scene-nav-wrap tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last hdr-900-order-none hdr-900-basis-auto tw-mt-2 tw-mb-2 hdr-900-mt-0 hdr-900-mb-0 tw-w-full hdr-900-w-auto tw-justify-between hdr-900-justify-start tw-min-h-10">
+                 {/* Timeline controls (when in timeline mode) */}
+                 {showTimeline && (
+                   <div className="tw-mr-2">
+                     <TimelineControls />
+                   </div>
+                 )}
+                <div className="tw-ml-auto tw-flex tw-items-center tw-gap-2 tw-order-2">
+                  <button
+                    className="hdr-900-hide tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-text-neutral-200 tw-bg-transparent tw-border tw-border-neutral-700 tw-rounded"
+                    aria-label="Open menu"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); try { (window as any).__openMobileMenu?.(); } catch {} }}
+                    title="Menu"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
+                  </button>
+                </div>
+                {/* Unified scene navigator: mobile full-width on second row; inline on desktop */}
+                <div className="scene-nav-wrap tw-flex tw-items-center tw-gap-2 tw-basis-full tw-order-last hdr-900-order-none hdr-900-basis-auto tw-w-full hdr-900-w-auto tw-min-h-10">
                 <button
                   onClick={() => {
                     const currentScenes = getScenes();
@@ -1724,7 +1726,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 {/* Single current scene label centered (mobile only) */}
                 <div className="tw-flex-1 tw-flex tw-justify-center hdr-900-hide hdr-1240-hide">
                   <button
-                    className={`tw-text-xs tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${currentScene?.id === getCurrentSceneId() ? 'tw-text-[hsl(var(--accent))]' : 'tw-text-neutral-200'}`}
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-2 tw-max-w-[60%] tw-truncate focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${currentScene?.id === getCurrentSceneId() ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700 tw-text-neutral-200'}`}
                     title={currentScene?.name || 'Current scene'}
                   >
                     {currentScene?.name || 'Scene'}
@@ -1755,17 +1757,29 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
                 
 
-                {/* Scenes list row (visible on 900–1239px only) */}
+                {/* Scenes list row (visible on 900–1239px only) - windowed around current */}
                 <div className="tw-hidden hdr-900-flex hdr-1240-hide tw-items-center tw-gap-2 tw-overflow-x-auto tw-whitespace-nowrap tw-flex-1 tw-basis-full tw-order-last hdr-900-order-none hdr-900-basis-auto tw-mt-2 hdr-900-mt-0">
-                  {getScenes().map((scene: any, index: number) => (
+                  {(() => {
+                    const scenesArr = getScenes();
+                    const currentId = getCurrentSceneId();
+                    const currentIndex = scenesArr.findIndex((s: any) => s.id === currentId);
+                    const MAX_VISIBLE = 4;
+                    let start = Math.max(0, currentIndex - Math.floor(MAX_VISIBLE / 2));
+                    if (start + MAX_VISIBLE > scenesArr.length) start = Math.max(0, scenesArr.length - MAX_VISIBLE);
+                    const visible = scenesArr.slice(start, start + MAX_VISIBLE);
+                    return visible.map((scene: any) => {
+                      const originalIndex = scenesArr.indexOf(scene);
+                      const index = originalIndex;
+                      return (
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>
-                        <button
-                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === getCurrentSceneId() ? 'tw-text-[hsl(var(--accent))] tw-bg-neutral-800 tw-border-neutral-700' : 'tw-text-neutral-200'}`}
+                         <button
+                           className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === getCurrentSceneId() ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700 tw-text-neutral-200'}`}
                           onClick={() => {
                             const { setCurrentScene: setCurrentSceneFn } = getSceneManagementFunctions();
                             setCurrentSceneFn(scene.id);
                           }}
+                           style={scene.id === (currentScene?.id || getCurrentSceneId()) ? { backgroundColor: 'hsl(var(--accent))', borderColor: 'hsl(var(--accent))', color: '#000' } : undefined}
                           draggable
                           onDragStart={(e) => {
                             e.dataTransfer.setData('application/x-scene-index', String(index));
@@ -1806,19 +1820,33 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         )}
                       </ContextMenuContent>
                     </ContextMenu>
-                  ))}
+                    );
+                    });
+                  })()}
                 </div>
-                {/* Desktop ≥1240px: show as many scene chips as fit, no trailing + */}
+                {/* Desktop ≥1240px: windowed around current to avoid wrapping */}
                 <div className="tw-hidden hdr-1240-flex tw-items-center tw-gap-2 tw-overflow-hidden tw-whitespace-nowrap tw-flex-1 tw-min-w-0">
-                  {getScenes().map((scene: any, index: number) => (
+                  {(() => {
+                    const scenesArr = getScenes();
+                    const currentId = getCurrentSceneId();
+                    const currentIndex = scenesArr.findIndex((s: any) => s.id === currentId);
+                     const MAX_VISIBLE = 10;
+                    let start = Math.max(0, currentIndex - Math.floor(MAX_VISIBLE / 2));
+                    if (start + MAX_VISIBLE > scenesArr.length) start = Math.max(0, scenesArr.length - MAX_VISIBLE);
+                    const visible = scenesArr.slice(start, start + MAX_VISIBLE);
+                    return visible.map((scene: any) => {
+                      const originalIndex = scenesArr.indexOf(scene);
+                      const index = originalIndex;
+                      return (
                     <ContextMenu key={scene.id}>
                       <ContextMenuTrigger asChild>
-                        <button
-                          className={`tw-text-xs tw-rounded tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700 tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === getCurrentSceneId() ? 'tw-text-[hsl(var(--accent))] tw-bg-neutral-800 tw-border-neutral-700' : 'tw-text-neutral-200'}`}
+                         <button
+                           className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-2 focus:tw-outline-none focus:tw-ring-0 focus:tw-ring-offset-0 ${scene.id === getCurrentSceneId() ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700 tw-text-neutral-200'}`}
                           onClick={() => {
                             const { setCurrentScene: setCurrentSceneFn } = getSceneManagementFunctions();
                             setCurrentSceneFn(scene.id);
                           }}
+                           style={scene.id === (currentScene?.id || getCurrentSceneId()) ? { backgroundColor: 'hsl(var(--accent))', borderColor: 'hsl(var(--accent))', color: '#000' } : undefined}
                           draggable
                           onDragStart={(e) => {
                             e.dataTransfer.setData('application/x-scene-index', String(index));
@@ -1859,7 +1887,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         )}
                       </ContextMenuContent>
                     </ContextMenu>
-                  ))}
+                    );
+                    });
+                  })()}
                 </div>
                 <button
                   onClick={() => {
@@ -1877,7 +1907,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 </button>
                 {/* Mobile: add new scene button to the right of the right arrow */}
                 <button
-                  onClick={addScene}
+                  onClick={() => { const { addScene: addSceneFn } = getSceneManagementFunctions(); addSceneFn(); }}
                   className="tw-inline-flex lg:tw-hidden hdr-1240-show tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-rounded hover:tw-bg-neutral-800"
                   title="Add new scene"
                 >

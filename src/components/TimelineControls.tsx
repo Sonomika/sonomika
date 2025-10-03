@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStore } from '../store/store';
-import { Slider } from './ui';
+// Replaced slider with +/- buttons to avoid fixed-width layout
 
 // Minimal timeline controls: Play/Stop + Zoom slider + Magnet toggle (uses timelineCommand bridge)
 const TimelineControls: React.FC = () => {
@@ -43,20 +43,30 @@ const TimelineControls: React.FC = () => {
       </button>
 
       <div className="tw-flex tw-items-center tw-gap-2 tw-ml-2">
-        <span className="tw-text-xs tw-text-neutral-300">Zoom</span>
-        <div className="tw-w-40">
-          <Slider
-            min={0.05}
-            max={5}
-            step={0.05}
-            value={[Math.max(0.05, Math.min(5, Number(timelineZoom) || 1))]}
-            onValueChange={(v) => {
-              const next = Array.isArray(v) ? Number(v[0]) : Number(v);
-              if (isFinite(next)) try { setTimelineZoom(next); } catch {}
-            }}
-          />
-        </div>
-        <span className="tw-text-xs tw-text-neutral-400">{Number(timelineZoom || 1).toFixed(2)}x</span>
+        <button
+          onClick={() => {
+            const z = Number(timelineZoom) || 1;
+            const next = Math.max(0.05, Math.min(5, z / 1.25));
+            try { setTimelineZoom(next); } catch {}
+          }}
+          className="tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded tw-bg-neutral-800 tw-border-neutral-700 tw-text-white hover:tw-bg-neutral-700"
+          aria-label="Zoom out"
+          title="Zoom out"
+        >
+          −
+        </button>
+        <button
+          onClick={() => {
+            const z = Number(timelineZoom) || 1;
+            const next = Math.max(0.05, Math.min(5, z * 1.25));
+            try { setTimelineZoom(next); } catch {}
+          }}
+          className="tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded tw-bg-neutral-800 tw-border-neutral-700 tw-text-white hover:tw-bg-neutral-700"
+          aria-label="Zoom in"
+          title="Zoom in"
+        >
+          +
+        </button>
       </div>
 
       <div className="tw-flex tw-items-center tw-gap-2 tw-ml-4">

@@ -270,64 +270,14 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                     >
                       Mirror
                     </button>
-                    {offlineActive ? (
-                      <button 
-                        className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
-                        onClick={async (e) => { 
-                          e.stopPropagation(); 
-                          setOfflineActive(false); 
-                          try { onOfflineStop && onOfflineStop(); } catch {}
-                          try { 
-                            // Ask user where to save
-                            const result = await (window as any).electron?.showSaveDialog?.({
-                              title: 'Save Movie',
-                              defaultPath: `${(useStore.getState() as any).currentPresetName || 'movie'}.mp4`,
-                              filters: [{ name: 'MP4 Video', extensions: ['mp4'] }]
-                            });
-                            if (!result || result.canceled || !result.filePath) { setExternalMenuOpen(false); return; }
-                            const fps = Math.round(((window as any).__offlineRecord?.fpsEstimate || 0));
-                            // App audio is captured automatically during recording; just finish with destPath
-                            const res = await (window as any).electron?.offlineRenderFinish?.({ destPath: result.filePath, fps: (fps > 0 ? fps : undefined) });
-                            if (!res?.success) {
-                              const msg = res?.error || 'Unknown error';
-                              (window as any).alert?.(`Saved MP4 failed: ${msg}`);
-                            } else {
-                              (window as any).alert?.(`Saved MP4: ${res.videoPath}`);
-                            }
-                          } catch (err) {
-                            (window as any).alert?.('Saved MP4 failed. Is ffmpeg-static installed?');
-                          }
-                          setExternalMenuOpen(false); 
-                        }}
-                      >
-                        Stop Recording (offline)
-                      </button>
-                    ) : (
-                      <button 
-                        className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
-                        onClick={(e) => { e.stopPropagation(); setOfflineActive(true); onOfflineStart && onOfflineStart(); setExternalMenuOpen(false); }}
-                      >
-                        Start Recording (offline)
-                      </button>
-                    )}
+                    
                     <button 
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
                       onClick={(e) => { e.stopPropagation(); try { (useStore.getState() as any).setMirrorKeepPreview?.(false); } catch {} onMirror && onMirror(); setExternalMenuOpen(false); }}
                     >
                       Mirror (No preview)
                     </button>
-                  <button 
-                    className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
-                    onClick={(e) => { e.stopPropagation(); onMirrorFullscreen && onMirrorFullscreen(); setExternalMenuOpen(false); }}
-                  >
-                    Fullscreen Output
-                  </button>
-                    <button 
-                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
-                      onClick={(e) => { e.stopPropagation(); onAdvancedMirror && onAdvancedMirror(); setExternalMenuOpen(false); }}
-                    >
-                      Advanced Mirror
-                    </button>
+                  
                   </div>
                 </PopoverContent>
               )}
