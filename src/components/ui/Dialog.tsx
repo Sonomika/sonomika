@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { X } from "lucide-react"
+import { Cross2Icon } from "@radix-ui/react-icons"
 
 import { cn } from "@/lib/utils"
 
@@ -51,7 +51,7 @@ const DialogContent = React.forwardRef<
       {children}
       {withClose && (
         <DialogPrimitive.Close className="tw-absolute tw-right-4 tw-top-4 tw-bg-transparent tw-text-neutral-300 hover:tw-text-neutral-100 tw-rounded-sm tw-opacity-70 tw-ring-offset-background tw-transition-opacity hover:tw-opacity-100 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-ring focus:tw-ring-offset-2 disabled:tw-pointer-events-none">
-          <X className="tw-h-4 tw-w-4" />
+          <Cross2Icon className="tw-h-4 tw-w-4" />
           <span className="tw-sr-only">Close</span>
         </DialogPrimitive.Close>
       )}

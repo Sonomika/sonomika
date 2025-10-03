@@ -3,7 +3,7 @@ import { useStore } from '../store/store';
 import CustomWaveform, { CustomWaveformRef } from './CustomWaveform';
 import { Button, ScrollArea, Select, Input, Label, Switch } from './ui';
 import { ActionLogger } from '../utils/ActionLogger';
-import { Trash2, Play, Pause, Square, Upload, Settings, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { TrashIcon, PlayIcon, PauseIcon, StopIcon, UploadIcon, GearIcon, ZoomInIcon, ZoomOutIcon, ReloadIcon } from '@radix-ui/react-icons';
 
 interface TriggerConfig {
   id: string;
@@ -1114,21 +1114,21 @@ const SequenceTab: React.FC = () => {
                       className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-border tw-text-white tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
                       title="Zoom In"
                     >
-                      <ZoomIn className="tw-w-4 tw-h-4" />
+                      <ZoomInIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
                       onClick={() => waveformRef.current?.zoomOut?.()}
                       className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-border tw-text-white tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
                       title="Zoom Out"
                     >
-                      <ZoomOut className="tw-w-4 tw-h-4" />
+                      <ZoomOutIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
                       onClick={() => waveformRef.current?.resetZoom?.()}
                       className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-border tw-text-white tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
                       title="Reset Zoom"
                     >
-                      <RotateCcw className="tw-w-4 tw-h-4" />
+                      <ReloadIcon className="tw-w-4 tw-h-4" />
                     </button>
                   </div>
                   <button
@@ -1175,7 +1175,7 @@ const SequenceTab: React.FC = () => {
                     onClick={togglePlayPause}
                     className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-w-8 tw-p-0 tw-mx-4 tw-text-xs tw-rounded tw-bg-neutral-700 tw-text-white hover:tw-bg-neutral-600"
                   >
-                  {isPlaying ? <Pause className="tw-w-4 tw-h-4" /> : <Play className="tw-w-4 tw-h-4" />}
+                  {isPlaying ? <PauseIcon className="tw-w-4 tw-h-4" /> : <PlayIcon className="tw-w-4 tw-h-4" />}
                 </button>
                 
                 {/* Time and Delete */}
@@ -1189,7 +1189,7 @@ const SequenceTab: React.FC = () => {
                     className="tw-inline-flex tw-items-center tw-justify-center tw-h-8 tw-w-8 tw-p-0 tw-text-xs tw-rounded tw-border tw-bg-neutral-800 tw-text-red-400 tw-border-neutral-700 hover:tw-bg-red-900/20"
                     title="Delete audio file"
                   >
-                    <Trash2 className="tw-w-4 tw-h-4" />
+                    <TrashIcon className="tw-w-4 tw-h-4" />
                   </button>
                 </div>
               </div>
@@ -1206,7 +1206,7 @@ const SequenceTab: React.FC = () => {
                 onClick={() => fileInputRef.current?.click()}
                 className="tw-mt-4 tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700 tw-flex tw-items-center tw-gap-1"
               >
-                <Upload className="tw-w-3 tw-h-3" />
+                <UploadIcon className="tw-w-3 tw-h-3" />
                 Add
               </button>
             </div>
@@ -1383,14 +1383,14 @@ const SequenceTab: React.FC = () => {
                           className="tw-inline-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-rounded tw-border tw-text-neutral-400 hover:tw-text-blue-400 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
                           title="Settings"
                         >
-                          <Settings className="tw-w-4 tw-h-4" />
+                          <GearIcon className="tw-w-4 tw-h-4" />
                         </button>
                         <button
                           onClick={() => removeTriggerPoint(triggerTime)}
                           className="tw-inline-flex tw-items-center tw-justify-center tw-w-6 tw-h-6 tw-rounded tw-border tw-text-neutral-400 hover:tw-text-red-400 tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
                           title="Delete"
                         >
-                          <Trash2 className="tw-w-4 tw-h-4" />
+                          <TrashIcon className="tw-w-4 tw-h-4" />
                         </button>
                       </div>
                     </div>

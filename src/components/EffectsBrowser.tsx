@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { HeartIcon, PlusIcon } from '@radix-ui/react-icons';
+import { HeartIcon, HeartFilledIcon, PlusIcon } from '@radix-ui/react-icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { UserEffectsLoader } from './UserEffectsLoader';
 
@@ -240,7 +240,11 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             <TabsTrigger value="external">System</TabsTrigger>
             <TabsTrigger value="user">User</TabsTrigger>
             <TabsTrigger value="favorites" title="Favorites">
-              <HeartIcon className="tw-w-4 tw-h-4" />
+              {activeTab === 'favorites' ? (
+                <HeartFilledIcon className="tw-w-4 tw-h-4" />
+              ) : (
+                <HeartIcon className="tw-w-4 tw-h-4" />
+              )}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="user" />
@@ -325,7 +329,11 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       }
                       title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                     >
-                      <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                      {favorites.includes(effectKey(e)) ? (
+                        <HeartFilledIcon className="tw-w-4 tw-h-4 tw-text-white" />
+                      ) : (
+                        <HeartIcon className="tw-w-4 tw-h-4 tw-text-neutral-400" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -377,7 +385,11 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'}
                       title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                     >
-                      <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                      {favorites.includes(effectKey(e)) ? (
+                        <HeartFilledIcon className="tw-w-4 tw-h-4 tw-text-white" />
+                      ) : (
+                        <HeartIcon className="tw-w-4 tw-h-4 tw-text-neutral-400" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -415,7 +427,11 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                           }
                           title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                         >
-                          <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                          {favorites.includes(effectKey(e)) ? (
+                            <HeartFilledIcon className="tw-w-4 tw-h-4 tw-text-white" />
+                          ) : (
+                            <HeartIcon className="tw-w-4 tw-h-4 tw-text-neutral-400" />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -451,7 +467,11 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                           }
                           title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                         >
-                          <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? 'tw-text-white' : 'tw-text-neutral-400'}`} />
+                          {favorites.includes(effectKey(e)) ? (
+                            <HeartFilledIcon className="tw-w-4 tw-h-4 tw-text-white" />
+                          ) : (
+                            <HeartIcon className="tw-w-4 tw-h-4 tw-text-neutral-400" />
+                          )}
                         </button>
                       </div>
                     </div>

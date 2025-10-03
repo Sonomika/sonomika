@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Select } from './ui';
 import { generateVideoThumbnail } from '../utils/ThumbnailCache';
+import { PlayIcon, StopIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
 
 type FileEntry = {
   name: string;
@@ -371,14 +372,14 @@ const FileBrowser: React.FC = () => {
           title="Play"
           className={`tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border tw-text-white ${isPlaying ? 'tw-bg-neutral-800 tw-border-neutral-700' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700'}`}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <PlayIcon className="tw-w-3 tw-h-3" />
         </button>
         <button
           onClick={handleStop}
           title="Stop"
           className="tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border tw-text-white tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg>
+          <StopIcon className="tw-w-3 tw-h-3" />
         </button>
       </div>
     );
@@ -601,9 +602,7 @@ const FileBrowser: React.FC = () => {
                 style={{ ['--tw-ring-color' as any]: 'var(--accent-color)' }}
               />
               <div className="tw-absolute tw-left-3 tw-top-1/2 tw-transform tw--translate-y-1/2 tw-text-neutral-400 tw-pointer-events-none">
-                <svg className="tw-w-4 tw-h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <MagnifyingGlassIcon className="tw-w-4 tw-h-4" />
               </div>
             </div>
           </div>

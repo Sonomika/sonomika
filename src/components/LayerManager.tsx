@@ -27,23 +27,7 @@ import { ScrollArea as AppScrollArea } from './ui';
 import { Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
 import { GlobalEffectsTab } from './GlobalEffectsTab';
 import SequenceTab from './SequenceTab';
-// Solid media control icons (fill uses currentColor)
-const PlaySolidIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M8 5v14l11-7-11-7z" />
-  </svg>
-);
-const PauseSolidIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <rect x="6" y="5" width="4" height="14" rx="1" />
-    <rect x="14" y="5" width="4" height="14" rx="1" />
-  </svg>
-);
-const StopSolidIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <rect x="6" y="6" width="12" height="12" rx="2" />
-  </svg>
-);
+import { EnterFullScreenIcon, HamburgerMenuIcon, ChevronLeftIcon, ChevronRightIcon, PlayIcon, PauseIcon, StopIcon } from '@radix-ui/react-icons';
 import TimelineControls from './TimelineControls';
 import FileBrowser from './FileBrowser';
 import { debounce } from '../utils/debounce';
@@ -1670,24 +1654,28 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <div className="tw-flex tw-items-center tw-gap-2 tw-px-2 tw-h-10 tw-my-2 tw-mr-2 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
                     <button
                       onClick={globalPlay}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${transportState === 'play' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                      className={`tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded ${transportState === 'play' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       title="Play - Resume all videos"
                     >
-                      <PlaySolidIcon className="tw-w-4 tw-h-4" />
+                      <PlayIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
-                      onClick={() => globalPause({ force: true, source: 'toolbar' })}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${transportState === 'pause' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-bg-neutral-800 tw-rounded tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700"
+                      onClick={() => {
+                        try { document.dispatchEvent(new CustomEvent('globalPause', { detail: { source: 'toolbar' } })); } catch {}
+                      }}
                       title="Pause - Pause all videos"
                     >
-                      <PauseSolidIcon className="tw-w-4 tw-h-4" />
+                      <PauseIcon className="tw-w-4 tw-h-4" />
                     </button>
                     <button
-                      onClick={() => globalStop({ force: true, source: 'toolbar' })}
-                      className={`tw-inline-flex tw-items-center tw-justify-center tw-px-3 tw-py-2 tw-border tw-text-sm tw-rounded ${transportState === 'stop' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-300 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                      className="tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-bg-neutral-800 tw-rounded tw-text-neutral-200 hover:tw-bg-neutral-700 tw-border tw-border-neutral-700"
+                      onClick={() => {
+                        try { document.dispatchEvent(new CustomEvent('globalStop', { detail: { source: 'toolbar' } })); } catch {}
+                      }}
                       title="Stop - Stop all videos"
                     >
-                      <StopSolidIcon className="tw-w-4 tw-h-4" />
+                      <StopIcon className="tw-w-4 tw-h-4" />
                     </button>
                   </div>
                 )}
@@ -1704,7 +1692,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); try { (window as any).__openMobileMenu?.(); } catch {} }}
                     title="Menu"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
+                    <HamburgerMenuIcon className="tw-w-4 tw-h-4" />
                   </button>
                 </div>
                 {/* Unified scene navigator: mobile full-width on second row; inline on desktop */}
@@ -1721,7 +1709,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   className="tw-inline-flex lg:tw-hidden hdr-1240-show tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
                   title="Previous scene"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                  <ChevronLeftIcon className="tw-w-4 tw-h-4" />
                 </button>
                 {/* Single current scene label centered (mobile only) */}
                 <div className="tw-flex-1 tw-flex tw-justify-center hdr-900-hide hdr-1240-hide">
@@ -1903,7 +1891,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   className="tw-inline-flex lg:tw-hidden hdr-1240-show tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-300 tw-rounded hover:tw-bg-neutral-800 disabled:tw-opacity-50 disabled:tw-cursor-not-allowed"
                   title="Next scene"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+                  <ChevronRightIcon className="tw-w-4 tw-h-4" />
                 </button>
                 {/* Mobile: add new scene button to the right of the right arrow */}
                 <button
@@ -1967,9 +1955,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         style={isColumnPlaying ? { color: 'hsl(var(--accent))' } : undefined}
                       >
                         {hasClips ? (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                          <PlayIcon className="tw-w-2.5 tw-h-2.5" />
                         ) : (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg>
+                          <StopIcon className="tw-w-2.5 tw-h-2.5" />
                         )}
                       </div>
                     </div>
@@ -2290,9 +2278,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       title="Fullscreen Preview"
                       aria-label="Fullscreen Preview"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M7 3H3v4h2V5h2V3zm12 0h-4v2h2v2h2V3zM5 17H3v4h4v-2H5v-2zm14 0h-2v2h-2v2h4v-4z"/>
-                      </svg>
+                      <EnterFullScreenIcon className="tw-w-3.5 tw-h-3.5" />
                     </button>
                     </div>
                   </div>

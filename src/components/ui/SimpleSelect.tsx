@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronDownIcon } from '@radix-ui/react-icons';
 
 interface SelectOption {
   value: string;
@@ -38,14 +39,7 @@ export const SimpleSelect: React.FC<SimpleSelectProps> = ({
           </option>
         ))}
       </select>
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 20 20"
-        className="tw-pointer-events-none tw-absolute tw-right-2 tw-top-1/2 tw-h-4 tw-w-4 tw--translate-y-1/2 tw-text-neutral-400"
-        fill="currentColor"
-      >
-        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clipRule="evenodd" />
-      </svg>
+      <ChevronDownIcon aria-hidden="true" className="tw-pointer-events-none tw-absolute tw-right-2 tw-top-1/2 tw-h-4 tw-w-4 tw--translate-y-1/2 tw-text-neutral-400" />
     </div>
   );
 };

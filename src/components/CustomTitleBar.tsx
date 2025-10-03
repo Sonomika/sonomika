@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Popover, PopoverTrigger, PopoverContent, Dialog, DialogContent, DialogClose, Button } from './ui';
 import { useStore } from '../store/store';
+import { EnterFullScreenIcon, MinusIcon, SquareIcon, Cross2Icon, HamburgerMenuIcon, ChevronRightIcon } from '@radix-ui/react-icons';
 
 interface CustomTitleBarProps {
   onMinimize?: () => void;
@@ -141,31 +142,22 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
             <button className="app-no-drag tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-bg-transparent tw-border-0 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
               e.preventDefault(); e.stopPropagation(); onToggleAppFullscreen && onToggleAppFullscreen();
             }} aria-label="Fullscreen" title="Fullscreen">
-              <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 3h4v2H5v2H3V3zm10 0H9v2h2v2h2V3zM3 11h2v2h2v2H3v-4zm10 0v4h-2v-2h-2v-2h4z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <EnterFullScreenIcon className="tw-w-3.5 tw-h-3.5" />
             </button>
             <button className="app-no-drag tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-bg-transparent tw-border-0 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
               e.preventDefault(); e.stopPropagation(); onMinimize && onMinimize();
             }} aria-label="Minimize">
-              <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              <MinusIcon className="tw-w-3.5 tw-h-3.5" />
             </button>
             <button className="app-no-drag tw-w-8 tw-h-8 tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-bg-transparent tw-border-0 hover:tw-text-white hover:tw-bg-neutral-700 tw-transition-colors" onClick={(e) => { 
               e.preventDefault(); e.stopPropagation(); onMaximize && onMaximize();
             }} aria-label={isMaximized ? 'Restore' : 'Maximize'} title={isMaximized ? 'Restore' : 'Maximize'}>
               {isMaximized ? (
                 // Restore icon (overlapping squares like Cursor)
-                <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="5" y="5" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.5"/>
-                  <rect x="3" y="3" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.5"/>
-                </svg>
+                <SquareIcon className="tw-w-3.5 tw-h-3.5" />
               ) : (
                 // Maximize icon (single square)
-                <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3.5" y="3.5" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                </svg>
+                <SquareIcon className="tw-w-3.5 tw-h-3.5" />
               )}
             </button>
             <button 
@@ -174,10 +166,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               title="Close Window"
               aria-label="Close"
             >
-              <svg className="tw-w-3.5 tw-h-3.5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <line x1="4.2" y1="4.2" x2="11.8" y2="11.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="11.8" y1="4.2" x2="4.2" y2="11.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              <Cross2Icon className="tw-w-3.5 tw-h-3.5" />
             </button>
           </div>
         )}
@@ -198,7 +187,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           aria-label="Open menu"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMobileMenuOpen(true); }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
+          <HamburgerMenuIcon className="tw-w-4 tw-h-4" />
         </button>
 
         <div className="tw-flex tw-items-center tw-gap-5">
@@ -398,10 +387,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           <div className="tw-flex tw-items-center tw-justify-between tw-px-4 tw-pt-4 tw-pb-2 tw-border-b tw-border-neutral-800">
             <div className="tw-text-sm tw-text-left">Menu</div>
             <DialogClose className="tw-bg-transparent tw-text-neutral-300 hover:tw-text-neutral-100 tw-p-0 tw-w-6 tw-h-6 tw-inline-flex tw-items-center tw-justify-center focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-ring focus:tw-ring-offset-2">
-              <svg className="tw-w-4 tw-h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <line x1="4.2" y1="4.2" x2="11.8" y2="11.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="11.8" y1="4.2" x2="4.2" y2="11.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              <Cross2Icon className="tw-w-4 tw-h-4" />
               <span className="tw-sr-only">Close</span>
             </DialogClose>
           </div>
@@ -413,7 +399,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                 onClick={() => setMobileFileOpen(!mobileFileOpen)}
               >
                 <span>File</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={`tw-transition-transform ${mobileFileOpen ? 'tw-rotate-90' : ''}`}><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                <ChevronRightIcon className={`tw-w-3.5 tw-h-3.5 tw-transition-transform ${mobileFileOpen ? 'tw-rotate-90' : ''}`} />
               </button>
               {mobileFileOpen && (
                 <div className="tw-ml-2 tw-space-y-1">
@@ -432,7 +418,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                 onClick={() => setMobileExternalOpen(!mobileExternalOpen)}
               >
                 <span>External</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={`tw-transition-transform ${mobileExternalOpen ? 'tw-rotate-90' : ''}`}><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                <ChevronRightIcon className={`tw-w-3.5 tw-h-3.5 tw-transition-transform ${mobileExternalOpen ? 'tw-rotate-90' : ''}`} />
               </button>
               {mobileExternalOpen && (
                 <div className="tw-ml-2 tw-space-y-1">
@@ -464,7 +450,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                 onClick={() => setMobileRecordOpen(!mobileRecordOpen)}
               >
                 <span>Record</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={`tw-transition-transform ${mobileRecordOpen ? 'tw-rotate-90' : ''}`}><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                <ChevronRightIcon className={`tw-w-3.5 tw-h-3.5 tw-transition-transform ${mobileRecordOpen ? 'tw-rotate-90' : ''}`} />
               </button>
               {mobileRecordOpen && (
                 <div className="tw-ml-2 tw-space-y-1">
@@ -479,7 +465,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                 onClick={() => setMobileDevOpen(!mobileDevOpen)}
               >
                 <span>Developer</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={`tw-transition-transform ${mobileDevOpen ? 'tw-rotate-90' : ''}`}><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                <ChevronRightIcon className={`tw-w-3.5 tw-h-3.5 tw-transition-transform ${mobileDevOpen ? 'tw-rotate-90' : ''}`} />
               </button>
               {mobileDevOpen && (
                 <div className="tw-ml-2 tw-space-y-1">

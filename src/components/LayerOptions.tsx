@@ -8,34 +8,23 @@ import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRand
 import { useStore } from '../store/store';
 import { useLFOStore } from '../store/lfoStore';
 import { useVideoOptionsStore } from '../store/videoOptionsStore';
+import { CircleIcon } from '@radix-ui/react-icons';
+import { LockedIcon, UnlockedIcon } from './ui';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
   onUpdateLayer: (layerId: string, options: Partial<Layer>) => void;
 }
 
-// Minimal inline SVG icons for lock/unlock (no emoji)
+// Radix replacements for lock/unlock and dice
 const LockIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M7 10V7a5 5 0 0 1 10 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2"/>
-  </svg>
+  <LockedIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
 );
 const UnlockIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M7 10V8a5 5 0 1 1 10 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2"/>
-  </svg>
+  <UnlockedIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
 );
-// Minimal dice icon
 const DiceIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="2"/>
-    <circle cx="9" cy="9" r="1.5" fill="currentColor"/>
-    <circle cx="15" cy="15" r="1.5" fill="currentColor"/>
-    <circle cx="15" cy="9" r="1.5" fill="currentColor"/>
-    <circle cx="9" cy="15" r="1.5" fill="currentColor"/>
-  </svg>
+  <CircleIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
 );
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
