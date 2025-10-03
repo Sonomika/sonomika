@@ -25,25 +25,25 @@
 
 :root {
 	--background: 0 0% 8%;
-	--foreground: #aaaaaa;
+	--foreground: #d6d6d6;
 	--card: 0 0% 10%;
-	--card-foreground: #aaaaaa;
+	--card-foreground: #d6d6d6;
 	--popover: 0 0% 10%;
-	--popover-foreground: #aaaaaa;
+	--popover-foreground: #d6d6d6;
 	--primary: 0 0% 14%;
-	--primary-foreground: #aaaaaa;
+	--primary-foreground: #d6d6d6;
 	--secondary: 0 0% 16%;
-	--secondary-foreground: #aaaaaa;
+	--secondary-foreground: #d6d6d6;
 	--muted: 0 0% 18%;
-	--muted-foreground: #aaaaaa;
+	--muted-foreground: #d6d6d6;
 	--accent: 190 90% 45%;
-	--accent-foreground: #aaaaaa;
+	--accent-foreground: #d6d6d6;
 	--destructive: 0 84% 60%;
-	--destructive-foreground: #aaaaaa;
+	--destructive-foreground: #d6d6d6;
 	--border: 0 0% 20%;
 	--input: 0 0% 20%;
 	--ring: 190 90% 45%;
-	--font-color: #aaaaaa;
+	--font-color: #d6d6d6;
 }
 
 * { box-sizing: border-box; }

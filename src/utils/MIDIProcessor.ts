@@ -83,7 +83,19 @@ export class MIDIProcessor {
             break;
           }
           case 'scene': {
-            store.setCurrentScene((mapping.target as any).id);
+            try {
+              const st: any = useStore.getState();
+              const id = (mapping.target as any).id;
+              if (st?.showTimeline && typeof st.setCurrentTimelineScene === 'function') {
+                st.setCurrentTimelineScene(id);
+              } else if (typeof st.setCurrentScene === 'function') {
+                st.setCurrentScene(id);
+              } else {
+                store.setCurrentScene(id);
+              }
+            } catch {
+              try { store.setCurrentScene((mapping.target as any).id); } catch {}
+            }
             break;
           }
           case 'layer': {
@@ -253,7 +265,28 @@ export class MIDIProcessor {
             break;
           }
           case 'scene': {
-            store.setCurrentScene((mapping.target as any).id);
+            try {
+              const st: any = useStore.getState();
+              let id = (mapping.target as any).id as string;
+              if (st?.showTimeline && typeof st.setCurrentTimelineScene === 'function') {
+                // Prefer direct id match in timeline scenes; else map by index from column-mode scenes
+                const tMatch = (st.timelineScenes || []).find((s: any) => s.id === id);
+                if (tMatch) {
+                  st.setCurrentTimelineScene(id);
+                } else {
+                  const idx = (st.scenes || []).findIndex((s: any) => s.id === id);
+                  const fallback = idx >= 0 ? (st.timelineScenes || [])[idx] : null;
+                  if (fallback) st.setCurrentTimelineScene(fallback.id);
+                  else st.setCurrentScene(id);
+                }
+              } else if (typeof st.setCurrentScene === 'function') {
+                st.setCurrentScene(id);
+              } else {
+                store.setCurrentScene(id);
+              }
+            } catch {
+              try { store.setCurrentScene((mapping.target as any).id); } catch {}
+            }
             break;
           }
           case 'layer': {

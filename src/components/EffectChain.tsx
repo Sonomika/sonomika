@@ -286,7 +286,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           }
           // apply fit mode scaling on mesh
           const m = videoMeshRef.current as THREE.Mesh;
-          const compAspect = compositionWidth / compositionHeight;
+          const compAspect = (compositionWidth > 0 && compositionHeight > 0) ? (compositionWidth / compositionHeight) : (16/9);
           const vid = (videoTexture.image as any) as HTMLVideoElement | HTMLImageElement;
           const va = (vid && (vid as any).videoWidth && (vid as any).videoHeight) ? (vid as any).videoWidth / (vid as any).videoHeight : compAspect;
           const mode = (item as any).fitMode || baseVideoFit || defaultFitSnapshot || 'cover';
@@ -309,7 +309,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
             if (map) {
               map.wrapS = THREE.RepeatWrapping;
               map.wrapT = THREE.RepeatWrapping;
-              const compAspect = compositionWidth / compositionHeight;
+          const compAspect = (compositionWidth > 0 && compositionHeight > 0) ? (compositionWidth / compositionHeight) : (16/9);
               const texAspect = va;
               // Choose tile size that preserves source aspect; set repeats to fill plane
               const planeW = compAspect * 2;
@@ -560,24 +560,34 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       })();
       if (((item.type === 'effect' && !replacesVideo) || item.type === 'source') && bgTex) {
         const aspect = compositionWidth / compositionHeight;
+        const portalKey = `portal-bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`;
         list.push(
-          createPortal(
-            React.createElement(
-              'mesh',
-              { key: `bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, renderOrder: -1000 },
-              React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
-              React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
-            ),
-            offscreenScenes[idx],
-            `portal-bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`
+          React.createElement(
+            React.Fragment,
+            { key: portalKey },
+            createPortal(
+              React.createElement(
+                'mesh',
+                { key: `bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, renderOrder: -1000 },
+                React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
+                React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
+              ),
+              offscreenScenes[idx],
+              portalKey
+            )
           )
         );
       }
+      const fxPortalKey = `portal-fx-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`;
       list.push(
-        createPortal(
-          React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras }),
-          offscreenScenes[idx],
-          `portal-fx-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`
+        React.createElement(
+          React.Fragment,
+          { key: fxPortalKey },
+          createPortal(
+            React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras }),
+            offscreenScenes[idx],
+            fxPortalKey
+          )
         )
       );
     });

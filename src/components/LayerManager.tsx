@@ -71,7 +71,7 @@ const MemoMediaLibrary = React.memo(MediaLibrary);
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   // console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline } = useStore() as any;
+  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline } = useStore() as any;
 
   // Track transport state to style Play/Pause/Stop buttons with accent for the active control
   const [transportState, setTransportState] = useState<'play' | 'pause' | 'stop'>(isGlobalPlaying ? 'play' : 'pause');
@@ -238,6 +238,46 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const getCurrentSceneId = () => {
     return showTimeline ? currentTimelineSceneId : currentSceneId;
   };
+
+  // When switching scenes in column mode, update preview and auto-play the first column with clips
+  useEffect(() => {
+    try {
+      if (showTimeline) return; // only for column mode
+      const sc = scenes.find((s: any) => s.id === currentSceneId);
+      if (!sc) return;
+      // Find a sensible column to play: current playing one if it exists in the new scene, otherwise first with clips
+      let targetColumnId: string | null = null;
+      const playingStillExists = sc.columns?.some((c: any) => c?.id === playingColumnId);
+      if (playingStillExists && playingColumnId) {
+        targetColumnId = playingColumnId;
+      } else {
+        const firstWithClips = (sc.columns || []).find((c: any) => (c.layers || []).some((l: any) => !!l?.asset));
+        targetColumnId = firstWithClips?.id || null;
+      }
+
+      // If nothing to play, clear preview and stop
+      if (!targetColumnId) {
+        setPreviewContent({ type: 'scene', sceneId: sc.id, isEmpty: true } as any);
+        setIsPlaying(false);
+        try { stopColumn(); } catch {}
+        try { (useStore as any).getState?.().clearActiveLayerOverrides?.(); } catch {}
+        return;
+      }
+
+      // Reset state to avoid stale playing references across scenes
+      try { (useStore as any).getState?.().setPlayingColumn?.(null); } catch {}
+      try { (useStore as any).getState?.().clearActiveLayerOverrides?.(); } catch {}
+
+      // Update preview and trigger play for the chosen column (with retry to avoid race)
+      try {
+        handleColumnPlay(targetColumnId, sc, setPreviewContent, setIsPlaying, playColumn);
+        // Retry once on the next frame in case effects mount after first call
+        requestAnimationFrame(() => {
+          try { handleColumnPlay(targetColumnId as string, sc, setPreviewContent, setIsPlaying, playColumn); } catch {}
+        });
+      } catch {}
+    } catch {}
+  }, [currentSceneId, showTimeline]);
 
   const getScenes = () => {
     return showTimeline ? timelineScenes : scenes;

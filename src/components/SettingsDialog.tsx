@@ -151,13 +151,13 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
             <div className="tw-flex tw-items-center tw-gap-2">
               <input
                 type="color"
-                value={fontColor || '#aaaaaa'}
+                value={fontColor || '#d6d6d6'}
                 onChange={(e) => setFontColor(e.target.value)}
                 className="tw-w-12 tw-h-8 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-cursor-pointer"
               />
               <input
                 type="text"
-                value={(fontColor || '#aaaaaa').replace(/^#/, '')}
+                value={(fontColor || '#d6d6d6').replace(/^#/, '')}
                 onChange={(e) => setFontColor(`#${e.target.value.replace(/[^0-9a-fA-F]/g,'').slice(0,6)}`)}
                 className="tw-w-24 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900  tw-px-2 tw-py-1"
                 placeholder="aaaaaa"

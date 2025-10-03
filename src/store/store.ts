@@ -107,7 +107,7 @@ const initialState: AppState = {
   accessibilityEnabled: false,
   accentColor: '#00bcd4',
   neutralContrast: 1.5,
-  fontColor: '#aaaaaa',
+  fontColor: '#d6d6d6',
   midiMappings: [],
   midiForceChannel1: false,
   selectedLayerId: null,
@@ -424,6 +424,8 @@ export const useStore = createWithEqualityFn<AppState & {
         const cloned = {
           id: uuidv4(),
           name: `${src.name} Copy`,
+          numRows: (src as any).numRows,
+          endOfSceneAction: (src as any).endOfSceneAction,
           columns: src.columns.map((col) => ({
             id: uuidv4(),
             name: col.name,
@@ -448,6 +450,14 @@ export const useStore = createWithEqualityFn<AppState & {
           if (raw) {
             localStorage.setItem(newKey, raw);
           }
+        } catch {}
+
+        // Duplicate per-scene Sequence/editor settings keyed by scene id if present
+        try {
+          const srcKey = `vj-sequence-settings-v1:${sceneId || 'default'}`;
+          const dstKey = `vj-sequence-settings-v1:${(cloned as any).id || 'default'}`;
+          const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(srcKey) : null;
+          if (raw) localStorage.setItem(dstKey, raw);
         } catch {}
 
         return { timelineScenes: nextTimelineScenes } as any;

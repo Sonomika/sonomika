@@ -32,7 +32,6 @@ export const MIDIMapper: React.FC = () => {
 
   const inputTypeOptions = [
     { value: 'note', label: 'Note' },
-    { value: 'cc', label: 'CC' },
     { value: 'key', label: 'Key' }
   ];
 
@@ -299,7 +298,7 @@ export const MIDIMapper: React.FC = () => {
           )}
           {selectedMapping?.type !== 'key' ? (
             <div className="tw-space-y-2">
-              <Label className="tw-text-xs">Note/CC Number</Label>
+              <Label className="tw-text-xs">Note Number</Label>
               <Input value={selectedMapping?.number ?? 60} onChange={(e) => updateSelected(m => ({ ...m, number: Math.max(0, Math.min(127, Number(e.target.value) || 0)) }))} />
             </div>
           ) : (
@@ -369,6 +368,26 @@ export const MIDIMapper: React.FC = () => {
               <Input value={(selectedMapping.target as any).index} onChange={(e) => updateSelected(m => ({ ...m, target: { type: 'column', index: Math.max(1, Number(e.target.value) || 1) } as any }))} />
         </div>
           )}
+          {selectedMapping?.target?.type === 'scene' && (() => {
+            const tgt: any = selectedMapping.target as any;
+            const allScenes = scenes || [];
+            const derivedIndex = (() => {
+              const idx = allScenes.findIndex((s: any) => s.id === tgt.id);
+              return idx >= 0 ? idx + 1 : 1;
+            })();
+            return (
+              <div className="tw-space-y-2">
+                <Label className="tw-text-xs">Scene Number</Label>
+                <Input value={derivedIndex} onChange={(e) => {
+                  const next = Math.max(1, Math.min(allScenes.length || 1, Number(e.target.value) || 1));
+                  const scene = allScenes[next - 1];
+                  if (scene) {
+                    updateSelected(m => ({ ...m, target: { type: 'scene', id: scene.id } as any }));
+                  }
+                }} />
+              </div>
+            );
+          })()}
           {selectedMapping?.target?.type === 'cell' && (() => {
             const scene = (scenes || []).find((s: any) => s.id === currentSceneId);
             const columns = scene?.columns || [];

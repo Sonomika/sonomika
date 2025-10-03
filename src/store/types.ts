@@ -72,7 +72,7 @@ export interface Scene {
 export interface MIDIMapping {
   // Input type and addressing
   // 'note' and 'cc' use channel+number; 'key' uses key/modifiers
-  type: 'note' | 'cc' | 'key';
+  type: 'note' | 'key';
   channel?: number; // 1-16 for MIDI
   number?: number;  // note number (0-127) or CC number (0-127)
   key?: string;     // KeyboardEvent.key (case-sensitive from browser)
