@@ -1623,6 +1623,27 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   try {
     console.log('LayerManager about to render main content');
     
+    // Spacebar play/pause in column mode (match timeline behavior)
+    useEffect(() => {
+      if (showTimeline) return; // only handle in column mode
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // ignore when typing
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        if (e.code === 'Space') {
+          e.preventDefault();
+          // Toggle: if currently playing, stop; else play
+          const st: any = (useStore.getState && (useStore.getState() as any)) || {};
+          if (st.isGlobalPlaying) {
+            try { document.dispatchEvent(new CustomEvent('globalPause', { detail: { source: 'spacebar' } })); } catch {}
+          } else {
+            try { globalPlay({ source: 'spacebar' } as any); } catch {}
+          }
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [showTimeline, isGlobalPlaying]);
+
     return (
       <div className="layer-manager-main tw-relative tw-w-full tw-h-full tw-bg-black tw-text-white tw-flex tw-flex-col tw-overflow-visible">
         <div className="tw-flex tw-flex-col tw-h-full lg:tw-min-h-0 lg:tw-overflow-visible lg:tw-pb-0">

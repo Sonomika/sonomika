@@ -29,7 +29,7 @@ interface AudioFile {
 }
 
 const SequenceTab: React.FC = () => {
-  const { scenes, currentSceneId, playColumn, globalStop, playingColumnId, selectedLayerId, activeLayerOverrides, playNextScene, updateScene, sequenceEnabledGlobal, setSequenceEnabledGlobal, accentColor } = useStore();
+  const { scenes, currentSceneId, playColumn, globalStop, playingColumnId, selectedLayerId, activeLayerOverrides, playNextScene, playNextTimelineScene, updateScene, sequenceEnabledGlobal, setSequenceEnabledGlobal, accentColor, showTimeline } = useStore() as any;
   const storageKeyForScene = (sceneId: string) => `vj-sequence-settings-v1:${sceneId || 'default'}`;
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<AudioFile | null>(null);
@@ -97,8 +97,17 @@ const SequenceTab: React.FC = () => {
           }));
           setAudioFiles(restored);
           const selId = String(data?.selectedAudioId || '')
-          const sel = restored.find(a => a.id === selId) || restored[0] || null;
-          if (sel) setSelectedFile(sel);
+          // Only select a file if explicit selection exists; otherwise leave empty to avoid cross-scene bleed
+          const sel = restored.find(a => a.id === selId) || null;
+          if (sel) {
+            setSelectedFile(sel);
+          } else {
+            setSelectedFile(null);
+            setAudioUrl('');
+            setIsPlaying(false);
+            setCurrentTime(0);
+            setDuration(0);
+          }
         }
         // Restore Auto Fill options
         try {
@@ -319,7 +328,11 @@ const SequenceTab: React.FC = () => {
         try { firedOnceRef.current.clear(); } catch {}
         try { prevTimeRef.current = 0; } catch {}
         
-        playNextScene();
+        if (showTimeline) {
+          try { playNextTimelineScene(); } catch {}
+        } else {
+          playNextScene();
+        }
         
         // Give time for per-scene settings to hydrate, then apply early markers and auto-play if audio exists
         setTimeout(() => {

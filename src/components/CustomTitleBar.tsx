@@ -259,14 +259,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                     >
                       Mirror
                     </button>
-                    
                     <button 
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
                       onClick={(e) => { e.stopPropagation(); try { (useStore.getState() as any).setMirrorKeepPreview?.(false); } catch {} onMirror && onMirror(); setExternalMenuOpen(false); }}
                     >
                       Mirror (No preview)
                     </button>
-                  
                   </div>
                 </PopoverContent>
               )}
@@ -409,8 +407,8 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                 </div>
               )}
 
-              {/* Timeline toggle */}
-              <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onToggleTimeline?.(); setMobileMenuOpen(false); }}>Timeline</button>
+              {/* Timeline/Columns toggle (match desktop label) */}
+              <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onToggleTimeline?.(); setMobileMenuOpen(false); }}>{showTimeline ? 'Columns' : 'Timeline'}</button>
 
               {/* External dropdown (mobile) */}
               <button
@@ -423,24 +421,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               {mobileExternalOpen && (
                 <div className="tw-ml-2 tw-space-y-1">
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { try { (useStore.getState() as any).setMirrorKeepPreview?.(true); } catch {} onMirror?.(); setMobileMenuOpen(false); }}>Mirror</button>
-                  {offlineActive ? (
-                    <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={async () => {
-                      setOfflineActive(false);
-                      try { onOfflineStop && onOfflineStop(); } catch {}
-                      try {
-                        const result = await (window as any).electron?.showSaveDialog?.({ title: 'Save Movie', defaultPath: `${(useStore.getState() as any).currentPresetName || 'movie'}.mp4`, filters: [{ name: 'MP4 Video', extensions: ['mp4'] }]});
-                        if (!result || result.canceled || !result.filePath) { setMobileMenuOpen(false); return; }
-                        const fps = Math.round(((window as any).__offlineRecord?.fpsEstimate || 0));
-                        const res = await (window as any).electron?.offlineRenderFinish?.({ destPath: result.filePath, fps: (fps > 0 ? fps : undefined) });
-                        if (!res?.success) { (window as any).alert?.(`Saved MP4 failed: ${res?.error || 'Unknown error'}`); } else { (window as any).alert?.(`Saved MP4: ${res.videoPath}`); }
-                      } catch { (window as any).alert?.('Saved MP4 failed. Is ffmpeg-static installed?'); }
-                      setMobileMenuOpen(false);
-                    }}>Stop Recording (offline)</button>
-                  ) : (
-                    <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { setOfflineActive(true); onOfflineStart && onOfflineStart(); setMobileMenuOpen(false); }}>Start Recording (offline)</button>
-                  )}
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { try { (useStore.getState() as any).setMirrorKeepPreview?.(false); } catch {} onMirror?.(); setMobileMenuOpen(false); }}>Mirror (No preview)</button>
-                  <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onAdvancedMirror?.(); setMobileMenuOpen(false); }}>Advanced Mirror</button>
                 </div>
               )}
 
@@ -459,28 +440,8 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                 </div>
               )}
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onCompositionSettings?.(); setMobileMenuOpen(false); }}>Composition Settings</button>
-              {/* Developer dropdown (mobile) */}
-              <button
-                className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800"
-                onClick={() => setMobileDevOpen(!mobileDevOpen)}
-              >
-                <span>Developer</span>
-                <ChevronRightIcon className={`tw-w-3.5 tw-h-3.5 tw-transition-transform ${mobileDevOpen ? 'tw-rotate-90' : ''}`} />
-              </button>
-              {mobileDevOpen && (
-                <div className="tw-ml-2 tw-space-y-1">
-                  <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onToggleUIDemo?.(); setMobileMenuOpen(false); }}>UI Demo</button>
-                  {process.env.NODE_ENV === 'development' && onToggleDebug && (
-                    <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onToggleDebug?.(); setMobileMenuOpen(false); }}>{debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}</button>
-                  )}
-                </div>
-              )}
+              {/* Settings */}
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onOpenSettings?.(); setMobileMenuOpen(false); }}>Settings</button>
-              
-              
-              {process.env.NODE_ENV === 'development' && onToggleDebug && (
-                <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onToggleDebug?.(); setMobileMenuOpen(false); }}>Debug</button>
-              )}
             </div>
           </div>
         </DialogContent>
