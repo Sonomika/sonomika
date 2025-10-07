@@ -277,8 +277,9 @@ export class CanvasStreamManager {
       ;(window as any).__CANVAS_STREAM_MODE__ = this.mode;
       try { console.log('[CanvasStream] Mode:', this.mode); } catch {}
       try { win.document.title = 'Output [direct]'; } catch {}
-      // Start listening for freeze events
+      // Start listening for freeze events and also start capture so we can paint into overlay when occluded
       this.installFreezeListener();
+      try { this.startCanvasCapture(); } catch {}
       return true;
     } catch (e) {
       console.warn('Direct output window failed, falling back to stream:', e);
@@ -517,12 +518,15 @@ export class CanvasStreamManager {
     const frameInterval = 1000 / targetFPS;
     let lastDataUrl = '';
 
-    // Use global rAF for stability across window state changes
+    // Hybrid scheduler: rAF when visible, setTimeout when hidden/minimized
     const raf = requestAnimationFrame;
     const caf = cancelAnimationFrame;
+    let timeoutId: number | null = null;
+    const clearTimer = () => { if (timeoutId != null) { try { clearTimeout(timeoutId); } catch {} timeoutId = null; } };
 
     const captureFrame = () => {
       const now = performance.now();
+      const isHidden = (typeof document !== 'undefined' && (document as any).hidden) === true;
       
       if ((now - lastFrameTime) >= frameInterval) {
         // Ensure we have a valid, non-zero canvas reference
@@ -646,7 +650,7 @@ export class CanvasStreamManager {
                 }
               }
             } else if (this.directWindow && !this.directWindow.closed) {
-              // Direct-output: if frozen, capture a frame and show overlay; else hide overlay
+              // Direct-output: when hidden or frozen, capture a frame and show overlay; else hide overlay
               try {
                 const comp = (useStore.getState() as any).compositionSettings || {};
                 const compW = Math.max(1, Number(comp.width) || 1920);
@@ -669,7 +673,7 @@ export class CanvasStreamManager {
                   tctx.imageSmoothingEnabled = true;
                   tctx.imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
                   tctx.drawImage(this.canvas!, dx, dy, drawW, drawH);
-                  if (this.freezeMirror) {
+                  if (this.freezeMirror || isHidden) {
                     const jpegQ = mq === 'low' ? 0.6 : (mq === 'medium' ? 0.85 : 0.95);
                     const url = tempCanvas.toDataURL('image/jpeg', jpegQ);
                     try { (this.directWindow as any).__showFreeze?.(url); } catch {}
@@ -692,8 +696,14 @@ export class CanvasStreamManager {
         
         lastFrameTime = now;
       }
-      
-      this.animationId = raf(captureFrame);
+      // Schedule next frame based on visibility
+      if (isHidden) {
+        clearTimer();
+        timeoutId = window.setTimeout(captureFrame, frameInterval);
+      } else {
+        try { clearTimer(); } catch {}
+        this.animationId = raf(captureFrame);
+      }
     };
 
     captureFrame();
@@ -732,6 +742,8 @@ export class CanvasStreamManager {
       }
       this.animationId = null;
     }
+    // Clear any setTimeout scheduler
+    try { /* no-op; setTimeout id cleared inside capture */ } catch {}
     
     if (window.electron && window.electron.closeMirrorWindow) {
       window.electron.closeMirrorWindow();

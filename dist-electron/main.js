@@ -67,6 +67,7 @@ function createWindow() {
       contextIsolation: true,
       sandbox: false,
       webSecurity: false,
+      nativeWindowOpen: true,
       allowRunningInsecureContent: true,
       preload: path.join(__dirname, "preload.js"),
       backgroundThrottling: false
@@ -742,6 +743,19 @@ electron.app.whenReady().then(() => {
   }
   electron.app.commandLine.appendSwitch("disable-background-timer-throttling");
   electron.app.commandLine.appendSwitch("disable-renderer-backgrounding");
+  electron.app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+  try {
+    const existing = electron.app.commandLine.getSwitchValue("disable-features");
+    const extra = "CalculateNativeWinOcclusion";
+    if (existing && existing.length > 0) {
+      if (!existing.split(",").includes(extra)) {
+        electron.app.commandLine.appendSwitch("disable-features", `${existing},${extra}`);
+      }
+    } else {
+      electron.app.commandLine.appendSwitch("disable-features", extra);
+    }
+  } catch {
+  }
   createCustomMenu();
   loadEncryptedAuthStoreFromDisk();
   electron.protocol.registerFileProtocol("local-file", (request, callback) => {

@@ -7,6 +7,32 @@ import { getEffectComponentSync } from '../utils/EffectLoader';
 import { videoAssetManager } from '../utils/VideoAssetManager';
 import EffectLoader from './EffectLoader';
 import { debounce } from '../utils/debounce';
+// Drives rendering while the document is hidden (minimized) to avoid rAF throttling
+const HiddenRenderDriver: React.FC = () => {
+  const { gl, scene, camera } = useThree();
+  React.useEffect(() => {
+    let timer: number | null = null;
+    const fps = 30;
+    const frameInterval = Math.max(16, Math.floor(1000 / fps));
+    const start = () => {
+      if (timer != null) return;
+      timer = window.setInterval(() => {
+        try { gl.render(scene, camera as any); } catch {}
+      }, frameInterval);
+    };
+    const stop = () => {
+      if (timer != null) { try { clearInterval(timer); } catch {} timer = null; }
+    };
+    const handle = () => { (document as any).hidden ? start() : stop(); };
+    try { document.addEventListener('visibilitychange', handle); } catch {}
+    handle();
+    return () => {
+      stop();
+      try { document.removeEventListener('visibilitychange', handle); } catch {}
+    };
+  }, [gl, scene, camera]);
+  return null;
+};
 
 interface TimelineComposerProps {
   activeClips: any[];
@@ -947,6 +973,7 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
           console.error('Timeline R3F Canvas error:', error);
         }}
       >
+        <HiddenRenderDriver />
         <Suspense fallback={
           <mesh>
             <boxGeometry args={[1, 1, 1]} />

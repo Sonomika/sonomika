@@ -76,6 +76,7 @@ function createWindow() {
       contextIsolation: true,
       sandbox: false,
       webSecurity: false,
+      nativeWindowOpen: true,
       allowRunningInsecureContent: true,
       preload: path.join(__dirname, 'preload.js'),
       backgroundThrottling: false
@@ -751,6 +752,20 @@ app.whenReady().then(() => {
   // Prevent app from pausing when windows lose focus
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
+  // Keep rendering even when the window is occluded or minimized
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+  // Disable native occlusion calculation that can pause rAF on minimize (Windows)
+  try {
+    const existing = app.commandLine.getSwitchValue('disable-features');
+    const extra = 'CalculateNativeWinOcclusion';
+    if (existing && existing.length > 0) {
+      if (!existing.split(',').includes(extra)) {
+        app.commandLine.appendSwitch('disable-features', `${existing},${extra}`);
+      }
+    } else {
+      app.commandLine.appendSwitch('disable-features', extra);
+    }
+  } catch {}
   
   // Create custom menu
   createCustomMenu();
