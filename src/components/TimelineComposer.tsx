@@ -873,6 +873,9 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
       {maskVisible && (
         <div className="tw-absolute tw-inset-0 tw-bg-black tw-z-[5] tw-pointer-events-none" />
       )}
+      <div className="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center">
+        <div style={{ aspectRatio: `${width}/${height}`, width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} className="tw-flex tw-items-center tw-justify-center">
+          <div style={{ width: '100%', height: '100%' }}>
       <Canvas
         camera={{ position: [0, 0, 1], fov: 90 }}
         className="tw-w-full tw-h-full tw-block"
@@ -921,8 +924,8 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
               // Keep internal buffer EXACTLY at composition resolution
               gl.setPixelRatio(1);
               gl.setSize(compW, compH, false);
-              gl.domElement.style.width = `${cssW}px`;
-              gl.domElement.style.height = `${cssH}px`;
+              gl.domElement.style.width = '100%';
+              gl.domElement.style.height = '100%';
               gl.domElement.style.maxWidth = '100%';
               gl.domElement.style.maxHeight = '100%';
             };
@@ -961,6 +964,9 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
           />
         </Suspense>
       </Canvas>
+          </div>
+        </div>
+      </div>
       {/* Cut overlay element (DOM), created dynamically on clip switches */}
       {(() => {
         if (!cutOverlayRef.current) {

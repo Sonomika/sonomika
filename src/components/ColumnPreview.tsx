@@ -1126,8 +1126,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               {/* Debug indicator removed */}
               
               {/* Background is provided by wrapper via compositionBg; keep this layer transparent */}
-             <div className="tw-absolute tw-inset-0 tw-bg-transparent tw-pointer-events-none" />
- 
+             <div className="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center">
+                <div style={{ aspectRatio: `${width}/${height}`, width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} className="tw-flex tw-items-center tw-justify-center">
+                  <div style={{ width: '100%', height: '100%' }}>
               <Canvas
                 camera={{ position: [0, 0, 1], fov: 90 }}
                className="tw-w-full tw-h-full tw-block tw-bg-transparent"
@@ -1210,8 +1211,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                     // Keep internal buffer EXACTLY at composition resolution
                     gl.setPixelRatio(1);
                     gl.setSize(compW, compH, false);
-                    gl.domElement.style.width = `${cssW}px`;
-                    gl.domElement.style.height = `${cssH}px`;
+                    gl.domElement.style.width = '100%';
+                    gl.domElement.style.height = '100%';
                     gl.domElement.style.maxWidth = '100%';
                     gl.domElement.style.maxHeight = '100%';
                   } catch (error) {
@@ -1244,8 +1245,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
 
                       gl.setPixelRatio(1);
                       gl.setSize(compW, compH, false);
-                      gl.domElement.style.width = `${cssW}px`;
-                      gl.domElement.style.height = `${cssH}px`;
+                      gl.domElement.style.width = '100%';
+                      gl.domElement.style.height = '100%';
                       gl.domElement.style.maxWidth = '100%';
                       gl.domElement.style.maxHeight = '100%';
                     } catch (error) {
@@ -1280,6 +1281,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 }}
               />
             </Canvas>
+                  </div>
+                </div>
+              </div>
           </div>
         </div>
       </div>
