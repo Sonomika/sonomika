@@ -6,6 +6,7 @@ import { getCachedVideoCanvas } from '../utils/AssetPreloader';
 import { getEffectComponentSync } from '../utils/EffectLoader';
 import { videoAssetManager } from '../utils/VideoAssetManager';
 import EffectLoader from './EffectLoader';
+import { debounce } from '../utils/debounce';
 
 interface TimelineComposerProps {
   activeClips: any[];
@@ -875,13 +876,13 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
       <Canvas
         camera={{ position: [0, 0, 1], fov: 90 }}
         className="tw-w-full tw-h-full tw-block"
-        dpr={[1, Math.min(1.5, (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1)]}
+        dpr={1}
         gl={{ 
           preserveDrawingBuffer: true,
           antialias: false,
           powerPreference: 'high-performance'
         }}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, camera }) => {
           console.log('Timeline R3F Canvas created successfully');
           try { (gl as any).autoClear = false; } catch {}
           // Keep alpha to let the black container show through and avoid red flashes
@@ -897,6 +898,47 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
             }
             (gl as any).toneMapping = (THREE as any).NoToneMapping;
           } catch {}
+
+          // Keep internal render buffer fixed to composition size, while fitting visually inside container
+          const container = gl.domElement.parentElement;
+          if (container) {
+            const resizeOnce = () => {
+              const rect = container.getBoundingClientRect();
+              const containerW = Math.max(1, rect.width);
+              const containerH = Math.max(1, rect.height);
+              const compW = Math.max(1, Number(width) || 1920);
+              const compH = Math.max(1, Number(height) || 1080);
+              const scale = Math.min(containerW / compW, containerH / compH);
+              const cssW = Math.max(1, Math.floor(compW * scale));
+              const cssH = Math.max(1, Math.floor(compH * scale));
+
+              // Camera aspect locked to composition
+              if (camera && 'aspect' in camera) {
+                (camera as THREE.PerspectiveCamera).aspect = compW / compH;
+                camera.updateProjectionMatrix();
+              }
+
+              const desiredDpr = Math.max(1, Math.min(8, compW / cssW));
+              gl.setPixelRatio(desiredDpr);
+              gl.setSize(cssW, cssH, false);
+              gl.domElement.style.width = `${cssW}px`;
+              gl.domElement.style.height = `${cssH}px`;
+              gl.domElement.style.maxWidth = '100%';
+              gl.domElement.style.maxHeight = '100%';
+            };
+            try { resizeOnce(); } catch {}
+
+            if ((gl as any).__vjResizeObserver) {
+              try { (gl as any).__vjResizeObserver.disconnect(); } catch {}
+            }
+            const ro = new ResizeObserver(debounce(() => {
+              try { resizeOnce(); } catch {}
+            }, 200));
+            try {
+              (gl as any).__vjResizeObserver = ro;
+              ro.observe(container);
+            } catch {}
+          }
         }}
         onError={(error) => {
           console.error('Timeline R3F Canvas error:', error);

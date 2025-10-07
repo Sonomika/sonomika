@@ -1131,7 +1131,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               <Canvas
                 camera={{ position: [0, 0, 1], fov: 90 }}
                className="tw-w-full tw-h-full tw-block tw-bg-transparent"
-                dpr={Math.min(window.devicePixelRatio || 1, 2)}
+                dpr={1}
                 gl={{ 
                   alpha: true,
                   preserveDrawingBuffer: true,
@@ -1185,29 +1185,38 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 
                 console.log('R3F Canvas created successfully');
                 
-                // Force the renderer to respect the container's aspect ratio
+                // Force the renderer to keep internal buffer at composition resolution (width x height)
                 const container = gl.domElement.parentElement;
                 if (container) {
                   try {
-                    // Use the rendered box as-is; its parent already enforces the composition aspect ratio
                     const rect = container.getBoundingClientRect();
-                    const widthPx = Math.max(1, rect.width);
-                    const heightPx = Math.max(1, rect.height);
+                    const containerW = Math.max(1, rect.width);
+                    const containerH = Math.max(1, rect.height);
 
-                    // Update camera aspect to current box ratio
+                    const compW = Math.max(1, Number(width) || 1920);
+                    const compH = Math.max(1, Number(height) || 1080);
+
+                    // Fit composition into container, preserving aspect
+                    const scale = Math.min(containerW / compW, containerH / compH);
+                    const cssW = Math.max(1, Math.floor(compW * scale));
+                    const cssH = Math.max(1, Math.floor(compH * scale));
+
+                    // Camera aspect should match composition
                     if (camera && 'aspect' in camera) {
-                      (camera as THREE.PerspectiveCamera).aspect = widthPx / heightPx;
+                      (camera as THREE.PerspectiveCamera).aspect = compW / compH;
                       camera.updateProjectionMatrix();
                     }
 
-                    // Set device pixel ratio for crisp rendering
-                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                    gl.setPixelRatio(dpr);
-                    
-                    // Size renderer to the container box with proper pixel ratio
-                    gl.setSize(widthPx, heightPx, false);
-                    gl.domElement.style.width = '100%';
-                    gl.domElement.style.height = '100%';
+                    // Compute pixel ratio so cssW * dpr = compW (and cssH * dpr = compH)
+                    const desiredDpr = Math.max(1, Math.min(8, compW / cssW));
+                    gl.setPixelRatio(desiredDpr);
+
+                    // Size renderer to visual CSS size; DPR will scale internal buffer to comp size
+                    gl.setSize(cssW, cssH, false);
+                    gl.domElement.style.width = `${cssW}px`;
+                    gl.domElement.style.height = `${cssH}px`;
+                    gl.domElement.style.maxWidth = '100%';
+                    gl.domElement.style.maxHeight = '100%';
                   } catch (error) {
                     console.error('Error in canvas setup:', error);
                   }
@@ -1222,20 +1231,27 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                   if (container) {
                     try {
                       const rect = container.getBoundingClientRect();
-                      const widthPx = Math.max(1, rect.width);
-                      const heightPx = Math.max(1, rect.height);
+                      const containerW = Math.max(1, rect.width);
+                      const containerH = Math.max(1, rect.height);
+
+                      const compW = Math.max(1, Number(width) || 1920);
+                      const compH = Math.max(1, Number(height) || 1080);
+                      const scale = Math.min(containerW / compW, containerH / compH);
+                      const cssW = Math.max(1, Math.floor(compW * scale));
+                      const cssH = Math.max(1, Math.floor(compH * scale));
 
                       if (camera && 'aspect' in camera) {
-                        (camera as THREE.PerspectiveCamera).aspect = widthPx / heightPx;
+                        (camera as THREE.PerspectiveCamera).aspect = compW / compH;
                         camera.updateProjectionMatrix();
                       }
 
-                      // Maintain device pixel ratio for crisp rendering
-                      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                      gl.setPixelRatio(dpr);
-                      gl.setSize(widthPx, heightPx, false);
-                      gl.domElement.style.width = '100%';
-                      gl.domElement.style.height = '100%';
+                      const desiredDpr = Math.max(1, Math.min(8, compW / cssW));
+                      gl.setPixelRatio(desiredDpr);
+                      gl.setSize(cssW, cssH, false);
+                      gl.domElement.style.width = `${cssW}px`;
+                      gl.domElement.style.height = `${cssH}px`;
+                      gl.domElement.style.maxWidth = '100%';
+                      gl.domElement.style.maxHeight = '100%';
                     } catch (error) {
                       console.error('Error in resize observer:', error);
                     }
