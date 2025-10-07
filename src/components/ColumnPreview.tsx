@@ -1207,12 +1207,9 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                       camera.updateProjectionMatrix();
                     }
 
-                    // Compute pixel ratio so cssW * dpr = compW (and cssH * dpr = compH)
-                    const desiredDpr = Math.max(1, Math.min(8, compW / cssW));
-                    gl.setPixelRatio(desiredDpr);
-
-                    // Size renderer to visual CSS size; DPR will scale internal buffer to comp size
-                    gl.setSize(cssW, cssH, false);
+                    // Keep internal buffer EXACTLY at composition resolution
+                    gl.setPixelRatio(1);
+                    gl.setSize(compW, compH, false);
                     gl.domElement.style.width = `${cssW}px`;
                     gl.domElement.style.height = `${cssH}px`;
                     gl.domElement.style.maxWidth = '100%';
@@ -1245,9 +1242,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                         camera.updateProjectionMatrix();
                       }
 
-                      const desiredDpr = Math.max(1, Math.min(8, compW / cssW));
-                      gl.setPixelRatio(desiredDpr);
-                      gl.setSize(cssW, cssH, false);
+                      gl.setPixelRatio(1);
+                      gl.setSize(compW, compH, false);
                       gl.domElement.style.width = `${cssW}px`;
                       gl.domElement.style.height = `${cssH}px`;
                       gl.domElement.style.maxWidth = '100%';

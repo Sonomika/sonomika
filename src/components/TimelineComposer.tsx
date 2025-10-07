@@ -918,9 +918,9 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
                 camera.updateProjectionMatrix();
               }
 
-              const desiredDpr = Math.max(1, Math.min(8, compW / cssW));
-              gl.setPixelRatio(desiredDpr);
-              gl.setSize(cssW, cssH, false);
+              // Keep internal buffer EXACTLY at composition resolution
+              gl.setPixelRatio(1);
+              gl.setSize(compW, compH, false);
               gl.domElement.style.width = `${cssW}px`;
               gl.domElement.style.height = `${cssH}px`;
               gl.domElement.style.maxWidth = '100%';
