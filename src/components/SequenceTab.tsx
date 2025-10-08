@@ -760,18 +760,16 @@ const SequenceTab: React.FC = () => {
       try { if (fallbackRafRef.current != null) { cancelAnimationFrame(fallbackRafRef.current); fallbackRafRef.current = null; } } catch {}
     };
     const onGlobalPause = (evt?: any) => {
-      if (!triggersEnabled) return;
       const source = evt?.detail?.source || '';
-      // Ignore non-forced pauses while sequence is active
+      // Only act on sourced/intentional global pauses
       if (!source) return;
       try { waveformRef.current?.pause?.(); ActionLogger.log('sequenceAudioPause'); } catch {}
       stopFallback();
       setIsPlaying(false);
     };
     const onGlobalStop = (evt?: any) => {
-      if (!triggersEnabled) return;
       const source = evt?.detail?.source || '';
-      // Ignore non-forced stops while sequence is active
+      // Only act on sourced/intentional global stops
       if (!source) return;
       try { explicitlyStoppedRef.current = true; } catch {}
       try { waveformRef.current?.stop?.(); ActionLogger.log('sequenceAudioStop'); } catch {}
@@ -784,17 +782,31 @@ const SequenceTab: React.FC = () => {
     document.addEventListener('globalStop', onGlobalStop as any);
     // Keep sequence independent from other media events
     const onVideoPause = (evt?: any) => {
-      if (!triggersEnabled) return;
       const source = evt?.detail?.source || '';
       try { ActionLogger.log('videoPause(evt)', evt?.detail); } catch {}
+      // If pause was sourced (e.g., toolbar/spacebar), pause sequence audio too
+      if (source) {
+        try { waveformRef.current?.pause?.(); ActionLogger.log('sequenceAudioPause(from:videoPause)'); } catch {}
+        stopFallback();
+        setIsPlaying(false);
+        return;
+      }
+      if (!triggersEnabled) return;
       if (audioUrl && !explicitlyStoppedRef.current && !source) {
         try { waveformRef.current?.play?.(); ActionLogger.log('sequenceAudioPlay(recover:videoPause)'); } catch {}
       }
     };
     const onVideoStop = (evt?: any) => {
-      if (!triggersEnabled) return;
       const source = evt?.detail?.source || '';
       try { ActionLogger.log('videoStop(evt)', evt?.detail); } catch {}
+      // If stop was sourced, stop/clear sequence audio state as well
+      if (source) {
+        try { waveformRef.current?.pause?.(); ActionLogger.log('sequenceAudioPause(from:videoStop)'); } catch {}
+        stopFallback();
+        setIsPlaying(false);
+        return;
+      }
+      if (!triggersEnabled) return;
       if (audioUrl && !explicitlyStoppedRef.current && !source) {
         try { waveformRef.current?.play?.(); ActionLogger.log('sequenceAudioPlay(recover:videoStop)'); } catch {}
       }

@@ -222,6 +222,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const beatPulseTimeoutRef = React.useRef<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewHeaderRef = useRef<HTMLDivElement | null>(null);
+
+  // Sync local column-mode playing state with global transport
+  useEffect(() => {
+    const onPlay = () => { if (!showTimeline) setIsPlaying(true); };
+    const onPause = () => { if (!showTimeline) setIsPlaying(false); };
+    const onStop = () => { if (!showTimeline) setIsPlaying(false); };
+    document.addEventListener('globalPlay', onPlay as any);
+    document.addEventListener('globalPause', onPause as any);
+    document.addEventListener('globalStop', onStop as any);
+    return () => {
+      document.removeEventListener('globalPlay', onPlay as any);
+      document.removeEventListener('globalPause', onPause as any);
+      document.removeEventListener('globalStop', onStop as any);
+    };
+  }, [showTimeline]);
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const mirrorStreamRef = useRef<CanvasStreamManager | null>(null);
   const [isPreviewMirrorOpen, setIsPreviewMirrorOpen] = useState(false);
@@ -1634,7 +1649,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           // Toggle: if currently playing, stop; else play
           const st: any = (useStore.getState && (useStore.getState() as any)) || {};
           if (st.isGlobalPlaying) {
-            try { document.dispatchEvent(new CustomEvent('globalPause', { detail: { source: 'spacebar' } })); } catch {}
+            try { globalPause({ source: 'spacebar', force: true } as any); } catch {}
           } else {
             try { globalPlay({ source: 'spacebar' } as any); } catch {}
           }
@@ -1723,7 +1738,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     <button
                       className={`tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded ${transportState === 'pause' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       onClick={() => {
-                        try { document.dispatchEvent(new CustomEvent('globalPause', { detail: { source: 'toolbar' } })); } catch {}
+                        try { globalPause({ source: 'toolbar', force: true } as any); } catch {}
                       }}
                       title="Pause - Pause all videos"
                     >

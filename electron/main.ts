@@ -76,7 +76,6 @@ function createWindow() {
       contextIsolation: true,
       sandbox: false,
       webSecurity: false,
-      nativeWindowOpen: true,
       allowRunningInsecureContent: true,
       preload: path.join(__dirname, 'preload.js'),
       backgroundThrottling: false
