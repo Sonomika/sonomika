@@ -54,6 +54,7 @@ const PRESET_SIZES = [
 export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen, onClose }) => {
   const { compositionSettings, updateCompositionSettings } = useStore();
   const [settings, setSettings] = useState(compositionSettings);
+  const [screenSizes, setScreenSizes] = useState<Array<{name: string, width: number, height: number}>>([]);
   // No local dropdown open state when using standard Select
 
   useEffect(() => {
@@ -86,8 +87,66 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
   // Frame rate selection removed
 
   const getCurrentSizeName = () => {
+    // Check screen sizes first, then presets
+    const screenSize = screenSizes.find(s => s.width === settings.width && s.height === settings.height);
+    if (screenSize) return screenSize.name;
+    
     const preset = PRESET_SIZES.find(p => p.width === settings.width && p.height === settings.height);
     return preset ? preset.name : 'Custom';
+  };
+
+  const detectScreenSizes = async () => {
+    try {
+      // Debug: Check what's available on window.electron
+      console.log('window.electron:', window.electron);
+      console.log('Available methods:', window.electron ? Object.keys(window.electron) : 'none');
+      console.log('getScreenSizes method:', window.electron?.getScreenSizes);
+      
+      // Check if we're in Electron environment
+      if (window.electron?.getScreenSizes) {
+        console.log('Detecting screens via Electron API...');
+        const screens = await window.electron.getScreenSizes();
+        console.log('Detected screens:', screens);
+        const detectedSizes = screens.map((screen: any, index: number) => ({
+          name: `Screen ${index + 1} (${screen.width} × ${screen.height})`,
+          width: screen.width,
+          height: screen.height
+        }));
+        setScreenSizes(detectedSizes);
+        console.log('Processed screen sizes:', detectedSizes);
+      } else {
+        console.log('Electron API not available, using browser fallback');
+        console.log('Reason: window.electron exists:', !!window.electron);
+        console.log('Reason: getScreenSizes exists:', !!window.electron?.getScreenSizes);
+        
+        // Fallback to browser screen detection
+        const screen = window.screen;
+        const detectedSizes = [{
+          name: `Current Screen (${screen.width} × ${screen.height})`,
+          width: screen.width,
+          height: screen.height
+        }];
+        setScreenSizes(detectedSizes);
+      }
+    } catch (error) {
+      console.error('Failed to detect screen sizes:', error);
+      // Fallback to current window size
+      const detectedSizes = [{
+        name: `Current Window (${window.innerWidth} × ${window.innerHeight})`,
+        width: window.innerWidth,
+        height: window.innerHeight
+      }];
+      setScreenSizes(detectedSizes);
+    }
+  };
+
+  const getAllSizeOptions = () => {
+    const allOptions = [...screenSizes, ...PRESET_SIZES];
+    // Remove duplicates based on width/height
+    const uniqueOptions = allOptions.filter((option, index, self) => 
+      index === self.findIndex(o => o.width === option.width && o.height === option.height)
+    );
+    return uniqueOptions;
   };
 
   // Frame rate display removed
@@ -146,15 +205,26 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
                   className="tw-w-20 !tw-text-neutral-100"
                 />
               </div>
-              <Select
-                value={getCurrentSizeName()}
-                onChange={(name: string) => {
-                  const preset = PRESET_SIZES.find(p => p.name === name) || PRESET_SIZES[0];
-                  handleSizeSelect(preset);
-                }}
-                options={PRESET_SIZES.map(p => ({ value: p.name, label: p.name }))}
-                className="tw-w-[220px]"
-              />
+              <div className="tw-flex tw-gap-2 tw-items-center">
+                <Select
+                  value={getCurrentSizeName()}
+                  onChange={(name: string) => {
+                    const allOptions = getAllSizeOptions();
+                    const option = allOptions.find(p => p.name === name) || allOptions[0];
+                    handleSizeSelect(option);
+                  }}
+                  options={getAllSizeOptions().map(p => ({ value: p.name, label: p.name }))}
+                  className="tw-w-[220px]"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={detectScreenSizes}
+                  className="!tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-neutral-600 !tw-text-xs tw-whitespace-nowrap"
+                >
+                  Detect Screens
+                </Button>
+              </div>
             </div>
           </div>
 

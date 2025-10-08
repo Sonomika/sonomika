@@ -42,6 +42,10 @@ declare global {
         onWindowState?: (cb: (state: { maximized: boolean }) => void) => void;
         onRecordStart?: (handler: () => void) => void;
         onRecordSettings?: (handler: () => void) => void;
+        getScreenSizes?: () => Promise<Array<{width: number, height: number}>>;
+    };
+    electronAPI?: {
+      getScreenSizes?: () => Promise<Array<{width: number, height: number}>>;
     };
   }
 }

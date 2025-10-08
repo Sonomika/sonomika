@@ -94,6 +94,9 @@ try {
             } catch (e) {
                 console.warn('Preload: toggleMirrorFullscreen failed', e);
             }
+        },
+        getScreenSizes: () => {
+            return electron_1.ipcRenderer.invoke('get-screen-sizes');
         }
     });
     console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');

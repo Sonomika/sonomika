@@ -1168,6 +1168,35 @@ app.whenReady().then(() => {
     }
   });
 
+  // Screen sizes detection for composition settings
+  ipcMain.handle('get-screen-sizes', async () => {
+    try {
+      const { screen } = require('electron');
+      const displays = screen.getAllDisplays();
+      console.log('Electron main: Detected displays:', displays.length);
+      displays.forEach((display: any, index: number) => {
+        console.log(`Display ${index + 1}:`, {
+          width: display.bounds.width,
+          height: display.bounds.height,
+          x: display.bounds.x,
+          y: display.bounds.y,
+          scaleFactor: display.scaleFactor,
+          rotation: display.rotation,
+          label: display.label
+        });
+      });
+      const result = displays.map((display: any) => ({
+        width: display.bounds.width,
+        height: display.bounds.height
+      }));
+      console.log('Electron main: Returning screen sizes:', result);
+      return result;
+    } catch (e) {
+      console.error('Failed to get screen sizes:', e);
+      return [];
+    }
+  });
+
   // App (main window) fullscreen toggle that covers taskbar on Windows
   ipcMain.on('toggle-app-fullscreen', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {

@@ -1157,6 +1157,33 @@ electron.app.whenReady().then(() => {
       return {};
     }
   });
+  electron.ipcMain.handle("get-screen-sizes", async () => {
+    try {
+      const { screen } = require("electron");
+      const displays = screen.getAllDisplays();
+      console.log("Electron main: Detected displays:", displays.length);
+      displays.forEach((display, index) => {
+        console.log(`Display ${index + 1}:`, {
+          width: display.bounds.width,
+          height: display.bounds.height,
+          x: display.bounds.x,
+          y: display.bounds.y,
+          scaleFactor: display.scaleFactor,
+          rotation: display.rotation,
+          label: display.label
+        });
+      });
+      const result = displays.map((display) => ({
+        width: display.bounds.width,
+        height: display.bounds.height
+      }));
+      console.log("Electron main: Returning screen sizes:", result);
+      return result;
+    } catch (e) {
+      console.error("Failed to get screen sizes:", e);
+      return [];
+    }
+  });
   electron.ipcMain.on("toggle-app-fullscreen", () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       const { screen } = require("electron");
