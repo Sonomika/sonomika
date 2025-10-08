@@ -118,32 +118,34 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
 
           <div className="tw-space-y-2">
             <Label>Size:</Label>
-            <div className="tw-flex tw-items-center tw-gap-2">
-              <Input 
-                type="number" 
-                value={settings.width} 
-                onChange={e => setSettings(prev => ({ 
-                  ...prev, 
-                  width: parseInt(e.target.value) || 1920,
-                  aspectRatio: `${parseInt(e.target.value) || 1920}:${prev.height}`
-                }))}
-                min="1"
-                max="7680"
-                className="tw-w-20 !tw-text-neutral-100"
-              />
-              <span className="tw-text-neutral-400">x</span>
-              <Input 
-                type="number" 
-                value={settings.height} 
-                onChange={e => setSettings(prev => ({ 
-                  ...prev, 
-                  height: parseInt(e.target.value) || 1080,
-                  aspectRatio: `${prev.width}:${parseInt(e.target.value) || 1080}`
-                }))}
-                min="1"
-                max="4320"
-                className="tw-w-20 !tw-text-neutral-100"
-              />
+            <div className="tw-space-y-2">
+              <div className="tw-flex tw-items-center tw-gap-2">
+                <Input 
+                  type="number" 
+                  value={settings.width} 
+                  onChange={e => setSettings(prev => ({ 
+                    ...prev, 
+                    width: parseInt(e.target.value) || 1920,
+                    aspectRatio: `${parseInt(e.target.value) || 1920}:${prev.height}`
+                  }))}
+                  min="1"
+                  max="7680"
+                  className="tw-w-20 !tw-text-neutral-100"
+                />
+                <span className="tw-text-neutral-400">x</span>
+                <Input 
+                  type="number" 
+                  value={settings.height} 
+                  onChange={e => setSettings(prev => ({ 
+                    ...prev, 
+                    height: parseInt(e.target.value) || 1080,
+                    aspectRatio: `${prev.width}:${parseInt(e.target.value) || 1080}`
+                  }))}
+                  min="1"
+                  max="4320"
+                  className="tw-w-20 !tw-text-neutral-100"
+                />
+              </div>
               <Select
                 value={getCurrentSizeName()}
                 onChange={(name: string) => {

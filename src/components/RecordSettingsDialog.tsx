@@ -11,7 +11,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
   const { recordSettings, setRecordSettings } = useStore() as any;
   const [codec, setCodec] = useState<'vp8' | 'vp9'>(recordSettings?.codec ?? 'vp9');
   const [quality, setQuality] = useState<'low' | 'medium' | 'high'>(recordSettings?.quality ?? 'medium');
-  const [audioSource, setAudioSource] = useState<'none' | 'microphone' | 'system' | 'app'>(recordSettings?.audioSource ?? 'none');
+  const [audioSource, setAudioSource] = useState<'none' | 'app'>(recordSettings?.audioSource === 'microphone' || recordSettings?.audioSource === 'system' ? 'none' : recordSettings?.audioSource ?? 'none');
   const [audioBitrate, setAudioBitrate] = useState<number>(recordSettings?.audioBitrate ?? 128000);
   const [fps, setFps] = useState<number>(typeof recordSettings?.fps === 'number' ? recordSettings.fps : 0);
 
@@ -19,7 +19,7 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
     if (open) {
       setCodec(recordSettings?.codec ?? 'vp9');
       setQuality(recordSettings?.quality ?? 'medium');
-      setAudioSource(recordSettings?.audioSource ?? 'none');
+      setAudioSource(recordSettings?.audioSource === 'microphone' || recordSettings?.audioSource === 'system' ? 'none' : recordSettings?.audioSource ?? 'none');
       setAudioBitrate(recordSettings?.audioBitrate ?? 128000);
       setFps(typeof recordSettings?.fps === 'number' ? recordSettings.fps : 0);
     }
@@ -77,12 +77,10 @@ export const RecordSettingsDialog: React.FC<Props> = ({ open, onOpenChange }) =>
             <select
               className="tw-w-full tw-bg-neutral-900 tw-text-neutral-100 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1"
               value={audioSource}
-              onChange={(e) => setAudioSource((e.target.value as 'none' | 'microphone' | 'system' | 'app') || 'none')}
+              onChange={(e) => setAudioSource((e.target.value as 'none' | 'app') || 'none')}
             >
               <option value="none">No Audio</option>
-              <option value="microphone">Microphone</option>
-              <option value="system">System Audio (Electron native)</option>
-              <option value="app">App Audio (VJ internal audio)</option>
+              <option value="app">App Audio</option>
             </select>
           </div>
           {audioSource !== 'none' && (
