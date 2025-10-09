@@ -11,6 +11,7 @@ import {
   Label,
   Select
 } from './ui';
+import { LockClosedIcon, LockOpen1Icon } from '@radix-ui/react-icons';
 
 interface CompositionSettingsProps {
   isOpen: boolean;
@@ -56,9 +57,18 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
   const [settings, setSettings] = useState(compositionSettings);
   const [screenSizes, setScreenSizes] = useState<Array<{name: string, width: number, height: number}>>([]);
   // No local dropdown open state when using standard Select
+  const [lockAspect, setLockAspect] = useState(true);
+  const [aspect, setAspect] = useState(() => {
+    const w = compositionSettings.width || 1920;
+    const h = compositionSettings.height || 1080;
+    return h === 0 ? 16 / 9 : w / h;
+  });
 
   useEffect(() => {
     setSettings(compositionSettings);
+    const w = compositionSettings.width || 1920;
+    const h = compositionSettings.height || 1080;
+    if (h > 0) setAspect(w / h);
   }, [compositionSettings]);
 
   const handleSave = () => {
@@ -81,6 +91,7 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
         height: preset.height,
         aspectRatio: `${preset.width}:${preset.height}`
       }));
+      if (preset.height > 0) setAspect(preset.width / preset.height);
     }
   };
 
@@ -182,24 +193,73 @@ export const CompositionSettings: React.FC<CompositionSettingsProps> = ({ isOpen
                 <Input 
                   type="number" 
                   value={settings.width} 
-                  onChange={e => setSettings(prev => ({ 
-                    ...prev, 
-                    width: parseInt(e.target.value) || 1920,
-                    aspectRatio: `${parseInt(e.target.value) || 1920}:${prev.height}`
-                  }))}
+                  onChange={e => {
+                    const raw = parseInt(e.target.value);
+                    const newWidth = Number.isFinite(raw) && raw > 0 ? Math.min(Math.max(raw, 1), 7680) : 1920;
+                    if (lockAspect) {
+                      const newHeight = Math.max(1, Math.min(4320, Math.round(newWidth / (aspect || (settings.height ? settings.width / settings.height : 16/9)))));
+                      setSettings(prev => ({
+                        ...prev,
+                        width: newWidth,
+                        height: newHeight,
+                        aspectRatio: `${newWidth}:${newHeight}`
+                      }));
+                    } else {
+                      setSettings(prev => ({
+                        ...prev,
+                        width: newWidth,
+                        aspectRatio: `${newWidth}:${prev.height}`
+                      }));
+                      if (settings.height > 0) setAspect(newWidth / settings.height);
+                    }
+                  }}
                   min="1"
                   max="7680"
                   className="tw-w-20 !tw-text-neutral-100"
                 />
                 <span className="tw-text-neutral-400">x</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const w = settings.width || 1920;
+                    const h = settings.height || 1080;
+                    if (h > 0) setAspect(w / h);
+                    setLockAspect(prev => !prev);
+                  }}
+                  aria-pressed={lockAspect}
+                  title={lockAspect ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                  className="!tw-bg-neutral-800 !tw-text-neutral-100 !tw-border-neutral-600 tw-h-8 tw-w-8 tw-p-0"
+                >
+                  {lockAspect ? (
+                    <LockClosedIcon className="tw-w-4 tw-h-4" />
+                  ) : (
+                    <LockOpen1Icon className="tw-w-4 tw-h-4" />
+                  )}
+                </Button>
                 <Input 
                   type="number" 
                   value={settings.height} 
-                  onChange={e => setSettings(prev => ({ 
-                    ...prev, 
-                    height: parseInt(e.target.value) || 1080,
-                    aspectRatio: `${prev.width}:${parseInt(e.target.value) || 1080}`
-                  }))}
+                  onChange={e => {
+                    const raw = parseInt(e.target.value);
+                    const newHeight = Number.isFinite(raw) && raw > 0 ? Math.min(Math.max(raw, 1), 4320) : 1080;
+                    if (lockAspect) {
+                      const newWidth = Math.max(1, Math.min(7680, Math.round(newHeight * (aspect || (settings.height ? settings.width / settings.height : 16/9)))));
+                      setSettings(prev => ({
+                        ...prev,
+                        width: newWidth,
+                        height: newHeight,
+                        aspectRatio: `${newWidth}:${newHeight}`
+                      }));
+                    } else {
+                      setSettings(prev => ({
+                        ...prev,
+                        height: newHeight,
+                        aspectRatio: `${prev.width}:${newHeight}`
+                      }));
+                      if (newHeight > 0) setAspect((settings.width || 1920) / newHeight);
+                    }
+                  }}
                   min="1"
                   max="4320"
                   className="tw-w-20 !tw-text-neutral-100"

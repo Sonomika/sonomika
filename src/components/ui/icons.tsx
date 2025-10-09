@@ -41,3 +41,51 @@ export const UnlockedIcon: React.FC<IconProps> = ({ className }) => (
 );
 
 
+// Padlock variants used only in Composition Settings
+export const PadlockClosedIcon: React.FC<IconProps> = ({ className }) => (
+  <svg
+    className={className}
+    width="15"
+    height="15"
+    viewBox="0 0 15 15"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Shackle */}
+    <path
+      d="M5 6V5.5C5 3.567 6.567 2 8.5 2C10.433 2 12 3.567 12 5.5V6"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+    {/* Body */}
+    <rect x="3" y="6" width="9" height="7" rx="1.5" fill="currentColor" />
+    {/* Keyhole */}
+    <path d="M7.5 9.25a1 1 0 1 1 1 0v1.5h-1v-1.5z" fill="#141414" />
+  </svg>
+);
+
+export const PadlockOpenIcon: React.FC<IconProps> = ({ className }) => (
+  <svg
+    className={className}
+    width="15"
+    height="15"
+    viewBox="0 0 15 15"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Open shackle */}
+    <path
+      d="M5 6V5.5C5 3.567 6.567 2 8.5 2C10.433 2 12 3.567 12 5.5"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+    {/* Body */}
+    <rect x="3" y="6" width="9" height="7" rx="1.5" fill="currentColor" />
+    {/* Keyhole */}
+    <path d="M7.5 9.25a1 1 0 1 1 1 0v1.5h-1v-1.5z" fill="#141414" />
+  </svg>
+);
+
+

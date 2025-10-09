@@ -85,20 +85,16 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
   // Check if clip can be moved to target track
   const canMoveToTrack = useCallback((targetTrackId: string) => {
     if (!targetTrackId || targetTrackId === trackId) return false;
-    
+
     const targetTrack = allTracks.find(t => t.id === targetTrackId);
     if (!targetTrack) return false;
-    
-    // Check if asset type is compatible with track type
+
+    // Align with drop rules: audio tracks accept only audio;
+    // non-audio tracks (video/effect) accept both video and effect clips
     if (targetTrack.type === 'audio') {
       return clip.type === 'audio';
-    } else if (targetTrack.type === 'video') {
-      return clip.type === 'video';
-    } else if (targetTrack.type === 'effect') {
-      return clip.type === 'effect';
     }
-    
-    return false;
+    return clip.type === 'video' || clip.type === 'effect';
   }, [trackId, allTracks, clip.type]);
 
   // Snapping helper functions
@@ -399,8 +395,6 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
 
   const translateX = clip.startTime * pixelsPerSecond;
   const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
-  // Lighter grey bars: use neutral-600 for normal, neutral-700 when selected
-  const background = '#404040';
   const showWaveform = clip.type === 'audio' && Boolean(audioSrc);
 
   useEffect(() => {
@@ -436,15 +430,14 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
       data-clip-id={clip.id}
       className={`group tw-absolute tw-top-1 tw-bottom-1 tw-rounded tw-text-white tw-overflow-hidden tw-z-20 tw-box-border tw-flex tw-items-center tw-px-2 tw-cursor-move ${
         isSelected
-          ? 'tw-ring-2 tw-ring-neutral-600'
+          ? 'tw-ring-2 tw-ring-neutral-600 tw-bg-neutral-600'
           : ''
-      } ${isDragging ? 'tw-opacity-80' : ''} ${isResizing ? 'tw-opacity-80' : ''} ${isSnapped ? 'tw-ring-2 tw-ring-green-400' : ''} ${
+      } ${!isSelected ? 'tw-bg-neutral-700' : ''} ${isDragging ? 'tw-opacity-80' : ''} ${isResizing ? 'tw-opacity-80' : ''} ${isSnapped ? 'tw-ring-2 tw-ring-green-400' : ''} ${
         isVerticalDragging ? 'tw-cursor-ns-resize' : ''
       } ${isHoveringValidTrack ? 'tw-ring-2 tw-ring-blue-400' : ''} ${isHoveringInvalidTrack ? 'tw-ring-2 tw-ring-red-400' : ''}`}
       style={{
         transform: `translate3d(${translateX}px, 0, 0)`,
         width: `${widthPx}px`,
-        background: isSelected ? '#262626' : background,
         willChange: 'transform,width',
       }}
       onMouseDown={handleMouseDown}

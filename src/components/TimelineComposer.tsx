@@ -684,7 +684,11 @@ const TimelineScene: React.FC<{
         (TimelineScene as any).__lastChainRef = lastChainRef;
         const lastChainKeyRef = (TimelineScene as any).__lastChainKeyRef || { current: '' as string };
         (TimelineScene as any).__lastChainKeyRef = lastChainKeyRef;
-        // Build quick lookups for active clips by asset
+        // Track structure-only signature (ignoring per-clip unique keys) to detect identical back-to-back effects
+        const lastStructureKeyRef = (TimelineScene as any).__lastStructureKeyRef || { current: '' as string };
+        (TimelineScene as any).__lastStructureKeyRef = lastStructureKeyRef;
+
+        // Build quick lookups for active clips by asset and timing window
         const fadeWindowSec = CROSSFADE_MS / 1000;
         const byAsset: Record<string, { relativeTime: number; duration: number; startTime: number; trackId?: string }> = {} as any;
         activeClips.forEach((c: any) => {
@@ -713,6 +717,11 @@ const TimelineScene: React.FC<{
             if (it.type === 'video') return 'video';
             const uk = (it as any).__uniqueKey || '';
             return `${it.type}:${(it as any).effectId || 'eff'}#${uk}`;
+          }).join('|');
+          // Structure key ignores __uniqueKey so identical adjacent effects won't be treated as a new chain visually
+          const structureKey = chain.map((it) => {
+            if (it.type === 'video') return 'video';
+            return `${it.type}:${(it as any).effectId || 'eff'}`;
           }).join('|');
           const chainWithGlobals: ChainItem[] = enabledGlobals.length > 0
             ? ([...chain, ...enabledGlobals.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {} }))] as ChainItem[])
@@ -747,13 +756,15 @@ const TimelineScene: React.FC<{
               const produced = anyV && (anyV.__firstFrameProduced || (thisVideoId && (thisVideoId as any).readyState >= 2));
               const isIncoming = rel != null && rel <= fadeWindowSec;
               const isOutgoing = rel != null && dur != null && (dur - rel) <= fadeWindowSec;
+              const sameStructureAsPrev = Boolean(lastStructureKeyRef.current) && lastStructureKeyRef.current === structureKey;
+
               // For different videos at a cut, ensure we don't expose background by prioritizing outgoing until incoming is truly ready
-              if (isIncoming && !produced) {
+              if (!sameStructureAsPrev && isIncoming && !produced) {
                 opacity = 0; // hold off showing incoming until first frame exists
-              } else if (isOutgoing && anyIncomingNotReady) {
+              } else if (!sameStructureAsPrev && isOutgoing && anyIncomingNotReady) {
                 opacity = 1; // keep outgoing fully visible until incoming is ready
               } else {
-                opacity = f; // default crossfade
+                opacity = sameStructureAsPrev ? 1 : f; // keep full opacity for identical-effect cuts
               }
               try { console.log('[TimelineScene] Crossfade', { idx, key: chainKey, f: Number(f.toFixed(2)), incoming: isIncoming, outgoing: isOutgoing, holdIncoming: isIncoming && !produced, anyIncomingNotReady }); } catch {}
 
@@ -761,7 +772,7 @@ const TimelineScene: React.FC<{
               const prevChain = lastChainRef.current as ChainItem[] | null;
               const prevKey = lastChainKeyRef.current;
               const outOpacity = 1 - f;
-              if (prevChain && prevKey && prevKey !== chainKey && outOpacity > 0) {
+              if (!sameStructureAsPrev && prevChain && prevKey && prevKey !== chainKey && outOpacity > 0) {
                 try { console.log('[TimelineScene] Prev overlay', { prevKey, key: chainKey, outOpacity: Number(outOpacity.toFixed(2)) }); } catch {}
                 elements.push(
                   <EffectChain
@@ -826,6 +837,7 @@ const TimelineScene: React.FC<{
           // Update last chain snapshot for next-frame crossfade
           lastChainRef.current = chainWithGlobals;
           lastChainKeyRef.current = chainKey;
+          lastStructureKeyRef.current = structureKey;
           try { console.log('[TimelineScene] Last chain updated', { key: chainKey }); } catch {}
         });
 
