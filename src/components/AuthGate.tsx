@@ -19,12 +19,8 @@ export const AuthGate: React.FC<Props> = ({ children }) => {
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
 
   useEffect(() => {
-    // Skip authentication entirely when running in Electron
-    if (isElectron) {
-      setUser({ id: 'electron-user', email: 'local@electron' }); // Mock user for Electron
-      setLoading(false);
-      return;
-    }
+    // Skip all Supabase wiring entirely when running in Electron
+    if (isElectron) { setLoading(false); return; }
 
     const supabase = getSupabase();
     const init = async () => {

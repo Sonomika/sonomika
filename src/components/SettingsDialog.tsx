@@ -37,6 +37,8 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
 
   useEffect(() => {
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+    if (isElectron) return; // Skip Supabase wiring in Electron
     const supabase = getSupabase();
     let unsub: any;
     (async () => {
@@ -56,6 +58,8 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
 
   const handleSignOut = async () => {
     try {
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+      if (isElectron) return;
       const supabase = getSupabase();
       await supabase.auth.signOut();
     } catch {}
@@ -326,18 +330,22 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
             </div>
           </div>
 
-          <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
-          <div className="tw-flex tw-items-center tw-justify-between">
-            <div>
-              <div className="tw-text-sm tw-text-neutral-200">Account</div>
-              <div className="tw-text-xs tw-text-neutral-400">{user ? (user.email || 'Signed in') : 'Not signed in'}</div>
-            </div>
-            {user ? (
-              <Button onClick={handleSignOut} className="!tw-bg-neutral-800 ! !tw-border-none">Sign out</Button>
-            ) : (
-              <div className="tw-text-xs tw-text-neutral-500">Silent login; sign-in UI not required</div>
-            )}
-          </div>
+          {(typeof window === 'undefined' || !(window as any).electron) && (
+            <>
+              <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
+              <div className="tw-flex tw-items-center tw-justify-between">
+                <div>
+                  <div className="tw-text-sm tw-text-neutral-200">Account</div>
+                  <div className="tw-text-xs tw-text-neutral-400">{user ? (user.email || 'Signed in') : 'Not signed in'}</div>
+                </div>
+                {user ? (
+                  <Button onClick={handleSignOut} className="!tw-bg-neutral-800 ! !tw-border-none">Sign out</Button>
+                ) : (
+                  <div className="tw-text-xs tw-text-neutral-500">Silent login; sign-in UI not required</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

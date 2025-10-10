@@ -33,19 +33,10 @@ const mount = async () => {
       // Expose ConvexGeometry and BufferGeometryUtils for external convex source
       initThreeAddonsGlobal();
     } catch {}
-    // Attempt silent session bootstrap before rendering
-    try {
-      const { getSupabase } = await import('./lib/supabaseClient');
-      const supabase = getSupabase();
-      // Touch auth to trigger refresh machinery
-      await supabase.auth.getSession();
-    } catch {}
-    const { AuthGate } = await import('./components/AuthGate');
+    // Electron: run app without Supabase/AuthGate
     root.render(
       <React.StrictMode>
-        <AuthGate>
-          <App />
-        </AuthGate>
+        <App />
       </React.StrictMode>
     );
   } else {

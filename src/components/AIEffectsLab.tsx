@@ -10,13 +10,7 @@ interface RefEffectOption {
   isSource?: boolean;
 }
 
-const DEFAULT_PROMPT = `Create a new React Fiber visual effect as a plain JavaScript ESM (.js) module.
-- Use React Three Fiber and THREE.
-- Default export a component and attach metadata.
-- Support both layer and global contexts via render target pattern.
-- Keep file self-contained with no app-specific imports.
-- Include a couple of tunable parameters.
-`;
+const DEFAULT_PROMPT = `Make a new original effect based on this code`;
 
 const STORAGE_KEY_API = 'vj-ai-openai-api-key';
 const STORAGE_KEY_MODEL = 'vj-ai-openai-model';
