@@ -56,6 +56,8 @@ export const AIEffectsLab: React.FC = () => {
   const [isSource, setIsSource] = useState<boolean>(false);
   const lastLoadedForEffectRef = useRef<string | null>(null);
   const [addonSelection, setAddonSelection] = useState<string>('');
+  const [draggingOverEditor, setDraggingOverEditor] = useState<boolean>(false);
+  const hiddenFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Editor interactions are minimal; controls live in effect parameters
 
@@ -140,7 +142,7 @@ export const AIEffectsLab: React.FC = () => {
       if (lastLoadedForEffectRef.current === effId) return;
       const ok = await loadSourceForEffectId(effId);
       if (!ok) {
-        setStatus('Could not find source for selected layer effect, Drag in external files');
+        setStatus('User effects need to be loaded or dragged into the Editable Code window');
       }
     })();
   }, [selectedEffectId, loadSourceForEffectId]);
@@ -368,6 +370,100 @@ export const AIEffectsLab: React.FC = () => {
     }
   };
 
+  // Load external JS/TS code into the editor (Electron or Web)
+  const handleLoadExternalCode = async () => {
+    try {
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
+      if (isElectron) {
+        const result = await (window as any).electron.showOpenDialog({
+          title: 'Load External Code',
+          properties: ['openFile'],
+          filters: [{ name: 'Code', extensions: ['js','mjs','cjs','ts','tsx','jsx'] }]
+        });
+        if (result?.canceled || !result?.filePaths?.[0]) return;
+        const filePath = String(result.filePaths[0]);
+        const content = await (window as any).electron.readFileText(filePath);
+        if (typeof content === 'string') {
+          setCode(content);
+          try { localStorage.setItem('vj-ai-last-code', content); } catch {}
+          setStatus(`Loaded external file: ${filePath.split(/[/\\]/).pop()}`);
+        }
+        return;
+      }
+      // Web: File System Access API first
+      try {
+        // @ts-ignore
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'JavaScript/TypeScript', accept: { 'application/javascript': ['.js','.mjs','.cjs'], 'text/plain': ['.ts','.tsx','.jsx'] } }]
+        });
+        const file = await handle.getFile();
+        const text = await file.text();
+        setCode(text);
+        try { localStorage.setItem('vj-ai-last-code', text); } catch {}
+        setStatus(`Loaded external file: ${file.name}`);
+        return;
+      } catch {}
+      // Fallback: hidden input
+      try { hiddenFileInputRef.current?.click(); } catch {}
+    } catch (e: any) {
+      setStatus(e?.message || 'Failed to load external file');
+    }
+  };
+
+  const handleHiddenFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      setCode(text);
+      try { localStorage.setItem('vj-ai-last-code', text); } catch {}
+      setStatus(`Loaded external file: ${file.name}`);
+    } catch (err: any) {
+      setStatus(err?.message || 'Failed to read selected file');
+    } finally {
+      try { if (hiddenFileInputRef.current) hiddenFileInputRef.current.value = ''; } catch {}
+    }
+  };
+
+  const isCodeFile = (name: string): boolean => {
+    const lower = String(name || '').toLowerCase();
+    return [
+      '.js','.mjs','.cjs','.ts','.tsx','.jsx'
+    ].some(ext => lower.endsWith(ext));
+  };
+
+  const handleEditorDragOver = (e: React.DragEvent) => {
+    try {
+      if (!e.dataTransfer) return;
+      if (Array.from(e.dataTransfer.items || []).some((it) => it.kind === 'file')) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        setDraggingOverEditor(true);
+      }
+    } catch {}
+  };
+
+  const handleEditorDragLeave = () => {
+    setDraggingOverEditor(false);
+  };
+
+  const handleEditorDrop = async (e: React.DragEvent) => {
+    try {
+      e.preventDefault();
+      setDraggingOverEditor(false);
+      const files: File[] = Array.from(e.dataTransfer?.files || []);
+      if (!files.length) return;
+      const file = files[0];
+      if (!isCodeFile(file.name)) { setStatus('Unsupported file type. Please drop a .js/.ts/.tsx/.jsx file'); return; }
+      const text = await file.text();
+      setCode(text);
+      try { localStorage.setItem('vj-ai-last-code', text); } catch {}
+      setStatus(`Loaded external file: ${file.name}`);
+    } catch (err: any) {
+      setStatus(err?.message || 'Failed to load dropped file');
+    }
+  };
+
   // Reference options removed
 
   return (
@@ -378,7 +474,7 @@ export const AIEffectsLab: React.FC = () => {
         <div className="tw-col-span-1 tw-space-y-3">
           <div className="tw-space-y-1">
             <Label className="tw-text-xs">Prompt</Label>
-            <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={8} className="tw-text-xs" />
+            <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={8} className="tw-text-xs tw-resize-y tw-w-full tw-appearance-none" />
             <div className="tw-flex tw-items-center tw-gap-2">
               <Label className="tw-text-xs tw-whitespace-nowrap">Prompt ideas</Label>
               <Select
@@ -397,6 +493,7 @@ export const AIEffectsLab: React.FC = () => {
             </div>
           </div>
           <div className="tw-flex tw-gap-2 tw-flex-wrap">
+            <Button variant="secondary" onClick={handleLoadExternalCode}>Load external code…</Button>
             <Button variant="secondary" onClick={handleGenerate} disabled={thinking || !apiKey}>
               {thinking ? 'Generating…' : 'Generate with AI'}
             </Button>
@@ -405,13 +502,22 @@ export const AIEffectsLab: React.FC = () => {
             <Button variant="secondary" onClick={handleSaveToFile} disabled={!code.trim()}>Save…</Button>
           </div>
           <div className="tw-text-xs tw-text-neutral-400">{status}</div>
+
         </div>
         <div className="tw-col-span-1 tw-flex tw-flex-col tw-min-h-0">
           <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
             <div className="tw-text-xs tw-text-neutral-400">Editable Code</div>
           </div>
           <div className="tw-flex-1 tw-min-h-0">
-            <Textarea value={code} onChange={(e) => setCode(e.target.value)} className="tw-w-full tw-h-full tw-min-h-[260px] tw-text-xs" />
+            <Textarea
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onDragOver={handleEditorDragOver}
+              onDragLeave={handleEditorDragLeave}
+              onDrop={handleEditorDrop}
+              className={`tw-w-full tw-min-h-[260px] tw-text-xs tw-resize-y tw-appearance-none ${draggingOverEditor ? 'tw-border tw-border-dashed tw-border-neutral-600' : ''}`}
+            />
+            <input ref={hiddenFileInputRef} type="file" accept=".js,.mjs,.cjs,.ts,.tsx,.jsx" className="tw-hidden" onChange={handleHiddenFileChange} />
           </div>
         </div>
       </div>
