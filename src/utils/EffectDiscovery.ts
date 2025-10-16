@@ -305,7 +305,8 @@ export class EffectDiscovery {
           isSource: userEffect.metadata.isSource || false,
           isUserEffect: true,
         },
-        fileKey: `user-${userEffect.id}`,
+        // Preserve original source path when available so other tools (AI editor) can load raw text
+        fileKey: (userEffect as any)?.metadata?.sourcePath || `user-${userEffect.id}`,
       });
     }
 
@@ -721,11 +722,11 @@ export class EffectDiscovery {
         for (const absPath of files) {
           try {
             const code: string = await electron.readFileText(absPath);
-            const baseName = String(absPath).split(/[\\\/]/).pop() || 'user-effect.js';
-            const effect = await this.loadUserEffectFromContent(code, baseName);
+            // Pass absolute path as sourceName so downstream listing can surface it
+            const effect = await this.loadUserEffectFromContent(code, absPath);
             if (effect) {
               const userEffectId = `user-${effect.id}`;
-              const userEffect = { ...effect, id: userEffectId, name: `${effect.name} (User)`, author: effect.author || 'User', metadata: { ...effect.metadata, folder: 'user-effects', isUserEffect: true } } as any;
+              const userEffect = { ...effect, id: userEffectId, name: `${effect.name} (User)`, author: effect.author || 'User', metadata: { ...effect.metadata, folder: 'user-effects', isUserEffect: true, sourcePath: (effect as any)?.metadata?.sourcePath || absPath } } as any;
               this.userEffects.set(userEffectId, userEffect);
               effects.push(userEffect);
               console.log(`✅ Loaded user effect: ${userEffectId} (${userEffect.name})`);
@@ -749,7 +750,7 @@ export class EffectDiscovery {
             const effect = await this.loadUserEffectFromPath(filePath, directoryPath);
             if (effect) {
               const userEffectId = `user-${effect.id}`;
-              const userEffect = { ...effect, id: userEffectId, name: `${effect.name} (User)`, author: effect.author || 'User', metadata: { ...effect.metadata, folder: 'user-effects', isUserEffect: true } } as any;
+              const userEffect = { ...effect, id: userEffectId, name: `${effect.name} (User)`, author: effect.author || 'User', metadata: { ...effect.metadata, folder: 'user-effects', isUserEffect: true, sourcePath: filePath } } as any;
               this.userEffects.set(userEffectId, userEffect);
               effects.push(userEffect);
               console.log(`✅ Loaded user effect: ${userEffectId} (${userEffect.name})`);

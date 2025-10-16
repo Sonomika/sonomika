@@ -126,7 +126,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
 
   const isExternalBank = (e: LightEffect) => {
     const src = (e as any)?.fileKey || '';
-    return typeof src === 'string' && src.includes('bank/');
+    // Treat any non-user effect as System; also keep legacy bank/ path check
+    const isSystem = e?.metadata?.isUserEffect === false;
+    const looksLikeBankPath = typeof src === 'string' && src.includes('bank/');
+    return isSystem || looksLikeBankPath;
   };
 
   const visualEffectsAll = filtered.filter((e) => !(e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect && !isExternalBank(e));
@@ -197,24 +200,32 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     return externalBankEffects;
   }, [externalBankEffects, externalFilter]);
 
-  const favoritedVisualEffects = visualEffects.filter((e) => favorites.includes(effectKey(e)));
-  const favoritedGenerativeSources = generativeSources.filter((e) => favorites.includes(effectKey(e)));
-  const favoritedUserEffects = userEffects.filter((e) => favorites.includes(effectKey(e)));
+  // Favorites across ALL sources (system, user, external) from current filtered set
+  const favoritedAll = useMemo(() => {
+    const onlyFaved = filtered.filter((e) => favorites.includes(effectKey(e)));
+    const map = new Map<string, LightEffect>();
+    for (const e of onlyFaved) {
+      const key = effectKey(e);
+      if (!map.has(key)) map.set(key, e);
+    }
+    return Array.from(map.values());
+  }, [filtered, favorites]);
+
+  const favoritedEffects = useMemo(
+    () => favoritedAll.filter((e) => !(e.metadata?.isSource || e.metadata?.folder === 'sources')),
+    [favoritedAll]
+  );
+  const favoritedSources = useMemo(
+    () => favoritedAll.filter((e) => (e.metadata?.isSource || e.metadata?.folder === 'sources')),
+    [favoritedAll]
+  );
 
   // Unified favorites collection and filter
-  const favoritesAll = useMemo(() => {
-    return [
-      ...favoritedVisualEffects,
-      ...favoritedGenerativeSources,
-      ...favoritedUserEffects,
-    ];
-  }, [favoritedVisualEffects, favoritedGenerativeSources, favoritedUserEffects]);
-
   const favoritesFiltered = useMemo(() => {
-    if (favoritesFilter === 'effects') return favoritedVisualEffects;
-    if (favoritesFilter === 'sources') return favoritedGenerativeSources;
-    return favoritesAll;
-  }, [favoritesAll, favoritedVisualEffects, favoritedGenerativeSources, favoritesFilter]);
+    if (favoritesFilter === 'effects') return favoritedEffects;
+    if (favoritesFilter === 'sources') return favoritedSources;
+    return favoritedAll;
+  }, [favoritedAll, favoritedEffects, favoritedSources, favoritesFilter]);
 
   if (isLoading) {
     return (
@@ -419,18 +430,18 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${favoritesFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setFavoritesFilter('all')}
-                  >All {favoritesAll.length}</button>
+                  >All {favoritedAll.length}</button>
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${favoritesFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setFavoritesFilter('effects')}
-                  >Effects {favoritedVisualEffects.length}</button>
+                  >Effects {favoritedEffects.length}</button>
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${favoritesFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setFavoritesFilter('sources')}
-                  >Sources {favoritedGenerativeSources.length}</button>
+                  >Sources {favoritedSources.length}</button>
                 </div>
               </div>
-              {favoritesAll.length === 0 && (
+              {favoritedAll.length === 0 && (
                 <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
                   <div className="tw-text-sm">No favorites yet.</div>
                 </div>

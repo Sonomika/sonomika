@@ -102,7 +102,9 @@ function App() {
   const [isRecording, setIsRecording] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   
-  const [debugMode, setDebugMode] = useState(false);
+  const [debugMode, setDebugMode] = useState<boolean>(() => {
+    try { return !!JSON.parse(localStorage.getItem('vj-debug-enabled') || 'false'); } catch { return false; }
+  });
   const [showDebugOverlay, setShowDebugOverlay] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const advStreamRef = useRef<AdvancedMirrorStreamManager | null>(null);
@@ -807,7 +809,9 @@ function App() {
   
 
   const handleToggleDebug = () => {
-    setDebugMode(!debugMode);
+    const next = !debugMode;
+    setDebugMode(next);
+    try { localStorage.setItem('vj-debug-enabled', JSON.stringify(next)); } catch {}
     setShowDebugOverlay((v) => !v);
   };
 

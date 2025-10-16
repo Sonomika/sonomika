@@ -128,6 +128,19 @@ export const AIEffectsLab: React.FC = () => {
         setStatus(`Loaded source for ${entry.name}`);
         return true;
       }
+      // Electron fallback: if fileKey points to an external absolute path, read via preload bridge
+      try {
+        const electron = (window as any)?.electron;
+        if (!loader && electron && typeof electron.readFileText === 'function' && fileKey && /[:\\/]/.test(fileKey)) {
+          const content = await electron.readFileText(fileKey);
+          if (typeof content === 'string' && content.length > 0) {
+            setCode(content);
+            lastLoadedForEffectRef.current = effectId;
+            setStatus(`Loaded source from external path: ${baseName}`);
+            return true;
+          }
+        }
+      } catch {}
     } catch {}
     return false;
   }, []);

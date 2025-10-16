@@ -13,6 +13,9 @@ interface SettingsDialogProps {
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
   const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast, fontColor, setFontColor } = useStore() as any;
+  const [debugMode, setDebugMode] = useState<boolean>(() => {
+    try { return !!JSON.parse(localStorage.getItem('vj-debug-enabled') || 'false'); } catch { return false; }
+  });
   const [user, setUser] = useState<any>(null);
   // OpenAI settings removed
   const { toast } = useToast();
@@ -346,6 +349,24 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
               </div>
             </>
           )}
+
+          {/* Debug toggle at the bottom */}
+          <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">Enable Debug Mode</div>
+              <div className="tw-text-xs tw-text-neutral-400">Show developer overlays and diagnostics</div>
+            </div>
+            <Switch
+              checked={debugMode}
+              onCheckedChange={(v) => {
+                const next = Boolean(v);
+                setDebugMode(next);
+                try { localStorage.setItem('vj-debug-enabled', JSON.stringify(next)); } catch {}
+                try { (useStore.getState() as any).setDebugMode?.(next); } catch {}
+              }}
+            />
+          </div>
         </div>
       </DialogContent>
     </Dialog>
