@@ -1802,11 +1802,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <div className="tw-flex tw-items-center tw-gap-2 tw-ml-2">
                     <label className="tw-text-xs tw-text-neutral-400 tw-whitespace-nowrap">End:</label>
                     <select
-                      value={currentScene?.endOfSceneAction || 'stop'}
+                      value={(() => {
+                        const currentTimelineScene = timelineScenes.find((s: any) => s.id === currentTimelineSceneId);
+                        return currentTimelineScene?.endOfSceneAction || 'stop';
+                      })()}
                       onChange={(e) => {
                         const action = e.target.value as 'loop' | 'play_next' | 'random' | 'stop';
-                        const { updateScene: updateSceneFn } = getSceneManagementFunctions();
-                        updateSceneFn(getCurrentSceneId(), { endOfSceneAction: action });
+                        console.log('🎛️ Updating timeline scene end action:', { sceneId: currentTimelineSceneId, action });
+                        updateTimelineScene(currentTimelineSceneId, { endOfSceneAction: action });
+                        console.log('🎛️ Timeline scene updated. Current scenes:', timelineScenes.map(s => ({ id: s.id, name: s.name, endOfSceneAction: s.endOfSceneAction })));
                       }}
                       className="tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1 tw-min-w-0 tw-flex-shrink-0"
                       title="Action when scene ends"

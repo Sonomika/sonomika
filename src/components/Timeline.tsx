@@ -355,12 +355,15 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     rafRef.current = requestAnimationFrame(loop);
   }, [duration, getEarliestClipTime, setCurrentTime]);
 
-  // Handle scene end actions
+  // Handle scene end actions - always get fresh data from store
   const handleSceneEnd = useCallback(() => {
-    const currentScene = timelineScenes.find((s: any) => s.id === currentTimelineSceneId);
+    // Get fresh data from the store instead of relying on closure
+    const store = useStore.getState();
+    const currentScene = store.timelineScenes.find((s: any) => s.id === store.currentTimelineSceneId);
     const endAction = currentScene?.endOfSceneAction || 'stop';
     
-    console.log('🎬 Scene ended, executing action:', endAction, 'currentScene:', currentScene?.name, 'sceneId:', currentTimelineSceneId);
+    console.log('🎬 Scene ended, executing action:', endAction, 'currentScene:', currentScene?.name, 'sceneId:', store.currentTimelineSceneId);
+    console.log('🎬 Available timelineScenes:', store.timelineScenes.map(s => ({ id: s.id, name: s.name, endOfSceneAction: s.endOfSceneAction })));
     
     switch (endAction) {
       case 'loop':
@@ -373,10 +376,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         break;
         
       case 'play_next':
-        console.log('⏭️ Playing next scene - before:', currentTimelineSceneId);
+        console.log('⏭️ Playing next scene - before:', store.currentTimelineSceneId);
         playNextTimelineScene();
         setTimeout(() => {
-          console.log('⏭️ Starting next scene playback - after:', currentTimelineSceneId);
+          console.log('⏭️ Starting next scene playback - after:', store.currentTimelineSceneId);
           startPlayback();
         }, 200);
         break;
@@ -396,7 +399,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         // Timeline will stop automatically
         break;
     }
-  }, [currentTimelineSceneId, timelineScenes, playNextTimelineScene, playRandomTimelineScene, setCurrentTime, startPlayback]);
+  }, [playNextTimelineScene, playRandomTimelineScene, setCurrentTime, startPlayback]);
 
   // (removed unused clearAllTimelineData)
 
