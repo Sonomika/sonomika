@@ -11,6 +11,7 @@ interface CustomTitleBarProps {
   onToggleAppFullscreen?: () => void;
   onNewPreset?: () => void;
   onSavePreset?: () => void;
+  onSaveAsPreset?: () => void;
   onLoadPreset?: () => void;
   onCompositionSettings?: () => void;
   onOpenSettings?: () => void;
@@ -40,6 +41,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onToggleAppFullscreen,
   onNewPreset,
   onSavePreset,
+  onSaveAsPreset,
   onLoadPreset,
   onCompositionSettings,
   onOpenSettings,
@@ -215,6 +217,12 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                     >
                       Save Set
                     </button>
+                  <button 
+                    className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                    onClick={(e) => { e.stopPropagation(); onSaveAsPreset && onSaveAsPreset(); setFileMenuOpen(false); }}
+                  >
+                    Save As…
+                  </button>
                     <button 
                       className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
                       onClick={(e) => { e.stopPropagation(); onLoadPreset && onLoadPreset(); setFileMenuOpen(false); }}
@@ -403,6 +411,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                 <div className="tw-ml-2 tw-space-y-1">
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onNewPreset?.(); setMobileMenuOpen(false); }}>New Set</button>
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onSavePreset?.(); setMobileMenuOpen(false); }}>Save Set</button>
+                  <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onSaveAsPreset?.(); setMobileMenuOpen(false); }}>Save As…</button>
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onLoadPreset?.(); setMobileMenuOpen(false); }}>Load Set</button>
                 </div>
               )}

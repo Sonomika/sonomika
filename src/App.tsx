@@ -1100,6 +1100,7 @@ function App() {
         onToggleAppFullscreen={handleToggleAppFullscreen}
         onNewPreset={handleNewPreset}
         onSavePreset={handleSavePreset}
+        onSaveAsPreset={handleSaveAsPreset}
         onLoadPreset={handleLoadPreset}
         onCompositionSettings={handleCompositionSettings}
         onOpenSettings={() => setSettingsOpen(true)}

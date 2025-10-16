@@ -35,6 +35,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   });
   const [externalFilter, setExternalFilter] = useState<'all' | 'effects' | 'sources'>('all');
   const [userFilter, setUserFilter] = useState<'all' | 'effects' | 'sources'>('all');
+  const [favoritesFilter, setFavoritesFilter] = useState<'all' | 'effects' | 'sources'>('all');
   const [effects, setEffects] = useState<LightEffect[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [userEffectsLoaderOpen, setUserEffectsLoaderOpen] = useState(false);
@@ -200,6 +201,21 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   const favoritedGenerativeSources = generativeSources.filter((e) => favorites.includes(effectKey(e)));
   const favoritedUserEffects = userEffects.filter((e) => favorites.includes(effectKey(e)));
 
+  // Unified favorites collection and filter
+  const favoritesAll = useMemo(() => {
+    return [
+      ...favoritedVisualEffects,
+      ...favoritedGenerativeSources,
+      ...favoritedUserEffects,
+    ];
+  }, [favoritedVisualEffects, favoritedGenerativeSources, favoritedUserEffects]);
+
+  const favoritesFiltered = useMemo(() => {
+    if (favoritesFilter === 'effects') return favoritedVisualEffects;
+    if (favoritesFilter === 'sources') return favoritedGenerativeSources;
+    return favoritesAll;
+  }, [favoritesAll, favoritedVisualEffects, favoritedGenerativeSources, favoritesFilter]);
+
   if (isLoading) {
     return (
       <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
@@ -286,15 +302,15 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setUserFilter('all')}
-                  >All</button>
+                  >All {userEffects.length}</button>
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setUserFilter('effects')}
-                  >Effects</button>
+                  >Effects {userEffects.filter((e) => !e.metadata?.isSource).length}</button>
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${userFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setUserFilter('sources')}
-                  >Sources</button>
+                  >Sources {userEffects.filter((e) => !!e.metadata?.isSource).length}</button>
                 </div>
               </div>
               {userEffects.length === 0 && (
@@ -347,15 +363,15 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setExternalFilter('all')}
-                  >All</button>
+                  >All {externalBankEffects.length}</button>
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setExternalFilter('effects')}
-                  >Effects</button>
+                  >Effects {externalBankEffects.filter((e) => !e.metadata?.isSource).length}</button>
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setExternalFilter('sources')}
-                  >Sources</button>
+                  >Sources {externalBankEffects.filter((e) => !!e.metadata?.isSource).length}</button>
                 </div>
               </div>
               {externalBankEffects.length === 0 && (
@@ -397,126 +413,61 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             </div>
           </TabsContent>
           <TabsContent value="favorites">
-            <div className="tw-space-y-3">
-              <div>
-                <div className="tw-text-xs  tw-mb-1">Effects</div>
-                <div className="tw-space-y-2">
-                  {favoritedVisualEffects.length === 0 && (
-                    <div className="tw-text-xs ">No favorited effects yet.</div>
-                  )}
-                  {favoritedVisualEffects.map((e) => (
-                    <div
-                      key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
-                      className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
-                      draggable
-                      onDragStart={(ev) => {
-                        ev.dataTransfer.setData('application/json', JSON.stringify({
-                          type: 'effect', isEffect: true, id: e.id, name: e.name,
-                          description: e.description, category: e.category, icon: e.icon,
-                          metadata: e.metadata, assetType: 'effect', isSource: false,
-                        }));
-                      }}
-                      title={`${e.name}: ${e.description}`}
-                    >
+            <div className="tw-space-y-2">
+              <div className="tw-mb-1">
+                <div className="tw-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                  <button
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${favoritesFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    onClick={() => setFavoritesFilter('all')}
+                  >All {favoritesAll.length}</button>
+                  <button
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${favoritesFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    onClick={() => setFavoritesFilter('effects')}
+                  >Effects {favoritedVisualEffects.length}</button>
+                  <button
+                    className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${favoritesFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+                    onClick={() => setFavoritesFilter('sources')}
+                  >Sources {favoritedGenerativeSources.length}</button>
+                </div>
+              </div>
+              {favoritesAll.length === 0 && (
+                <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
+                  <div className="tw-text-sm">No favorites yet.</div>
+                </div>
+              )}
+              {favoritesFiltered.map((e) => (
+                <div
+                  key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
+                  className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
+                  draggable
+                  onDragStart={(ev) => {
+                    ev.dataTransfer.setData('application/json', JSON.stringify({
+                      type: 'effect', isEffect: true, id: e.id, name: e.name,
+                      description: e.description, category: e.category, icon: e.icon,
+                      metadata: e.metadata, assetType: 'effect', isSource: e.metadata?.isSource || false,
+                    }));
+                  }}
+                  title={`${e.name}: ${e.description}`}
+                >
                   <div className="tw-flex tw-items-center tw-justify-between">
-                    <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
-                        <button
-                          onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
-                          className={
-                            'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
-                          }
-                          title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
-                        >
-                          {favorites.includes(effectKey(e)) ? (
-                            <HeartFilledIcon className="tw-w-4 tw-h-4 " />
-                          ) : (
-                            <HeartIcon className="tw-w-4 tw-h-4 " />
-                          )}
-                        </button>
-                      </div>
+                    <div>
+                      <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
+                      {e.author ? (<div className="tw-text-xs ">by {e.author}</div>) : null}
                     </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="tw-text-xs  tw-mb-1">Sources</div>
-                <div className="tw-space-y-2">
-                  {favoritedGenerativeSources.length === 0 && (
-                    <div className="tw-text-xs ">No favorited sources yet.</div>
-                  )}
-                  {favoritedGenerativeSources.map((e) => (
-                    <div
-                      key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
-                      className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
-                      draggable
-                      onDragStart={(ev) => {
-                        ev.dataTransfer.setData('application/json', JSON.stringify({
-                          type: 'effect', isEffect: true, id: e.id, name: e.name,
-                          description: e.description, category: e.category, icon: e.icon,
-                          metadata: e.metadata, assetType: 'effect', isSource: true,
-                        }));
-                      }}
-                      title={`${e.name}: ${e.description}`}
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                      className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'}
+                      title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                     >
-                  <div className="tw-flex tw-items-center tw-justify-between">
-                    <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
-                        <button
-                          onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
-                          className={
-                            'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
-                          }
-                          title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
-                        >
-                          {favorites.includes(effectKey(e)) ? (
-                            <HeartFilledIcon className="tw-w-4 tw-h-4 " />
-                          ) : (
-                            <HeartIcon className="tw-w-4 tw-h-4 " />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      {favorites.includes(effectKey(e)) ? (
+                        <HeartFilledIcon className="tw-w-4 tw-h-4 " />
+                      ) : (
+                        <HeartIcon className="tw-w-4 tw-h-4 " />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="tw-text-xs  tw-mb-1">User</div>
-                <div className="tw-space-y-2">
-                  {favoritedUserEffects.length === 0 && (
-                    <div className="tw-text-xs ">No favorited user bank items yet.</div>
-                  )}
-                  {favoritedUserEffects.map((e) => (
-                    <div
-                      key={e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`}
-                      className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
-                      draggable
-                      onDragStart={(ev) => {
-                        ev.dataTransfer.setData('application/json', JSON.stringify({
-                          type: 'effect', isEffect: true, id: e.id, name: e.name,
-                          description: e.description, category: e.category, icon: e.icon,
-                          metadata: e.metadata, assetType: 'effect', isSource: e.metadata?.isSource || false,
-                        }));
-                      }}
-                      title={`${e.name}: ${e.description} (Author: ${e.author})`}
-                    >
-                      <div className="tw-flex tw-items-center tw-justify-between">
-                        <div>
-                          <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
-                          <div className="tw-text-xs ">by {e.author}</div>
-                        </div>
-                        <button
-                          onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
-                          className={
-                            'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
-                          }
-                          title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
-                        >
-                          <HeartIcon className={`tw-w-4 tw-h-4 ${favorites.includes(effectKey(e)) ? '' : ''}`} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
           </TabsContent>
         </Tabs>
