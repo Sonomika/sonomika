@@ -322,25 +322,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
           >
             Settings
           </button>
-          {/* Help dropdown */}
-          <div className="menu-item-dropdown app-no-drag" ref={helpMenuRef}>
-            <Popover open={helpMenuOpen} onOpenChange={setHelpMenuOpen}>
-              <PopoverTrigger asChild>
-                <button 
-                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent`}
-                >
-                  Help
-                </button>
-              </PopoverTrigger>
-              {helpMenuOpen && (
-                <PopoverContent className="tw-min-w-[180px] app-no-drag" align="start" side="bottom" >
-                  <div className="tw-flex tw-flex-col tw-py-1">
-                    
-                  </div>
-                </PopoverContent>
-              )}
-            </Popover>
-          </div>
+          {/* Help menu removed per request */}
           {process.env.NODE_ENV === 'development' && onStyleGuide && (
             <button 
               className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 

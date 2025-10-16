@@ -264,8 +264,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           }
         }}>
           <TabsList>
+            <TabsTrigger value="user">Library</TabsTrigger>
             <TabsTrigger value="external">System</TabsTrigger>
-            <TabsTrigger value="user">User</TabsTrigger>
             <TabsTrigger value="favorites" title="Favorites">
               {activeTab === 'favorites' ? (
                 <HeartFilledIcon className="tw-w-4 tw-h-4" />

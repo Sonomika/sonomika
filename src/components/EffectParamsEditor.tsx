@@ -367,7 +367,6 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                       handleParamChange(param.name, value, param);
                     }}
                     onIncrement={() => {
-                      if (isLocked) return;
                       const currentVal = (localParamValues as any)[param.name] ?? currentValue;
                       const step = param.step || 0.1;
                       const newValue = Math.min(param.max || 1, Number(currentVal) + step);
@@ -375,7 +374,6 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                       handleParamChange(param.name, newValue, param);
                     }}
                     onDecrement={() => {
-                      if (isLocked) return;
                       const currentVal = (localParamValues as any)[param.name] ?? currentValue;
                       const step = param.step || 0.1;
                       const newValue = Math.max(param.min || 0, Number(currentVal) - step);

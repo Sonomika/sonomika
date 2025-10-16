@@ -613,7 +613,6 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                                 handleEffectParamChange(param.name, v);
                               }}
                               onIncrement={() => {
-                                if (isLocked) return;
                                 const currentVal = Number(localParamValues[param.name] ?? currentValue);
                                 const step = param.step || 0.1;
                                 const base = Number.isFinite(currentVal) ? currentVal : (typeof param.min === 'number' ? param.min : 0);
@@ -622,7 +621,6 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                                 handleEffectParamChange(param.name, newValue);
                               }}
                               onDecrement={() => {
-                                if (isLocked) return;
                                 const currentVal = Number(localParamValues[param.name] ?? currentValue);
                                 const step = param.step || 0.1;
                                 const base = Number.isFinite(currentVal) ? currentVal : (typeof param.min === 'number' ? param.min : 0);
