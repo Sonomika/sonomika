@@ -505,14 +505,15 @@ export const AIEffectsLab: React.FC = () => {
               />
             </div>
           </div>
-          <div className="tw-flex tw-gap-2 tw-flex-wrap">
-            <Button variant="secondary" onClick={handleLoadExternalCode}>Load external code…</Button>
+          <div className="tw-flex tw-gap-2 tw-flex-wrap tw-items-center">
             <Button variant="secondary" onClick={handleGenerate} disabled={thinking || !apiKey}>
               {thinking ? 'Generating…' : 'Generate with AI'}
             </Button>
             <Button variant="secondary" onClick={handleApplyToSelectedSlot} disabled={!code.trim()}>Apply to Slot</Button>
+            <Button variant="secondary" onClick={handleSaveToFile} disabled={!code.trim()}>Save</Button>
+            <div className="tw-h-6 tw-w-px tw-bg-neutral-600"></div>
+            <Button variant="secondary" onClick={handleLoadExternalCode}>Load external code</Button>
             <Button variant="secondary" onClick={handleFixOutput} disabled={!code.trim()}>Fix Output</Button>
-            <Button variant="secondary" onClick={handleSaveToFile} disabled={!code.trim()}>Save…</Button>
           </div>
           <div className="tw-text-xs tw-text-neutral-400">{status}</div>
 

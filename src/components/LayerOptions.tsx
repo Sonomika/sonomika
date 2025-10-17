@@ -533,9 +533,11 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           <div className="tw-space-y-2">
             {/* Header row: stack through lg; grid on >=xxl */}
             <div className="tw-flex tw-flex-col xxl:tw-grid xxl:tw-items-center" style={{ gridTemplateColumns: '180px 1fr 48px' }}>
-              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300 xxl:tw-col-span-2 tw-min-w-0 tw-pr-2 tw-truncate">
-                Effect Parameters{effectId ? ` · ${String(effectId)}` : ''}
-              </h4>
+              <div className="tw-flex tw-flex-col tw-min-w-0 tw-pr-2 xxl:tw-col-span-2">
+                <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">
+                  {effectMetadata?.name || (effectId ? String(effectId).split('/').pop()?.split('\\').pop()?.replace(/\.(js|tsx?)$/, '') || String(effectId) : 'Effect Parameters')}
+                </h4>
+              </div>
               <div className="tw-flex tw-justify-end tw-items-center tw-gap-1 tw-mt-1 xxl:tw-mt-0">
                 {/* Smoothing (0..1) */}
                 <div className="tw-flex tw-items-center tw-gap-1" title="Smoothing (0 = instant, 1 = full tween)">
