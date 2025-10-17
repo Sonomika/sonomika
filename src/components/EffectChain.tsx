@@ -4,6 +4,7 @@ import { createPortal, useFrame, useThree } from '@react-three/fiber';
 import { getEffectComponentSync } from '../utils/EffectLoader';
 import { getCachedVideoCanvas } from '../utils/AssetPreloader';
 import { useStore } from '../store/store';
+import { EffectErrorBoundary } from './EffectErrorBoundary';
 
 export type ChainItem =
   | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; fitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile'; backgroundSizeMode?: 'cover' | 'contain' | 'auto' | 'custom'; backgroundRepeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'; backgroundSizeCustom?: string; renderScale?: number; __uniqueKey?: string }
@@ -584,7 +585,11 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           React.Fragment,
           { key: fxPortalKey },
           createPortal(
-            React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras }),
+            React.createElement(
+              EffectErrorBoundary,
+              { effectId: item.effectId },
+              React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras })
+            ),
             offscreenScenes[idx],
             fxPortalKey
           )

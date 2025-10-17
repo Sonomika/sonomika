@@ -8,6 +8,7 @@ import { FRAME_BUFFER_CONFIG, VIDEO_PIPELINE_CONFIG } from '../constants/video';
 import { WorkerVideoPipeline } from '../utils/WorkerVideoPipeline';
 import { WorkerCanvasDrawer } from '../utils/WorkerCanvasDrawer';
 import { demuxWithMediaSource } from '../utils/Demuxers';
+import { EffectErrorBoundary } from './EffectErrorBoundary';
 
 interface CanvasRendererProps {
   assets: Array<{
@@ -391,12 +392,14 @@ const EffectLayer = React.memo<{
   }, [layer.params]);
 
   return (
-    <EffectComponent 
-      {...flatParams}
-      videoTexture={videoTexture}
-      opacity={layer.opacity}
-      blendMode={layer.blendMode}
-    />
+    <EffectErrorBoundary effectId={effectId}>
+      <EffectComponent 
+        {...flatParams}
+        videoTexture={videoTexture}
+        opacity={layer.opacity}
+        blendMode={layer.blendMode}
+      />
+    </EffectErrorBoundary>
   );
 });
 

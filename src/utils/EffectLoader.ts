@@ -46,15 +46,21 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
 
     const exact = modules[exactPathTsx] || modules[exactPathJs] || modules[exactPathTs] || modules[exactPathJsx];
     if (exact) {
-      if (DEBUG_EFFECTS) console.log(`✅ Found effect at: ${exactPath}`);
-      const mod = await exact();
-      if (DEBUG_EFFECTS) {
-        console.log(`✅ Effect module loaded:`, mod);
-        console.log(`🔍 Module keys:`, Object.keys(mod));
-        console.log(`🔍 Module default:`, mod.default);
-        console.log(`🔍 Module default type:`, typeof mod.default);
+      if (DEBUG_EFFECTS) console.log(`✅ Found effect at exact path`);
+      try {
+        const mod = await exact();
+        if (DEBUG_EFFECTS) {
+          console.log(`✅ Effect module loaded:`, mod);
+          console.log(`🔍 Module keys:`, Object.keys(mod));
+          console.log(`🔍 Module default:`, mod.default);
+          console.log(`🔍 Module default type:`, typeof mod.default);
+        }
+        return mod.default;
+      } catch (loadError) {
+        console.error(`❌ Failed to load effect module ${effectId}:`, loadError);
+        // Return null instead of crashing
+        return null;
       }
-      return mod.default;
     }
 
     // If exact match not found, try to find by partial match
@@ -95,14 +101,20 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
     
     if (matchingFile) {
       if (DEBUG_EFFECTS) console.log(`✅ Found effect by partial match: ${matchingFile}`);
-      const mod = await modules[matchingFile]();
-      if (DEBUG_EFFECTS) {
-        console.log(`✅ Effect module loaded:`, mod);
-        console.log(`🔍 Module keys:`, Object.keys(mod));
-        console.log(`🔍 Module default:`, mod.default);
-        console.log(`🔍 Module default type:`, typeof mod.default);
+      try {
+        const mod = await modules[matchingFile]();
+        if (DEBUG_EFFECTS) {
+          console.log(`✅ Effect module loaded:`, mod);
+          console.log(`🔍 Module keys:`, Object.keys(mod));
+          console.log(`🔍 Module default:`, mod.default);
+          console.log(`🔍 Module default type:`, typeof mod.default);
+        }
+        return mod.default;
+      } catch (loadError) {
+        console.error(`❌ Failed to load effect module ${effectId} from ${matchingFile}:`, loadError);
+        // Return null instead of crashing
+        return null;
       }
-      return mod.default;
     }
 
     // If no effect found, return null instead of hardcoding a fallback

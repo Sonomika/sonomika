@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import * as THREE from 'three';
 import { getAllRegisteredEffects, getEffect } from '../utils/effectRegistry';
+import { EffectErrorBoundary } from './EffectErrorBoundary';
 
 interface EffectLoaderProps {
   videoTexture?: THREE.VideoTexture;
@@ -32,13 +33,15 @@ export const SingleEffectLoader: React.FC<{
   console.log(`🎯 SingleEffectLoader rendering effect: ${effectId} with params:`, params);
 
   return (
-    <Suspense fallback={fallback}>
-      <EffectComponent 
-        videoTexture={videoTexture}
-        isGlobal={isGlobal}
-        {...params}
-      />
-    </Suspense>
+    <EffectErrorBoundary effectId={effectId}>
+      <Suspense fallback={fallback}>
+        <EffectComponent 
+          videoTexture={videoTexture}
+          isGlobal={isGlobal}
+          {...params}
+        />
+      </Suspense>
+    </EffectErrorBoundary>
   );
 };
 
@@ -64,10 +67,11 @@ export default function EffectLoader({ videoTexture, fallback = null, effectId, 
     if (!EffectComponent) return null;
     
     return (
-      <EffectComponent 
-        key={effectId} 
-        videoTexture={videoTexture}
-      />
+      <EffectErrorBoundary key={effectId} effectId={effectId}>
+        <EffectComponent 
+          videoTexture={videoTexture}
+        />
+      </EffectErrorBoundary>
     );
   }).filter(Boolean);
 

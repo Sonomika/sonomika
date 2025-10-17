@@ -7,6 +7,7 @@ import { getCachedVideo, getCachedVideoCanvas } from '../utils/AssetPreloader';
 import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
 import EffectChain, { ChainItem } from './EffectChain';
 import { debounce } from '../utils/debounce';
+import { EffectErrorBoundary } from './EffectErrorBoundary';
 
 // Drives rendering while the document is hidden (minimized) to avoid rAF throttling
 const HiddenRenderDriver: React.FC = () => {
@@ -420,12 +421,14 @@ const EffectLayer: React.FC<{
   console.log('✅ EffectLayer - Converted props for effect:', effectProps);
 
   return (
-    <EffectComponent 
-      {...effectProps}
-      opacity={layer.opacity}
-      blendMode={layer.blendMode}
-      isGlobal={isGlobal}
-    />
+    <EffectErrorBoundary effectId={effectId}>
+      <EffectComponent 
+        {...effectProps}
+        opacity={layer.opacity}
+        blendMode={layer.blendMode}
+        isGlobal={isGlobal}
+      />
+    </EffectErrorBoundary>
   );
 };
 

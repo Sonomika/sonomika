@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { useEffectManager } from '../utils/EffectManager';
+import { EffectErrorBoundary } from './EffectErrorBoundary';
 
 interface DynamicEffectProps {
   effectId: string;
@@ -41,9 +42,11 @@ export const DynamicEffect: React.FC<DynamicEffectProps> = ({
   const LazyEffectComponent = getLazyEffectComponent(effectId);
 
   return (
-    <Suspense fallback={fallback}>
-      <LazyEffectComponent {...props} />
-    </Suspense>
+    <EffectErrorBoundary effectId={effectId}>
+      <Suspense fallback={fallback}>
+        <LazyEffectComponent {...props} />
+      </Suspense>
+    </EffectErrorBoundary>
   );
 };
 
@@ -51,47 +54,11 @@ export const DynamicEffect: React.FC<DynamicEffectProps> = ({
  * Dynamic Effect with Error Boundary
  * 
  * This component provides error handling for dynamic effects
+ * Note: The main DynamicEffect component now includes error handling by default
  */
 export const DynamicEffectWithErrorBoundary: React.FC<DynamicEffectProps> = (props) => {
-  return (
-    <ErrorBoundary>
-      <DynamicEffect {...props} />
-    </ErrorBoundary>
-  );
+  // Now just an alias since DynamicEffect includes error boundary by default
+  return <DynamicEffect {...props} />;
 };
-
-/**
- * Error Boundary for Dynamic Effects
- */
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Dynamic effect error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <mesh>
-          <planeGeometry args={[2, 2]} />
-          <meshBasicMaterial color={0xff0000} />
-        </mesh>
-      );
-    }
-
-    return this.props.children;
-  }
-}
 
 export default DynamicEffect; 
