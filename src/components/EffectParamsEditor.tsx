@@ -2,8 +2,7 @@ import React from 'react';
 import { Select, Slider, ParamRow, Input } from './ui';
 import { getEffect } from '../utils/effectRegistry';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
-import { CircleIcon } from '@radix-ui/react-icons';
-import { LockedIcon, UnlockedIcon } from './ui';
+import { CircleIcon, LockClosedIcon, LockOpen1Icon } from '@radix-ui/react-icons';
 
 interface EffectParamsEditorProps {
   effectId: string;
@@ -41,10 +40,10 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
 
   // Radix wrappers for lock/unlock and dice
   const LockIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <LockedIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
+    <LockClosedIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
   );
   const UnlockIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <UnlockedIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
+    <LockOpen1Icon className={className || 'tw-w-3.5 tw-h-3.5'} />
   );
   const DiceIcon: React.FC<{ className?: string }> = ({ className }) => (
     <CircleIcon className={className || 'tw-w-3.5 tw-h-3.5'} />

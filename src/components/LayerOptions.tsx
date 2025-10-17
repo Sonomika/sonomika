@@ -8,24 +8,37 @@ import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRand
 import { useStore } from '../store/store';
 import { useLFOStore } from '../store/lfoStore';
 import { useVideoOptionsStore } from '../store/videoOptionsStore';
-import { CircleIcon } from '@radix-ui/react-icons';
-import { LockedIcon, UnlockedIcon } from './ui';
+import { DiceIcon } from './ui';
+import { LockClosedIcon, LockOpen1Icon } from '@radix-ui/react-icons';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
   onUpdateLayer: (layerId: string, options: Partial<Layer>) => void;
 }
 
-// Radix replacements for lock/unlock and dice
+// Icon wrappers for consistent sizing
 const LockIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <LockedIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
+  <LockClosedIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
 );
 const UnlockIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <UnlockedIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
+  <LockOpen1Icon className={className || 'tw-w-3.5 tw-h-3.5'} />
 );
-const DiceIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <CircleIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
-);
+const RandomIcon: React.FC<{ className?: string }> = ({ className }) => {
+  const baseSize = 'tw-w-3.5 tw-h-3.5 tw-inline-block';
+  const cls = className ? `${baseSize} ${className}` : baseSize;
+  return (
+    <span
+      aria-hidden
+      className={cls}
+      style={{
+        WebkitMask: 'url(/icons/dice.svg) center / contain no-repeat',
+        mask: 'url(/icons/dice.svg) center / contain no-repeat',
+        backgroundColor: 'currentColor',
+        display: 'inline-block'
+      }}
+    />
+  );
+};
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
   const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip } = useStore() as any;
@@ -543,7 +556,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   className="tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none"
                   title="Randomize unlocked parameters"
                 >
-                  <DiceIcon className="tw-text-white" />
+                  <RandomIcon className="tw-text-foreground" />
                 </button>
                 {(() => {
                   const total = (effectMetadata?.parameters || []).length;
@@ -638,7 +651,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
                               title="Randomize this parameter"
                             >
-                              <DiceIcon className="tw-text-white" />
+                              <RandomIcon className="tw-text-foreground" />
                             </button>
                             <button
                               type="button"
@@ -670,7 +683,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
                               title="Randomize this parameter"
                             >
-                              <DiceIcon className="tw-text-white" />
+                              <RandomIcon className="tw-text-foreground" />
                             </button>
                             <button
                               type="button"
@@ -704,7 +717,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
                               title="Randomize this parameter"
                             >
-                              <DiceIcon className="tw-text-white" />
+                              <RandomIcon className="tw-text-foreground" />
                             </button>
                             <button
                               type="button"
@@ -800,7 +813,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                           className={`tw-inline-flex tw-items-center tw-text-xs tw-p-0 tw-bg-transparent tw-border-none tw-appearance-none`}
                           title="Randomize this parameter"
                         >
-                          <DiceIcon className="tw-text-white" />
+                          <RandomIcon className="tw-text-foreground" />
                         </button>
                         <button
                           type="button"
@@ -835,7 +848,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               // Without metadata we cannot safely randomize; no-op
                             }}
                           >
-                            <DiceIcon className="tw-text-white" />
+                            <RandomIcon className="tw-text-foreground" />
                           </button>
                           <button
                             type="button"

@@ -34,7 +34,7 @@ export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tool
 export { Alert, AlertDescription, AlertTitle } from './alert';
 export { Toast, ToastAction, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from './toast';
 export { Toaster } from './toaster';
-export { LockedIcon, UnlockedIcon, PadlockClosedIcon, PadlockOpenIcon } from './icons';
+export { LockedIcon, UnlockedIcon, PadlockClosedIcon, PadlockOpenIcon, DiceIcon } from './icons';
 
 // Demo component for showcasing new UI components
 export { default as UIDemo } from '../UIDemo';

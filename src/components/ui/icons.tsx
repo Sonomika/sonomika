@@ -89,3 +89,23 @@ export const PadlockOpenIcon: React.FC<IconProps> = ({ className }) => (
 );
 
 
+export const DiceIcon: React.FC<IconProps> = ({ className }) => (
+  <svg
+    className={className}
+    width="15"
+    height="15"
+    viewBox="0 0 15 15"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Dice outline */}
+    <rect x="2" y="2" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.2" />
+    {/* Pips */}
+    <circle cx="5" cy="5" r="1" fill="currentColor" />
+    <circle cx="10" cy="5" r="1" fill="currentColor" />
+    <circle cx="5" cy="10" r="1" fill="currentColor" />
+    <circle cx="10" cy="10" r="1" fill="currentColor" />
+    <circle cx="7.5" cy="7.5" r="1" fill="currentColor" />
+  </svg>
+);
+
