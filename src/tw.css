@@ -244,6 +244,11 @@ div, span, p, h1, h2, h3, h4, h5, h6, button, input, select, textarea, label, a,
   color: var(--font-color) !important;
 }
 
+/* Apply font color to SVG logos using CSS filter */
+.logo-svg {
+  filter: brightness(0) saturate(100%) invert(1);
+}
+
 /* Additional specificity for nested elements */
 .tw-bg-neutral-900 *,
 .tw-bg-neutral-800 *,

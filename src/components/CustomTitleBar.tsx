@@ -129,7 +129,9 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
       {/* Top system bar: logo + window controls */}
       <div className="tw-h-8 tw-flex tw-items-center tw-justify-between tw-pl-0 tw-pr-2 tw-cursor-grab app-drag-region" style={{ backgroundColor: '#0d0d0d' }}>
         <div className="tw-flex tw-items-center tw-flex-none tw-min-w-[120px]">
-          <div className="tw-text-white tw-text-sm tw-font-bold tw-ml-[3px] tw-px-3 tw-py-2 tw-rounded tw-transition-colors app-no-drag">sonomika</div>
+          <div className="tw-ml-[3px] tw-px-3 tw-py-2 tw-rounded tw-transition-colors app-no-drag">
+            <img src="/icons/sonomika.svg" alt="sonomika" className="tw-h-3 tw-w-auto logo-svg" />
+          </div>
           {currentPresetName && (
             <>
               <div className="tw-text-neutral-500 tw-pl-[2px] tw-pr-2 app-no-drag">/</div>
