@@ -1,5 +1,6 @@
 import { MIDIMapping, AppState } from '../store/types';
 import { useStore } from '../store/store';
+import { getEffect } from '../utils/effectRegistry';
 // EffectLoader import removed - using dynamic loading instead
 
 type StoreActions = {
@@ -18,6 +19,10 @@ export class MIDIProcessor {
   private mappings: MIDIMapping[];
   private lastColumnTriggerAt: number = 0;
   private columnTriggerLock: boolean = false;
+  // Coalesce rapid MIDI updates into per-frame batched store updates
+  private pendingParamUpdates: Map<string, Record<string, number>> = new Map();
+  private lastAppliedParamValues: Map<string, number> = new Map();
+  private applyScheduled: boolean = false;
 
   private constructor() {
     this.mappings = [];
@@ -32,6 +37,79 @@ export class MIDIProcessor {
 
   setMappings(mappings: MIDIMapping[]): void {
     this.mappings = mappings;
+  }
+
+  private queueLayerParamUpdate(layerId: string, paramName: string, value: number) {
+    const key = `${layerId}:${paramName}`;
+    const prev = this.lastAppliedParamValues.get(key);
+    // Skip tiny changes to avoid excessive renders (epsilon ~ 0.002 of range)
+    if (prev !== undefined && Math.abs(prev - value) < 0.002) return;
+    this.lastAppliedParamValues.set(key, value);
+
+    const existing = this.pendingParamUpdates.get(layerId) || {};
+    existing[paramName] = value;
+    this.pendingParamUpdates.set(layerId, existing);
+
+    if (!this.applyScheduled) {
+      this.applyScheduled = true;
+      const flush = () => this.flushParamUpdates();
+      try {
+        if (typeof window !== 'undefined' && typeof (window as any).requestAnimationFrame === 'function') {
+          requestAnimationFrame(flush);
+        } else {
+          setTimeout(flush, 0);
+        }
+      } catch {
+        setTimeout(flush, 0);
+      }
+    }
+  }
+
+  private flushParamUpdates() {
+    try {
+      const state: any = useStore.getState();
+      const updateLayer = state.updateLayer as (layerId: string, updates: any) => void;
+      for (const [layerId, changes] of this.pendingParamUpdates.entries()) {
+        const layer = this.findLayer(layerId) as any;
+        if (!layer) continue;
+        const currentParams = { ...(layer.params || {}) } as Record<string, any>;
+        Object.entries(changes).forEach(([name, v]) => {
+          const prevObj = currentParams[name] || {};
+          currentParams[name] = { ...prevObj, value: v as number };
+        });
+        updateLayer(layerId, { params: currentParams });
+
+        // When editing in timeline mode, mirror changes into the selectedTimelineClip so UI sliders update
+        try {
+          const st: any = useStore.getState();
+          const clip = st.selectedTimelineClip;
+          if (st.showTimeline && clip) {
+            let matches = false;
+            if (clip.layerId && clip.layerId === layerId) matches = true;
+            if (!matches) {
+              const clipAsset = clip?.data?.asset || {};
+              const assetId = clipAsset.id || clipAsset.name;
+              const layerAsset = (layer && (layer.asset || {})) || {};
+              const layerAssetId = layerAsset.id || layerAsset.name;
+              if (assetId && layerAssetId && assetId === layerAssetId) matches = true;
+            }
+            if (matches && typeof st.setSelectedTimelineClip === 'function') {
+              const clipData = { ...(clip.data || {}) } as any;
+              const clipParams = { ...(clipData.params || {}) } as Record<string, any>;
+              Object.entries(changes).forEach(([name, v]) => {
+                const prev = clipParams[name] || {};
+                clipParams[name] = { ...prev, value: v as number };
+              });
+              clipData.params = clipParams;
+              st.setSelectedTimelineClip({ ...clip, data: clipData });
+            }
+          }
+        } catch {}
+      }
+    } finally {
+      this.pendingParamUpdates.clear();
+      this.applyScheduled = false;
+    }
   }
 
   private tryTriggerColumn(columnId: string | null | undefined) {
@@ -60,6 +138,7 @@ export class MIDIProcessor {
       .filter(mapping => 
         mapping.type === 'note' &&
         mapping.number === note &&
+        (mapping.enabled !== false) &&
         (
           force ? true : mapping.channel === effectiveChannel
         )
@@ -105,16 +184,26 @@ export class MIDIProcessor {
               if (layerTarget.param === 'opacity') {
                 store.updateLayer(layerTarget.id, { opacity: velocity / 127 });
               } else if (layerTarget.param) {
-                const metadata = this.getEffectMetadata((layer as any).type) as any;
+                // Derive min/max more robustly: prefer effect metadata, else infer from existing value object
+                const metadata = this.getEffectMetadataForLayer(layer) as any;
                 const paramConfig = metadata?.parameters?.find((p: any) => p.name === layerTarget.param);
-                if (paramConfig && paramConfig.type === 'number') {
-                  const range = (paramConfig.max || 1) - (paramConfig.min || 0);
-                  const normalizedValue = velocity / 127;
-                  const mappedValue = (paramConfig.min || 0) + (range * normalizedValue);
-                  store.updateLayer(layerTarget.id, {
-                    params: { ...(layer as any).params, [layerTarget.param]: mappedValue }
-                  });
+                let min = 0; let max = 1;
+                if (paramConfig) {
+                  if (typeof paramConfig.min === 'number') min = paramConfig.min;
+                  if (typeof paramConfig.max === 'number') max = paramConfig.max;
+                } else {
+                  try {
+                    const existing = ((layer as any).params || {})[layerTarget.param];
+                    if (existing && typeof existing === 'object') {
+                      if (typeof existing.min === 'number') min = existing.min;
+                      if (typeof existing.max === 'number') max = existing.max;
+                    }
+                  } catch {}
                 }
+                const range = max - min;
+                const normalizedValue = velocity / 127;
+                const mappedValue = min + (range * normalizedValue);
+                this.queueLayerParamUpdate(layerTarget.id, layerTarget.param, mappedValue);
               }
             }
             break;
@@ -152,11 +241,14 @@ export class MIDIProcessor {
     const store = useStore.getState() as Store;
     const force = !!(store as any).midiForceChannel1;
     const effectiveChannel = force ? 1 : channel;
+    const ccOffset = Math.max(0, Math.min(127, Number((store as any).midiCCOffset) || 0));
+    const normalizedCC = Math.max(0, Math.min(127, cc - ccOffset));
 
     this.mappings
       .filter(mapping => 
         mapping.type === 'cc' &&
-        mapping.number === cc &&
+        mapping.number === normalizedCC &&
+        (mapping.enabled !== false) &&
         (
           force ? true : mapping.channel === effectiveChannel
         )
@@ -187,16 +279,25 @@ export class MIDIProcessor {
               if (layerTarget.param === 'opacity') {
                 store.updateLayer(layerTarget.id, { opacity: value / 127 });
               } else if (layerTarget.param) {
-                const metadata = this.getEffectMetadata((layer as any).type) as any;
+                const metadata = this.getEffectMetadataForLayer(layer) as any;
                 const paramConfig = metadata?.parameters?.find((p: any) => p.name === layerTarget.param);
-                if (paramConfig && paramConfig.type === 'number') {
-                  const range = (paramConfig.max || 1) - (paramConfig.min || 0);
-                  const normalizedValue = value / 127;
-                  const mappedValue = (paramConfig.min || 0) + (range * normalizedValue);
-                  store.updateLayer(layerTarget.id, {
-                    params: { ...(layer as any).params, [layerTarget.param]: mappedValue }
-                  });
+                let min = 0; let max = 1;
+                if (paramConfig) {
+                  if (typeof paramConfig.min === 'number') min = paramConfig.min;
+                  if (typeof paramConfig.max === 'number') max = paramConfig.max;
+                } else {
+                  try {
+                    const existing = ((layer as any).params || {})[layerTarget.param];
+                    if (existing && typeof existing === 'object') {
+                      if (typeof existing.min === 'number') min = existing.min;
+                      if (typeof existing.max === 'number') max = existing.max;
+                    }
+                  } catch {}
                 }
+                const range = max - min;
+                const normalizedValue = value / 127;
+                const mappedValue = min + (range * normalizedValue);
+                this.queueLayerParamUpdate(layerTarget.id, layerTarget.param, mappedValue);
               }
             }
             break;
@@ -344,8 +445,20 @@ export class MIDIProcessor {
   }
 
   private getEffectMetadata(effectType: string) {
-    // Using dynamic discovery instead of EffectLoader
-    console.log('Getting metadata for effect type:', effectType);
-    return null; // TODO: Implement dynamic metadata loading
+    // Deprecated: we now resolve metadata by layer
+    return null;
+  }
+
+  private getEffectMetadataForLayer(layer: any) {
+    try {
+      const isEffect = layer?.type === 'effect' || layer?.asset?.isEffect || layer?.asset?.type === 'effect';
+      const effectId: string | undefined = layer?.asset?.id || layer?.asset?.name || layer?.asset?.effectId;
+      if (!isEffect || !effectId) return null;
+      const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
+      const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
+      return metadata || null;
+    } catch {
+      return null;
+    }
   }
 } 

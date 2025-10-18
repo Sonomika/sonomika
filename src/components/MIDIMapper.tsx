@@ -1,22 +1,20 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
-import { Input, Label, Select, Switch, Button } from './ui';
+import { Input, Label, Select, Switch, Button, Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { MIDIManager } from '../midi/MIDIManager';
 import { MIDIProcessor } from '../utils/MIDIProcessor';
 import { MIDIMapping } from '../store/types';
 import { KeyboardInputManager } from '../utils/KeyboardInputManager';
+import LayerCCMapper from './LayerCCMapper';
 
-interface MIDIDevice {
-  id: string;
-  name: string;
-  type: 'input' | 'output';
-}
+interface MIDIDeviceOption { value: string; label?: string }
 
 export const MIDIMapper: React.FC = () => {
   const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1 } = useStore() as any;
   const { scenes, currentSceneId } = useStore() as any;
   const [selectedDevice, setSelectedDevice] = useState<string>('Any device');
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<'mappings' | 'layer-cc'>('mappings');
   const mappings = midiMappings as MIDIMapping[];
   // Removed custom save dialog; we now use system Save dialog (Electron or File System Access API)
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -24,11 +22,8 @@ export const MIDIMapper: React.FC = () => {
   const [lastEventAt, setLastEventAt] = useState<number | null>(null);
   const [lastEvent, setLastEvent] = useState<{ type: 'note' | 'cc'; channel: number; effChannel?: number; forced?: boolean; number: number; value: number; ts: number } | null>(null);
 
-  const [devices] = useState<MIDIDevice[]>([
-    { id: 'loopmidi', name: 'Loopmidi', type: 'input' },
-    { id: 'midi-keyboard', name: 'MIDI Keyboard', type: 'input' },
-    { id: 'virtual-midi', name: 'Virtual MIDI', type: 'input' }
-  ]);
+  // Dynamic device options from WebMIDI
+  const [deviceOptions, setDeviceOptions] = useState<MIDIDeviceOption[]>([]);
 
   const inputTypeOptions = [
     { value: 'note', label: 'Note' },
@@ -44,19 +39,22 @@ export const MIDIMapper: React.FC = () => {
 
   // Removed Ableton-style presets; mappings can still be added/edited manually
 
-  const inputOptions = [
-    'Any device',
-    'Loopmidi',
-    'MIDI Keyboard',
-    'Virtual MIDI'
-  ];
-
-  const outputOptions = [
-    'All devices',
-    'Loopmidi',
-    'MIDI Keyboard',
-    'Virtual MIDI'
-  ];
+  // Populate device options from MIDIManager and keep them in sync
+  useEffect(() => {
+    try {
+      const mgr = MIDIManager.getInstance();
+      const update = () => {
+        const list = mgr.getInputSummaries().map((d) => ({ value: d.name }));
+        setDeviceOptions(list);
+        // Keep selection sane if device disappears
+        const names = new Set(list.map((o) => o.value));
+        setSelectedDevice((prev) => (prev && names.has(prev) ? prev : 'Any device'));
+      };
+      update();
+      mgr.onInputsChanged(update);
+      return () => { try { mgr.removeInputsChanged(update); } catch {} };
+    } catch {}
+  }, []);
 
   const noteOptions = [
     'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
@@ -219,9 +217,16 @@ export const MIDIMapper: React.FC = () => {
   return (
     <div className="tw-flex tw-flex-col tw-h-full tw-text-neutral-200">
       <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+          <TabsList>
+            <TabsTrigger value="mappings">Mappings</TabsTrigger>
+            <TabsTrigger value="layer-cc">Layer CC</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="mappings">
         <div className="tw-flex tw-flex-col tw-gap-2">
           <div className="tw-min-w-[160px]">
-            <Select value={selectedDevice} onChange={(v) => setSelectedDevice(v as string)} options={devices.map(d => ({ value: d.name }))} />
+            <Select value={selectedDevice} onChange={(v) => setSelectedDevice(v as string)} options={[{ value: 'Any device' }, ...deviceOptions]} />
           </div>
           <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
             <Label className="tw-text-xs">Force Channel 1</Label>
@@ -282,8 +287,16 @@ export const MIDIMapper: React.FC = () => {
             </div>
           ))}
         </div>
+          </TabsContent>
+
+          <TabsContent value="layer-cc">
+            <LayerCCMapper />
+          </TabsContent>
+
+        </Tabs>
       </div>
 
+      {activeTab === 'mappings' && (
       <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
         <div className="tw-grid tw-grid-cols-2 tw-gap-2">
           <div className="tw-space-y-2">
@@ -418,6 +431,7 @@ export const MIDIMapper: React.FC = () => {
           })()}
         </div>
       </div>
+      )}
 
       <div className="tw-bg-neutral-900 tw-flex-1 tw-overflow-auto tw-text-xs tw-text-neutral-300 tw-p-2">
         <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">

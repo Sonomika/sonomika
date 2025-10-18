@@ -110,6 +110,7 @@ const initialState: AppState = {
   fontColor: '#d6d6d6',
   midiMappings: [],
   midiForceChannel1: false,
+  midiCCOffset: 0,
   selectedLayerId: null,
   selectedTimelineClip: null,
   previewMode: 'composition',
@@ -567,6 +568,7 @@ export const useStore = createWithEqualityFn<AppState & {
 
       setMIDIMappings: (mappings: MIDIMapping[]) => set({ midiMappings: mappings }),
       setMIDIForceChannel1: (forced: boolean) => set({ midiForceChannel1: !!forced }),
+      setMidiCCOffset: (offset: number) => set({ midiCCOffset: Math.max(0, Math.min(127, Number(offset) || 0)) }),
 
       setTransitionType: (type: AppState['transitionType']) => set({ transitionType: type }),
 

@@ -10,12 +10,15 @@ export class MIDIManager {
   private noteCallbacks: Set<NoteCallback>;
   private ccCallbacks: Set<CCCallback>;
   private initialized: boolean;
+  // Notify UI when device list changes
+  private inputsChangedCallbacks: Set<() => void>;
 
   private constructor() {
     this.inputs = [];
     this.noteCallbacks = new Set();
     this.ccCallbacks = new Set();
     this.initialized = false;
+    this.inputsChangedCallbacks = new Set();
     this.initialize();
   }
 
@@ -85,6 +88,9 @@ export class MIDIManager {
         console.warn('Failed to attach MIDI clock listeners:', err);
       }
     });
+
+    // Notify listeners that the input device list changed
+    this.notifyInputsChanged();
   }
 
   addNoteCallback(callback: NoteCallback): void {
@@ -105,6 +111,25 @@ export class MIDIManager {
 
   getInputs(): Input[] {
     return this.inputs;
+  }
+
+  // Convenience summaries for UI consumption
+  getInputSummaries(): { id: string; name: string; manufacturer?: string }[] {
+    return (this.inputs || []).map((i) => ({ id: i.id, name: i.name, manufacturer: (i as any).manufacturer }));
+  }
+
+  onInputsChanged(cb: () => void): void {
+    this.inputsChangedCallbacks.add(cb);
+  }
+
+  removeInputsChanged(cb: () => void): void {
+    this.inputsChangedCallbacks.delete(cb);
+  }
+
+  private notifyInputsChanged(): void {
+    this.inputsChangedCallbacks.forEach((cb) => {
+      try { cb(); } catch {}
+    });
   }
 
   isInitialized(): boolean {

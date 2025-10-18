@@ -72,7 +72,7 @@ export interface Scene {
 export interface MIDIMapping {
   // Input type and addressing
   // 'note' and 'cc' use channel+number; 'key' uses key/modifiers
-  type: 'note' | 'key';
+  type: 'note' | 'cc' | 'key';
   channel?: number; // 1-16 for MIDI
   number?: number;  // note number (0-127) or CC number (0-127)
   key?: string;     // KeyboardEvent.key (case-sensitive from browser)
@@ -80,6 +80,7 @@ export interface MIDIMapping {
   shift?: boolean;
   alt?: boolean;
   meta?: boolean;
+  enabled?: boolean;
 
   // Target action for this mapping. We support multiple kinds of actions.
   target:
@@ -150,6 +151,8 @@ export interface AppState {
   midiMappings: MIDIMapping[];
   // MIDI options
   midiForceChannel1?: boolean; // If true, remap incoming MIDI events to channel 1
+  // Normalize incoming CC numbers by subtracting this offset (e.g., 31 makes CC32 behave like CC1)
+  midiCCOffset?: number;
   selectedLayerId: string | null;
   selectedTimelineClip: any | null;
   previewMode: 'composition' | 'layer';
