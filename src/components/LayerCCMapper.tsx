@@ -101,20 +101,24 @@ export const LayerCCMapper: React.FC = () => {
 
   // Auto-map helpers
 
+  const [autoMapCount, setAutoMapCount] = useState<number>(() => {
+    try { const v = parseInt(localStorage.getItem('vj-auto-map-count') || '16', 10); return Math.max(1, Math.min(127, Number.isFinite(v) ? v : 16)); } catch { return 16; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('vj-auto-map-count', String(Math.max(1, Math.min(127, Number(autoMapCount) || 16)))); } catch {}
+  }, [autoMapCount]);
+
   const autoMapAll = () => {
     if (!selectedLayer) return;
-    const numericParams = paramOptions.map((o) => o.value);
+    const count = Math.max(1, Math.min(127, Number(autoMapCount) || 8));
+    const numericParams = paramOptions.map((o) => o.value).slice(0, count);
     if (numericParams.length === 0) return;
     const ch = Math.max(1, Math.min(16, Number(channel) || 1));
-    const next = (mappings || []).slice();
+    // Remove existing mappings for this layer so we end up with exactly `count`
+    const base = (mappings || []).filter((m) => !(m && m.type === 'cc' && (m as any)?.target?.type === 'layer' && (m as any)?.target?.id === selectedLayer.id));
+    const next = base.slice();
     numericParams.forEach((pname, idx) => {
       const ccNum = Math.max(0, Math.min(127, 1 + idx)); // Cap at 127
-      const existingIndex = next.findIndex((m) =>
-        m.type === 'cc' &&
-        (m.target as any)?.type === 'layer' &&
-        (m.target as any)?.id === selectedLayer.id &&
-        (m.target as any)?.param === pname
-      );
       const mapped: MIDIMapping = {
         type: 'cc',
         channel: ch,
@@ -122,7 +126,7 @@ export const LayerCCMapper: React.FC = () => {
         enabled: true,
         target: { type: 'layer', id: selectedLayer.id, param: pname } as any,
       };
-      if (existingIndex >= 0) next[existingIndex] = mapped; else next.push(mapped);
+      next.push(mapped);
     });
     setMIDIMappings(next);
   };
@@ -223,11 +227,19 @@ export const LayerCCMapper: React.FC = () => {
             <div className="tw-flex tw-items-end tw-gap-2">
               <Button variant="secondary" onClick={() => setLearn((v) => !v)}>{learn ? 'Listening…' : 'Learn CC'}</Button>
               <Button onClick={addMapping} disabled={!param}>{editIndex !== null ? 'Save Mapping' : 'Add Mapping'}</Button>
-              <Button variant="secondary" onClick={autoMapAll} disabled={paramOptions.length === 0}>Auto Map All</Button>
+              <Button variant="secondary" onClick={autoMapAll} disabled={paramOptions.length === 0}>Auto Map</Button>
               <label className="tw-flex tw-items-center tw-gap-2 tw-text-xs tw-ml-2">
                 <Switch checked={autoOnSelect} onCheckedChange={(v: boolean) => setAutoOnSelect(!!v)} />
                 Auto Map on select
               </label>
+              <div className="tw-flex tw-items-end tw-gap-1">
+                <Label className="tw-text-xs">Knobs</Label>
+                <div className="tw-flex tw-items-center tw-gap-1">
+                  <Button variant="secondary" size="icon" onClick={() => setAutoMapCount((c) => Math.max(1, (Number(c) || 1) - 1))}>-</Button>
+                  <Input type="number" className="tw-w-14" value={autoMapCount} onChange={(e) => setAutoMapCount(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
+                  <Button variant="secondary" size="icon" onClick={() => setAutoMapCount((c) => Math.max(1, Math.min(127, (Number(c) || 1) + 1)))}>+</Button>
+                </div>
+              </div>
             </div>
           </div>
 

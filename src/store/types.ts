@@ -91,6 +91,12 @@ export interface MIDIMapping {
         param?: string; // parameter name (e.g., opacity or effect param)
       }
     | {
+        // Control a global effect parameter in the current scene
+        type: 'global-effect';
+        id: string; // globalEffectSlot id
+        param?: string; // parameter name in the global effect
+      }
+    | {
         // Trigger a specific cell (row x column) in the current scene
         // Prefer addressing by columnId for stability; fall back to 1-based column index
         type: 'cell';

@@ -77,8 +77,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
     }
     setLockedParams(nextLocks);
     setLocalParamValues(nextValues);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectId, effectMetadata?.parameters, JSON.stringify(Object.keys(currentParams || {}))]);
+  }, [effectId, effectMetadata?.parameters, JSON.stringify(currentParams || {})]);
 
   const handleParamChange = (paramName: string, value: any, meta?: any) => {
     const updatedParams = { ...currentParams } as Record<string, any>;

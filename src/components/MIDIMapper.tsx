@@ -6,6 +6,7 @@ import { MIDIProcessor } from '../utils/MIDIProcessor';
 import { MIDIMapping } from '../store/types';
 import { KeyboardInputManager } from '../utils/KeyboardInputManager';
 import LayerCCMapper from './LayerCCMapper';
+import GlobalCCMapper from './GlobalCCMapper';
 
 interface MIDIDeviceOption { value: string; label?: string }
 
@@ -14,7 +15,7 @@ export const MIDIMapper: React.FC = () => {
   const { scenes, currentSceneId } = useStore() as any;
   const [selectedDevice, setSelectedDevice] = useState<string>('Any device');
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<'mappings' | 'layer-cc'>('mappings');
+  const [activeTab, setActiveTab] = useState<'mappings' | 'layer-cc' | 'global-cc'>('mappings');
   const mappings = midiMappings as MIDIMapping[];
   // Removed custom save dialog; we now use system Save dialog (Electron or File System Access API)
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -221,6 +222,7 @@ export const MIDIMapper: React.FC = () => {
           <TabsList>
             <TabsTrigger value="mappings">Mappings</TabsTrigger>
             <TabsTrigger value="layer-cc">Layer CC</TabsTrigger>
+            <TabsTrigger value="global-cc">Global</TabsTrigger>
           </TabsList>
 
           <TabsContent value="mappings">
@@ -291,6 +293,10 @@ export const MIDIMapper: React.FC = () => {
 
           <TabsContent value="layer-cc">
             <LayerCCMapper />
+          </TabsContent>
+
+          <TabsContent value="global-cc">
+            <GlobalCCMapper />
           </TabsContent>
 
         </Tabs>

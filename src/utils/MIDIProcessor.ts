@@ -23,6 +23,9 @@ export class MIDIProcessor {
   private pendingParamUpdates: Map<string, Record<string, number>> = new Map();
   private lastAppliedParamValues: Map<string, number> = new Map();
   private applyScheduled: boolean = false;
+  // Global-effects batching (slotId -> { paramName -> value })
+  private pendingGlobalUpdates: Map<string, Record<string, number>> = new Map();
+  private lastAppliedGlobalValues: Map<string, number> = new Map();
 
   private constructor() {
     this.mappings = [];
@@ -106,9 +109,60 @@ export class MIDIProcessor {
           }
         } catch {}
       }
+      // Flush global-effect updates in a single scene update per frame
+      if (this.pendingGlobalUpdates.size > 0) {
+        const st: any = useStore.getState();
+        const isTimeline = !!st.showTimeline;
+        const scene = isTimeline
+          ? (st.timelineScenes || []).find((s: any) => s.id === st.currentTimelineSceneId)
+          : (st.scenes || []).find((s: any) => s.id === st.currentSceneId);
+        if (scene) {
+          const nextSlots = (scene.globalEffects || []).map((slot: any) => {
+            if (!slot) return slot;
+            const changes = this.pendingGlobalUpdates.get(slot.id);
+            if (!changes) return slot;
+            const nextParams = { ...(slot.params || {}) } as Record<string, any>;
+            Object.entries(changes).forEach(([name, v]) => {
+              const prev = nextParams[name] || {};
+              nextParams[name] = { ...prev, value: v as number };
+            });
+            return { ...slot, params: nextParams };
+          });
+          const updateScene = isTimeline
+            ? ((st as any).updateTimelineScene as (sceneId: string, updates: any) => void)
+            : ((st as any).updateScene as (sceneId: string, updates: any) => void);
+          updateScene(isTimeline ? st.currentTimelineSceneId : st.currentSceneId, { globalEffects: nextSlots });
+        }
+      }
     } finally {
       this.pendingParamUpdates.clear();
+      this.pendingGlobalUpdates.clear();
       this.applyScheduled = false;
+    }
+  }
+
+  private queueGlobalParamUpdate(slotId: string, paramName: string, value: number) {
+    const key = `${slotId}:${paramName}`;
+    const prev = this.lastAppliedGlobalValues.get(key);
+    if (prev !== undefined && Math.abs(prev - value) < 0.002) return;
+    this.lastAppliedGlobalValues.set(key, value);
+
+    const existing = this.pendingGlobalUpdates.get(slotId) || {};
+    existing[paramName] = value;
+    this.pendingGlobalUpdates.set(slotId, existing);
+
+    if (!this.applyScheduled) {
+      this.applyScheduled = true;
+      const flush = () => this.flushParamUpdates();
+      try {
+        if (typeof window !== 'undefined' && typeof (window as any).requestAnimationFrame === 'function') {
+          requestAnimationFrame(flush);
+        } else {
+          setTimeout(flush, 0);
+        }
+      } catch {
+        setTimeout(flush, 0);
+      }
     }
   }
 
@@ -159,6 +213,26 @@ export class MIDIProcessor {
               try { state.setActiveLayerOverride(Math.max(1, Number(row) || 1), col.id); } catch {}
               // Do not change the playing column; this is a per-row horizontal override
             }
+            break;
+          }
+          case 'global-effect': {
+            const geTarget = mapping.target as any;
+            const st: any = useStore.getState();
+            const isTimeline = !!st.showTimeline;
+            const scene = isTimeline
+              ? (st.timelineScenes || []).find((s: any) => s.id === st.currentTimelineSceneId)
+              : (st.scenes || []).find((s: any) => s.id === st.currentSceneId);
+            if (!scene) break;
+            const slot = (scene.globalEffects || []).find((g: any) => g && g.id === geTarget.id);
+            if (!slot) break;
+            const metadata = this.getEffectMetadataForLayer({ type: 'effect', asset: { id: slot.effectId }, params: slot.params } as any) as any;
+            const paramName = geTarget.param;
+            if (!paramName) break;
+            const paramConfig = metadata?.parameters?.find((p: any) => p.name === paramName);
+            let min = 0; let max = 1;
+            if (paramConfig) { if (typeof paramConfig.min === 'number') min = paramConfig.min; if (typeof paramConfig.max === 'number') max = paramConfig.max; }
+            const mapped = min + ((max - min) * (velocity / 127));
+            this.queueGlobalParamUpdate(slot.id, paramName, mapped);
             break;
           }
           case 'scene': {
@@ -270,6 +344,26 @@ export class MIDIProcessor {
               try { state.setActiveLayerOverride(Math.max(1, Number(row) || 1), col.id); } catch {}
               // Do not change the playing column; this is a per-row horizontal override
             }
+            break;
+          }
+          case 'global-effect': {
+            const geTarget = mapping.target as any;
+            const st: any = useStore.getState();
+            const isTimeline = !!st.showTimeline;
+            const scene = isTimeline
+              ? (st.timelineScenes || []).find((s: any) => s.id === st.currentTimelineSceneId)
+              : (st.scenes || []).find((s: any) => s.id === st.currentSceneId);
+            if (!scene) break;
+            const slot = (scene.globalEffects || []).find((g: any) => g && g.id === geTarget.id);
+            if (!slot) break;
+            const metadata = this.getEffectMetadataForLayer({ type: 'effect', asset: { id: slot.effectId }, params: slot.params } as any) as any;
+            const paramName = geTarget.param;
+            if (!paramName) break;
+            const paramConfig = metadata?.parameters?.find((p: any) => p.name === paramName);
+            let min = 0; let max = 1;
+            if (paramConfig) { if (typeof paramConfig.min === 'number') min = paramConfig.min; if (typeof paramConfig.max === 'number') max = paramConfig.max; }
+            const mapped = min + ((max - min) * (value / 127));
+            this.queueGlobalParamUpdate(slot.id, paramName, mapped);
             break;
           }
           case 'layer': {
