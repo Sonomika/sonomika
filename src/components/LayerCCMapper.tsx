@@ -101,16 +101,21 @@ export const LayerCCMapper: React.FC = () => {
 
   // Auto-map helpers
 
-  const [autoMapCount, setAutoMapCount] = useState<number>(() => {
-    try { const v = parseInt(localStorage.getItem('vj-auto-map-count') || '16', 10); return Math.max(1, Math.min(127, Number.isFinite(v) ? v : 16)); } catch { return 16; }
+  // Auto-map knob range (inclusive): start..end, persisted
+  const [autoMapStart, setAutoMapStart] = useState<number>(() => {
+    try { const v = parseInt(localStorage.getItem('vj-auto-map-start') || '1', 10); return Math.max(1, Math.min(127, Number.isFinite(v) ? v : 1)); } catch { return 1; }
   });
-  useEffect(() => {
-    try { localStorage.setItem('vj-auto-map-count', String(Math.max(1, Math.min(127, Number(autoMapCount) || 16)))); } catch {}
-  }, [autoMapCount]);
+  const [autoMapEnd, setAutoMapEnd] = useState<number>(() => {
+    try { const v = parseInt(localStorage.getItem('vj-auto-map-end') || '16', 10); return Math.max(1, Math.min(127, Number.isFinite(v) ? v : 16)); } catch { return 16; }
+  });
+  useEffect(() => { try { localStorage.setItem('vj-auto-map-start', String(Math.max(1, Math.min(127, Number(autoMapStart) || 1)))); } catch {} }, [autoMapStart]);
+  useEffect(() => { try { localStorage.setItem('vj-auto-map-end', String(Math.max(1, Math.min(127, Number(autoMapEnd) || 16)))); } catch {} }, [autoMapEnd]);
 
   const autoMapAll = () => {
     if (!selectedLayer) return;
-    const count = Math.max(1, Math.min(127, Number(autoMapCount) || 8));
+    const start = Math.max(1, Math.min(127, Number(autoMapStart) || 1));
+    const end = Math.max(start, Math.min(127, Number(autoMapEnd) || start));
+    const count = end - start + 1;
     const numericParams = paramOptions.map((o) => o.value).slice(0, count);
     if (numericParams.length === 0) return;
     const ch = Math.max(1, Math.min(16, Number(channel) || 1));
@@ -118,7 +123,7 @@ export const LayerCCMapper: React.FC = () => {
     const base = (mappings || []).filter((m) => !(m && m.type === 'cc' && (m as any)?.target?.type === 'layer' && (m as any)?.target?.id === selectedLayer.id));
     const next = base.slice();
     numericParams.forEach((pname, idx) => {
-      const ccNum = Math.max(0, Math.min(127, 1 + idx)); // Cap at 127
+      const ccNum = Math.max(0, Math.min(127, start + idx));
       const mapped: MIDIMapping = {
         type: 'cc',
         channel: ch,
@@ -232,12 +237,12 @@ export const LayerCCMapper: React.FC = () => {
                 <Switch checked={autoOnSelect} onCheckedChange={(v: boolean) => setAutoOnSelect(!!v)} />
                 Auto Map on select
               </label>
-              <div className="tw-flex tw-items-end tw-gap-1">
+              <div className="tw-flex tw-items-end tw-gap-2">
                 <Label className="tw-text-xs">Knobs</Label>
                 <div className="tw-flex tw-items-center tw-gap-1">
-                  <Button variant="secondary" size="icon" onClick={() => setAutoMapCount((c) => Math.max(1, (Number(c) || 1) - 1))}>-</Button>
-                  <Input type="number" className="tw-w-14" value={autoMapCount} onChange={(e) => setAutoMapCount(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
-                  <Button variant="secondary" size="icon" onClick={() => setAutoMapCount((c) => Math.max(1, Math.min(127, (Number(c) || 1) + 1)))}>+</Button>
+                  <Input type="number" className="tw-w-14" value={autoMapStart} onChange={(e) => setAutoMapStart(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
+                  <span className="tw-text-neutral-400">-</span>
+                  <Input type="number" className="tw-w-14" value={autoMapEnd} onChange={(e) => setAutoMapEnd(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
                 </div>
               </div>
             </div>

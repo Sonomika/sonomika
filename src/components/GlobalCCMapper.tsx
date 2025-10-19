@@ -102,30 +102,90 @@ const GlobalCCMapper: React.FC = () => {
   const layerMappings = (mappings || []).map((m, i) => ({ m, i }))
     .filter(({ m }) => m.type === 'cc' && (m.target as any)?.type === 'global-effect' && (m.target as any)?.id === slot?.id);
 
+  // Also compute mappings for other filled slots so the user can see them at a glance
+  const otherGlobalMappings = useMemo(() => {
+    const result: Array<{ label: string; items: Array<{ m: MIDIMapping; i: number }> }> = [];
+    try {
+      const slots = (scene?.globalEffects || []).filter((g: any) => !!g);
+      slots.forEach((s: any, idx: number) => {
+        if (!s || s.id === slot?.id) return;
+        const items = (mappings || [])
+          .map((m, i) => ({ m, i }))
+          .filter(({ m }) => m.type === 'cc' && (m.target as any)?.type === 'global-effect' && (m.target as any)?.id === s.id);
+        if (items.length > 0) {
+          let label = s.effectId || `Effect ${idx + 1}`;
+          try {
+            const comp = s.effectId ? getEffect(s.effectId) || getEffect(`${s.effectId}Effect`) : null;
+            const md: any = comp ? (comp as any).metadata : null;
+            if (md?.name) label = md.name;
+          } catch {}
+          result.push({ label, items });
+        }
+      });
+    } catch {}
+    return result;
+  }, [scene?.globalEffects, mappings, slot?.id]);
+
   const removeMappingAt = (idx: number) => {
     const next = (mappings || []).filter((_, i) => i !== idx);
     setMIDIMappings(next);
   };
 
-  const [autoMapCount, setAutoMapCount] = useState<number>(() => {
-    try { const v = parseInt(localStorage.getItem('vj-auto-map-global-count') || '16', 10); return Math.max(1, Math.min(127, Number.isFinite(v) ? v : 16)); } catch { return 16; }
+  // Auto-map knob CC range (inclusive) for global effects
+  const [autoMapStart, setAutoMapStart] = useState<number>(() => {
+    try { const v = parseInt(localStorage.getItem('vj-auto-map-global-start') || '1', 10); return Math.max(1, Math.min(127, Number.isFinite(v) ? v : 1)); } catch { return 1; }
   });
-  useEffect(() => { try { localStorage.setItem('vj-auto-map-global-count', String(Math.max(1, Math.min(127, Number(autoMapCount) || 16)))); } catch {} }, [autoMapCount]);
+  const [autoMapEnd, setAutoMapEnd] = useState<number>(() => {
+    try { const v = parseInt(localStorage.getItem('vj-auto-map-global-end') || '16', 10); return Math.max(1, Math.min(127, Number.isFinite(v) ? v : 16)); } catch { return 16; }
+  });
+  useEffect(() => { try { localStorage.setItem('vj-auto-map-global-start', String(Math.max(1, Math.min(127, Number(autoMapStart) || 1)))); } catch {} }, [autoMapStart]);
+  useEffect(() => { try { localStorage.setItem('vj-auto-map-global-end', String(Math.max(1, Math.min(127, Number(autoMapEnd) || 16)))); } catch {} }, [autoMapEnd]);
 
   const autoMapAll = () => {
-    if (!slot) return;
-    const count = Math.max(1, Math.min(127, Number(autoMapCount) || 8));
-    const params = paramOptions.map((o) => o.value).slice(0, count);
-    if (params.length === 0) return;
+    const filledSlots = (scene?.globalEffects || []).filter((g: any) => !!g);
+    if (!filledSlots || filledSlots.length === 0) return;
+    const start = Math.max(1, Math.min(127, Number(autoMapStart) || 1));
+    const end = Math.max(start, Math.min(127, Number(autoMapEnd) || start));
+    const count = end - start + 1;
     const ch = Math.max(1, Math.min(16, Number(channel) || 1));
-    // Remove existing mappings for this global effect so result size matches `count`
-    const base = (mappings || []).filter((m) => !(m && m.type === 'cc' && (m as any)?.target?.type === 'global-effect' && (m as any)?.target?.id === slot.id));
+
+    // Remove existing mappings for all filled global effect slots to avoid duplicates
+    const removeForIds = new Set(filledSlots.map((s: any) => s.id));
+    const base = (mappings || []).filter((m) => !(m && m.type === 'cc' && (m as any)?.target?.type === 'global-effect' && removeForIds.has((m as any)?.target?.id)));
     const next = base.slice();
-    params.forEach((pname, idx) => {
-      const ccNum = Math.max(0, Math.min(127, 1 + idx));
-      const mapped: MIDIMapping = { type: 'cc', channel: ch, number: ccNum, enabled: true, target: { type: 'global-effect', id: slot.id, param: pname } as any };
-      next.push(mapped);
+
+    // Helper to get numeric param names for a slot (metadata-first fallback)
+    const getParamNames = (s: any): string[] => {
+      const names: string[] = [];
+      try {
+        const comp = s?.effectId ? getEffect(s.effectId) || getEffect(`${s.effectId}Effect`) : null;
+        const md: any = comp ? (comp as any).metadata : null;
+        if (md?.parameters && Array.isArray(md.parameters)) {
+          md.parameters.filter((p: any) => p?.type === 'number').forEach((p: any) => names.push(p.name));
+        }
+        if (names.length === 0) {
+          Object.keys(s?.params || {}).forEach((k) => {
+            const v = s?.params?.[k];
+            const num = typeof v === 'number' ? v : (v && typeof v.value === 'number' ? v.value : undefined);
+            if (typeof num === 'number' && isFinite(num)) names.push(k);
+          });
+        }
+      } catch {}
+      return names;
+    };
+
+    let ccCursor = start;
+    filledSlots.forEach((s: any) => {
+      if (ccCursor > end) return; // range exhausted
+      const names = getParamNames(s);
+      for (let i = 0; i < names.length && ccCursor <= end; i += 1) {
+        const pname = names[i];
+        const ccNum = Math.max(0, Math.min(127, ccCursor));
+        next.push({ type: 'cc', channel: ch, number: ccNum, enabled: true, target: { type: 'global-effect', id: s.id, param: pname } as any } as MIDIMapping);
+        ccCursor += 1;
+      }
     });
+
     setMIDIMappings(next);
   };
 
@@ -165,7 +225,7 @@ const GlobalCCMapper: React.FC = () => {
               <Label className="tw-text-xs">CC Offset</Label>
               <Input value={midiCCOffset ?? 0} onChange={(e) => { try { setMidiCCOffset(Math.max(0, Math.min(127, Number(e.target.value) || 0))); } catch {} }} />
             </div>
-            <div className="tw-flex tw-items-end tw-gap-2">
+            <div className="tw-col-span-2 tw-flex tw-flex-wrap tw-items-end tw-gap-2">
               <Button variant="secondary" onClick={() => setLearn((v) => !v)}>{learn ? 'Listening…' : 'Learn CC'}</Button>
               <Button onClick={addMapping} disabled={!param || !selectedGlobalId}>{editIndex !== null ? 'Save Mapping' : 'Add Mapping'}</Button>
               <Button variant="secondary" onClick={autoMapAll} disabled={paramOptions.length === 0}>Auto Map</Button>
@@ -173,12 +233,12 @@ const GlobalCCMapper: React.FC = () => {
                 <Switch checked={autoOnSelect} onCheckedChange={(v: boolean) => setAutoOnSelect(!!v)} />
                 Auto Map on select
               </label>
-              <div className="tw-flex tw-items-end tw-gap-1">
+              <div className="tw-flex tw-items-end tw-gap-2">
                 <Label className="tw-text-xs">Knobs</Label>
                 <div className="tw-flex tw-items-center tw-gap-1">
-                  <Button variant="secondary" size="icon" onClick={() => setAutoMapCount((c) => Math.max(1, (Number(c) || 1) - 1))}>-</Button>
-                  <Input type="number" className="tw-w-14" value={autoMapCount} onChange={(e) => setAutoMapCount(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
-                  <Button variant="secondary" size="icon" onClick={() => setAutoMapCount((c) => Math.max(1, Math.min(127, (Number(c) || 1) + 1)))}>+</Button>
+                  <Input type="number" className="tw-w-14" value={autoMapStart} onChange={(e) => setAutoMapStart(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
+                  <span className="tw-text-neutral-400">-</span>
+                  <Input type="number" className="tw-w-14" value={autoMapEnd} onChange={(e) => setAutoMapEnd(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
                 </div>
               </div>
             </div>
@@ -212,6 +272,36 @@ const GlobalCCMapper: React.FC = () => {
                 ))
               )}
             </div>
+            {otherGlobalMappings.length > 0 && (
+              <div className="tw-mt-3 tw-space-y-1">
+                <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900">
+                  {otherGlobalMappings.map((grp, gi) => (
+                    <div key={gi} className="tw-border-b tw-border-neutral-800 last:tw-border-b-0">
+                      {grp.items.map(({ m, i }) => (
+                        <div key={i} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-px-2 tw-py-1 tw-border-t tw-border-neutral-800 first:tw-border-t-0">
+                          <div className="tw-text-xs tw-text-neutral-300">ch {m.channel} • CC {m.number} → {(m.target as any)?.param}</div>
+                          <div className="tw-flex tw-items-center tw-gap-2">
+                            <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
+                              <Switch checked={!!m.enabled} onCheckedChange={(v: boolean) => {
+                                const next = (mappings || []).slice();
+                                (next[i] as any).enabled = !!v;
+                                setMIDIMappings(next);
+                              }} />
+                              Enabled
+                            </label>
+                            <Button variant="secondary" onClick={() => { try { setEditIndex(i); setParam(String((m.target as any)?.param || '')); setChannel(Math.max(1, Math.min(16, Number(m.channel) || 1))); setCcNumber(Math.max(0, Math.min(127, Number(m.number) || 0))); setSelectedGlobalId(String((m.target as any)?.id || selectedGlobalId)); } catch {} }}>Edit</Button>
+                            {editIndex === i && (
+                              <Button variant="ghost" onClick={() => { setEditIndex(null); }}>Cancel</Button>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={() => removeMappingAt(i)}>×</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

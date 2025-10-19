@@ -1172,6 +1172,7 @@ export const useStore = createWithEqualityFn<AppState & {
            showTimeline: state.showTimeline,
            midiMappings: state.midiMappings,
            midiForceChannel1: (state as any).midiForceChannel1,
+          midiCCOffset: state.midiCCOffset,
            selectedLayerId: state.selectedLayerId,
            selectedTimelineClip: state.selectedTimelineClip,
            previewMode: state.previewMode,
