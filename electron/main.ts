@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog, powerSaveBlocker } from 'electron';
+import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog, powerSaveBlocker, nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
@@ -28,6 +28,29 @@ let mirrorAspectRatio: number | null = null;
 // Advanced mirror windows keyed by slice id
 const advancedMirrorWindows: Map<string, BrowserWindow> = new Map();
 let encryptedAuthStore: Record<string, Buffer> = {};
+
+// Resolve an application icon path that works in dev and production
+function resolveAppIconPath(): string | undefined {
+  const candidates = [
+    // Prefer the requested PNG first (window icon), then ICO for Windows taskbar
+    path.join(process.cwd(), 'public', 'icons', 'sonomika_icon_2.png'),
+    path.join(__dirname, '../public/icons/sonomika_icon_2.png'),
+    path.join(__dirname, '../../public/icons/sonomika_icon_2.png'),
+    path.join(__dirname, '../icons/sonomika_icon_2.png'),
+    path.join(process.resourcesPath || '', 'icons', 'sonomika_icon_2.png'),
+    ...(process.platform === 'win32' ? [
+      path.join(process.cwd(), 'public', 'icons', 'sonomika_icon_2.ico'),
+      path.join(__dirname, '../public/icons/sonomika_icon_2.ico'),
+      path.join(__dirname, '../../public/icons/sonomika_icon_2.ico'),
+      path.join(__dirname, '../icons/sonomika_icon_2.ico'),
+      path.join(process.resourcesPath || '', 'icons', 'sonomika_icon_2.ico'),
+    ] : []),
+  ];
+  for (const p of candidates) {
+    try { if (fs.existsSync(p)) return p; } catch {}
+  }
+  return undefined;
+}
 
 function getAuthStoreFilePath() {
   const userData = app.getPath('userData');
@@ -66,11 +89,14 @@ function persistEncryptedAuthStoreToDisk() {
 
 function createWindow() {
   // Create the browser window
+  const appIconPath = resolveAppIconPath();
+  const appIcon = appIconPath ? nativeImage.createFromPath(appIconPath) : undefined;
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     frame: false, // Remove default window frame
     titleBarStyle: 'hidden',
+    icon: appIcon,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -281,10 +307,13 @@ function createMirrorWindow() {
   // Note: Window will be resized to canvas dimensions by the renderer
   // via resize-mirror-window IPC call
 
+  const appIconPath = resolveAppIconPath();
+  const appIcon = appIconPath ? nativeImage.createFromPath(appIconPath) : undefined;
   mirrorWindow = new BrowserWindow({
     width: 1920, // Start with standard HD size; will be resized to canvas dimensions
     height: 1080, // Start with standard HD size; will be resized to canvas dimensions
     title: 'sonomika',
+    icon: appIcon,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -499,12 +528,15 @@ function createAdvancedMirrorWindow(id: string, opts?: { width?: number; height?
   const fallbackPreload = path.join(__dirname, 'preload.js');
   const preloadPath = fs.existsSync(mirrorPreload) ? mirrorPreload : fallbackPreload;
 
+  const appIconPath = resolveAppIconPath();
+  const appIcon = appIconPath ? nativeImage.createFromPath(appIconPath) : undefined;
   const win = new BrowserWindow({
     width: opts?.width ?? 960,
     height: opts?.height ?? 540,
     x: opts?.x,
     y: opts?.y,
     title: opts?.title ?? `VJ Mirror Slice: ${id}`,
+    icon: appIcon,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -746,6 +778,14 @@ app.whenReady().then(() => {
   try {
     // Allow audio playback without a user gesture to avoid play() stalls
     app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+  } catch {}
+  
+  // Set dock icon on macOS for consistency (guard for non-macOS builds)
+  try {
+    const iconPath = resolveAppIconPath();
+    if (process.platform === 'darwin' && iconPath && (app as any).dock && typeof (app as any).dock.setIcon === 'function') {
+      (app as any).dock.setIcon(nativeImage.createFromPath(iconPath));
+    }
   } catch {}
   
   // Prevent app from pausing when windows lose focus

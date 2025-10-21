@@ -1,8 +1,8 @@
 import React from 'react';
-import { Select, Slider, ParamRow, Input } from './ui';
+import { Select, Slider, ParamRow, Input, DiceIcon } from './ui';
 import { getEffect } from '../utils/effectRegistry';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
-import { CircleIcon, LockClosedIcon, LockOpen1Icon } from '@radix-ui/react-icons';
+import { LockClosedIcon, LockOpen1Icon } from '@radix-ui/react-icons';
 
 interface EffectParamsEditorProps {
   effectId: string;
@@ -44,9 +44,6 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
   );
   const UnlockIcon: React.FC<{ className?: string }> = ({ className }) => (
     <LockOpen1Icon className={className || 'tw-w-3.5 tw-h-3.5'} />
-  );
-  const DiceIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <CircleIcon className={className || 'tw-w-3.5 tw-h-3.5'} />
   );
 
   const [lockedParams, setLockedParams] = React.useState<Record<string, boolean>>({});

@@ -23,6 +23,30 @@ let outputAspectRatio = null;
 let mirrorAspectRatio = null;
 const advancedMirrorWindows = /* @__PURE__ */ new Map();
 let encryptedAuthStore = {};
+function resolveAppIconPath() {
+  const candidates = [
+    // Prefer the requested PNG first (window icon), then ICO for Windows taskbar
+    path.join(process.cwd(), "public", "icons", "sonomika_icon_2.png"),
+    path.join(__dirname, "../public/icons/sonomika_icon_2.png"),
+    path.join(__dirname, "../../public/icons/sonomika_icon_2.png"),
+    path.join(__dirname, "../icons/sonomika_icon_2.png"),
+    path.join(process.resourcesPath || "", "icons", "sonomika_icon_2.png"),
+    ...process.platform === "win32" ? [
+      path.join(process.cwd(), "public", "icons", "sonomika_icon_2.ico"),
+      path.join(__dirname, "../public/icons/sonomika_icon_2.ico"),
+      path.join(__dirname, "../../public/icons/sonomika_icon_2.ico"),
+      path.join(__dirname, "../icons/sonomika_icon_2.ico"),
+      path.join(process.resourcesPath || "", "icons", "sonomika_icon_2.ico")
+    ] : []
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+    }
+  }
+  return void 0;
+}
 function getAuthStoreFilePath() {
   const userData = electron.app.getPath("userData");
   return path.join(userData, "auth_store.json");
@@ -56,12 +80,15 @@ function persistEncryptedAuthStoreToDisk() {
   }
 }
 function createWindow() {
+  const appIconPath = resolveAppIconPath();
+  const appIcon = appIconPath ? electron.nativeImage.createFromPath(appIconPath) : void 0;
   mainWindow = new electron.BrowserWindow({
     width: 1200,
     height: 800,
     frame: false,
     // Remove default window frame
     titleBarStyle: "hidden",
+    icon: appIcon,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -262,12 +289,15 @@ function createMirrorWindow() {
     mirrorWindow.focus();
     return;
   }
+  const appIconPath = resolveAppIconPath();
+  const appIcon = appIconPath ? electron.nativeImage.createFromPath(appIconPath) : void 0;
   mirrorWindow = new electron.BrowserWindow({
     width: 1920,
     // Start with standard HD size; will be resized to canvas dimensions
     height: 1080,
     // Start with standard HD size; will be resized to canvas dimensions
     title: "sonomika",
+    icon: appIcon,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -481,12 +511,15 @@ function createAdvancedMirrorWindow(id, opts) {
   const mirrorPreload = path.join(__dirname, "mirror-preload.js");
   const fallbackPreload = path.join(__dirname, "preload.js");
   const preloadPath = fs.existsSync(mirrorPreload) ? mirrorPreload : fallbackPreload;
+  const appIconPath = resolveAppIconPath();
+  const appIcon = appIconPath ? electron.nativeImage.createFromPath(appIconPath) : void 0;
   const win = new electron.BrowserWindow({
     width: opts?.width ?? 960,
     height: opts?.height ?? 540,
     x: opts?.x,
     y: opts?.y,
     title: opts?.title ?? `VJ Mirror Slice: ${id}`,
+    icon: appIcon,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -738,6 +771,13 @@ electron.app.whenReady().then(() => {
   console.log("Electron app is ready");
   try {
     electron.app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+  } catch {
+  }
+  try {
+    const iconPath = resolveAppIconPath();
+    if (process.platform === "darwin" && iconPath && electron.app.dock && typeof electron.app.dock.setIcon === "function") {
+      electron.app.dock.setIcon(electron.nativeImage.createFromPath(iconPath));
+    }
   } catch {
   }
   electron.app.commandLine.appendSwitch("disable-background-timer-throttling");

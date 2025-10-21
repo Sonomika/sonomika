@@ -96,5 +96,28 @@
     "wavesurfer.js": "^7.10.1",
     "webmidi": "^3.1.8",
     "zustand": "^5.0.8"
+  },
+  "build": {
+    "appId": "com.sonomika.app",
+    "productName": "Sonomika",
+    "directories": {
+      "buildResources": "public/icons"
+    },
+    "extraResources": [
+      {
+        "from": "public/icons",
+        "to": "icons",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "linux": {
+      "icon": "public/icons/sonomika_icon_2.png",
+      "category": "AudioVideo"
+    },
+    "win": {
+      "icon": "public/icons/sonomika_icon_2.ico"
+    }
   }
 }
