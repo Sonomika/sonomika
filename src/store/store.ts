@@ -115,6 +115,8 @@ const initialState: AppState = {
   selectedTimelineClip: null,
   previewMode: 'composition',
   showTimeline: false,
+  // Hide System effects tab in Electron by default; show in web
+  showSystemEffectsTab: (() => { try { return !(typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)); } catch { return true; } })(),
   transitionType: 'fade',
   transitionDuration: 500,
   assets: [],
@@ -229,6 +231,7 @@ export const useStore = createWithEqualityFn<AppState & {
   setDefaultVideoRenderScale: (scale: number) => void;
   setMirrorQuality: (q: 'low' | 'medium' | 'high') => void;
   setMirrorKeepPreview: (v: boolean) => void;
+  setShowSystemEffectsTab: (v: boolean) => void;
 }>()(
   persist(
     (set, get) => ({
@@ -293,6 +296,7 @@ export const useStore = createWithEqualityFn<AppState & {
       setDefaultVideoRenderScale: (scale: number) => set({ defaultVideoRenderScale: Math.max(0.1, Math.min(1, Number(scale) || 1)) }),
       setMirrorQuality: (q) => set({ mirrorQuality: (q === 'low' || q === 'medium' || q === 'high') ? q : 'medium' }),
       setMirrorKeepPreview: (v: boolean) => set({ mirrorKeepPreview: Boolean(v) }),
+      setShowSystemEffectsTab: (v: boolean) => set({ showSystemEffectsTab: Boolean(v) }),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();

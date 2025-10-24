@@ -153,9 +153,19 @@ export class EffectDiscovery {
       fileKey: string;
     }> = [];
 
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+    
+    // For web version, skip bank effects discovery
+    if (!isElectron) {
+      return [];
+    }
+
     try {
       // Build map of effect modules without importing them
-      const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
+      // IMPORTANT: avoid literal `import.meta.glob(...)` so Vite's web scan doesn't try to resolve it
+      const globFn = (import.meta as any).glob as undefined | ((p: string, opts?: any) => Record<string, () => Promise<any>>);
+      if (!globFn) throw new Error('glob not available');
+      const effectModules: Record<string, () => Promise<any>> = globFn('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
       for (const [modulePath, importFn] of Object.entries(effectModules)) {
         // Normalize key to be relative to effects folder
         const normalized = modulePath.replace('../bank/', '');
@@ -377,12 +387,17 @@ export class EffectDiscovery {
         // Use a truly dynamic approach that doesn't rely on hardcoded lists
         const discoveredFiles: string[] = [];
         
-        // Try to use Vite's import.meta.glob for dynamic discovery
+        // Try to use Vite's glob for dynamic discovery without exposing the literal to the web build
         try {
-          // console.log('🔍 Attempting to use import.meta.glob for dynamic discovery...');
-          
+          // console.log('🔍 Attempting to use glob for dynamic discovery...');
+          const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+          if (!isElectron) {
+            return [];
+          }
+          const globFn = (import.meta as any).glob as undefined | ((p: string, opts?: any) => Record<string, () => Promise<any>>);
+          if (!globFn) return [];
           // This should dynamically discover all supported files in the effects directory and subdirectories
-          const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
+          const effectModules: Record<string, () => Promise<any>> = globFn('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
           
           // console.log('🔍 Found effect modules:', Object.keys(effectModules));
           
@@ -472,10 +487,18 @@ export class EffectDiscovery {
         const importFn = this.browserEffectImports.get(fileName)!;
         module = await importFn();
       } else {
-        // Fallback for Electron/Node where direct relative import works during build time
-        const importPath = fileName.replace(/\.(tsx|ts|jsx|js)$/,'');
-        // console.log(`🔍 Importing from path (fallback): "../bank/${importPath}"`);
-        module = await import(/* @vite-ignore */ `../bank/${importPath}`);
+        // Only try bank imports in Electron environment
+        const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+        if (isElectron) {
+          // Fallback for Electron/Node where direct relative import works during build time
+          const importPath = fileName.replace(/\.(tsx|ts|jsx|js)$/,'');
+          // console.log(`🔍 Importing from path (fallback): "../bank/${importPath}"`);
+          module = await import(/* @vite-ignore */ `../bank/${importPath}`);
+        } else {
+          // Web version - bank effects not available
+          console.log(`Web version: Bank effect ${fileName} not available`);
+          return null;
+        }
       }
       // console.log(`✅ Successfully imported module:`, module);
       
@@ -655,14 +678,21 @@ export class EffectDiscovery {
     const component = effect.metadata.component;
     if (component) return component;
 
-    // If not found, try to import it dynamically
-    try {
-      const fileName = this.getFileNameFromId(id);
-      const importPath = fileName.replace('.tsx', '');
-      const module = await import(/* @vite-ignore */ `../bank/${importPath}`);
-      return module.default || module[`${importPath}Component`] || null;
-    } catch (error) {
-      console.warn(`Could not load component for effect ${id}:`, error);
+    // If not found, try to import it dynamically (only in Electron)
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+    if (isElectron) {
+      try {
+        const fileName = this.getFileNameFromId(id);
+        const importPath = fileName.replace('.tsx', '');
+        const module = await import(/* @vite-ignore */ `../bank/${importPath}`);
+        return module.default || module[`${importPath}Component`] || null;
+      } catch (error) {
+        console.warn(`Could not load component for effect ${id}:`, error);
+        return null;
+      }
+    } else {
+      // Web version - bank effects not available
+      console.log(`Web version: Bank effect component ${id} not available`);
       return null;
     }
   }
@@ -792,7 +822,16 @@ export class EffectDiscovery {
       const tempPath = path.join(__dirname, '../effects', tempFileName);
       try {
         fs.writeFileSync(tempPath, fileContent);
-        const module = await import(/* @vite-ignore */ `../effects/${tempFileName.replace('.tsx', '')}`);
+        // Only try effects imports in Electron environment
+        const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+        let module: any;
+        if (isElectron) {
+          module = await import(/* @vite-ignore */ `../effects/${tempFileName.replace('.tsx', '')}`);
+        } else {
+          // Web version - effects not available
+          console.log(`Web version: Effects not available`);
+          return null;
+        }
         fs.unlinkSync(tempPath);
         const component = module.default || module[`${path.basename(filePath, '.tsx')}Component`];
         const metadata = module.metadata || component?.metadata || module[`${path.basename(filePath, '.tsx')}Metadata`];

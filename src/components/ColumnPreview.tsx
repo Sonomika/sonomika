@@ -514,7 +514,7 @@ const ColumnScene: React.FC<{
             // Ensure we have a valid path before loading
             let assetPath = asset.path;
             if (!assetPath || (assetPath.startsWith('blob:') && !assetPath.includes('localhost')) || 
-                (assetPath.startsWith('blob:') && assetPath.includes('localhost') && assetPath.includes('5173'))) {
+                (assetPath.startsWith('blob:') && assetPath.includes('localhost') && /5(173|174|175)\b/.test(assetPath))) {
               // Try to restore from base64 if available
               if (asset.base64Data) {
                 console.log('Restoring image from base64 for:', asset.name);
@@ -561,7 +561,7 @@ const ColumnScene: React.FC<{
               // Ensure we have a valid path before loading
               let assetPath = getAssetPath(asset, true); // Use file path for video playback
               if (!assetPath || (assetPath.startsWith('blob:') && !assetPath.includes('localhost')) || 
-                  (assetPath.startsWith('blob:') && assetPath.includes('localhost') && assetPath.includes('5173'))) {
+                  (assetPath.startsWith('blob:') && assetPath.includes('localhost') && /5(173|174|175)\b/.test(assetPath))) {
                 // Try to restore from base64 if available
                 if (asset.base64Data) {
                   console.log('Restoring video from base64 for:', asset.name);

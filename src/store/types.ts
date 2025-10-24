@@ -165,6 +165,8 @@ export interface AppState {
   showTimeline: boolean; // Persisted: whether timeline view is active
   middlePanelTab?: 'global' | 'layer';
   rightPanelTab?: 'media' | 'effects' | 'midi' | 'lfo';
+  // Show/hide the System effects tab in the EffectsBrowser
+  showSystemEffectsTab?: boolean;
   transitionType: TransitionType;
   transitionDuration: number;
   assets: Asset[];

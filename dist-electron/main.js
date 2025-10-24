@@ -197,47 +197,61 @@ function createWindow() {
   const isDev = process.env.NODE_ENV === "development" || !electron.app.isPackaged;
   if (isDev) {
     console.log("Running in development mode");
-    const loadDevURL = (port, retryCount = 0) => {
-      const url = `http://localhost:${port}`;
-      console.log(`Trying to load: ${url} (attempt ${retryCount + 1})`);
+    const preferredUrl = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL;
+    const candidates = [];
+    if (preferredUrl) {
+      candidates.push(preferredUrl);
+    }
+    candidates.push("http://localhost:5173", "http://localhost:5174", "http://localhost:5175");
+    const tryLoadSequentially = (urls, index = 0) => {
+      if (!urls[index]) {
+        console.log("All dev URLs failed, loading fallback HTML");
+        const candidatePaths = [
+          path.join(__dirname, "../web/index.html"),
+          path.join(__dirname, "../dist/index.html"),
+          path.join(__dirname, "../index.html"),
+          path.join(__dirname, "../../index.html")
+        ];
+        const found = candidatePaths.find((p) => {
+          try {
+            return fs.existsSync(p);
+          } catch {
+            return false;
+          }
+        });
+        if (found) {
+          console.log("Loading fallback file:", found);
+          mainWindow.loadFile(found).catch((error) => {
+            console.error("Failed to load fallback HTML:", error);
+            mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+          });
+        } else {
+          console.warn("No fallback index.html found. Loading data URL.");
+          mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+        }
+        return;
+      }
+      const url = urls[index];
+      console.log(`Trying to load dev URL: ${url}`);
       mainWindow.loadURL(url).then(() => {
         console.log(`Successfully loaded: ${url}`);
         mainWindow.webContents.openDevTools();
-      }).catch((error) => {
-        console.log(`Failed to load ${url}:`, error.message);
-        if (retryCount < 3) {
-          const delay = Math.min(1e3 * Math.pow(2, retryCount), 5e3);
-          console.log(`Retrying in ${delay}ms...`);
-          setTimeout(() => loadDevURL(port, retryCount + 1), delay);
-        } else {
-          console.log("All ports failed, loading fallback HTML");
-          const candidatePaths = [
-            path.join(__dirname, "../web/index.html"),
-            path.join(__dirname, "../dist/index.html"),
-            path.join(__dirname, "../index.html"),
-            path.join(__dirname, "../../index.html")
-          ];
-          const found = candidatePaths.find((p) => {
-            try {
-              return fs.existsSync(p);
-            } catch {
-              return false;
-            }
-          });
-          if (found) {
-            console.log("Loading fallback file:", found);
-            mainWindow.loadFile(found).catch((error2) => {
-              console.error("Failed to load fallback HTML:", error2);
-              mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
-            });
-          } else {
-            console.warn("No fallback index.html found. Loading data URL.");
-            mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
-          }
-        }
+      }).catch((_error) => {
+        setTimeout(() => tryLoadSequentially(urls, index + 1), 400);
       });
     };
-    setTimeout(() => loadDevURL(5173), 500);
+    try {
+      const ses = mainWindow.webContents.session;
+      Promise.all([
+        ses.clearCache(),
+        ses.clearStorageData({ storages: ["serviceworkers", "cachestorage"] })
+      ]).catch(() => {
+      }).finally(() => {
+        setTimeout(() => tryLoadSequentially(candidates), 400);
+      });
+    } catch {
+      setTimeout(() => tryLoadSequentially(candidates), 400);
+    }
   } else {
     console.log("Running in production mode");
     const prodCandidates = [

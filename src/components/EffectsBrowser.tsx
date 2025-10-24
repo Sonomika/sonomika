@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { HeartIcon, HeartFilledIcon, PlusIcon } from '@radix-ui/react-icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { UserEffectsLoader } from './UserEffectsLoader';
+import { useStore } from '../store/store';
 
 interface EffectsBrowserProps {
   onClose?: () => void;
@@ -21,6 +22,7 @@ type LightEffect = {
 };
 
 export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
+  const { showSystemEffectsTab } = (useStore() as any) || {};
   const FAVORITES_KEY = 'vj-effect-favorites';
   const BANK_TAB_KEY = 'vj-bank-last-tab';
   const [isLoading, setIsLoading] = useState(true);
@@ -265,7 +267,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
         }}>
           <TabsList>
             <TabsTrigger value="user">Library</TabsTrigger>
-            <TabsTrigger value="external">System</TabsTrigger>
+            {!!showSystemEffectsTab && (<TabsTrigger value="external">System</TabsTrigger>)}
             <TabsTrigger value="favorites" title="Favorites">
               {activeTab === 'favorites' ? (
                 <HeartFilledIcon className="tw-w-4 tw-h-4" />
@@ -275,7 +277,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="user" />
-          <TabsContent value="external" />
+          {!!showSystemEffectsTab && (<TabsContent value="external" />)}
           <TabsContent value="favorites" />
         </Tabs>
       </div>

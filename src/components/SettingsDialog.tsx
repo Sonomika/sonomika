@@ -12,7 +12,7 @@ interface SettingsDialogProps {
 }
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
-  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast, fontColor, setFontColor } = useStore() as any;
+  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast, fontColor, setFontColor, showSystemEffectsTab, setShowSystemEffectsTab } = useStore() as any;
   const [debugMode, setDebugMode] = useState<boolean>(() => {
     try { return !!JSON.parse(localStorage.getItem('vj-debug-enabled') || 'false'); } catch { return false; }
   });
@@ -121,6 +121,15 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                 placeholder="00bcd4"
               />
             </div>
+          </div>
+
+          {/* System effects visibility */}
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">Show System effects</div>
+              <div className="tw-text-xs tw-text-neutral-400">Toggle visibility of the System tab in the Effects browser</div>
+            </div>
+            <Switch checked={!!showSystemEffectsTab} onCheckedChange={(v) => setShowSystemEffectsTab(!!v)} />
           </div>
 
           <div className="tw-flex tw-items-center tw-justify-between">

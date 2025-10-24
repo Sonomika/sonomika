@@ -10,6 +10,10 @@ export default defineConfig({
       entry: 'electron/main.ts',
     }),
   ],
+  optimizeDeps: {
+    // Force re-optimization on server start to avoid stale caches causing 504s
+    force: true,
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
