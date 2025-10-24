@@ -154,11 +154,6 @@ export class EffectDiscovery {
     }> = [];
 
     const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
-    
-    // For web version, skip bank effects discovery
-    if (!isElectron) {
-      return [];
-    }
 
     try {
       // Build map of effect modules without importing them
@@ -493,7 +488,7 @@ export class EffectDiscovery {
           // Fallback for Electron/Node where direct relative import works during build time
           const importPath = fileName.replace(/\.(tsx|ts|jsx|js)$/,'');
           // console.log(`🔍 Importing from path (fallback): "../bank/${importPath}"`);
-          module = await import(/* @vite-ignore */ `../bank/${importPath}`);
+          module = await eval(`import("../bank/${importPath}")`);
         } else {
           // Web version - bank effects not available
           console.log(`Web version: Bank effect ${fileName} not available`);
@@ -684,7 +679,7 @@ export class EffectDiscovery {
       try {
         const fileName = this.getFileNameFromId(id);
         const importPath = fileName.replace('.tsx', '');
-        const module = await import(/* @vite-ignore */ `../bank/${importPath}`);
+        const module = await eval(`import("../bank/${importPath}")`);
         return module.default || module[`${importPath}Component`] || null;
       } catch (error) {
         console.warn(`Could not load component for effect ${id}:`, error);
@@ -826,7 +821,7 @@ export class EffectDiscovery {
         const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
         let module: any;
         if (isElectron) {
-          module = await import(/* @vite-ignore */ `../effects/${tempFileName.replace('.tsx', '')}`);
+          module = await eval(`import("../effects/${tempFileName.replace('.tsx', '')}")`);
         } else {
           // Web version - effects not available
           console.log(`Web version: Effects not available`);
