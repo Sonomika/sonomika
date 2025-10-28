@@ -242,8 +242,30 @@ const VideoTexture: React.FC<{
 
   // During transition, use previous texture if available, otherwise use current texture
   const activeTexture = isTransitioning && previousTexture ? previousTexture : texture;
-  
-  // If no texture yet and no fallback, render nothing (mask handles initial); otherwise show fallback
+  // FX input should never be empty: use fallback/previous when video not ready
+  const inputTexture: THREE.Texture | null = (video.readyState >= 2)
+    ? (activeTexture as THREE.Texture | null)
+    : ((fallbackTexture as THREE.Texture | null) || (previousTexture as unknown as THREE.Texture | null));
+
+  // Check if any effects are applied
+  const hasEffects = effects && effects.length > 0;
+
+  if (hasEffects) {
+    // Always feed FX chain a valid texture even when video isn't ready yet
+    return (
+      <EffectLoader 
+        videoTexture={inputTexture || undefined}
+        fallback={
+          <mesh>
+            <planeGeometry args={[aspectRatio * 2, 2]} />
+            <meshBasicMaterial map={inputTexture || undefined} />
+          </mesh>
+        }
+      />
+    );
+  }
+
+  // If no effects: If not ready, render fallback directly
   if (!activeTexture || video.readyState < 2) {
     const compositionAspectRatio = aspectRatio;
     const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
@@ -259,24 +281,6 @@ const VideoTexture: React.FC<{
           </mesh>
         )}
       </group>
-    );
-  }
-
-  // Check if any effects are applied
-  const hasEffects = effects && effects.length > 0;
-
-  if (hasEffects) {
-    // Use EffectLoader for any effects
-    return (
-      <EffectLoader 
-        videoTexture={activeTexture}
-        fallback={
-          <mesh>
-            <planeGeometry args={[aspectRatio * 2, 2]} />
-            <meshBasicMaterial map={activeTexture} />
-          </mesh>
-        }
-      />
     );
   }
 
@@ -712,6 +716,23 @@ const TimelineScene: React.FC<{
         });
 
         let appendedFallback = false;
+        // If an incoming video isn't ready yet, immediately draw the previous chain first
+        if (anyIncomingNotReady && (TimelineScene as any).__lastChainRef && (TimelineScene as any).__lastChainRef.current && !appendedFallback) {
+          const chainWithGlobals = (TimelineScene as any).__lastChainRef.current as ChainItem[];
+          const chainKey = 'last-video-fallback-early';
+          elements.push(
+            <EffectChain
+              key={`chain-${chainKey}`}
+              items={chainWithGlobals}
+              compositionWidth={compositionWidth}
+              compositionHeight={compositionHeight}
+              opacity={1}
+              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
+            />
+          );
+          appendedFallback = true;
+        }
+
         chainsWithKeys.forEach(({ chain, idx }) => {
           const chainKey = chain.map((it) => {
             if (it.type === 'video') return 'video';
