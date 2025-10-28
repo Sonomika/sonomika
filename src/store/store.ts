@@ -1183,6 +1183,10 @@ export const useStore = createWithEqualityFn<AppState & {
            transitionType: state.transitionType,
            transitionDuration: state.transitionDuration,
            compositionSettings: state.compositionSettings,
+            // Persist UI theming and accessibility settings
+            accentColor: (state as any).accentColor,
+            fontColor: (state as any).fontColor,
+            accessibilityEnabled: state.accessibilityEnabled,
            neutralContrast: (state as any).neutralContrast,
            defaultVideoRenderScale: (state as any).defaultVideoRenderScale,
            defaultVideoFitMode: state.defaultVideoFitMode,
@@ -1192,6 +1196,7 @@ export const useStore = createWithEqualityFn<AppState & {
            recordSettings: state.recordSettings,
            mirrorQuality: (state as any).mirrorQuality,
            mirrorKeepPreview: (state as any).mirrorKeepPreview,
+            showSystemEffectsTab: state.showSystemEffectsTab,
          };
        },
              onRehydrateStorage: () => (state) => {
