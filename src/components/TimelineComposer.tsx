@@ -359,6 +359,22 @@ const TimelineScene: React.FC<{
     videos: Map<string, HTMLVideoElement>;
   }>({ videos: new Map() });
 
+  useEffect(() => {
+    const onVideoPrimed = (event: Event) => {
+      const detail: any = (event as CustomEvent)?.detail;
+      const assetKey = detail?.assetKey;
+      const element: HTMLVideoElement | undefined = detail?.element;
+      if (!assetKey) return;
+      const video = element || videoAssetManager.get(assetKey)?.element;
+      if (!video) return;
+      globalAssetCacheRef.current.videos.set(assetKey, video);
+    };
+    try { document.addEventListener('timelineVideoPrimed', onVideoPrimed as any); } catch {}
+    return () => {
+      try { document.removeEventListener('timelineVideoPrimed', onVideoPrimed as any); } catch {}
+    };
+  }, []);
+
   const firstFrameReadyRef = useRef<boolean>(false);
   const frameCounterRef = useRef<number>(0);
 
@@ -473,6 +489,58 @@ const TimelineScene: React.FC<{
       }
     });
   }, [isPlaying, assets.videos, activeClips, currentTime]);
+
+  // On stop in timeline mode, reset all timeline videos to start
+  useEffect(() => {
+    const resetAllVideos = () => {
+      try {
+        // Reset currently loaded videos
+        assets.videos.forEach((video) => {
+          try { video.pause(); } catch {}
+          try { video.currentTime = 0; } catch {}
+        });
+        // Also reset any videos in the local cache to cover non-active ones
+        try {
+          (globalAssetCacheRef.current?.videos || new Map()).forEach((video) => {
+            try { video.pause(); } catch {}
+            try { video.currentTime = 0; } catch {}
+          });
+        } catch {}
+      } catch {}
+    };
+
+    const onGlobalStop = () => resetAllVideos();
+    const onTimelineStop = () => resetAllVideos();
+    const onVideoStop = () => resetAllVideos();
+
+    try { document.addEventListener('globalStop', onGlobalStop as any); } catch {}
+    try { document.addEventListener('timelineStop', onTimelineStop as any); } catch {}
+    try { document.addEventListener('videoStop', onVideoStop as any); } catch {}
+    return () => {
+      try { document.removeEventListener('globalStop', onGlobalStop as any); } catch {}
+      try { document.removeEventListener('timelineStop', onTimelineStop as any); } catch {}
+      try { document.removeEventListener('videoStop', onVideoStop as any); } catch {}
+    };
+  }, [assets.videos]);
+
+  // Ensure paused timeline seeks reflect the current playhead position
+  useEffect(() => {
+    try {
+      assets.videos.forEach((video, assetId) => {
+        const activeClip = activeClips.find((clip) => {
+          const clipAssetId = clip?.asset?.id;
+          return clipAssetId != null && String(clipAssetId) === String(assetId);
+        });
+        if (!activeClip) {
+          return;
+        }
+        const targetTime = Math.max(0, activeClip.relativeTime || 0);
+        if (Math.abs((video.currentTime || 0) - targetTime) > 0.05) {
+          try { video.currentTime = targetTime; } catch {}
+        }
+      });
+    } catch {}
+  }, [currentTime, activeClips, assets.videos]);
 
   // Additional video sync check during playback to prevent drift
   useEffect(() => {

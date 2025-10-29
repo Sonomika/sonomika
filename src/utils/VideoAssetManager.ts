@@ -93,6 +93,13 @@ export class VideoAssetManager {
     return Boolean(v && (v.__firstFrameProduced || mv.element.readyState >= 2));
   }
 
+  markFirstFrameReady(assetId: string) {
+    const mv = this.get(String(assetId));
+    if (!mv) return;
+    mv.firstFrameProduced = true;
+    try { (mv.element as any).__firstFrameProduced = true; } catch {}
+  }
+
   dispose(assetId: string) {
     const mv = this.idToVideo.get(String(assetId));
     if (!mv) return;

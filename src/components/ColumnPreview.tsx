@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { useStore } from '../store/store';
 import EffectLoader from './EffectLoader';
 import { getCachedVideo, getCachedVideoCanvas } from '../utils/AssetPreloader';
+import { videoAssetManager } from '../utils/VideoAssetManager';
 import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
 import EffectChain, { ChainItem } from './EffectChain';
 import { debounce } from '../utils/debounce';
@@ -466,6 +467,22 @@ const ColumnScene: React.FC<{
   // but we also consult the global preloader cache to avoid flashes.
   const globalAssetCacheRef = useRef<{ videos: Map<string, HTMLVideoElement> }>({ videos: new Map() });
 
+  useEffect(() => {
+    const onVideoPrimed = (event: Event) => {
+      const detail: any = (event as CustomEvent)?.detail;
+      const assetKey = detail?.assetKey;
+      const element: HTMLVideoElement | undefined = detail?.element;
+      if (!assetKey) return;
+      const video = element || videoAssetManager.get(assetKey)?.element;
+      if (!video) return;
+      globalAssetCacheRef.current.videos.set(assetKey, video);
+    };
+    try { document.addEventListener('timelineVideoPrimed', onVideoPrimed as any); } catch {}
+    return () => {
+      try { document.removeEventListener('timelineVideoPrimed', onVideoPrimed as any); } catch {}
+    };
+  }, []);
+
   // Performance optimization: removed excessive logging
 
   // Cleanup function to revoke blob URLs
@@ -663,6 +680,32 @@ const ColumnScene: React.FC<{
     }
     prevIsPlayingRef.current = isPlaying;
   }, [isPlaying, assets.videos, column.layers, column?.id]);
+
+  // In timeline mode, ensure Stop truly returns videos to frame 0
+  useEffect(() => {
+    const resetAll = () => {
+      try {
+        assets.videos.forEach((v) => {
+          try { v.pause(); } catch {}
+          try { v.currentTime = 0; } catch {}
+        });
+      } catch {}
+      try {
+        (globalAssetCacheRef.current?.videos || new Map()).forEach((v) => { try { v.pause(); } catch {}; try { v.currentTime = 0; } catch {}; });
+      } catch {}
+    };
+    const onGlobalStop = () => resetAll();
+    const onTimelineStop = () => resetAll();
+    const onVideoStop = () => resetAll();
+    try { document.addEventListener('globalStop', onGlobalStop as any); } catch {}
+    try { document.addEventListener('timelineStop', onTimelineStop as any); } catch {}
+    try { document.addEventListener('videoStop', onVideoStop as any); } catch {}
+    return () => {
+      try { document.removeEventListener('globalStop', onGlobalStop as any); } catch {}
+      try { document.removeEventListener('timelineStop', onTimelineStop as any); } catch {}
+      try { document.removeEventListener('videoStop', onVideoStop as any); } catch {}
+    };
+  }, [assets.videos]);
 
   // New: handle video playMode events using assets cache within ColumnScene
   useEffect(() => {

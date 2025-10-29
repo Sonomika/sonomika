@@ -38,33 +38,6 @@ interface LayerManagerProps {
   debugMode?: boolean;
 }
 
-// Quiet verbose diagnostic logs emitted from this module
-// Only suppress known noisy prefixes; allow all other console output
-(() => {
-  try {
-    const originalLog = console.log.bind(console);
-    const originalWarn = console.warn.bind(console);
-    const noisyPrefixRegex = /^(🎨|🎭|🎵|🔄|➕|🖱️|🎯)/;
-    const alsoNoisySubstrings = ['LayerManager', 'Current scene:', 'Active cell detected', 'Updated layer options'];
-    console.log = (...args: any[]) => {
-      const first = args[0];
-      if (typeof first === 'string') {
-        if (noisyPrefixRegex.test(first) || alsoNoisySubstrings.some((s) => first.includes(s))) return;
-      }
-      return originalLog(...args);
-    };
-    console.warn = (...args: any[]) => {
-      const first = args[0];
-      if (typeof first === 'string') {
-        if (noisyPrefixRegex.test(first) || alsoNoisySubstrings.some((s) => first.includes(s))) return;
-      }
-      return originalWarn(...args);
-    };
-  } catch {
-    // no-op
-  }
-})();
-
 // Memoized at module scope to preserve component identity across renders
 const MemoMediaLibrary = React.memo(MediaLibrary);
 
@@ -1134,12 +1107,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   // Render preview content
   const renderPreviewContent = () => {
-    console.log('🎨 renderPreviewContent called');
-    console.log('🎨 previewContent:', previewContent);
-    console.log('🎨 isPlaying:', isPlaying);
-    
     if (!previewContent) {
-      console.log('🎨 No preview content, showing placeholder');
       return (
         <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden tw-w-full">
           {(() => {
@@ -1163,7 +1131,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
     // Render timeline preview using the exact same component as column preview
     if (previewContent.type === 'timeline') {
-      console.log('🎬 Rendering timeline preview via ColumnPreview');
       const activeClips = previewContent.activeClips || [];
       // Prepare scene layers for parameter resolution so timeline reflects live edits
       const sceneAllLayers = (currentScene?.columns || []).flatMap((c: any) => c.layers || []);

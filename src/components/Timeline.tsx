@@ -7,7 +7,136 @@ import { Slider } from './ui';
 import MoveableTimelineClip from './MoveableTimelineClip';
 import SimpleTimelineClip from './SimpleTimelineClip';
 import { audioContextManager } from '../utils/AudioContextManager';
+import { videoAssetManager } from '../utils/VideoAssetManager';
 // EffectLoader import removed - using dynamic loading instead
+
+const toFileURL = (absPath: string) => {
+  try {
+    let normalized = String(absPath || '');
+    normalized = normalized.replace(/\\/g, '/');
+    if (!normalized.startsWith('/')) {
+      normalized = `/${normalized}`;
+    }
+    return `file://${normalized}`;
+  } catch {
+    return absPath;
+  }
+};
+
+const resolveVideoAssetPlaybackPath = (asset: any): string => {
+  if (!asset) return '';
+  try {
+    if (asset.filePath) {
+      return toFileURL(asset.filePath);
+    }
+    const rawPath = asset.path;
+    if (typeof rawPath === 'string') {
+      if (rawPath.startsWith('file://')) return rawPath;
+      if (rawPath.startsWith('local-file://')) {
+        return toFileURL(rawPath.replace('local-file://', ''));
+      }
+    }
+    return rawPath || '';
+  } catch {
+    return asset?.path || '';
+  }
+};
+
+const getTimelineClipAssetKey = (clip: any): string => {
+  try {
+    if (clip?.asset?.id != null) return String(clip.asset.id);
+    if (clip?.asset?.path) return String(clip.asset.path);
+    if (clip?.asset?.filePath) return String(clip.asset.filePath);
+    if (clip?.id != null) return String(clip.id);
+  } catch {}
+  return Math.random().toString(36).slice(2);
+};
+
+const waitForVideoFirstFrame = (video: HTMLVideoElement, assetKey: string, timeoutMs = 4000) => {
+  return new Promise<void>((resolve) => {
+    let settled = false;
+    const anyVideo: any = video as any;
+    let rVfcId: number | null = null;
+    let timeoutId: number | null = null;
+
+    const cleanup = () => {
+      if (settled) return;
+      settled = true;
+      if (rVfcId != null && typeof anyVideo.cancelVideoFrameCallback === 'function') {
+        try { anyVideo.cancelVideoFrameCallback(rVfcId); } catch {}
+      }
+      if (timeoutId != null) {
+        try { window.clearTimeout(timeoutId); } catch {}
+      }
+      try { video.removeEventListener('loadeddata', onLoadedData as any); } catch {}
+      try { video.removeEventListener('canplaythrough', onLoadedData as any); } catch {}
+      try { video.removeEventListener('playing', onPlaying as any); } catch {}
+      try { video.removeEventListener('timeupdate', onTimeUpdate as any); } catch {}
+    };
+
+    const finish = () => {
+      cleanup();
+      try {
+        videoAssetManager.markFirstFrameReady(assetKey);
+        video.pause();
+        if (!Number.isNaN(video.duration)) {
+          video.currentTime = 0;
+        }
+      } catch {}
+      resolve();
+    };
+
+    const onLoadedData = () => {
+      if (video.readyState >= 2) {
+        finish();
+      }
+    };
+
+    const onPlaying = () => finish();
+
+    const onTimeUpdate = () => finish();
+
+    if (typeof anyVideo.requestVideoFrameCallback === 'function') {
+      try {
+        rVfcId = anyVideo.requestVideoFrameCallback(() => finish());
+      } catch {
+        rVfcId = null;
+      }
+    }
+
+    try { video.addEventListener('loadeddata', onLoadedData as any, { once: true }); } catch { video.addEventListener('loadeddata', onLoadedData as any); }
+    try { video.addEventListener('canplaythrough', onLoadedData as any, { once: true }); } catch {}
+    try { video.addEventListener('playing', onPlaying as any, { once: true }); } catch { video.addEventListener('playing', onPlaying as any); }
+    try { video.addEventListener('timeupdate', onTimeUpdate as any, { once: true }); } catch { video.addEventListener('timeupdate', onTimeUpdate as any); }
+
+    timeoutId = window.setTimeout(() => finish(), timeoutMs);
+
+    try { video.muted = true; } catch {}
+    try { video.currentTime = Math.max(0, Math.min(video.currentTime || 0, video.duration || 0)); } catch {}
+    try {
+      const playPromise = video.play();
+      if (playPromise && typeof (playPromise as any).catch === 'function') {
+        (playPromise as any).catch(() => {
+          try { video.muted = true; void video.play(); } catch {}
+        });
+      }
+    } catch {}
+  });
+};
+
+const dispatchTimelineVideoPrimed = (assetKey: string) => {
+  if (!assetKey) return;
+  try {
+    const managed = videoAssetManager.get(assetKey);
+    const element = managed?.element;
+    document.dispatchEvent(new CustomEvent('timelineVideoPrimed', {
+      detail: {
+        assetKey,
+        element,
+      },
+    }));
+  } catch {}
+};
 
 // Context Menu Component
 interface ContextMenuProps {
@@ -191,7 +320,7 @@ interface TimelineClip {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreviewUpdate }) => {
-  const { currentTimelineSceneId, timelineSnapEnabled, setTimelineSnapEnabled, selectedTimelineClip, timelineScenes, playNextTimelineScene, playRandomTimelineScene, loopCurrentTimelineScene } = useStore() as any;
+  const { currentTimelineSceneId, timelineSnapEnabled, setTimelineSnapEnabled, selectedTimelineClip, timelineScenes, playNextTimelineScene, playRandomTimelineScene, loopCurrentTimelineScene, showTimeline } = useStore() as any;
   
   // Load saved timeline data from localStorage for current scene
   const loadTimelineData = (): TimelineTrack[] => {
@@ -369,6 +498,16 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       case 'loop':
         console.log('🔄 Looping current scene');
         setCurrentTime(0);
+        try {
+          // Ensure timeline videos are hard-reset to frame 0 before next loop playback
+          document.dispatchEvent(new CustomEvent('videoStop', {
+            detail: { type: 'videoStop', allColumns: true, source: 'timeline-loop' }
+          }));
+          document.dispatchEvent(new CustomEvent('globalStop', {
+            detail: { source: 'timeline-loop' }
+          }));
+          document.dispatchEvent(new Event('timelineStop'));
+        } catch {}
         setTimeout(() => {
           console.log('🔄 Starting loop playback');
           startPlayback();
@@ -437,6 +576,189 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const [lassoEnd, setLassoEnd] = useState<{ x: number; y: number } | null>(null);
   // Keep a ref of the latest computed duration so RAF loops use fresh value after trims
   const durationRef = useRef<number>(0);
+
+  const [preloadInfo, setPreloadInfo] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
+  const [preloadingMedia, setPreloadingMedia] = useState(false);
+  const [showPreloadIndicator, setShowPreloadIndicator] = useState(false);
+  const hidePreloadTimeoutRef = useRef<number | null>(null);
+  const preloadedVideoAssetsRef = useRef<Set<string>>(new Set());
+  const preloadRunIdRef = useRef(0);
+  const pendingPlaybackRef = useRef(false);
+  const lastPreloadSignatureRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (hidePreloadTimeoutRef.current != null) {
+        window.clearTimeout(hidePreloadTimeoutRef.current);
+        hidePreloadTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const preloadPercent = preloadInfo.total > 0 ? Math.min(100, Math.max(0, Math.round((preloadInfo.loaded / preloadInfo.total) * 100))) : 0;
+  const preloadBarWidth = Math.min(100, preloadingMedia && preloadPercent < 6 ? 6 : preloadPercent);
+
+  useEffect(() => {
+    preloadedVideoAssetsRef.current = new Set();
+    preloadRunIdRef.current += 1;
+    lastPreloadSignatureRef.current = null;
+    if (hidePreloadTimeoutRef.current != null) {
+      window.clearTimeout(hidePreloadTimeoutRef.current);
+      hidePreloadTimeoutRef.current = null;
+    }
+    setPreloadInfo({ loaded: 0, total: 0 });
+    setPreloadingMedia(false);
+    setShowPreloadIndicator(false);
+    pendingPlaybackRef.current = false;
+  }, [currentTimelineSceneId]);
+
+  useEffect(() => {
+    if (!showTimeline) {
+      if (hidePreloadTimeoutRef.current != null) {
+        window.clearTimeout(hidePreloadTimeoutRef.current);
+        hidePreloadTimeoutRef.current = null;
+      }
+      setPreloadingMedia((prev) => (prev ? false : prev));
+      setShowPreloadIndicator(false);
+      pendingPlaybackRef.current = false;
+      lastPreloadSignatureRef.current = null;
+      return;
+    }
+
+    const uniqueVideos = new Map<string, any>();
+    try {
+      tracks.forEach((track) => {
+        (track?.clips || []).forEach((clip: any) => {
+          if (clip?.asset?.type === 'video') {
+            uniqueVideos.set(getTimelineClipAssetKey(clip), clip.asset);
+          }
+        });
+      });
+    } catch {}
+
+    const sortedKeys = Array.from(uniqueVideos.keys()).sort();
+    const signature = `${currentTimelineSceneId || 'scene'}|${sortedKeys.join('|')}`;
+    const loadingInProgress = preloadInfo.total === uniqueVideos.size && preloadInfo.total > 0 && preloadInfo.loaded < preloadInfo.total;
+    if (signature === lastPreloadSignatureRef.current && loadingInProgress) {
+      return;
+    }
+    lastPreloadSignatureRef.current = signature;
+
+    if (hidePreloadTimeoutRef.current != null) {
+      window.clearTimeout(hidePreloadTimeoutRef.current);
+      hidePreloadTimeoutRef.current = null;
+    }
+
+    const total = uniqueVideos.size;
+    if (total === 0) {
+      setPreloadInfo((prev) => (prev.loaded === 0 && prev.total === 0 ? prev : { loaded: 0, total: 0 }));
+      setPreloadingMedia((prev) => (prev ? false : prev));
+      setShowPreloadIndicator(false);
+      if (pendingPlaybackRef.current && !isPlayingRef.current) {
+        pendingPlaybackRef.current = false;
+        startPlayback();
+      }
+      return;
+    }
+
+    let loadedCount = 0;
+    sortedKeys.forEach((key) => {
+      if (preloadedVideoAssetsRef.current.has(key)) {
+        loadedCount += 1;
+      }
+    });
+
+    setPreloadInfo((prev) => (prev.loaded === loadedCount && prev.total === total ? prev : { loaded: loadedCount, total }));
+
+    const assetsToLoad: Array<[string, any]> = [];
+    sortedKeys.forEach((key) => {
+      if (!preloadedVideoAssetsRef.current.has(key)) {
+        assetsToLoad.push([key, uniqueVideos.get(key)]);
+      }
+    });
+
+    if (assetsToLoad.length === 0) {
+      setPreloadingMedia((prev) => (prev ? false : prev));
+      setPreloadInfo((prev) => (prev.loaded === total && prev.total === total ? prev : { loaded: total, total }));
+      sortedKeys.forEach((key) => dispatchTimelineVideoPrimed(key));
+      if (hidePreloadTimeoutRef.current != null) {
+        window.clearTimeout(hidePreloadTimeoutRef.current);
+      }
+      setShowPreloadIndicator(true);
+      hidePreloadTimeoutRef.current = window.setTimeout(() => {
+        setShowPreloadIndicator(false);
+      }, 800);
+      if (pendingPlaybackRef.current && !isPlayingRef.current) {
+        pendingPlaybackRef.current = false;
+        startPlayback();
+      }
+      return;
+    }
+
+    setPreloadingMedia((prev) => (prev ? prev : true));
+    setShowPreloadIndicator((prev) => (prev ? prev : true));
+
+    const runId = ++preloadRunIdRef.current;
+
+    const finalizeIfDone = () => {
+      if (loadedCount >= total) {
+        setPreloadingMedia((prev) => (prev ? false : prev));
+        if (pendingPlaybackRef.current && !isPlayingRef.current) {
+          pendingPlaybackRef.current = false;
+          startPlayback();
+        }
+        hidePreloadTimeoutRef.current = window.setTimeout(() => {
+          if (preloadRunIdRef.current === runId) {
+            setShowPreloadIndicator(false);
+          }
+        }, 800);
+      }
+    };
+
+    const markAssetLoaded = (assetKey: string) => {
+      if (preloadRunIdRef.current !== runId) return;
+      if (!preloadedVideoAssetsRef.current.has(assetKey)) {
+        preloadedVideoAssetsRef.current.add(assetKey);
+        loadedCount += 1;
+        setPreloadInfo((prev) => {
+          const next = { loaded: loadedCount, total };
+          return prev.loaded === next.loaded && prev.total === next.total ? prev : next;
+        });
+      }
+      dispatchTimelineVideoPrimed(assetKey);
+      finalizeIfDone();
+    };
+
+    assetsToLoad.forEach(([assetKey, asset]) => {
+      try {
+        videoAssetManager
+          .getOrCreate(asset, resolveVideoAssetPlaybackPath)
+          .then(async (managed) => {
+            if (preloadRunIdRef.current !== runId) return;
+            const video: HTMLVideoElement | undefined = managed?.element;
+            if (!video) {
+              markAssetLoaded(assetKey);
+              return;
+            }
+
+            if (video.readyState < 2 || !videoAssetManager.isFirstFrameReady(assetKey)) {
+              try {
+                await waitForVideoFirstFrame(video, assetKey);
+              } catch {}
+            }
+
+            if (preloadRunIdRef.current !== runId) return;
+            markAssetLoaded(assetKey);
+          })
+          .catch(() => {
+            markAssetLoaded(assetKey);
+          });
+      } catch {
+        markAssetLoaded(assetKey);
+      }
+    });
+  }, [showTimeline, currentTimelineSceneId, tracks, preloadInfo, startPlayback]);
+
   useEffect(() => { durationRef.current = duration; }, [duration]);
   const PIXELS_PER_SECOND = 120;
   const pixelsPerSecond = useMemo(() => PIXELS_PER_SECOND * Math.max(0.05, zoom), [zoom]);
@@ -1722,6 +2044,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   // Stop timeline playback
   const stopTimelinePlayback = () => {
     console.log('Stopping timeline playback');
+    pendingPlaybackRef.current = false;
     if (playbackInterval) {
       clearInterval(playbackInterval);
       setPlaybackInterval(null);
@@ -1763,6 +2086,14 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     // Force a small delay to ensure state is properly updated
     await new Promise(resolve => setTimeout(resolve, 10));
     
+    const preloadIncomplete = preloadingMedia || (preloadInfo.total > 0 && preloadInfo.loaded < preloadInfo.total);
+
+    if (!isPlaying && preloadIncomplete) {
+      pendingPlaybackRef.current = true;
+      setShowPreloadIndicator(true);
+      return;
+    }
+
     if (isPlaying) {
       console.log('Stopping timeline playback');
       stopTimelinePlayback();
@@ -2099,11 +2430,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   }, [currentTime, isPlaying, tracks, duration, onPreviewUpdate]);
 
   // Listen to timeline mode changes and clear preview when switching away
-  const { showTimeline } = useStore();
   useEffect(() => {
     if (onPreviewUpdate && !showTimeline) {
       // Clear timeline preview content when switching away from timeline mode
-      console.log('Clearing timeline preview - switched away from timeline mode');
       onPreviewUpdate(null);
     }
   }, [showTimeline, onPreviewUpdate]);
@@ -2364,6 +2693,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               try {
                 document.dispatchEvent(new CustomEvent('timelineTick', { detail: { time: resetTime, duration } }));
               } catch {}
+              try {
+                document.dispatchEvent(new CustomEvent('videoStop', {
+                  detail: { type: 'videoStop', allColumns: true, source: 'timeline-reset' }
+                }));
+              } catch {}
             }
             break;
           }
@@ -2403,8 +2737,57 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     return () => document.removeEventListener('timelineCommand', onCommand as any);
   }, [duration, isPlaying]);
 
+  // Support double-click Stop from global toolbar: first click stops, second click (within window) jumps to start
+  useEffect(() => {
+    const lastStopAtRef = { current: 0 } as { current: number };
+    const onGlobalStop = (event: Event) => {
+      try {
+        const detail = ((event as CustomEvent).detail || {}) as Record<string, any>;
+        if (detail?.source === 'timeline') {
+          return;
+        }
+        const now = performance.now();
+        // If currently playing, treat as first click (stop only)
+        if (isPlayingRef.current) {
+          stopTimelinePlayback();
+          lastStopAtRef.current = now;
+          return;
+        }
+        // Already stopped: if within 500ms, jump to start/earliest clip
+        if (now - (lastStopAtRef.current || 0) <= 500) {
+          const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
+          setCurrentTime(resetTime);
+          try { document.dispatchEvent(new CustomEvent('timelineTick', { detail: { time: resetTime, duration } })); } catch {}
+          try {
+            document.dispatchEvent(new CustomEvent('videoStop', {
+              detail: { type: 'videoStop', allColumns: true, source: 'timeline-reset' }
+            }));
+          } catch {}
+        }
+        lastStopAtRef.current = now;
+      } catch {}
+    };
+    try { document.addEventListener('globalStop', onGlobalStop as any); } catch {}
+    return () => { try { document.removeEventListener('globalStop', onGlobalStop as any); } catch {} };
+  }, [duration]);
+
   return (
-    <div className="tw-overflow-hidden tw-h-full tw-flex tw-flex-col">
+    <div className="tw-relative tw-overflow-hidden tw-h-full tw-flex tw-flex-col">
+      {showPreloadIndicator && preloadInfo.total > 0 && (
+        <div className="tw-pointer-events-none tw-absolute tw-top-4 tw-left-1/2 tw-z-50 tw-w-[260px] tw--translate-x-1/2 tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-shadow-lg tw-px-3 tw-py-2">
+          <div className="tw-mb-1 tw-text-xs tw-text-neutral-300">
+            {preloadingMedia
+              ? `Caching timeline media… ${preloadPercent}% (${preloadInfo.loaded}/${preloadInfo.total})`
+              : 'Timeline media cached'}
+          </div>
+          <div className="tw-h-1.5 tw-rounded tw-bg-neutral-800">
+            <div
+              className="tw-h-full tw-rounded tw-bg-sky-500"
+              style={{ width: `${preloadBarWidth}%` }}
+            />
+          </div>
+        </div>
+      )}
       <style>
         {`
           /* .timeline-container migrated to Tailwind */
