@@ -138,6 +138,10 @@ const initialState: AppState = {
   currentPresetPath: null as any,
 };
 
+try {
+  (globalThis as any).VJ_BPM = initialState.bpm;
+} catch {}
+
 initialState.currentSceneId = initialState.scenes[0].id;
 initialState.currentTimelineSceneId = initialState.timelineScenes[0].id;
 
@@ -556,7 +560,17 @@ export const useStore = createWithEqualityFn<AppState & {
 
       toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
 
-      setBpm: (bpm: number) => set({ bpm }),
+      setBpm: (bpm: number) => set(() => {
+        let nextBpm = Number.isFinite(bpm) ? bpm : initialState.bpm;
+        if (nextBpm <= 0) nextBpm = initialState.bpm;
+        try { (globalThis as any).VJ_BPM = nextBpm; } catch {}
+        try {
+          if (typeof document !== 'undefined') {
+            document.dispatchEvent(new CustomEvent('vj:bpm-change', { detail: { bpm: nextBpm } }));
+          }
+        } catch {}
+        return { bpm: nextBpm } as Partial<AppState>;
+      }),
 
       setSelectedLayer: (layerId: string | null) => set({ selectedLayerId: layerId }),
 

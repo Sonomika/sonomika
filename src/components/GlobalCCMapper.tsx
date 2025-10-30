@@ -141,6 +141,9 @@ const GlobalCCMapper: React.FC = () => {
     setMIDIMappings(next);
   };
 
+  const ccOffsetValue = Math.max(0, Math.min(127, Number(midiCCOffset) || 0));
+  const ccOffsetActive = ccOffsetValue > 0;
+
   // Auto-map knob CC range (inclusive) for global effects
   const [autoMapStart, setAutoMapStart] = useState<number>(() => {
     try { const v = parseInt(localStorage.getItem('vj-auto-map-global-start') || '1', 10); return Math.max(1, Math.min(127, Number.isFinite(v) ? v : 1)); } catch { return 1; }
@@ -271,7 +274,7 @@ const GlobalCCMapper: React.FC = () => {
                 <Switch checked={autoOnSelect} onCheckedChange={(v: boolean) => setAutoOnSelect(!!v)} />
                 Auto Map on select
               </label>
-              <div className="tw-flex tw-items-end tw-gap-2">
+              <div className="tw-basis-full tw-flex tw-items-end tw-gap-2">
                 <Label className="tw-text-xs">Knobs</Label>
                 <div className="tw-flex tw-items-center tw-gap-1">
                   <Input type="number" className="tw-w-14" value={autoMapStart} onChange={(e) => setAutoMapStart(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
@@ -288,26 +291,35 @@ const GlobalCCMapper: React.FC = () => {
               {layerMappings.length === 0 ? (
                 <div className="tw-text-xs tw-text-neutral-500 tw-px-2 tw-py-2">None yet.</div>
               ) : (
-                layerMappings.map(({ m, i }) => (
-                  <div key={i} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 last:tw-border-b-0">
-                    <div className="tw-text-xs tw-text-neutral-300">ch {m.channel} • CC {m.number} → {(m.target as any)?.param}</div>
-                    <div className="tw-flex tw-items-center tw-gap-2">
-                      <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
-                        <Switch checked={!!m.enabled} onCheckedChange={(v: boolean) => {
-                          const next = (mappings || []).slice();
-                          (next[i] as any).enabled = !!v;
-                          setMIDIMappings(next);
-                        }} />
-                        Enabled
-                      </label>
-                      <Button variant="secondary" onClick={() => { try { setEditIndex(i); setParam(String((m.target as any)?.param || '')); setChannel(Math.max(1, Math.min(16, Number(m.channel) || 1))); setCcNumber(Math.max(0, Math.min(127, Number(m.number) || 0))); setSelectedGlobalId(String((m.target as any)?.id || selectedGlobalId)); } catch {} }}>Edit</Button>
-                      {editIndex === i && (
-                        <Button variant="ghost" onClick={() => { setEditIndex(null); }}>Cancel</Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => removeMappingAt(i)}>×</Button>
+                layerMappings.map(({ m, i }) => {
+                  const normalizedCC = Math.max(0, Math.min(127, Number(m.number) || 0));
+                  const physicalCC = ccOffsetActive
+                    ? Math.max(0, Math.min(127, ccOffsetValue + normalizedCC))
+                    : normalizedCC;
+                  const ccLabel = ccOffsetActive
+                    ? `CC ${physicalCC} → CC ${normalizedCC}`
+                    : `CC ${normalizedCC}`;
+                  return (
+                    <div key={i} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 last:tw-border-b-0">
+                      <div className="tw-text-xs tw-text-neutral-300">ch {m.channel} • {ccLabel} → {(m.target as any)?.param}</div>
+                      <div className="tw-flex tw-items-center tw-gap-2">
+                        <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
+                          <Switch checked={!!m.enabled} onCheckedChange={(v: boolean) => {
+                            const next = (mappings || []).slice();
+                            (next[i] as any).enabled = !!v;
+                            setMIDIMappings(next);
+                          }} />
+                          Enabled
+                        </label>
+                        <Button variant="secondary" onClick={() => { try { setEditIndex(i); setParam(String((m.target as any)?.param || '')); setChannel(Math.max(1, Math.min(16, Number(m.channel) || 1))); setCcNumber(Math.max(0, Math.min(127, Number(m.number) || 0))); setSelectedGlobalId(String((m.target as any)?.id || selectedGlobalId)); } catch {} }}>Edit</Button>
+                        {editIndex === i && (
+                          <Button variant="ghost" onClick={() => { setEditIndex(null); }}>Cancel</Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => removeMappingAt(i)}>×</Button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
             {otherGlobalMappings.length > 0 && (
@@ -315,26 +327,35 @@ const GlobalCCMapper: React.FC = () => {
                 <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900">
                   {otherGlobalMappings.map((grp, gi) => (
                     <div key={gi} className="tw-border-b tw-border-neutral-800 last:tw-border-b-0">
-                      {grp.items.map(({ m, i }) => (
-                        <div key={i} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-px-2 tw-py-1 tw-border-t tw-border-neutral-800 first:tw-border-t-0">
-                          <div className="tw-text-xs tw-text-neutral-300">ch {m.channel} • CC {m.number} → {(m.target as any)?.param}</div>
-                          <div className="tw-flex tw-items-center tw-gap-2">
-                            <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
-                              <Switch checked={!!m.enabled} onCheckedChange={(v: boolean) => {
-                                const next = (mappings || []).slice();
-                                (next[i] as any).enabled = !!v;
-                                setMIDIMappings(next);
-                              }} />
-                              Enabled
-                            </label>
-                            <Button variant="secondary" onClick={() => { try { setEditIndex(i); setParam(String((m.target as any)?.param || '')); setChannel(Math.max(1, Math.min(16, Number(m.channel) || 1))); setCcNumber(Math.max(0, Math.min(127, Number(m.number) || 0))); setSelectedGlobalId(String((m.target as any)?.id || selectedGlobalId)); } catch {} }}>Edit</Button>
-                            {editIndex === i && (
-                              <Button variant="ghost" onClick={() => { setEditIndex(null); }}>Cancel</Button>
-                            )}
-                            <Button variant="ghost" size="icon" onClick={() => removeMappingAt(i)}>×</Button>
+                      {grp.items.map(({ m, i }) => {
+                        const normalizedCC = Math.max(0, Math.min(127, Number(m.number) || 0));
+                        const physicalCC = ccOffsetActive
+                          ? Math.max(0, Math.min(127, ccOffsetValue + normalizedCC))
+                          : normalizedCC;
+                        const ccLabel = ccOffsetActive
+                          ? `CC ${physicalCC} → CC ${normalizedCC}`
+                          : `CC ${normalizedCC}`;
+                        return (
+                          <div key={i} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-px-2 tw-py-1 tw-border-t tw-border-neutral-800 first:tw-border-t-0">
+                            <div className="tw-text-xs tw-text-neutral-300">ch {m.channel} • {ccLabel} → {(m.target as any)?.param}</div>
+                            <div className="tw-flex tw-items-center tw-gap-2">
+                              <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
+                                <Switch checked={!!m.enabled} onCheckedChange={(v: boolean) => {
+                                  const next = (mappings || []).slice();
+                                  (next[i] as any).enabled = !!v;
+                                  setMIDIMappings(next);
+                                }} />
+                                Enabled
+                              </label>
+                              <Button variant="secondary" onClick={() => { try { setEditIndex(i); setParam(String((m.target as any)?.param || '')); setChannel(Math.max(1, Math.min(16, Number(m.channel) || 1))); setCcNumber(Math.max(0, Math.min(127, Number(m.number) || 0))); setSelectedGlobalId(String((m.target as any)?.id || selectedGlobalId)); } catch {} }}>Edit</Button>
+                              {editIndex === i && (
+                                <Button variant="ghost" onClick={() => { setEditIndex(null); }}>Cancel</Button>
+                              )}
+                              <Button variant="ghost" size="icon" onClick={() => removeMappingAt(i)}>×</Button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
