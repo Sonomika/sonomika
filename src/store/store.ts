@@ -111,6 +111,8 @@ const initialState: AppState = {
   midiMappings: [],
   midiForceChannel1: false,
   midiCCOffset: 0,
+  midiAutoDetectOffset: false,
+  midiAutoDetectOffsetPrimed: false,
   selectedLayerId: null,
   selectedTimelineClip: null,
   previewMode: 'composition',
@@ -193,6 +195,9 @@ export const useStore = createWithEqualityFn<AppState & {
   removeMIDIMapping: (index: number) => void;
   setMIDIMappings: (mappings: MIDIMapping[]) => void;
   setMIDIForceChannel1: (forced: boolean) => void;
+  setMidiCCOffset: (offset: number) => void;
+  setMidiAutoDetectOffset: (enabled: boolean) => void;
+  setMidiAutoDetectOffsetPrimed: (primed: boolean) => void;
   setTransitionType: (type: TransitionType) => void;
   setTransitionDuration: (duration: number) => void;
   setNeutralContrast: (factor: number) => void;
@@ -630,6 +635,11 @@ export const useStore = createWithEqualityFn<AppState & {
       setMIDIMappings: (mappings: MIDIMapping[]) => set({ midiMappings: mappings }),
       setMIDIForceChannel1: (forced: boolean) => set({ midiForceChannel1: !!forced }),
       setMidiCCOffset: (offset: number) => set({ midiCCOffset: Math.max(0, Math.min(127, Number(offset) || 0)) }),
+      setMidiAutoDetectOffset: (enabled: boolean) => set({
+        midiAutoDetectOffset: !!enabled,
+        midiAutoDetectOffsetPrimed: !!enabled,
+      }),
+      setMidiAutoDetectOffsetPrimed: (primed: boolean) => set({ midiAutoDetectOffsetPrimed: !!primed }),
 
       setTransitionType: (type: AppState['transitionType']) => set({ transitionType: type }),
 
@@ -1234,6 +1244,7 @@ export const useStore = createWithEqualityFn<AppState & {
            midiMappings: state.midiMappings,
            midiForceChannel1: (state as any).midiForceChannel1,
           midiCCOffset: state.midiCCOffset,
+          midiAutoDetectOffset: (state as any).midiAutoDetectOffset,
            selectedLayerId: state.selectedLayerId,
            selectedTimelineClip: state.selectedTimelineClip,
            previewMode: state.previewMode,

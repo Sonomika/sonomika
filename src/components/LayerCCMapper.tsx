@@ -36,7 +36,19 @@ const useLayerParamOptions = (selectedLayer: any) => {
 };
 
 export const LayerCCMapper: React.FC = () => {
-  const { midiMappings, setMIDIMappings, selectedLayerId, scenes, currentSceneId, midiCCOffset, setMidiCCOffset, selectedTimelineClip } = useStore() as any;
+  const {
+    midiMappings,
+    setMIDIMappings,
+    selectedLayerId,
+    scenes,
+    currentSceneId,
+    midiCCOffset,
+    setMidiCCOffset,
+    midiAutoDetectOffset,
+    midiAutoDetectOffsetPrimed,
+    setMidiAutoDetectOffset,
+    selectedTimelineClip,
+  } = useStore() as any;
   const mappings = (midiMappings as MIDIMapping[]) || [];
   const selectedLayer = useMemo(() => {
     const scene = (scenes || []).find((s: any) => s.id === currentSceneId);
@@ -222,8 +234,36 @@ export const LayerCCMapper: React.FC = () => {
               <Select value={String(channel)} onChange={(v) => setChannel(Number(v))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
             </div>
             <div className="tw-space-y-1">
-              <Label className="tw-text-xs">CC Offset</Label>
-              <Input value={midiCCOffset ?? 0} onChange={(e) => { try { setMidiCCOffset(Math.max(0, Math.min(127, Number(e.target.value) || 0))); } catch {} }} />
+              <div className="tw-flex tw-items-center tw-justify-between">
+                <Label className="tw-text-xs">CC Offset</Label>
+                <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
+                  <Switch
+                    checked={!!midiAutoDetectOffset}
+                    onCheckedChange={(v: boolean) => {
+                      try {
+                        setMidiAutoDetectOffset(!!v);
+                      } catch {}
+                    }}
+                  />
+                  Auto detect
+                </label>
+              </div>
+              <Input
+                value={midiCCOffset ?? 0}
+                onChange={(e) => {
+                  try {
+                    setMidiCCOffset(Math.max(0, Math.min(127, Number(e.target.value) || 0)));
+                  } catch {}
+                }}
+                disabled={!!midiAutoDetectOffset}
+              />
+              {midiAutoDetectOffset && (
+                <div className="tw-text-xs tw-text-neutral-400">
+                  {midiAutoDetectOffsetPrimed
+                    ? 'Move any knob to learn the offset.'
+                    : `Learned from CC ${Math.max(1, (Number(midiCCOffset) || 0) + 1)}.`}
+                </div>
+              )}
             </div>
             <div className="tw-space-y-1">
               <Label className="tw-text-xs">CC Number</Label>

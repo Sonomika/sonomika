@@ -10,6 +10,8 @@ type StoreActions = {
   globalPlay: (opts?: { force?: boolean; source?: string }) => void;
   globalPause: (opts?: { force?: boolean; source?: string }) => void;
   globalStop: (opts?: { force?: boolean; source?: string }) => void;
+  setMidiCCOffset: (offset: number) => void;
+  setMidiAutoDetectOffsetPrimed: (primed: boolean) => void;
 };
 
 type Store = AppState & StoreActions;
@@ -312,9 +314,26 @@ export class MIDIProcessor {
   }
 
   handleCCMessage(cc: number, value: number, channel: number): void {
-    const store = useStore.getState() as Store;
+    let store = useStore.getState() as Store;
     const force = !!(store as any).midiForceChannel1;
     const effectiveChannel = force ? 1 : channel;
+
+    if (store.midiAutoDetectOffset && store.midiAutoDetectOffsetPrimed) {
+      try {
+        const learnedOffset = Math.max(0, Math.min(127, cc > 0 ? cc - 1 : 0));
+        if (typeof store.setMidiCCOffset === 'function') {
+          store.setMidiCCOffset(learnedOffset);
+        }
+        if (typeof store.setMidiAutoDetectOffsetPrimed === 'function') {
+          store.setMidiAutoDetectOffsetPrimed(false);
+        }
+      } catch {
+        // Ignore learning errors but continue processing with existing offset
+      } finally {
+        store = useStore.getState() as Store;
+      }
+    }
+
     const ccOffset = Math.max(0, Math.min(127, Number((store as any).midiCCOffset) || 0));
     const normalizedCC = Math.max(0, Math.min(127, cc - ccOffset));
 

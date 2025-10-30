@@ -42,7 +42,17 @@ const useGlobalParamOptions = (slot: any) => {
 };
 
 const GlobalCCMapper: React.FC = () => {
-  const { scenes, currentSceneId, midiMappings, setMIDIMappings, midiCCOffset, setMidiCCOffset } = useStore() as any;
+  const {
+    scenes,
+    currentSceneId,
+    midiMappings,
+    setMIDIMappings,
+    midiCCOffset,
+    setMidiCCOffset,
+    midiAutoDetectOffset,
+    midiAutoDetectOffsetPrimed,
+    setMidiAutoDetectOffset,
+  } = useStore() as any;
   const scene = useMemo(() => (scenes || []).find((s: any) => s.id === currentSceneId), [scenes, currentSceneId]);
   const globalOptions = useGlobalEffectOptions(scene);
 
@@ -222,8 +232,36 @@ const GlobalCCMapper: React.FC = () => {
               <Input value={ccNumber} onChange={(e) => setCcNumber(Math.max(0, Math.min(127, Number(e.target.value) || 0)))} />
             </div>
             <div className="tw-space-y-1">
-              <Label className="tw-text-xs">CC Offset</Label>
-              <Input value={midiCCOffset ?? 0} onChange={(e) => { try { setMidiCCOffset(Math.max(0, Math.min(127, Number(e.target.value) || 0))); } catch {} }} />
+              <div className="tw-flex tw-items-center tw-justify-between">
+                <Label className="tw-text-xs">CC Offset</Label>
+                <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
+                  <Switch
+                    checked={!!midiAutoDetectOffset}
+                    onCheckedChange={(v: boolean) => {
+                      try {
+                        setMidiAutoDetectOffset(!!v);
+                      } catch {}
+                    }}
+                  />
+                  Auto detect
+                </label>
+              </div>
+              <Input
+                value={midiCCOffset ?? 0}
+                onChange={(e) => {
+                  try {
+                    setMidiCCOffset(Math.max(0, Math.min(127, Number(e.target.value) || 0)));
+                  } catch {}
+                }}
+                disabled={!!midiAutoDetectOffset}
+              />
+              {midiAutoDetectOffset && (
+                <div className="tw-text-xs tw-text-neutral-400">
+                  {midiAutoDetectOffsetPrimed
+                    ? 'Move any knob to learn the offset.'
+                    : `Learned from CC ${Math.max(1, (Number(midiCCOffset) || 0) + 1)}.`}
+                </div>
+              )}
             </div>
             <div className="tw-col-span-2 tw-flex tw-flex-wrap tw-items-end tw-gap-2">
               <Button variant="secondary" onClick={() => setLearn((v) => !v)}>{learn ? 'Listening…' : 'Learn CC'}</Button>
