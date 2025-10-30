@@ -559,8 +559,65 @@ export const useStore = createWithEqualityFn<AppState & {
 
       setPreviewMode: (mode: AppState['previewMode']) => set({ previewMode: mode }),
 
-      // Toggle/show Timeline view
-      setShowTimeline: (show: boolean) => set({ showTimeline: Boolean(show) }),
+      // Toggle/show Timeline view; ensure column and timeline modes cannot be active simultaneously
+      setShowTimeline: (show: boolean) => {
+        const desired = Boolean(show);
+        const wasTimeline = get().showTimeline;
+
+        if (desired) {
+          // Entering timeline mode: stop any active column playback first
+          try {
+            const store = get() as any;
+            if (typeof store.globalStop === 'function') {
+              store.globalStop({ force: true, source: 'timeline-mode-toggle' });
+            } else if (typeof store.stopColumn === 'function') {
+              store.stopColumn();
+            }
+          } catch (error) {
+            console.warn('Failed to stop column playback before enabling timeline mode:', error);
+          }
+        } else {
+          if (wasTimeline) {
+            try {
+              document.dispatchEvent(new CustomEvent('timelineCommand', {
+                detail: { type: 'stop' }
+              }));
+            } catch (error) {
+              console.warn('Failed to send timeline stop command when leaving timeline mode:', error);
+            }
+          }
+          // Returning to column mode: ensure the timeline engine is fully stopped
+          if (typeof window !== 'undefined') {
+            try {
+              const win = window as any;
+              if (win.__vj_timeline_is_playing__ === true) {
+                win.__vj_timeline_is_playing__ = false;
+              }
+              if (win.__vj_timeline_active_layers__) {
+                win.__vj_timeline_active_layers__ = [];
+              }
+            } catch (error) {
+              console.warn('Failed to reset timeline transport flags when leaving timeline mode:', error);
+            }
+          }
+          if (wasTimeline && typeof document !== 'undefined') {
+            try {
+              document.dispatchEvent(new Event('timelineStop'));
+            } catch (error) {
+              console.warn('Failed to dispatch timelineStop when leaving timeline mode:', error);
+            }
+          }
+        }
+
+        if (wasTimeline !== desired) {
+          const nextState: Partial<AppState> = { showTimeline: desired };
+          if (desired) {
+            nextState.playingColumnId = null;
+            nextState.isGlobalPlaying = false;
+          }
+          set(nextState as Partial<AppState>);
+        }
+      },
 
       addMIDIMapping: (mapping: MIDIMapping) => set((state) => ({
         midiMappings: [...state.midiMappings, mapping],
