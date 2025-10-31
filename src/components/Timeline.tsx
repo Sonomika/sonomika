@@ -579,47 +579,23 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   const [preloadInfo, setPreloadInfo] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
   const [preloadingMedia, setPreloadingMedia] = useState(false);
-  const [showPreloadIndicator, setShowPreloadIndicator] = useState(false);
-  const hidePreloadTimeoutRef = useRef<number | null>(null);
   const preloadedVideoAssetsRef = useRef<Set<string>>(new Set());
   const preloadRunIdRef = useRef(0);
   const pendingPlaybackRef = useRef(false);
   const lastPreloadSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
-    return () => {
-      if (hidePreloadTimeoutRef.current != null) {
-        window.clearTimeout(hidePreloadTimeoutRef.current);
-        hidePreloadTimeoutRef.current = null;
-      }
-    };
-  }, []);
-
-  const preloadPercent = preloadInfo.total > 0 ? Math.min(100, Math.max(0, Math.round((preloadInfo.loaded / preloadInfo.total) * 100))) : 0;
-  const preloadBarWidth = Math.min(100, preloadingMedia && preloadPercent < 6 ? 6 : preloadPercent);
-
-  useEffect(() => {
     preloadedVideoAssetsRef.current = new Set();
     preloadRunIdRef.current += 1;
     lastPreloadSignatureRef.current = null;
-    if (hidePreloadTimeoutRef.current != null) {
-      window.clearTimeout(hidePreloadTimeoutRef.current);
-      hidePreloadTimeoutRef.current = null;
-    }
     setPreloadInfo({ loaded: 0, total: 0 });
     setPreloadingMedia(false);
-    setShowPreloadIndicator(false);
     pendingPlaybackRef.current = false;
   }, [currentTimelineSceneId]);
 
   useEffect(() => {
     if (!showTimeline) {
-      if (hidePreloadTimeoutRef.current != null) {
-        window.clearTimeout(hidePreloadTimeoutRef.current);
-        hidePreloadTimeoutRef.current = null;
-      }
       setPreloadingMedia((prev) => (prev ? false : prev));
-      setShowPreloadIndicator(false);
       pendingPlaybackRef.current = false;
       lastPreloadSignatureRef.current = null;
       return;
@@ -644,16 +620,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     }
     lastPreloadSignatureRef.current = signature;
 
-    if (hidePreloadTimeoutRef.current != null) {
-      window.clearTimeout(hidePreloadTimeoutRef.current);
-      hidePreloadTimeoutRef.current = null;
-    }
-
     const total = uniqueVideos.size;
     if (total === 0) {
       setPreloadInfo((prev) => (prev.loaded === 0 && prev.total === 0 ? prev : { loaded: 0, total: 0 }));
       setPreloadingMedia((prev) => (prev ? false : prev));
-      setShowPreloadIndicator(false);
       if (pendingPlaybackRef.current && !isPlayingRef.current) {
         pendingPlaybackRef.current = false;
         startPlayback();
@@ -681,13 +651,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       setPreloadingMedia((prev) => (prev ? false : prev));
       setPreloadInfo((prev) => (prev.loaded === total && prev.total === total ? prev : { loaded: total, total }));
       sortedKeys.forEach((key) => dispatchTimelineVideoPrimed(key));
-      if (hidePreloadTimeoutRef.current != null) {
-        window.clearTimeout(hidePreloadTimeoutRef.current);
-      }
-      setShowPreloadIndicator(true);
-      hidePreloadTimeoutRef.current = window.setTimeout(() => {
-        setShowPreloadIndicator(false);
-      }, 800);
       if (pendingPlaybackRef.current && !isPlayingRef.current) {
         pendingPlaybackRef.current = false;
         startPlayback();
@@ -696,7 +659,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     }
 
     setPreloadingMedia((prev) => (prev ? prev : true));
-    setShowPreloadIndicator((prev) => (prev ? prev : true));
 
     const runId = ++preloadRunIdRef.current;
 
@@ -707,11 +669,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           pendingPlaybackRef.current = false;
           startPlayback();
         }
-        hidePreloadTimeoutRef.current = window.setTimeout(() => {
-          if (preloadRunIdRef.current === runId) {
-            setShowPreloadIndicator(false);
-          }
-        }, 800);
       }
     };
 
@@ -2090,7 +2047,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
     if (!isPlaying && preloadIncomplete) {
       pendingPlaybackRef.current = true;
-      setShowPreloadIndicator(true);
       return;
     }
 
@@ -2773,21 +2729,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   return (
     <div className="tw-relative tw-overflow-hidden tw-h-full tw-flex tw-flex-col">
-      {showPreloadIndicator && preloadInfo.total > 0 && (
-        <div className="tw-pointer-events-none tw-absolute tw-top-4 tw-left-1/2 tw-z-50 tw-w-[260px] tw--translate-x-1/2 tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-shadow-lg tw-px-3 tw-py-2">
-          <div className="tw-mb-1 tw-text-xs tw-text-neutral-300">
-            {preloadingMedia
-              ? `Caching timeline media… ${preloadPercent}% (${preloadInfo.loaded}/${preloadInfo.total})`
-              : 'Timeline media cached'}
-          </div>
-          <div className="tw-h-1.5 tw-rounded tw-bg-neutral-800">
-            <div
-              className="tw-h-full tw-rounded tw-bg-sky-500"
-              style={{ width: `${preloadBarWidth}%` }}
-            />
-          </div>
-        </div>
-      )}
       <style>
         {`
           /* .timeline-container migrated to Tailwind */
