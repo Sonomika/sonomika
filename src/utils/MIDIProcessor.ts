@@ -546,11 +546,14 @@ export class MIDIProcessor {
   }
 
   private findLayer(layerId: string) {
-    const store = useStore.getState();
-    const currentScene = store.scenes.find(s => s.id === store.currentSceneId);
+    const store: any = useStore.getState();
+    const isTimeline = !!store.showTimeline;
+    const sceneList = isTimeline ? (store.timelineScenes || []) : (store.scenes || []);
+    const sceneId = isTimeline ? store.currentTimelineSceneId : store.currentSceneId;
+    const currentScene = sceneList.find((s: any) => s && s.id === sceneId);
     if (!currentScene) return null;
 
-    for (const column of currentScene.columns) {
+    for (const column of currentScene.columns || []) {
       const layer = column.layers.find(l => l.id === layerId);
       if (layer) return layer;
     }
