@@ -483,7 +483,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           // Do not clear color; preserve prior contents to avoid flashes
           gl.setClearColor(0x000000, 0);
           gl.setRenderTarget(videoRtRef.current!);
-          // gl.clear(true, true, true);
+          // Clear depth/stencil each frame so seeded depth values do not block new draws
+          gl.clear(false, true, true);
           gl.render(videoSceneRef.current!, camera);
           gl.setRenderTarget(currentRT);
           gl.setClearColor(prevClear, prevAlpha);
@@ -510,7 +511,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         // Do not clear color; prior pass is drawn as a background quad
         gl.setClearColor(0x000000, 0);
         gl.setRenderTarget(rt);
-        // gl.clear(true, true, true);
+        // Clear depth/stencil so layered draws don't reuse stale buffers
+        gl.clear(false, true, true);
         gl.render(offscreenScenes[idx], camera);
         gl.setRenderTarget(currentRT);
         gl.setClearColor(prevClear, prevAlpha);
@@ -548,7 +550,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           // Do not clear color; background quad already contains previous pass
           gl.setClearColor(0x000000, 0);
           gl.setRenderTarget(rt);
-          // gl.clear(true, true, true);
+          // Clear depth/stencil to prevent earlier frames from blocking renders
+          gl.clear(false, true, true);
           gl.render(offscreenScenes[idx], camera);
           gl.setRenderTarget(currentRT);
           gl.setClearColor(prevClear, prevAlpha);

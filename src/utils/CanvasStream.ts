@@ -11,7 +11,7 @@ export class CanvasStreamManager {
   private directWindow: Window | null = null;
   private originalParent: Node | null = null;
   private placeholderEl: HTMLDivElement | null = null;
-  private mode: 'direct-output' | 'stream-output' | 'electron-stream' | 'browser-bitmap' | null = null;
+  private mode: 'direct-output' | 'electron-stream' | 'browser-bitmap' | null = null;
   private freezeMirror: boolean = false;
   private unfreezeHoldFrames: number = 0;
   private originalCanvasStyle: string | null = null;
@@ -40,19 +40,13 @@ export class CanvasStreamManager {
         return;
       }
 
-      // If keeping preview, prefer GPU stream to child window via captureStream
       let keepPreview = true;
       try {
         const keep = (useStore.getState() as any).mirrorKeepPreview;
         keepPreview = (keep !== false); // default to keeping preview
       } catch {}
 
-      if (keepPreview) {
-        const triedStream = this.openStreamOutputWindow();
-        if (triedStream) {
-          return; // stream-output established; no JPEG pipeline needed
-        }
-      } else {
+      if (!keepPreview) {
         // If not keeping preview, move the real canvas for zero-copy output
         const triedDirect = this.openDirectOutputWindow();
         if (triedDirect) {
@@ -86,121 +80,6 @@ export class CanvasStreamManager {
     } catch (error) {
       console.error('Failed to open mirror window:', error);
       throw error;
-    }
-  }
-
-  // Open a same-process child window and stream the canvas via captureStream() into a <video>
-  private openStreamOutputWindow(): boolean {
-    try {
-      if (!this.canvas || typeof (this.canvas as any).captureStream !== 'function') return false;
-
-      // Open or focus a named window to keep a single instance
-      const win = window.open('', 'output-canvas');
-      if (!win) return false;
-      this.directWindow = win;
-
-      // Determine target FPS by mirror quality
-      const mq = (useStore.getState() as any).mirrorQuality || 'medium';
-      const targetFPS = mq === 'low' ? 30 : 60;
-
-      // Prepare window content with a <video> element sized to contain
-      win.document.open();
-      win.document.write(`<!DOCTYPE html><html><head><title>Output</title><style>
-        html, body { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; }
-        /* Allow window dragging on any empty space */
-        body { -webkit-app-region: drag; }
-        #container { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
-        video { display:block; width:100%; height:100%; object-fit:contain; background:#000; -webkit-app-region: drag; }
-      </style></head>
-      <body>
-        <div id="container"><video id="mirror-video" autoplay muted playsinline></video></div>
-        <script>
-          (function(){
-            var targetRatio = null;
-            function adjust(){
-              try {
-                var v = document.getElementById('mirror-video');
-                if (!v) return;
-                var W = document.documentElement.clientWidth;
-                var H = document.documentElement.clientHeight;
-                var r = targetRatio || (v.videoWidth > 0 && v.videoHeight > 0 ? (v.videoWidth / v.videoHeight) : 16/9);
-                var w = W, h = Math.floor(W / r);
-                if (h > H) { h = H; w = Math.floor(H * r); }
-                v.style.width = w + 'px';
-                v.style.height = h + 'px';
-              } catch(e){}
-            }
-            window.__setAspectRatio = function(r){ targetRatio = r && r > 0 ? r : null; adjust(); };
-            window.addEventListener('resize', adjust);
-            ['fullscreenchange','webkitfullscreenchange','msfullscreenchange'].forEach(function(evt){
-              try { document.addEventListener(evt, function(){ setTimeout(adjust, 0); }); } catch(e){}
-            });
-            function isFullscreen(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
-            function enterFs(){ var el = document.documentElement; (el.requestFullscreen || el.webkitRequestFullscreen || function(){})?.call(el); }
-            function exitFs(){ (document.exitFullscreen || document.webkitExitFullscreen || function(){})?.call(document); }
-            function toggleFs(){ isFullscreen() ? exitFs() : enterFs(); }
-            document.addEventListener('dblclick', toggleFs);
-            document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { try { if (isFullscreen()) exitFs(); else window.close(); } catch(e){} } }, { passive: true });
-          })();
-        </script>
-      </body></html>`);
-      win.document.close();
-
-      const video = win.document.getElementById('mirror-video') as HTMLVideoElement | null;
-      if (!video) return false;
-
-      // Create the stream and attach to the child window's video element
-      let stream: MediaStream | null = null;
-      try {
-        stream = (this.canvas as any).captureStream(targetFPS);
-      } catch {}
-      if (!stream) return false;
-
-      try { (video as any).srcObject = stream; } catch {}
-      try { video.play().catch(() => {}); } catch {}
-
-      // Match background and aspect lock
-      try {
-        const comp = (useStore.getState() as any).compositionSettings || {};
-        const bg = comp.backgroundColor || '#000000';
-        const compW = Math.max(1, Number(comp.width) || this.canvas.width || 1920);
-        const compH = Math.max(1, Number(comp.height) || this.canvas.height || 1080);
-        try { (win.document.body as any).style.background = bg; } catch {}
-        try { (win as any).__setAspectRatio?.(compW / compH); } catch {}
-        try { (window as any).electron?.setMirrorAspectRatio?.(compW, compH); } catch {}
-      } catch {}
-
-      // Resize dispatch to encourage any R3F size recalcs in parent
-      const resize = () => { try { window.dispatchEvent(new Event('resize')); } catch {} };
-      try { win.addEventListener('resize', resize); } catch {}
-
-      // Cleanup on close
-      win.addEventListener('beforeunload', () => {
-        try {
-          const v = win.document.getElementById('mirror-video') as HTMLVideoElement | null;
-          if (v && (v as any).srcObject) {
-            try {
-              const ms: MediaStream = (v as any).srcObject;
-              ms.getTracks?.().forEach(t => { try { t.stop(); } catch {} });
-            } catch {}
-            try { (v as any).srcObject = null; } catch {}
-          }
-        } finally {
-          this.directWindow = null;
-          this.isWindowOpen = false;
-        }
-      }, { once: true });
-
-      // Mark active mode and window state
-      this.isWindowOpen = true;
-      this.mode = 'stream-output';
-      ;(window as any).__CANVAS_STREAM_MODE__ = this.mode;
-      try { console.log('[CanvasStream] Mode:', this.mode, '@', targetFPS, 'fps'); } catch {}
-      try { win.document.title = 'Output [stream]'; } catch {}
-      return true;
-    } catch (e) {
-      console.warn('Stream output window failed, falling back:', e);
-      return false;
     }
   }
 
@@ -628,11 +507,6 @@ export class CanvasStreamManager {
   }
 
   private startCanvasCapture(): void {
-    // In stream-output mode, the video element is directly backed by canvas.captureStream;
-    // no CPU-side capture or JPEG/ImageBitmap transfer is needed.
-    if (this.mode === 'stream-output') {
-      return;
-    }
     if (!this.canvas) {
       return;
     }
