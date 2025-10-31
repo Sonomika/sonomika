@@ -590,43 +590,43 @@ export class CanvasStreamManager {
                 // Skip generating new frame while frozen
               } else {
                 // Electron path: composite to (at least) a supersampled size and send as JPEG data URL
-              const comp = (useStore.getState() as any).compositionSettings || {};
-              const compW = Math.max(1, Number(comp.width) || 1920);
-              const compH = Math.max(1, Number(comp.height) || 1080);
-              // Determine render target by mirror quality
-              const minLongestEdge = mq === 'low' ? 540 : (mq === 'medium' ? 720 : 1080);
-              const longest = Math.max(compW, compH);
-              const upscale = longest < minLongestEdge ? (minLongestEdge / longest) : 1;
-              const targetWidth = Math.max(1, Math.round(compW * upscale));
-              const targetHeight = Math.max(1, Math.round(compH * upscale));
-              const tempCanvas = document.createElement('canvas');
-              tempCanvas.width = targetWidth;
-              tempCanvas.height = targetHeight;
-              const tempCtx = tempCanvas.getContext('2d');
-              if (tempCtx) {
-                const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
-                // Fill background
-                tempCtx.fillStyle = bg;
-                tempCtx.fillRect(0, 0, targetWidth, targetHeight);
-                // Draw original canvas preserving aspect ratio (contain)
-                const srcW = this.canvas!.width;
-                const srcH = this.canvas!.height;
-                const scale = Math.min(targetWidth / srcW, targetHeight / srcH);
-                const drawW = Math.floor(srcW * scale);
-                const drawH = Math.floor(srcH * scale);
-                const dx = Math.floor((targetWidth - drawW) / 2);
-                const dy = Math.floor((targetHeight - drawH) / 2);
-                tempCtx.imageSmoothingEnabled = true;
-                tempCtx.imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
-                tempCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
-                // Use a slightly higher quality for fewer artifacts at scale
-                const jpegQ = mq === 'low' ? 0.6 : (mq === 'medium' ? 0.85 : 0.95);
-                const dataUrl = tempCanvas.toDataURL('image/jpeg', jpegQ);
-                if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
-                  window.electron.sendCanvasData(dataUrl);
-                  lastDataUrl = dataUrl;
+                const comp = (useStore.getState() as any).compositionSettings || {};
+                const compW = Math.max(1, Number(comp.width) || 1920);
+                const compH = Math.max(1, Number(comp.height) || 1080);
+                // Determine render target by mirror quality
+                const minLongestEdge = mq === 'low' ? 540 : (mq === 'medium' ? 720 : 1080);
+                const longest = Math.max(compW, compH);
+                const upscale = longest < minLongestEdge ? (minLongestEdge / longest) : 1;
+                const targetWidth = Math.max(1, Math.round(compW * upscale));
+                const targetHeight = Math.max(1, Math.round(compH * upscale));
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = targetWidth;
+                tempCanvas.height = targetHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                if (tempCtx) {
+                  const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
+                  // Fill background
+                  tempCtx.fillStyle = bg;
+                  tempCtx.fillRect(0, 0, targetWidth, targetHeight);
+                  // Draw original canvas preserving aspect ratio (contain)
+                  const srcW = this.canvas!.width;
+                  const srcH = this.canvas!.height;
+                  const scale = Math.min(targetWidth / srcW, targetHeight / srcH);
+                  const drawW = Math.floor(srcW * scale);
+                  const drawH = Math.floor(srcH * scale);
+                  const dx = Math.floor((targetWidth - drawW) / 2);
+                  const dy = Math.floor((targetHeight - drawH) / 2);
+                  tempCtx.imageSmoothingEnabled = true;
+                  tempCtx.imageSmoothingQuality = (mq === 'low' ? 'low' : (mq === 'medium' ? 'medium' : 'high')) as any;
+                  tempCtx.drawImage(this.canvas!, dx, dy, drawW, drawH);
+                  // Use a slightly higher quality for fewer artifacts at scale
+                  const jpegQ = mq === 'low' ? 0.6 : (mq === 'medium' ? 0.85 : 0.95);
+                  const dataUrl = tempCanvas.toDataURL('image/jpeg', jpegQ);
+                  if (dataUrl !== lastDataUrl && dataUrl.length > 100) {
+                    window.electron.sendCanvasData(dataUrl);
+                    lastDataUrl = dataUrl;
+                  }
                 }
-              }
               }
             } else if (this.browserWindow && !this.browserWindow.closed) {
               if (this.mode !== 'browser-bitmap') {

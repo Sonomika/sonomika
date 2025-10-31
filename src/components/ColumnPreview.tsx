@@ -502,7 +502,16 @@ const ColumnScene: React.FC<{
     };
   }, [assets.images, assets.videos]);
 
-  // Load assets with caching
+  // Memoize asset keys to avoid unnecessary reloads
+  const columnAssetKeys = useMemo(() => {
+    return column.layers
+      .filter(layer => layer.asset)
+      .map(layer => String(layer.asset.id))
+      .sort()
+      .join('|');
+  }, [column.layers]);
+
+  // Load assets with caching - only reload when asset IDs change
   useEffect(() => {
     const loadAssets = async () => {
       const newImages = new Map<string, HTMLImageElement>();
@@ -650,7 +659,7 @@ const ColumnScene: React.FC<{
     };
 
     loadAssets();
-  }, [column]);
+  }, [columnAssetKeys]); // Only reload when asset IDs change, not on every column update
 
   // Handle play/pause without resetting on param changes
   const prevIsPlayingRef = useRef<boolean>(false);
@@ -1326,7 +1335,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                       console.error('Error in resize observer:', error);
                     }
                   }
-                }, 200);
+                }, 300); // Increased debounce from 200ms to 300ms for better performance
 
                 const resizeObserver = new ResizeObserver(() => handleResize());
                 
