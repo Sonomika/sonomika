@@ -1132,48 +1132,34 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     // Render timeline preview using the exact same component as column preview
     if (previewContent.type === 'timeline') {
       const activeClips = previewContent.activeClips || [];
-      // Prepare scene layers for parameter resolution so timeline reflects live edits
-      const sceneAllLayers = (currentScene?.columns || []).flatMap((c: any) => c.layers || []);
-      // Convert active clips into a temporary column structure
+      // Convert active clips into a temporary column structure for rendering
+      // Timeline clips are completely independent - only use clip params, never column layers
       const tempLayers = activeClips.map((clip: any) => {
         const trackNumber = parseInt((clip.trackId || 'track-1').split('-')[1] || '1', 10);
-        let matchedLayer: any = null;
-        // 1) If the selected timeline clip matches this clip, prefer exact layerId
-        if (selectedTimelineClip && selectedTimelineClip.id === clip.id && selectedTimelineClip.layerId) {
-          matchedLayer = sceneAllLayers.find((l: any) => l.id === selectedTimelineClip.layerId) || null;
-        }
-        // 2) If not found, try deterministic mapping: Track N => Layer N
-        if (!matchedLayer) {
-          matchedLayer = sceneAllLayers.find((l: any) => l.layerNum === trackNumber && (l?.asset?.isEffect || l?.type === 'effect')) || null;
-        }
-        // 3) Fallback to effect id/name match
-        if (!matchedLayer) {
-          matchedLayer = sceneAllLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && effectMatches(l, clip?.asset)) || null;
-        }
-        // Timeline clips should remain separate from column view; prefer clip params
-        const resolvedParams = clip.params || matchedLayer?.params || {};
+        // Timeline clips are independent - only use their own params, never match to column layers
+        // This ensures complete separation between timeline and column modes
+        const resolvedParams = clip.params || {};
         
-        // Check if this is a timeline-only layer (pseudo-layer) and use its data
-        const isTimelineOnlyLayer = selectedTimelineClip && selectedTimelineClip.id === clip.id && !selectedTimelineClip.layerId;
-        const timelineLayerData = isTimelineOnlyLayer ? clip : null;
+        // All timeline clips are independent - they always use their own data
+        const timelineLayerData = clip;
         
-        // Resolve effective fit mode: prefer clip.fitMode in timeline mode, then matched layer, then global default
-        let effectiveFitMode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile' | undefined = undefined;
-        try {
-          if (clip.type !== 'effect') {
-            // 1) Prefer fitMode coming from the clip's own data (timeline-local control)
-            effectiveFitMode = (clip as any)?.fitMode as any;
-            // 2) Fall back to clip.params.fitMode for backward compatibility
-            if (!effectiveFitMode) effectiveFitMode = (resolvedParams as any)?.fitMode as any;
-            // 3) Fall back to matched layer's fitMode if not provided on the clip
-            if (!effectiveFitMode) effectiveFitMode = (matchedLayer as any)?.fitMode;
-            if (!effectiveFitMode) {
-              const storeModule: any = require('../store/store');
-              const useStore = (storeModule && (storeModule.useStore || storeModule.default?.useStore)) || storeModule.useStore;
-              effectiveFitMode = useStore?.getState?.().defaultVideoFitMode || 'cover';
+          // Resolve effective fit mode: prefer clip.fitMode in timeline mode, then global default
+          // Timeline clips never use column layer fitMode - they're completely independent
+          let effectiveFitMode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile' | undefined = undefined;
+          try {
+            if (clip.type !== 'effect') {
+              // 1) Prefer fitMode coming from the clip's own data (timeline-local control)
+              effectiveFitMode = (clip as any)?.fitMode as any;
+              // 2) Fall back to clip.params.fitMode for backward compatibility
+              if (!effectiveFitMode) effectiveFitMode = (resolvedParams as any)?.fitMode as any;
+              // 3) Fall back to global default (never use column layer fitMode)
+              if (!effectiveFitMode) {
+                const storeModule: any = require('../store/store');
+                const useStore = (storeModule && (storeModule.useStore || storeModule.default?.useStore)) || storeModule.useStore;
+                effectiveFitMode = useStore?.getState?.().defaultVideoFitMode || 'cover';
+              }
             }
-          }
-        } catch {}
+          } catch {}
         // Tile needs repeat hints to EffectChain
         const backgroundProps = (() => {
           if (effectiveFitMode === 'tile') {
@@ -1446,7 +1432,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     // When a timeline clip is selected, prefer timeline-driven resolution over prior grid selection
     effectiveSelectedLayer = null as any;
   }
-  if (selectedTimelineClip && getCurrentSceneId()) {
+  // In timeline mode, never resolve to column mode layers - they're completely separate
+  // Timeline clips should only use their own data, not column layers
+  if (selectedTimelineClip && showTimeline) {
+    // Timeline mode: effectiveSelectedLayer stays null - timeline clips are independent
+    // The pseudo-layer will be created below for UI display purposes only
+  } else if (selectedTimelineClip && getCurrentSceneId() && !showTimeline) {
+    // Only resolve in column mode (shouldn't happen, but safety check)
     const scene = getCurrentScene();
     if (scene) {
       const allLayers = scene.columns.flatMap((c: any) => c.layers);

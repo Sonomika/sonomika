@@ -948,70 +948,121 @@ export class EffectDiscovery {
             .replace(/\s+as\s+boolean\b/g, '');
         }
       } catch {}
+      
+      // Wrap the module code to inject stub refs that user effects might reference at module scope
+      // This prevents "ReferenceError: X is not defined" errors during module evaluation
+      // We inject these as const declarations before the user code so they're available in the same scope
+      const stubRefs = [
+        'feedbackCanvasRef', 
+        'feedbackCtxRef',
+        'feedbackTextureRef',
+        'canvasRef', 
+        'videoRef', 
+        'audioRef', 
+        'mainCanvasRef',
+        'ctxRef',
+        'glRef',
+        'renderTargetRef',
+        'outputCanvasRef',
+        'inputCanvasRef',
+        'sourceCanvasRef',
+        'destinationCanvasRef',
+        'textureRef',
+        'inputTextureRef',
+        'outputTextureRef',
+        'sourceTextureRef',
+        'destinationTextureRef',
+        'previousTextureRef',
+        'nextTextureRef',
+        'webglRef',
+        'webgl2Ref',
+        'rendererRef',
+        'sceneRef',
+        'cameraRef'
+      ];
+      const stubDeclarations = stubRefs.map(refName => 
+        `const ${refName} = { current: null };`
+      ).join('\n');
+      
+      const wrappedCode = `${stubDeclarations}\n\n${sanitized}`;
+      
       // Build a blob URL for dynamic import (CSP allows blob: but may block data:)
-      const blob = new Blob([sanitized], { type: 'text/javascript' });
+      const blob = new Blob([wrappedCode], { type: 'text/javascript' });
       const url = URL.createObjectURL(blob);
       const module: any = await import(/* @vite-ignore */ url);
       try { URL.revokeObjectURL(url); } catch {}
-
-      const component = module.default;
-      const metadata = module.metadata || component?.metadata || {};
-      if (!component || typeof component !== 'function') {
-        console.warn('User JS did not export a default React component');
-        return null;
-      }
-
-      const baseFileName = sourceName.replace(/[^a-zA-Z0-9_.\/-]/g, '');
-      const idBase = baseFileName.replace(/\.(js|mjs)$/i, '') || 'user-effect';
-      const id = this.generateEffectId(`${idBase}.tsx`); // reuse normalization
-      const name = metadata?.name || this.generateEffectName(idBase);
-      const category = metadata?.category || (metadata?.isSource ? 'Sources' : 'Effects');
-      const description = metadata?.description || `${name} (user effect)`;
-      const icon = metadata?.icon || '';
-
-      const effectId = `user-${id}`;
-      // Attach metadata to component so UI/EffectChain can read params directly
-      try { (component as any).metadata = metadata; } catch {}
-
-      // Register with effect registry so synchronous lookups work
-      try {
-        const { registerEffect } = await import('./effectRegistry');
-        registerEffect(effectId, component as any);
-      } catch {}
-
-      const effect: ReactSelfContainedEffect = {
-        id: effectId,
-        name,
-        description,
-        category,
-        icon,
-        author: metadata?.author || 'User',
-        version: metadata?.version || '1.0.0',
-        metadata: {
-          parameters: metadata?.parameters || [],
-          category,
-          type: 'react-component',
-          component,
-          folder: String(sourceName || '').includes('bank/') ? 'bank' : 'user-effects',
-          isSource: !!metadata?.isSource,
-          isUserEffect: !String(sourceName || '').includes('bank/'),
-          sourcePath: sourceName,
-        },
-        createEffect: (width: number, height: number): ReactEffectInstance => ({
-          id: effectId,
-          name,
-          component,
-          width,
-          height,
-        }),
-      };
-
-      this.userEffects.set(effect.id, effect);
-      return effect;
+      
+      return await this.processLoadedUserEffectModule(module, sourceName);
     } catch (e) {
-      console.error('Failed to load user effect from JS content:', e);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      // Provide more helpful context for common user effect errors
+      if (errorMessage.includes('feedbackCanvasRef') || errorMessage.includes('is not defined')) {
+        console.error(`Failed to load user effect from JS content: ${errorMessage}. User effects cannot reference React refs or browser-specific APIs. They should be pure React components that receive props.`, e);
+      } else {
+        console.error('Failed to load user effect from JS content:', e);
+      }
       return null;
     }
+  }
+
+  /**
+   * Process a successfully loaded user effect module
+   */
+  private async processLoadedUserEffectModule(module: any, sourceName: string): Promise<ReactSelfContainedEffect | null> {
+    const component = module.default;
+    const metadata = module.metadata || component?.metadata || {};
+    if (!component || typeof component !== 'function') {
+      console.warn('User JS did not export a default React component');
+      return null;
+    }
+
+    const baseFileName = sourceName.replace(/[^a-zA-Z0-9_.\/-]/g, '');
+    const idBase = baseFileName.replace(/\.(js|mjs)$/i, '') || 'user-effect';
+    const id = this.generateEffectId(`${idBase}.tsx`); // reuse normalization
+    const name = metadata?.name || this.generateEffectName(idBase);
+    const category = metadata?.category || (metadata?.isSource ? 'Sources' : 'Effects');
+    const description = metadata?.description || `${name} (user effect)`;
+    const icon = metadata?.icon || '';
+
+    const effectId = `user-${id}`;
+    // Attach metadata to component so UI/EffectChain can read params directly
+    try { (component as any).metadata = metadata; } catch {}
+
+    // Register with effect registry so synchronous lookups work
+    try {
+      const { registerEffect } = await import('./effectRegistry');
+      registerEffect(effectId, component as any);
+    } catch {}
+
+    const effect: ReactSelfContainedEffect = {
+      id: effectId,
+      name,
+      description,
+      category,
+      icon,
+      author: metadata?.author || 'User',
+      version: metadata?.version || '1.0.0',
+      metadata: {
+        parameters: metadata?.parameters || [],
+        category,
+        type: 'react-component',
+        component,
+        folder: String(sourceName || '').includes('bank/') ? 'bank' : 'user-effects',
+        isSource: !!metadata?.isSource,
+        isUserEffect: !String(sourceName || '').includes('bank/'),
+        sourcePath: sourceName,
+      },
+      createEffect: (width: number, height: number): ReactEffectInstance => ({
+        id: effectId,
+        name,
+        component,
+        width,
+        height,
+      }),
+    };
+
+    this.userEffects.set(effect.id, effect);
+    return effect;
   }
 
   /**

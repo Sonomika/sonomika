@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/store';
 import { Button, Input, Label, Select, Switch } from './ui';
 import { MIDIManager } from '../midi/MIDIManager';
@@ -56,39 +56,22 @@ export const LayerCCMapper: React.FC = () => {
   const timelineClipLayerId = useMemo(() => {
     if (!showTimeline || !selectedTimelineClip) return null;
     const clipId = selectedTimelineClip.id || 'clip';
-    return selectedTimelineClip.layerId || `timeline-layer-${clipId}`;
-  }, [showTimeline, selectedTimelineClip?.id, selectedTimelineClip?.layerId]);
+    // Timeline mode is independent - always use pseudo-layer ID, never column layer IDs
+    // This ensures complete separation between timeline and column modes
+    return `timeline-layer-${clipId}`;
+  }, [showTimeline, selectedTimelineClip?.id]);
   const selectedLayer = useMemo(() => {
-    const sceneList = showTimeline ? timelineScenes : scenes;
-    const sceneId = showTimeline ? currentTimelineSceneId : currentSceneId;
-    const scene = (sceneList || []).find((s: any) => s.id === sceneId);
-    if (!scene) return null;
-
-    // If a timeline clip is selected, resolve to a real layer in the current scene
-    const activeTimelineClip = showTimeline ? selectedTimelineClip : null;
-    if (activeTimelineClip) {
-      const allLayers = scene.columns.flatMap((c: any) => c.layers);
-      // Prefer explicit layerId on the clip
-      if (activeTimelineClip.layerId) {
-        const byId = allLayers.find((l: any) => l.id === activeTimelineClip.layerId);
-        if (byId) return byId;
-      }
-      // Match by asset id/name
-      const assetId = activeTimelineClip?.data?.asset?.id || activeTimelineClip?.data?.asset?.name || activeTimelineClip?.data?.name;
-      const isVideo = activeTimelineClip?.data?.type === 'video' || activeTimelineClip?.data?.asset?.type === 'video';
-      const byAsset = isVideo
-        ? allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === assetId || l?.asset?.name === assetId))
-        : allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === assetId || l?.asset?.name === assetId));
-      if (byAsset) return byAsset;
-      // Deterministic: track number maps to same-numbered layer if present
-      const trackNum = parseInt((activeTimelineClip.trackId || 'track-1').split('-')[1] || '1', 10);
-      const byTrack = allLayers.find((l: any) => l.layerNum === trackNum);
-      if (byTrack) return byTrack;
-      // Fallback: any effect layer
-      const anyEffect = allLayers.find((l: any) => l?.asset?.isEffect || l?.type === 'effect');
-      if (anyEffect) return anyEffect;
+    // In timeline mode, don't try to resolve to column mode layers - they're completely separate
+    if (showTimeline) {
+      // Timeline mode: return null to indicate we're using the clip directly, not a column layer
       return null;
     }
+
+    // Column mode: find the selected layer in column scenes
+    const sceneList = scenes;
+    const sceneId = currentSceneId;
+    const scene = (sceneList || []).find((s: any) => s.id === sceneId);
+    if (!scene) return null;
 
     // Column mode selection
     for (const col of scene.columns || []) {
@@ -133,7 +116,11 @@ export const LayerCCMapper: React.FC = () => {
   }, [showTimeline, selectedLayer, selectedTimelineClip?.id, selectedTimelineClip?.layerId, selectedTimelineClip?.trackId, selectedTimelineClip?.data, timelineClipLayerId]);
 
   const effectiveLayer = selectedLayer || timelineFallbackLayer;
-  const resolvedLayerId = selectedLayer?.id || (showTimeline ? timelineClipLayerId : null);
+  // In timeline mode, prefer timelineClipLayerId so each clip gets a unique ID even if they map to same layer
+  // This ensures automap triggers when selecting different clips
+  const resolvedLayerId = showTimeline && timelineClipLayerId 
+    ? timelineClipLayerId 
+    : (selectedLayer?.id || null);
 
   let paramOptions = useLayerParamOptions(effectiveLayer);
   try {
@@ -171,7 +158,7 @@ export const LayerCCMapper: React.FC = () => {
   useEffect(() => { try { localStorage.setItem('vj-auto-map-start', String(Math.max(1, Math.min(127, Number(autoMapStart) || 1)))); } catch {} }, [autoMapStart]);
   useEffect(() => { try { localStorage.setItem('vj-auto-map-end', String(Math.max(1, Math.min(127, Number(autoMapEnd) || 16)))); } catch {} }, [autoMapEnd]);
 
-  const autoMapAll = () => {
+  const autoMapAll = useCallback(() => {
     if (!effectiveLayer || !resolvedLayerId) return;
     const start = Math.max(1, Math.min(127, Number(autoMapStart) || 1));
     const end = Math.max(start, Math.min(127, Number(autoMapEnd) || start));
@@ -194,7 +181,7 @@ export const LayerCCMapper: React.FC = () => {
       next.push(mapped);
     });
     setMIDIMappings(next);
-  };
+  }, [effectiveLayer, resolvedLayerId, autoMapStart, autoMapEnd, paramOptions, channel, mappings, setMIDIMappings]);
 
   // Blue Hand-style: auto map when layer selection changes
   const [autoOnSelect, setAutoOnSelect] = useState<boolean>(() => {
@@ -203,17 +190,29 @@ export const LayerCCMapper: React.FC = () => {
   useEffect(() => {
     try { localStorage.setItem('vj-auto-map-on-select', autoOnSelect ? '1' : '0'); } catch {}
   }, [autoOnSelect]);
-  const prevLayerIdRef = useRef<string | null>(null);
+  const prevResolvedLayerIdRef = useRef<string | null>(null);
   useEffect(() => {
-    const currentId = selectedLayer?.id || null;
-    const prevId = prevLayerIdRef.current;
-    prevLayerIdRef.current = currentId;
     if (!autoOnSelect) return;
-    if (!currentId) return;
-    if (prevId === currentId) return;
-    // Run automap when layer changes (map all params)
+    
+    // Track resolvedLayerId which accounts for both column mode and timeline mode
+    const currentResolvedLayerId = resolvedLayerId;
+    const prevResolvedLayerId = prevResolvedLayerIdRef.current;
+    
+    // Update ref
+    prevResolvedLayerIdRef.current = currentResolvedLayerId;
+    
+    // Don't trigger if no resolved layer ID
+    if (!currentResolvedLayerId) return;
+    
+    // Don't trigger if it's the same as before
+    if (prevResolvedLayerId === currentResolvedLayerId) return;
+    
+    // Need to ensure effectiveLayer is available
+    if (!effectiveLayer) return;
+    
+    // Run automap when layer/clip changes (map all params)
     autoMapAll();
-  }, [selectedLayer?.id, autoOnSelect, selectedTimelineClip?.id]);
+  }, [autoOnSelect, resolvedLayerId, effectiveLayer, autoMapAll]);
 
   useEffect(() => {
     if (!learn) return;

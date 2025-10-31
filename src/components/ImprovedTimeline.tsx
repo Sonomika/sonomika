@@ -547,30 +547,15 @@ export const ImprovedTimeline: React.FC<TimelineProps> = ({ onClose: _onClose, o
       setSelectedClips(new Set([clipId]));
       try {
         const state = (useStore as any).getState();
-        const { scenes, currentSceneId, setSelectedTimelineClip } = state;
-        const scene = scenes?.find((s: any) => s.id === currentSceneId);
-        const columns: any[] = scene?.columns || [];
-        const allLayers: any[] = columns.flatMap((c: any) => c.layers || []);
+        const { setSelectedTimelineClip } = state;
         const track = tracks.find(t => t.clips.some(c => c.id === clipId));
         const clip = track?.clips.find(c => c.id === clipId);
         if (track && clip) {
           const trackNum = parseInt((track.id || 'track-1').split('-')[1] || '1', 10);
-          let resolvedLayer: any = null;
-          if (clip?.type === 'effect') {
-            const effectId = clip?.asset?.id || clip?.asset?.name || clip?.name;
-            resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === effectId || l?.asset?.name === effectId));
-            if (!resolvedLayer) {
-              resolvedLayer = allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && l?.layerNum === trackNum);
-            }
-          } else if (clip?.type === 'video') {
-            resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && l?.layerNum === trackNum);
-            if (!resolvedLayer) {
-              const videoId = clip?.asset?.id || clip?.asset?.name || clip?.name;
-              resolvedLayer = allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === videoId || l?.asset?.name === videoId));
-            }
-          }
+          // Timeline mode should be completely independent - never link to column mode layers
+          // Set layerId to null to ensure complete separation
           if (typeof setSelectedTimelineClip === 'function') {
-            setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: resolvedLayer?.id || null, trackNum });
+            setSelectedTimelineClip({ id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: null, trackNum });
           }
         }
       } catch {}
