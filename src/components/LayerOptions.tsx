@@ -993,79 +993,10 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   </div>
                 </div>
               </div>
-              <div>
-                <div className="tw-flex tw-flex-wrap tw-gap-2">
-                  <button
-                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.NONE ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
-                    
-                    onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
-                  >
-                    None
-                  </button>
-                  <button
-                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.LOOP ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
-                    
-                    onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
-                  >
-                    Loop
-                  </button>
-                  <button
-                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.REVERSE ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
-                    
-                    onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
-                  >
-                    Reverse
-                  </button>
-                  <button
-                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.PING_PONG ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
-                    
-                    onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
-                  >
-                    Ping-Pong
-                  </button>
-                </div>
-              </div>
-              
-              <div>
-                <label className="tw-text-sm">Play Mode:</label>
-                <ButtonGroup
-                  options={[
-                    { value: 'restart', label: 'Restart' },
-                    { value: 'continue', label: 'Continue' }
-                  ]}
-                  value={playMode}
-                  onChange={(value) => handlePlayModeChange(value as 'restart' | 'continue')}
-                  columns={2}
-                  size="small"
-                />
-              </div>
             </div>
           ) : null;
         })()}
 
-        {loopMode !== LOOP_MODES.NONE && (
-          <div className="tw-space-y-2">
-            <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Loop Count</h4>
-            <div>
-              <div className="tw-inline-flex tw-items-center tw-gap-2">
-                <button
-                  className="tw-rounded tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700 disabled:tw-opacity-50"
-                  onClick={() => handleLoopCountChange(Math.max(1, loopCount - 1))}
-                  disabled={loopCount <= 1}
-                >
-                  -
-                </button>
-                <span className="tw-min-w-[2ch] tw-text-center">{loopCount}</span>
-                <button
-                  className="tw-rounded tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700"
-                  onClick={() => handleLoopCountChange(loopCount + 1)}
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="tw-space-y-2">
           <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Description</h4>

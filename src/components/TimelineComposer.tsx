@@ -2,7 +2,7 @@ import React, { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import EffectChain, { ChainItem } from './EffectChain';
-import { getCachedVideoCanvas } from '../utils/AssetPreloader';
+import { getCachedVideoCanvas, clearCachedVideoCanvas } from '../utils/AssetPreloader';
 import { getEffectComponentSync } from '../utils/EffectLoader';
 import { videoAssetManager } from '../utils/VideoAssetManager';
 import EffectLoader from './EffectLoader';
@@ -47,6 +47,23 @@ interface TimelineComposerProps {
 
 // Cache last frame canvases per asset to avoid flashes across mounts
 const lastFrameCanvasCache: Map<string, HTMLCanvasElement> = new Map();
+
+const clearTimelineFallbackCache = (assetId: string) => {
+  if (!assetId) return;
+  const canvas = lastFrameCanvasCache.get(assetId);
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const w = canvas.width || 0;
+      const h = canvas.height || 0;
+      ctx.clearRect(0, 0, w, h);
+      if (w > 0 && h > 0) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+  }
+};
 
 // Video texture component for R3F with fallback like ColumnPreview
 const VideoTexture: React.FC<{ 
@@ -469,11 +486,17 @@ const TimelineScene: React.FC<{
       
       if (isPlaying && activeClip) {
         const targetTime = activeClip.relativeTime || 0;
+        const currentBeforeSync = typeof video.currentTime === 'number' ? video.currentTime : 0;
         
         // Sync video to correct time position to prevent positioning flashes
-        if (Math.abs(video.currentTime - targetTime) > 0.15) {
+        if (Math.abs(currentBeforeSync - targetTime) > 0.15) {
           console.log(`Syncing video ${assetId} to time:`, targetTime);
           video.currentTime = targetTime;
+          const rewoundToStart = currentBeforeSync - targetTime > 0.4 && targetTime < 0.1;
+          if (rewoundToStart) {
+            try { clearTimelineFallbackCache(String(assetId)); } catch {}
+            try { clearCachedVideoCanvas(String(assetId)); } catch {}
+          }
         }
         
         // Force muted autoplay policy compliance and remove readyState gating

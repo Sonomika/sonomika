@@ -1396,9 +1396,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     }
 
     return (
-      <div className="tw-w-full tw-h-full tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-text-sm tw-py-4">
-        <div>Preview not available</div>
-      </div>
+      <div className="tw-w-full tw-h-full tw-bg-black" />
     );
   };
 
