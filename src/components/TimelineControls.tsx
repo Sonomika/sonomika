@@ -22,6 +22,12 @@ const TimelineControls: React.FC = () => {
   }, []);
   const dispatchCommand = (type: string) => {
     try { document.dispatchEvent(new CustomEvent('timelineCommand', { detail: { type } })); } catch {}
+    if (type === 'stop') {
+      // Also emit stop events consumed by timeline/video reset logic
+      try { document.dispatchEvent(new CustomEvent('globalStop', { detail: { source: 'timelineControls' } })); } catch {}
+      try { document.dispatchEvent(new Event('timelineStop')); } catch {}
+      try { document.dispatchEvent(new CustomEvent('videoStop', { detail: { type: 'videoStop', allColumns: true, source: 'timelineControls' } })); } catch {}
+    }
   };
 
   return (

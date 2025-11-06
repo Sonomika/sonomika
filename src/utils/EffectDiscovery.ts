@@ -153,9 +153,14 @@ export class EffectDiscovery {
       fileKey: string;
     }> = [];
 
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+
     try {
       // Build map of effect modules without importing them
-      const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
+      // IMPORTANT: avoid literal `import.meta.glob(...)` so Vite's web scan doesn't try to resolve it
+      const globFn = (import.meta as any).glob as undefined | ((p: string, opts?: any) => Record<string, () => Promise<any>>);
+      if (!globFn) throw new Error('glob not available');
+      const effectModules: Record<string, () => Promise<any>> = globFn('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
       for (const [modulePath, importFn] of Object.entries(effectModules)) {
         // Normalize key to be relative to effects folder
         const normalized = modulePath.replace('../bank/', '');
@@ -377,12 +382,17 @@ export class EffectDiscovery {
         // Use a truly dynamic approach that doesn't rely on hardcoded lists
         const discoveredFiles: string[] = [];
         
-        // Try to use Vite's import.meta.glob for dynamic discovery
+        // Try to use Vite's glob for dynamic discovery without exposing the literal to the web build
         try {
-          // console.log('🔍 Attempting to use import.meta.glob for dynamic discovery...');
-          
+          // console.log('🔍 Attempting to use glob for dynamic discovery...');
+          const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+          if (!isElectron) {
+            return [];
+          }
+          const globFn = (import.meta as any).glob as undefined | ((p: string, opts?: any) => Record<string, () => Promise<any>>);
+          if (!globFn) return [];
           // This should dynamically discover all supported files in the effects directory and subdirectories
-          const effectModules: Record<string, () => Promise<any>> = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
+          const effectModules: Record<string, () => Promise<any>> = globFn('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
           
           // console.log('🔍 Found effect modules:', Object.keys(effectModules));
           
@@ -472,10 +482,18 @@ export class EffectDiscovery {
         const importFn = this.browserEffectImports.get(fileName)!;
         module = await importFn();
       } else {
-        // Fallback for Electron/Node where direct relative import works during build time
-        const importPath = fileName.replace(/\.(tsx|ts|jsx|js)$/,'');
-        // console.log(`🔍 Importing from path (fallback): "../bank/${importPath}"`);
-        module = await import(/* @vite-ignore */ `../bank/${importPath}`);
+        // Only try bank imports in Electron environment
+        const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+        if (isElectron) {
+          // Fallback for Electron/Node where direct relative import works during build time
+          const importPath = fileName.replace(/\.(tsx|ts|jsx|js)$/,'');
+          // console.log(`🔍 Importing from path (fallback): "../bank/${importPath}"`);
+          module = await eval(`import("../bank/${importPath}")`);
+        } else {
+          // Web version - bank effects not available
+          console.log(`Web version: Bank effect ${fileName} not available`);
+          return null;
+        }
       }
       // console.log(`✅ Successfully imported module:`, module);
       
@@ -655,14 +673,21 @@ export class EffectDiscovery {
     const component = effect.metadata.component;
     if (component) return component;
 
-    // If not found, try to import it dynamically
-    try {
-      const fileName = this.getFileNameFromId(id);
-      const importPath = fileName.replace('.tsx', '');
-      const module = await import(/* @vite-ignore */ `../bank/${importPath}`);
-      return module.default || module[`${importPath}Component`] || null;
-    } catch (error) {
-      console.warn(`Could not load component for effect ${id}:`, error);
+    // If not found, try to import it dynamically (only in Electron)
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+    if (isElectron) {
+      try {
+        const fileName = this.getFileNameFromId(id);
+        const importPath = fileName.replace('.tsx', '');
+        const module = await eval(`import("../bank/${importPath}")`);
+        return module.default || module[`${importPath}Component`] || null;
+      } catch (error) {
+        console.warn(`Could not load component for effect ${id}:`, error);
+        return null;
+      }
+    } else {
+      // Web version - bank effects not available
+      console.log(`Web version: Bank effect component ${id} not available`);
       return null;
     }
   }
@@ -792,7 +817,16 @@ export class EffectDiscovery {
       const tempPath = path.join(__dirname, '../effects', tempFileName);
       try {
         fs.writeFileSync(tempPath, fileContent);
-        const module = await import(/* @vite-ignore */ `../effects/${tempFileName.replace('.tsx', '')}`);
+        // Only try effects imports in Electron environment
+        const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+        let module: any;
+        if (isElectron) {
+          module = await eval(`import("../effects/${tempFileName.replace('.tsx', '')}")`);
+        } else {
+          // Web version - effects not available
+          console.log(`Web version: Effects not available`);
+          return null;
+        }
         fs.unlinkSync(tempPath);
         const component = module.default || module[`${path.basename(filePath, '.tsx')}Component`];
         const metadata = module.metadata || component?.metadata || module[`${path.basename(filePath, '.tsx')}Metadata`];
@@ -914,70 +948,121 @@ export class EffectDiscovery {
             .replace(/\s+as\s+boolean\b/g, '');
         }
       } catch {}
+      
+      // Wrap the module code to inject stub refs that user effects might reference at module scope
+      // This prevents "ReferenceError: X is not defined" errors during module evaluation
+      // We inject these as const declarations before the user code so they're available in the same scope
+      const stubRefs = [
+        'feedbackCanvasRef', 
+        'feedbackCtxRef',
+        'feedbackTextureRef',
+        'canvasRef', 
+        'videoRef', 
+        'audioRef', 
+        'mainCanvasRef',
+        'ctxRef',
+        'glRef',
+        'renderTargetRef',
+        'outputCanvasRef',
+        'inputCanvasRef',
+        'sourceCanvasRef',
+        'destinationCanvasRef',
+        'textureRef',
+        'inputTextureRef',
+        'outputTextureRef',
+        'sourceTextureRef',
+        'destinationTextureRef',
+        'previousTextureRef',
+        'nextTextureRef',
+        'webglRef',
+        'webgl2Ref',
+        'rendererRef',
+        'sceneRef',
+        'cameraRef'
+      ];
+      const stubDeclarations = stubRefs.map(refName => 
+        `const ${refName} = { current: null };`
+      ).join('\n');
+      
+      const wrappedCode = `${stubDeclarations}\n\n${sanitized}`;
+      
       // Build a blob URL for dynamic import (CSP allows blob: but may block data:)
-      const blob = new Blob([sanitized], { type: 'text/javascript' });
+      const blob = new Blob([wrappedCode], { type: 'text/javascript' });
       const url = URL.createObjectURL(blob);
       const module: any = await import(/* @vite-ignore */ url);
       try { URL.revokeObjectURL(url); } catch {}
-
-      const component = module.default;
-      const metadata = module.metadata || component?.metadata || {};
-      if (!component || typeof component !== 'function') {
-        console.warn('User JS did not export a default React component');
-        return null;
-      }
-
-      const baseFileName = sourceName.replace(/[^a-zA-Z0-9_.\/-]/g, '');
-      const idBase = baseFileName.replace(/\.(js|mjs)$/i, '') || 'user-effect';
-      const id = this.generateEffectId(`${idBase}.tsx`); // reuse normalization
-      const name = metadata?.name || this.generateEffectName(idBase);
-      const category = metadata?.category || (metadata?.isSource ? 'Sources' : 'Effects');
-      const description = metadata?.description || `${name} (user effect)`;
-      const icon = metadata?.icon || '';
-
-      const effectId = `user-${id}`;
-      // Attach metadata to component so UI/EffectChain can read params directly
-      try { (component as any).metadata = metadata; } catch {}
-
-      // Register with effect registry so synchronous lookups work
-      try {
-        const { registerEffect } = await import('./effectRegistry');
-        registerEffect(effectId, component as any);
-      } catch {}
-
-      const effect: ReactSelfContainedEffect = {
-        id: effectId,
-        name,
-        description,
-        category,
-        icon,
-        author: metadata?.author || 'User',
-        version: metadata?.version || '1.0.0',
-        metadata: {
-          parameters: metadata?.parameters || [],
-          category,
-          type: 'react-component',
-          component,
-          folder: String(sourceName || '').includes('bank/') ? 'bank' : 'user-effects',
-          isSource: !!metadata?.isSource,
-          isUserEffect: !String(sourceName || '').includes('bank/'),
-          sourcePath: sourceName,
-        },
-        createEffect: (width: number, height: number): ReactEffectInstance => ({
-          id: effectId,
-          name,
-          component,
-          width,
-          height,
-        }),
-      };
-
-      this.userEffects.set(effect.id, effect);
-      return effect;
+      
+      return await this.processLoadedUserEffectModule(module, sourceName);
     } catch (e) {
-      console.error('Failed to load user effect from JS content:', e);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      // Provide more helpful context for common user effect errors
+      if (errorMessage.includes('feedbackCanvasRef') || errorMessage.includes('is not defined')) {
+        console.error(`Failed to load user effect from JS content: ${errorMessage}. User effects cannot reference React refs or browser-specific APIs. They should be pure React components that receive props.`, e);
+      } else {
+        console.error('Failed to load user effect from JS content:', e);
+      }
       return null;
     }
+  }
+
+  /**
+   * Process a successfully loaded user effect module
+   */
+  private async processLoadedUserEffectModule(module: any, sourceName: string): Promise<ReactSelfContainedEffect | null> {
+    const component = module.default;
+    const metadata = module.metadata || component?.metadata || {};
+    if (!component || typeof component !== 'function') {
+      console.warn('User JS did not export a default React component');
+      return null;
+    }
+
+    const baseFileName = sourceName.replace(/[^a-zA-Z0-9_.\/-]/g, '');
+    const idBase = baseFileName.replace(/\.(js|mjs)$/i, '') || 'user-effect';
+    const id = this.generateEffectId(`${idBase}.tsx`); // reuse normalization
+    const name = metadata?.name || this.generateEffectName(idBase);
+    const category = metadata?.category || (metadata?.isSource ? 'Sources' : 'Effects');
+    const description = metadata?.description || `${name} (user effect)`;
+    const icon = metadata?.icon || '';
+
+    const effectId = `user-${id}`;
+    // Attach metadata to component so UI/EffectChain can read params directly
+    try { (component as any).metadata = metadata; } catch {}
+
+    // Register with effect registry so synchronous lookups work
+    try {
+      const { registerEffect } = await import('./effectRegistry');
+      registerEffect(effectId, component as any);
+    } catch {}
+
+    const effect: ReactSelfContainedEffect = {
+      id: effectId,
+      name,
+      description,
+      category,
+      icon,
+      author: metadata?.author || 'User',
+      version: metadata?.version || '1.0.0',
+      metadata: {
+        parameters: metadata?.parameters || [],
+        category,
+        type: 'react-component',
+        component,
+        folder: String(sourceName || '').includes('bank/') ? 'bank' : 'user-effects',
+        isSource: !!metadata?.isSource,
+        isUserEffect: !String(sourceName || '').includes('bank/'),
+        sourcePath: sourceName,
+      },
+      createEffect: (width: number, height: number): ReactEffectInstance => ({
+        id: effectId,
+        name,
+        component,
+        width,
+        height,
+      }),
+    };
+
+    this.userEffects.set(effect.id, effect);
+    return effect;
   }
 
   /**

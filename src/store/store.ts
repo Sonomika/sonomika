@@ -111,10 +111,14 @@ const initialState: AppState = {
   midiMappings: [],
   midiForceChannel1: false,
   midiCCOffset: 0,
+  midiAutoDetectOffset: false,
+  midiAutoDetectOffsetPrimed: false,
   selectedLayerId: null,
   selectedTimelineClip: null,
   previewMode: 'composition',
   showTimeline: false,
+  // Hide System effects tab in Electron by default; show in web
+  showSystemEffectsTab: (() => { try { return !(typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)); } catch { return true; } })(),
   transitionType: 'fade',
   transitionDuration: 500,
   assets: [],
@@ -133,6 +137,10 @@ const initialState: AppState = {
   // Track last saved/loaded preset file path (Electron)
   currentPresetPath: null as any,
 };
+
+try {
+  (globalThis as any).VJ_BPM = initialState.bpm;
+} catch {}
 
 initialState.currentSceneId = initialState.scenes[0].id;
 initialState.currentTimelineSceneId = initialState.timelineScenes[0].id;
@@ -191,6 +199,9 @@ export const useStore = createWithEqualityFn<AppState & {
   removeMIDIMapping: (index: number) => void;
   setMIDIMappings: (mappings: MIDIMapping[]) => void;
   setMIDIForceChannel1: (forced: boolean) => void;
+  setMidiCCOffset: (offset: number) => void;
+  setMidiAutoDetectOffset: (enabled: boolean) => void;
+  setMidiAutoDetectOffsetPrimed: (primed: boolean) => void;
   setTransitionType: (type: TransitionType) => void;
   setTransitionDuration: (duration: number) => void;
   setNeutralContrast: (factor: number) => void;
@@ -229,6 +240,7 @@ export const useStore = createWithEqualityFn<AppState & {
   setDefaultVideoRenderScale: (scale: number) => void;
   setMirrorQuality: (q: 'low' | 'medium' | 'high') => void;
   setMirrorKeepPreview: (v: boolean) => void;
+  setShowSystemEffectsTab: (v: boolean) => void;
 }>()(
   persist(
     (set, get) => ({
@@ -293,6 +305,7 @@ export const useStore = createWithEqualityFn<AppState & {
       setDefaultVideoRenderScale: (scale: number) => set({ defaultVideoRenderScale: Math.max(0.1, Math.min(1, Number(scale) || 1)) }),
       setMirrorQuality: (q) => set({ mirrorQuality: (q === 'low' || q === 'medium' || q === 'high') ? q : 'medium' }),
       setMirrorKeepPreview: (v: boolean) => set({ mirrorKeepPreview: Boolean(v) }),
+      setShowSystemEffectsTab: (v: boolean) => set({ showSystemEffectsTab: Boolean(v) }),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();
@@ -547,7 +560,17 @@ export const useStore = createWithEqualityFn<AppState & {
 
       toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
 
-      setBpm: (bpm: number) => set({ bpm }),
+      setBpm: (bpm: number) => set(() => {
+        let nextBpm = Number.isFinite(bpm) ? bpm : initialState.bpm;
+        if (nextBpm <= 0) nextBpm = initialState.bpm;
+        try { (globalThis as any).VJ_BPM = nextBpm; } catch {}
+        try {
+          if (typeof document !== 'undefined') {
+            document.dispatchEvent(new CustomEvent('vj:bpm-change', { detail: { bpm: nextBpm } }));
+          }
+        } catch {}
+        return { bpm: nextBpm } as Partial<AppState>;
+      }),
 
       setSelectedLayer: (layerId: string | null) => set({ selectedLayerId: layerId }),
 
@@ -555,8 +578,65 @@ export const useStore = createWithEqualityFn<AppState & {
 
       setPreviewMode: (mode: AppState['previewMode']) => set({ previewMode: mode }),
 
-      // Toggle/show Timeline view
-      setShowTimeline: (show: boolean) => set({ showTimeline: Boolean(show) }),
+      // Toggle/show Timeline view; ensure column and timeline modes cannot be active simultaneously
+      setShowTimeline: (show: boolean) => {
+        const desired = Boolean(show);
+        const wasTimeline = get().showTimeline;
+
+        if (desired) {
+          // Entering timeline mode: stop any active column playback first
+          try {
+            const store = get() as any;
+            if (typeof store.globalStop === 'function') {
+              store.globalStop({ force: true, source: 'timeline-mode-toggle' });
+            } else if (typeof store.stopColumn === 'function') {
+              store.stopColumn();
+            }
+          } catch (error) {
+            console.warn('Failed to stop column playback before enabling timeline mode:', error);
+          }
+        } else {
+          if (wasTimeline) {
+            try {
+              document.dispatchEvent(new CustomEvent('timelineCommand', {
+                detail: { type: 'stop' }
+              }));
+            } catch (error) {
+              console.warn('Failed to send timeline stop command when leaving timeline mode:', error);
+            }
+          }
+          // Returning to column mode: ensure the timeline engine is fully stopped
+          if (typeof window !== 'undefined') {
+            try {
+              const win = window as any;
+              if (win.__vj_timeline_is_playing__ === true) {
+                win.__vj_timeline_is_playing__ = false;
+              }
+              if (win.__vj_timeline_active_layers__) {
+                win.__vj_timeline_active_layers__ = [];
+              }
+            } catch (error) {
+              console.warn('Failed to reset timeline transport flags when leaving timeline mode:', error);
+            }
+          }
+          if (wasTimeline && typeof document !== 'undefined') {
+            try {
+              document.dispatchEvent(new Event('timelineStop'));
+            } catch (error) {
+              console.warn('Failed to dispatch timelineStop when leaving timeline mode:', error);
+            }
+          }
+        }
+
+        if (wasTimeline !== desired) {
+          const nextState: Partial<AppState> = { showTimeline: desired };
+          if (desired) {
+            nextState.playingColumnId = null;
+            nextState.isGlobalPlaying = false;
+          }
+          set(nextState as Partial<AppState>);
+        }
+      },
 
       addMIDIMapping: (mapping: MIDIMapping) => set((state) => ({
         midiMappings: [...state.midiMappings, mapping],
@@ -569,6 +649,11 @@ export const useStore = createWithEqualityFn<AppState & {
       setMIDIMappings: (mappings: MIDIMapping[]) => set({ midiMappings: mappings }),
       setMIDIForceChannel1: (forced: boolean) => set({ midiForceChannel1: !!forced }),
       setMidiCCOffset: (offset: number) => set({ midiCCOffset: Math.max(0, Math.min(127, Number(offset) || 0)) }),
+      setMidiAutoDetectOffset: (enabled: boolean) => set({
+        midiAutoDetectOffset: !!enabled,
+        midiAutoDetectOffsetPrimed: !!enabled,
+      }),
+      setMidiAutoDetectOffsetPrimed: (primed: boolean) => set({ midiAutoDetectOffsetPrimed: !!primed }),
 
       setTransitionType: (type: AppState['transitionType']) => set({ transitionType: type }),
 
@@ -1173,12 +1258,17 @@ export const useStore = createWithEqualityFn<AppState & {
            midiMappings: state.midiMappings,
            midiForceChannel1: (state as any).midiForceChannel1,
           midiCCOffset: state.midiCCOffset,
+          midiAutoDetectOffset: (state as any).midiAutoDetectOffset,
            selectedLayerId: state.selectedLayerId,
            selectedTimelineClip: state.selectedTimelineClip,
            previewMode: state.previewMode,
            transitionType: state.transitionType,
            transitionDuration: state.transitionDuration,
            compositionSettings: state.compositionSettings,
+            // Persist UI theming and accessibility settings
+            accentColor: (state as any).accentColor,
+            fontColor: (state as any).fontColor,
+            accessibilityEnabled: state.accessibilityEnabled,
            neutralContrast: (state as any).neutralContrast,
            defaultVideoRenderScale: (state as any).defaultVideoRenderScale,
            defaultVideoFitMode: state.defaultVideoFitMode,
@@ -1188,6 +1278,7 @@ export const useStore = createWithEqualityFn<AppState & {
            recordSettings: state.recordSettings,
            mirrorQuality: (state as any).mirrorQuality,
            mirrorKeepPreview: (state as any).mirrorKeepPreview,
+            showSystemEffectsTab: state.showSystemEffectsTab,
          };
        },
              onRehydrateStorage: () => (state) => {

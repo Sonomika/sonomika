@@ -2,6 +2,20 @@ import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog, power
 import fs from 'fs';
 import path from 'path';
 
+const shouldMuteConsole = process.env.VJ_DEBUG_LOGS !== 'true';
+
+if (shouldMuteConsole) {
+  const noop = () => {};
+  // eslint-disable-next-line no-console
+  console.log = noop;
+  // eslint-disable-next-line no-console
+  console.warn = noop;
+  // eslint-disable-next-line no-console
+  console.info = noop;
+}
+
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
 

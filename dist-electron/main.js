@@ -2,6 +2,15 @@
 const electron = require("electron");
 const fs = require("fs");
 const path = require("path");
+const shouldMuteConsole = process.env.VJ_DEBUG_LOGS !== "true";
+if (shouldMuteConsole) {
+  const noop = () => {
+  };
+  console.log = noop;
+  console.warn = noop;
+  console.info = noop;
+}
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
 const gotTheLock = electron.app.requestSingleInstanceLock();
 if (!gotTheLock) {
   console.log("Another instance is already running, quitting...");

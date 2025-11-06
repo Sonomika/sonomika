@@ -1,8 +1,8 @@
-import React, { Suspense, useEffect, useState, useRef } from 'react';
+import React, { Suspense, useEffect, useState, useRef, useMemo } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import EffectChain, { ChainItem } from './EffectChain';
-import { getCachedVideoCanvas } from '../utils/AssetPreloader';
+import { getCachedVideoCanvas, clearCachedVideoCanvas } from '../utils/AssetPreloader';
 import { getEffectComponentSync } from '../utils/EffectLoader';
 import { videoAssetManager } from '../utils/VideoAssetManager';
 import EffectLoader from './EffectLoader';
@@ -47,6 +47,23 @@ interface TimelineComposerProps {
 
 // Cache last frame canvases per asset to avoid flashes across mounts
 const lastFrameCanvasCache: Map<string, HTMLCanvasElement> = new Map();
+
+const clearTimelineFallbackCache = (assetId: string) => {
+  if (!assetId) return;
+  const canvas = lastFrameCanvasCache.get(assetId);
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const w = canvas.width || 0;
+      const h = canvas.height || 0;
+      ctx.clearRect(0, 0, w, h);
+      if (w > 0 && h > 0) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+  }
+};
 
 // Video texture component for R3F with fallback like ColumnPreview
 const VideoTexture: React.FC<{ 
@@ -242,8 +259,30 @@ const VideoTexture: React.FC<{
 
   // During transition, use previous texture if available, otherwise use current texture
   const activeTexture = isTransitioning && previousTexture ? previousTexture : texture;
-  
-  // If no texture yet and no fallback, render nothing (mask handles initial); otherwise show fallback
+  // FX input should never be empty: use fallback/previous when video not ready
+  const inputTexture: THREE.Texture | null = (video.readyState >= 2)
+    ? (activeTexture as THREE.Texture | null)
+    : ((fallbackTexture as THREE.Texture | null) || (previousTexture as unknown as THREE.Texture | null));
+
+  // Check if any effects are applied
+  const hasEffects = effects && effects.length > 0;
+
+  if (hasEffects) {
+    // Always feed FX chain a valid texture even when video isn't ready yet
+    return (
+      <EffectLoader 
+        videoTexture={inputTexture || undefined}
+        fallback={
+          <mesh>
+            <planeGeometry args={[aspectRatio * 2, 2]} />
+            <meshBasicMaterial map={inputTexture || undefined} />
+          </mesh>
+        }
+      />
+    );
+  }
+
+  // If no effects: If not ready, render fallback directly
   if (!activeTexture || video.readyState < 2) {
     const compositionAspectRatio = aspectRatio;
     const scaleX = Math.max(compositionAspectRatio / videoAspectRatio, 1);
@@ -259,24 +298,6 @@ const VideoTexture: React.FC<{
           </mesh>
         )}
       </group>
-    );
-  }
-
-  // Check if any effects are applied
-  const hasEffects = effects && effects.length > 0;
-
-  if (hasEffects) {
-    // Use EffectLoader for any effects
-    return (
-      <EffectLoader 
-        videoTexture={activeTexture}
-        fallback={
-          <mesh>
-            <planeGeometry args={[aspectRatio * 2, 2]} />
-            <meshBasicMaterial map={activeTexture} />
-          </mesh>
-        }
-      />
     );
   }
 
@@ -329,7 +350,7 @@ const getBlendMode = (blendMode: string): THREE.Blending => {
   }
 };
 
-// Timeline Scene Component with effect support
+// Timeline Scene Component with effect support - memoized for performance
 const TimelineScene: React.FC<{
   activeClips: any[];
   isPlaying: boolean;
@@ -355,12 +376,35 @@ const TimelineScene: React.FC<{
     videos: Map<string, HTMLVideoElement>;
   }>({ videos: new Map() });
 
+  useEffect(() => {
+    const onVideoPrimed = (event: Event) => {
+      const detail: any = (event as CustomEvent)?.detail;
+      const assetKey = detail?.assetKey;
+      const element: HTMLVideoElement | undefined = detail?.element;
+      if (!assetKey) return;
+      const video = element || videoAssetManager.get(assetKey)?.element;
+      if (!video) return;
+      globalAssetCacheRef.current.videos.set(assetKey, video);
+    };
+    try { document.addEventListener('timelineVideoPrimed', onVideoPrimed as any); } catch {}
+    return () => {
+      try { document.removeEventListener('timelineVideoPrimed', onVideoPrimed as any); } catch {}
+    };
+  }, []);
+
   const firstFrameReadyRef = useRef<boolean>(false);
   const frameCounterRef = useRef<number>(0);
 
-  console.log('TimelineScene rendering with:', { activeClips, isPlaying, currentTime, assetsCount: assets.images.size + assets.videos.size });
+  // Memoize asset key extraction to avoid recalculating on every render
+  const activeAssetKeys = useMemo(() => {
+    return activeClips
+      .filter(clip => clip.asset)
+      .map(clip => String(clip.asset.id))
+      .sort()
+      .join('|');
+  }, [activeClips]);
 
-  // Load assets with caching
+  // Load assets with caching - only reload when asset IDs change
   useEffect(() => {
     const loadAssets = async () => {
       const newImages = new Map<string, HTMLImageElement>();
@@ -432,7 +476,7 @@ const TimelineScene: React.FC<{
     };
 
     loadAssets();
-  }, [activeClips]);
+  }, [activeAssetKeys]); // Only reload when asset IDs change, not on every clip update
 
   // Handle play/pause and video synchronization
   useEffect(() => {
@@ -442,11 +486,17 @@ const TimelineScene: React.FC<{
       
       if (isPlaying && activeClip) {
         const targetTime = activeClip.relativeTime || 0;
+        const currentBeforeSync = typeof video.currentTime === 'number' ? video.currentTime : 0;
         
         // Sync video to correct time position to prevent positioning flashes
-        if (Math.abs(video.currentTime - targetTime) > 0.15) {
+        if (Math.abs(currentBeforeSync - targetTime) > 0.15) {
           console.log(`Syncing video ${assetId} to time:`, targetTime);
           video.currentTime = targetTime;
+          const rewoundToStart = currentBeforeSync - targetTime > 0.4 && targetTime < 0.1;
+          if (rewoundToStart) {
+            try { clearTimelineFallbackCache(String(assetId)); } catch {}
+            try { clearCachedVideoCanvas(String(assetId)); } catch {}
+          }
         }
         
         // Force muted autoplay policy compliance and remove readyState gating
@@ -470,10 +520,63 @@ const TimelineScene: React.FC<{
     });
   }, [isPlaying, assets.videos, activeClips, currentTime]);
 
-  // Additional video sync check during playback to prevent drift
+  // On stop in timeline mode, reset all timeline videos to start
+  useEffect(() => {
+    const resetAllVideos = () => {
+      try {
+        // Reset currently loaded videos
+        assets.videos.forEach((video) => {
+          try { video.pause(); } catch {}
+          try { video.currentTime = 0; } catch {}
+        });
+        // Also reset any videos in the local cache to cover non-active ones
+        try {
+          (globalAssetCacheRef.current?.videos || new Map()).forEach((video) => {
+            try { video.pause(); } catch {}
+            try { video.currentTime = 0; } catch {}
+          });
+        } catch {}
+      } catch {}
+    };
+
+    const onGlobalStop = () => resetAllVideos();
+    const onTimelineStop = () => resetAllVideos();
+    const onVideoStop = () => resetAllVideos();
+
+    try { document.addEventListener('globalStop', onGlobalStop as any); } catch {}
+    try { document.addEventListener('timelineStop', onTimelineStop as any); } catch {}
+    try { document.addEventListener('videoStop', onVideoStop as any); } catch {}
+    return () => {
+      try { document.removeEventListener('globalStop', onGlobalStop as any); } catch {}
+      try { document.removeEventListener('timelineStop', onTimelineStop as any); } catch {}
+      try { document.removeEventListener('videoStop', onVideoStop as any); } catch {}
+    };
+  }, [assets.videos]);
+
+  // Ensure paused timeline seeks reflect the current playhead position
+  useEffect(() => {
+    try {
+      assets.videos.forEach((video, assetId) => {
+        const activeClip = activeClips.find((clip) => {
+          const clipAssetId = clip?.asset?.id;
+          return clipAssetId != null && String(clipAssetId) === String(assetId);
+        });
+        if (!activeClip) {
+          return;
+        }
+        const targetTime = Math.max(0, activeClip.relativeTime || 0);
+        if (Math.abs((video.currentTime || 0) - targetTime) > 0.05) {
+          try { video.currentTime = targetTime; } catch {}
+        }
+      });
+    } catch {}
+  }, [currentTime, activeClips, assets.videos]);
+
+  // Additional video sync check during playback to prevent drift - optimized to reduce overhead
   useEffect(() => {
     if (!isPlaying) return;
 
+    // Reduce sync frequency when not actively playing to save CPU
     const syncInterval = setInterval(() => {
       assets.videos.forEach((video, assetId) => {
         const activeClip = activeClips.find(clip => clip.asset && clip.asset.id === assetId);
@@ -482,18 +585,17 @@ const TimelineScene: React.FC<{
           const targetTime = activeClip.relativeTime || 0;
           const drift = Math.abs(video.currentTime - targetTime);
           
-          // Only sync if drift is significant (>200ms) to avoid constant seeking
-          if (drift > 0.2) {
-            console.log(`Correcting video drift for ${assetId}: ${drift.toFixed(2)}s`);
+          // Only sync if drift is significant (>300ms) - increased threshold for better performance
+          if (drift > 0.3) {
             video.currentTime = targetTime;
             try { if (video.paused) void video.play(); } catch {}
           }
         }
       });
-    }, 200); // Check every 200ms - reduced frequency for better performance
+    }, 500); // Check every 500ms instead of 200ms for better performance
 
     return () => clearInterval(syncInterval);
-  }, [isPlaying, assets.videos, activeClips]);
+  }, [isPlaying, assets.videos, activeAssetKeys]); // Use memoized asset keys
 
   // Set up camera
   useEffect(() => {
@@ -628,7 +730,7 @@ const TimelineScene: React.FC<{
       })()}
       
       {/* Render all clips using chain-based stacking with global effects appended */}
-      {(() => {
+      {useMemo(() => {
         const chains: ChainItem[][] = [];
         let currentChain: ChainItem[] = [];
 
@@ -648,7 +750,6 @@ const TimelineScene: React.FC<{
         };
 
         // Build chains based on activeClips order
-        try { console.log('[TimelineScene] Build chains', { t: Number(currentTime.toFixed(3)), active: activeClips.length }); } catch {}
         activeClips.forEach((clip: any) => {
           const kind = classifyClip(clip);
           if (kind === 'video') {
@@ -712,6 +813,23 @@ const TimelineScene: React.FC<{
         });
 
         let appendedFallback = false;
+        // If an incoming video isn't ready yet, immediately draw the previous chain first
+        if (anyIncomingNotReady && (TimelineScene as any).__lastChainRef && (TimelineScene as any).__lastChainRef.current && !appendedFallback) {
+          const chainWithGlobals = (TimelineScene as any).__lastChainRef.current as ChainItem[];
+          const chainKey = 'last-video-fallback-early';
+          elements.push(
+            <EffectChain
+              key={`chain-${chainKey}`}
+              items={chainWithGlobals}
+              compositionWidth={compositionWidth}
+              compositionHeight={compositionHeight}
+              opacity={1}
+              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
+            />
+          );
+          appendedFallback = true;
+        }
+
         chainsWithKeys.forEach(({ chain, idx }) => {
           const chainKey = chain.map((it) => {
             if (it.type === 'video') return 'video';
@@ -888,10 +1006,13 @@ const TimelineScene: React.FC<{
           (window as any).__vj_timeline_active_layers__ = layersForEngine;
         } catch {}
         return elements.map((el, i) => React.cloneElement(el, { key: `rendered-element-${i}` }));
-      })()}
+      }, [activeClips, assets.videos, currentTime, globalEffects, compositionWidth, compositionHeight])}
     </>
   );
 };
+
+// Memoize TimelineScene to prevent unnecessary re-renders
+const MemoizedTimelineScene = React.memo(TimelineScene);
 
 // Main TimelineComposer Component
 const TimelineComposer: React.FC<TimelineComposerProps> = ({
@@ -974,7 +1095,7 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
             }
             const ro = new ResizeObserver(debounce(() => {
               try { resizeOnce(); } catch {}
-            }, 200));
+            }, 300)); // Increased debounce from 200ms to 300ms for better performance
             try {
               (gl as any).__vjResizeObserver = ro;
               ro.observe(container);
@@ -992,7 +1113,7 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
             <meshBasicMaterial color="#888888" />
           </mesh>
         }>
-          <TimelineScene
+          <MemoizedTimelineScene
             activeClips={activeClips}
             isPlaying={isPlaying}
             currentTime={currentTime}

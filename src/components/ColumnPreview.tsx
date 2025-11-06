@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { useStore } from '../store/store';
 import EffectLoader from './EffectLoader';
 import { getCachedVideo, getCachedVideoCanvas } from '../utils/AssetPreloader';
+import { videoAssetManager } from '../utils/VideoAssetManager';
 import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoader';
 import EffectChain, { ChainItem } from './EffectChain';
 import { debounce } from '../utils/debounce';
@@ -466,6 +467,22 @@ const ColumnScene: React.FC<{
   // but we also consult the global preloader cache to avoid flashes.
   const globalAssetCacheRef = useRef<{ videos: Map<string, HTMLVideoElement> }>({ videos: new Map() });
 
+  useEffect(() => {
+    const onVideoPrimed = (event: Event) => {
+      const detail: any = (event as CustomEvent)?.detail;
+      const assetKey = detail?.assetKey;
+      const element: HTMLVideoElement | undefined = detail?.element;
+      if (!assetKey) return;
+      const video = element || videoAssetManager.get(assetKey)?.element;
+      if (!video) return;
+      globalAssetCacheRef.current.videos.set(assetKey, video);
+    };
+    try { document.addEventListener('timelineVideoPrimed', onVideoPrimed as any); } catch {}
+    return () => {
+      try { document.removeEventListener('timelineVideoPrimed', onVideoPrimed as any); } catch {}
+    };
+  }, []);
+
   // Performance optimization: removed excessive logging
 
   // Cleanup function to revoke blob URLs
@@ -485,7 +502,16 @@ const ColumnScene: React.FC<{
     };
   }, [assets.images, assets.videos]);
 
-  // Load assets with caching
+  // Memoize asset keys to avoid unnecessary reloads
+  const columnAssetKeys = useMemo(() => {
+    return column.layers
+      .filter(layer => layer.asset)
+      .map(layer => String(layer.asset.id))
+      .sort()
+      .join('|');
+  }, [column.layers]);
+
+  // Load assets with caching - only reload when asset IDs change
   useEffect(() => {
     const loadAssets = async () => {
       const newImages = new Map<string, HTMLImageElement>();
@@ -514,7 +540,7 @@ const ColumnScene: React.FC<{
             // Ensure we have a valid path before loading
             let assetPath = asset.path;
             if (!assetPath || (assetPath.startsWith('blob:') && !assetPath.includes('localhost')) || 
-                (assetPath.startsWith('blob:') && assetPath.includes('localhost') && assetPath.includes('5173'))) {
+                (assetPath.startsWith('blob:') && assetPath.includes('localhost') && /5(173|174|175)\b/.test(assetPath))) {
               // Try to restore from base64 if available
               if (asset.base64Data) {
                 console.log('Restoring image from base64 for:', asset.name);
@@ -561,7 +587,7 @@ const ColumnScene: React.FC<{
               // Ensure we have a valid path before loading
               let assetPath = getAssetPath(asset, true); // Use file path for video playback
               if (!assetPath || (assetPath.startsWith('blob:') && !assetPath.includes('localhost')) || 
-                  (assetPath.startsWith('blob:') && assetPath.includes('localhost') && assetPath.includes('5173'))) {
+                  (assetPath.startsWith('blob:') && assetPath.includes('localhost') && /5(173|174|175)\b/.test(assetPath))) {
                 // Try to restore from base64 if available
                 if (asset.base64Data) {
                   console.log('Restoring video from base64 for:', asset.name);
@@ -633,7 +659,7 @@ const ColumnScene: React.FC<{
     };
 
     loadAssets();
-  }, [column]);
+  }, [columnAssetKeys]); // Only reload when asset IDs change, not on every column update
 
   // Handle play/pause without resetting on param changes
   const prevIsPlayingRef = useRef<boolean>(false);
@@ -663,6 +689,32 @@ const ColumnScene: React.FC<{
     }
     prevIsPlayingRef.current = isPlaying;
   }, [isPlaying, assets.videos, column.layers, column?.id]);
+
+  // In timeline mode, ensure Stop truly returns videos to frame 0
+  useEffect(() => {
+    const resetAll = () => {
+      try {
+        assets.videos.forEach((v) => {
+          try { v.pause(); } catch {}
+          try { v.currentTime = 0; } catch {}
+        });
+      } catch {}
+      try {
+        (globalAssetCacheRef.current?.videos || new Map()).forEach((v) => { try { v.pause(); } catch {}; try { v.currentTime = 0; } catch {}; });
+      } catch {}
+    };
+    const onGlobalStop = () => resetAll();
+    const onTimelineStop = () => resetAll();
+    const onVideoStop = () => resetAll();
+    try { document.addEventListener('globalStop', onGlobalStop as any); } catch {}
+    try { document.addEventListener('timelineStop', onTimelineStop as any); } catch {}
+    try { document.addEventListener('videoStop', onVideoStop as any); } catch {}
+    return () => {
+      try { document.removeEventListener('globalStop', onGlobalStop as any); } catch {}
+      try { document.removeEventListener('timelineStop', onTimelineStop as any); } catch {}
+      try { document.removeEventListener('videoStop', onVideoStop as any); } catch {}
+    };
+  }, [assets.videos]);
 
   // New: handle video playMode events using assets cache within ColumnScene
   useEffect(() => {
@@ -1283,7 +1335,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                       console.error('Error in resize observer:', error);
                     }
                   }
-                }, 200);
+                }, 300); // Increased debounce from 200ms to 300ms for better performance
 
                 const resizeObserver = new ResizeObserver(() => handleResize());
                 

@@ -4,26 +4,17 @@ const electron_1 = require("electron");
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-console.log('=== PRELOAD SCRIPT LOADED ===');
-console.log('contextBridge available:', !!electron_1.contextBridge);
-console.log('ipcRenderer available:', !!electron_1.ipcRenderer);
-// Test if we can access the global object
-console.log('=== PRELOAD SCRIPT: Testing global access ===');
 try {
-    console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld starting ===');
     // Expose protected methods that allow the renderer process to use
     // the ipcRenderer without exposing the entire object
     electron_1.contextBridge.exposeInMainWorld('electron', {
         minimize: () => {
-            console.log('Preload: minimize called');
             electron_1.ipcRenderer.send('window-minimize');
         },
         maximize: () => {
-            console.log('Preload: maximize called');
             electron_1.ipcRenderer.send('window-maximize');
         },
         close: () => {
-            console.log('Preload: close called');
             electron_1.ipcRenderer.send('window-close');
         },
         toggleMirror: () => electron_1.ipcRenderer.send('toggle-mirror'),
@@ -36,15 +27,12 @@ try {
         openMirrorWindow: () => electron_1.ipcRenderer.send('open-mirror-window'),
         closeMirrorWindow: () => electron_1.ipcRenderer.send('close-mirror-window'),
         sendCanvasData: (dataUrl) => {
-            console.log('Preload: sendCanvasData called');
             electron_1.ipcRenderer.send('sendCanvasData', dataUrl);
         },
         setMirrorAspectRatio: (width, height) => {
-            console.log('Preload: setMirrorAspectRatio called', width, height);
             electron_1.ipcRenderer.send('set-mirror-aspect', width, height);
         },
         resizeMirrorWindow: (width, height) => {
-            console.log('Preload: resizeMirrorWindow called', width, height);
             electron_1.ipcRenderer.send('resize-mirror-window', width, height);
         },
         readLocalFileAsBase64: (filePath) => {
@@ -84,7 +72,6 @@ try {
             return electron_1.ipcRenderer.invoke('get-system-audio-stream');
         },
         toggleAppFullscreen: () => {
-            console.log('Preload: toggleAppFullscreen called');
             electron_1.ipcRenderer.send('toggle-app-fullscreen');
         },
         // Toggle the external mirror window fullscreen (contain fit)
@@ -99,7 +86,6 @@ try {
             return electron_1.ipcRenderer.invoke('get-screen-sizes');
         }
     });
-    console.log('=== PRELOAD SCRIPT: contextBridge.exposeInMainWorld completed ===');
 
     // Expose encrypted auth storage bridge
     try {

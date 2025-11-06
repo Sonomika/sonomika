@@ -500,14 +500,19 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
 
   const handleEffectParamChange = (paramName: string, value: any) => {
     if (selectedLayer) {
+      // Sanitize NaN values - convert to 0 or keep original value if not a number
+      const sanitizedValue = (typeof value === 'number' && !Number.isFinite(value)) 
+        ? (selectedLayer.params?.[paramName]?.value ?? 0)
+        : value;
+      
       const currentParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
       if (currentParams[paramName] === undefined) currentParams[paramName] = {};
       const prevLocked = currentParams[paramName].locked;
-      currentParams[paramName] = { ...currentParams[paramName], value, ...(prevLocked !== undefined ? { locked: prevLocked } : {}) };
+      currentParams[paramName] = { ...currentParams[paramName], value: sanitizedValue, ...(prevLocked !== undefined ? { locked: prevLocked } : {}) };
       onUpdateLayer(selectedLayer.id, { params: currentParams });
       setLocalParamValues(prev => ({
         ...prev,
-        [paramName]: value
+        [paramName]: sanitizedValue
       }));
     }
   };
@@ -881,17 +886,31 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                                 step={param?.step || 1}
                                 value={[
                                   // During timeline playback, prefer live LFO modulated value if available
-                                  (showTimeline && isTimelinePlaying && liveModulatedByParam[paramName] !== undefined)
-                                    ? Number(liveModulatedByParam[paramName])
-                                    : Number(localParamValues[paramName] ?? (param?.value ?? 0))
+                                  (() => {
+                                    const rawValue = (showTimeline && isTimelinePlaying && liveModulatedByParam[paramName] !== undefined)
+                                      ? Number(liveModulatedByParam[paramName])
+                                      : Number(localParamValues[paramName] ?? (param?.value ?? 0));
+                                    return Number.isFinite(rawValue) ? rawValue : (param?.value ?? 0);
+                                  })()
                                 ]}
                                 onValueChange={(values) => !isLocked && values && values.length > 0 && handleEffectParamChange(paramName, values[0])}
                               />
                             </div>
                             <input
                               type="number"
-                              value={Number(localParamValues[paramName] ?? (param?.value ?? 0)).toFixed(0)}
-                              onChange={(e) => !isLocked && handleEffectParamChange(paramName, parseFloat(e.target.value))}
+                              value={(() => {
+                                const rawValue = Number(localParamValues[paramName] ?? (param?.value ?? 0));
+                                return Number.isFinite(rawValue) ? rawValue.toFixed(0) : '0';
+                              })()}
+                              onChange={(e) => {
+                                if (!isLocked) {
+                                  const parsed = parseFloat(e.target.value);
+                                  // Only update if valid number or empty string (user is clearing)
+                                  if (Number.isFinite(parsed) || e.target.value === '' || e.target.value === '-') {
+                                    handleEffectParamChange(paramName, parsed);
+                                  }
+                                }
+                              }}
                               className="tw-w-[80px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
                               disabled={isLocked}
                             />
@@ -974,79 +993,10 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   </div>
                 </div>
               </div>
-              <div>
-                <div className="tw-flex tw-flex-wrap tw-gap-2">
-                  <button
-                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.NONE ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
-                    
-                    onClick={() => handleLoopModeChange(LOOP_MODES.NONE)}
-                  >
-                    None
-                  </button>
-                  <button
-                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.LOOP ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
-                    
-                    onClick={() => handleLoopModeChange(LOOP_MODES.LOOP)}
-                  >
-                    Loop
-                  </button>
-                  <button
-                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.REVERSE ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
-                    
-                    onClick={() => handleLoopModeChange(LOOP_MODES.REVERSE)}
-                  >
-                    Reverse
-                  </button>
-                  <button
-                    className={`tw-rounded tw-px-2 tw-py-1 tw-text-sm ${loopMode === LOOP_MODES.PING_PONG ? 'tw-bg-neutral-700 tw-text-white' : 'tw-bg-neutral-800 tw-text-neutral-200 hover:tw-bg-neutral-700'}`}
-                    
-                    onClick={() => handleLoopModeChange(LOOP_MODES.PING_PONG)}
-                  >
-                    Ping-Pong
-                  </button>
-                </div>
-              </div>
-              
-              <div>
-                <label className="tw-text-sm">Play Mode:</label>
-                <ButtonGroup
-                  options={[
-                    { value: 'restart', label: 'Restart' },
-                    { value: 'continue', label: 'Continue' }
-                  ]}
-                  value={playMode}
-                  onChange={(value) => handlePlayModeChange(value as 'restart' | 'continue')}
-                  columns={2}
-                  size="small"
-                />
-              </div>
             </div>
           ) : null;
         })()}
 
-        {loopMode !== LOOP_MODES.NONE && (
-          <div className="tw-space-y-2">
-            <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Loop Count</h4>
-            <div>
-              <div className="tw-inline-flex tw-items-center tw-gap-2">
-                <button
-                  className="tw-rounded tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700 disabled:tw-opacity-50"
-                  onClick={() => handleLoopCountChange(Math.max(1, loopCount - 1))}
-                  disabled={loopCount <= 1}
-                >
-                  -
-                </button>
-                <span className="tw-min-w-[2ch] tw-text-center">{loopCount}</span>
-                <button
-                  className="tw-rounded tw-bg-neutral-800 tw-text-neutral-100 tw-px-2 tw-py-1 hover:tw-bg-neutral-700"
-                  onClick={() => handleLoopCountChange(loopCount + 1)}
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="tw-space-y-2">
           <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Description</h4>

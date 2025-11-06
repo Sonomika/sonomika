@@ -4,7 +4,7 @@ import { getAllRegisteredEffects, getEffect } from '../utils/effectRegistry';
 import { EffectErrorBoundary } from './EffectErrorBoundary';
 
 interface EffectLoaderProps {
-  videoTexture?: THREE.VideoTexture;
+  videoTexture?: THREE.Texture;
   fallback?: React.ReactNode;
   effectId?: string; // Optional: if provided, render only this specific effect
   params?: any; // Optional: parameters to pass to the effect
@@ -14,7 +14,7 @@ interface EffectLoaderProps {
 // Component to render a single specific effect
 export const SingleEffectLoader: React.FC<{
   effectId: string;
-  videoTexture?: THREE.VideoTexture;
+  videoTexture?: THREE.Texture;
   fallback?: React.ReactNode;
   params?: any;
   isGlobal?: boolean;

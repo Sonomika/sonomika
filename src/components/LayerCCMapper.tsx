@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/store';
 import { Button, Input, Label, Select, Switch } from './ui';
 import { MIDIManager } from '../midi/MIDIManager';
@@ -36,36 +36,42 @@ const useLayerParamOptions = (selectedLayer: any) => {
 };
 
 export const LayerCCMapper: React.FC = () => {
-  const { midiMappings, setMIDIMappings, selectedLayerId, scenes, currentSceneId, midiCCOffset, setMidiCCOffset, selectedTimelineClip } = useStore() as any;
+  const {
+    midiMappings,
+    setMIDIMappings,
+    selectedLayerId,
+    scenes,
+    currentSceneId,
+    timelineScenes,
+    currentTimelineSceneId,
+    showTimeline,
+    midiCCOffset,
+    setMidiCCOffset,
+    midiAutoDetectOffset,
+    midiAutoDetectOffsetPrimed,
+    setMidiAutoDetectOffset,
+    selectedTimelineClip,
+  } = useStore() as any;
   const mappings = (midiMappings as MIDIMapping[]) || [];
+  const timelineClipLayerId = useMemo(() => {
+    if (!showTimeline || !selectedTimelineClip) return null;
+    const clipId = selectedTimelineClip.id || 'clip';
+    // Timeline mode is independent - always use pseudo-layer ID, never column layer IDs
+    // This ensures complete separation between timeline and column modes
+    return `timeline-layer-${clipId}`;
+  }, [showTimeline, selectedTimelineClip?.id]);
   const selectedLayer = useMemo(() => {
-    const scene = (scenes || []).find((s: any) => s.id === currentSceneId);
-    if (!scene) return null;
-
-    // If a timeline clip is selected, resolve to a real layer in the current scene
-    if (selectedTimelineClip) {
-      const allLayers = scene.columns.flatMap((c: any) => c.layers);
-      // Prefer explicit layerId on the clip
-      if (selectedTimelineClip.layerId) {
-        const byId = allLayers.find((l: any) => l.id === selectedTimelineClip.layerId);
-        if (byId) return byId;
-      }
-      // Match by asset id/name
-      const assetId = selectedTimelineClip?.data?.asset?.id || selectedTimelineClip?.data?.asset?.name || selectedTimelineClip?.data?.name;
-      const isVideo = selectedTimelineClip?.data?.type === 'video' || selectedTimelineClip?.data?.asset?.type === 'video';
-      const byAsset = isVideo
-        ? allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === assetId || l?.asset?.name === assetId))
-        : allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === assetId || l?.asset?.name === assetId));
-      if (byAsset) return byAsset;
-      // Deterministic: track number maps to same-numbered layer if present
-      const trackNum = parseInt((selectedTimelineClip.trackId || 'track-1').split('-')[1] || '1', 10);
-      const byTrack = allLayers.find((l: any) => l.layerNum === trackNum);
-      if (byTrack) return byTrack;
-      // Fallback: any effect layer
-      const anyEffect = allLayers.find((l: any) => l?.asset?.isEffect || l?.type === 'effect');
-      if (anyEffect) return anyEffect;
+    // In timeline mode, don't try to resolve to column mode layers - they're completely separate
+    if (showTimeline) {
+      // Timeline mode: return null to indicate we're using the clip directly, not a column layer
       return null;
     }
+
+    // Column mode: find the selected layer in column scenes
+    const sceneList = scenes;
+    const sceneId = currentSceneId;
+    const scene = (sceneList || []).find((s: any) => s.id === sceneId);
+    if (!scene) return null;
 
     // Column mode selection
     for (const col of scene.columns || []) {
@@ -73,12 +79,53 @@ export const LayerCCMapper: React.FC = () => {
       if (layer) return layer;
     }
     return null;
-  }, [scenes, currentSceneId, selectedLayerId, selectedTimelineClip?.id, selectedTimelineClip?.trackId, selectedTimelineClip?.layerId, selectedTimelineClip?.data?.asset?.id, selectedTimelineClip?.data?.name]);
+  }, [
+    scenes,
+    timelineScenes,
+    showTimeline,
+    currentSceneId,
+    currentTimelineSceneId,
+    selectedLayerId,
+    selectedTimelineClip?.id,
+    selectedTimelineClip?.trackId,
+    selectedTimelineClip?.layerId,
+    selectedTimelineClip?.data?.asset?.id,
+    selectedTimelineClip?.data?.params,
+    selectedTimelineClip?.data?.asset?.effectId,
+    selectedTimelineClip?.data?.name,
+  ]);
 
-  let paramOptions = useLayerParamOptions(selectedLayer);
+  const timelineFallbackLayer = useMemo(() => {
+    if (!showTimeline) return null;
+    if (selectedLayer) return null;
+    if (!selectedTimelineClip) return null;
+    const clip: any = selectedTimelineClip.data || {};
+    const asset = clip.asset || {};
+    const trackNumber = parseInt((selectedTimelineClip.trackId || 'track-1').split('-')[1] || '1', 10);
+    const fallbackId = timelineClipLayerId || `timeline-layer-${selectedTimelineClip.id || 'clip'}`;
+    return {
+      id: fallbackId,
+      name: clip.name || asset.name || `Layer ${trackNumber}`,
+      layerNum: trackNumber,
+      type: clip.type === 'effect' || asset.isEffect ? 'effect' : (asset.type === 'video' ? 'video' : 'effect'),
+      asset,
+      params: clip.params || {},
+      opacity: 1,
+      blendMode: 'add',
+    } as any;
+  }, [showTimeline, selectedLayer, selectedTimelineClip?.id, selectedTimelineClip?.layerId, selectedTimelineClip?.trackId, selectedTimelineClip?.data, timelineClipLayerId]);
+
+  const effectiveLayer = selectedLayer || timelineFallbackLayer;
+  // In timeline mode, prefer timelineClipLayerId so each clip gets a unique ID even if they map to same layer
+  // This ensures automap triggers when selecting different clips
+  const resolvedLayerId = showTimeline && timelineClipLayerId 
+    ? timelineClipLayerId 
+    : (selectedLayer?.id || null);
+
+  let paramOptions = useLayerParamOptions(effectiveLayer);
   try {
     // In timeline mode, prefer the clip's parameter keys to mirror the Layer panel
-    const clipParams = (selectedTimelineClip && (selectedTimelineClip.data?.params || selectedTimelineClip.params)) || null;
+    const clipParams = (showTimeline && selectedTimelineClip && (selectedTimelineClip.data?.params || selectedTimelineClip.params)) || null;
     if (clipParams && typeof clipParams === 'object') {
       const opts: { value: string; label: string }[] = [];
       Object.keys(clipParams).forEach((k) => {
@@ -111,8 +158,8 @@ export const LayerCCMapper: React.FC = () => {
   useEffect(() => { try { localStorage.setItem('vj-auto-map-start', String(Math.max(1, Math.min(127, Number(autoMapStart) || 1)))); } catch {} }, [autoMapStart]);
   useEffect(() => { try { localStorage.setItem('vj-auto-map-end', String(Math.max(1, Math.min(127, Number(autoMapEnd) || 16)))); } catch {} }, [autoMapEnd]);
 
-  const autoMapAll = () => {
-    if (!selectedLayer) return;
+  const autoMapAll = useCallback(() => {
+    if (!effectiveLayer || !resolvedLayerId) return;
     const start = Math.max(1, Math.min(127, Number(autoMapStart) || 1));
     const end = Math.max(start, Math.min(127, Number(autoMapEnd) || start));
     const count = end - start + 1;
@@ -120,7 +167,7 @@ export const LayerCCMapper: React.FC = () => {
     if (numericParams.length === 0) return;
     const ch = Math.max(1, Math.min(16, Number(channel) || 1));
     // Remove existing mappings for this layer so we end up with exactly `count`
-    const base = (mappings || []).filter((m) => !(m && m.type === 'cc' && (m as any)?.target?.type === 'layer' && (m as any)?.target?.id === selectedLayer.id));
+    const base = (mappings || []).filter((m) => !(m && m.type === 'cc' && (m as any)?.target?.type === 'layer' && (m as any)?.target?.id === resolvedLayerId));
     const next = base.slice();
     numericParams.forEach((pname, idx) => {
       const ccNum = Math.max(0, Math.min(127, start + idx));
@@ -129,12 +176,12 @@ export const LayerCCMapper: React.FC = () => {
         channel: ch,
         number: ccNum,
         enabled: true,
-        target: { type: 'layer', id: selectedLayer.id, param: pname } as any,
+        target: { type: 'layer', id: resolvedLayerId, param: pname } as any,
       };
       next.push(mapped);
     });
     setMIDIMappings(next);
-  };
+  }, [effectiveLayer, resolvedLayerId, autoMapStart, autoMapEnd, paramOptions, channel, mappings, setMIDIMappings]);
 
   // Blue Hand-style: auto map when layer selection changes
   const [autoOnSelect, setAutoOnSelect] = useState<boolean>(() => {
@@ -143,17 +190,29 @@ export const LayerCCMapper: React.FC = () => {
   useEffect(() => {
     try { localStorage.setItem('vj-auto-map-on-select', autoOnSelect ? '1' : '0'); } catch {}
   }, [autoOnSelect]);
-  const prevLayerIdRef = useRef<string | null>(null);
+  const prevResolvedLayerIdRef = useRef<string | null>(null);
   useEffect(() => {
-    const currentId = selectedLayer?.id || null;
-    const prevId = prevLayerIdRef.current;
-    prevLayerIdRef.current = currentId;
     if (!autoOnSelect) return;
-    if (!currentId) return;
-    if (prevId === currentId) return;
-    // Run automap when layer changes (map all params)
+    
+    // Track resolvedLayerId which accounts for both column mode and timeline mode
+    const currentResolvedLayerId = resolvedLayerId;
+    const prevResolvedLayerId = prevResolvedLayerIdRef.current;
+    
+    // Update ref
+    prevResolvedLayerIdRef.current = currentResolvedLayerId;
+    
+    // Don't trigger if no resolved layer ID
+    if (!currentResolvedLayerId) return;
+    
+    // Don't trigger if it's the same as before
+    if (prevResolvedLayerId === currentResolvedLayerId) return;
+    
+    // Need to ensure effectiveLayer is available
+    if (!effectiveLayer) return;
+    
+    // Run automap when layer/clip changes (map all params)
     autoMapAll();
-  }, [selectedLayer?.id, autoOnSelect, selectedTimelineClip?.id]);
+  }, [autoOnSelect, resolvedLayerId, effectiveLayer, autoMapAll]);
 
   useEffect(() => {
     if (!learn) return;
@@ -176,7 +235,7 @@ export const LayerCCMapper: React.FC = () => {
   }, [paramOptions, param]);
 
   const addMapping = () => {
-    if (!selectedLayer || !param) return;
+    if (!effectiveLayer || !param || !resolvedLayerId) return;
     const next: MIDIMapping = {
       type: 'cc',
       channel: Math.max(1, Math.min(16, Number(channel) || 1)),
@@ -184,7 +243,7 @@ export const LayerCCMapper: React.FC = () => {
       enabled: true,
       target: {
         type: 'layer',
-        id: selectedLayer.id,
+        id: resolvedLayerId,
         param,
       } as any,
     };
@@ -204,12 +263,19 @@ export const LayerCCMapper: React.FC = () => {
   };
 
   const layerMappings = (mappings || []).map((m, i) => ({ m, i }))
-    .filter(({ m }) => m.type === 'cc' && (m.target as any)?.type === 'layer' && (m.target as any)?.id === selectedLayer?.id);
+    .filter(({ m }) => m.type === 'cc' && (m.target as any)?.type === 'layer' && (m.target as any)?.id === resolvedLayerId);
+
+  const ccOffsetValue = Math.max(0, Math.min(127, Number(midiCCOffset) || 0));
+  const ccOffsetActive = ccOffsetValue > 0;
 
   return (
     <div className="tw-flex tw-flex-col tw-gap-3 tw-text-neutral-200">
-      {!selectedLayer ? (
-        <div className="tw-text-sm tw-text-neutral-400">Select a layer to map its sliders to MIDI CC.</div>
+      {!effectiveLayer || !resolvedLayerId ? (
+        <div className="tw-text-sm tw-text-neutral-400">
+          {showTimeline
+            ? 'Select a clip linked to a layer to map its sliders to MIDI CC.'
+            : 'Select a layer to map its sliders to MIDI CC.'}
+        </div>
       ) : (
         <>
           <div className="tw-grid tw-grid-cols-2 tw-gap-2">
@@ -222,22 +288,50 @@ export const LayerCCMapper: React.FC = () => {
               <Select value={String(channel)} onChange={(v) => setChannel(Number(v))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
             </div>
             <div className="tw-space-y-1">
-              <Label className="tw-text-xs">CC Offset</Label>
-              <Input value={midiCCOffset ?? 0} onChange={(e) => { try { setMidiCCOffset(Math.max(0, Math.min(127, Number(e.target.value) || 0))); } catch {} }} />
+              <div className="tw-flex tw-items-center tw-justify-between">
+                <Label className="tw-text-xs">CC Offset</Label>
+                <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
+                  <Switch
+                    checked={!!midiAutoDetectOffset}
+                    onCheckedChange={(v: boolean) => {
+                      try {
+                        setMidiAutoDetectOffset(!!v);
+                      } catch {}
+                    }}
+                  />
+                  Auto detect
+                </label>
+              </div>
+              <Input
+                value={midiCCOffset ?? 0}
+                onChange={(e) => {
+                  try {
+                    setMidiCCOffset(Math.max(0, Math.min(127, Number(e.target.value) || 0)));
+                  } catch {}
+                }}
+                disabled={!!midiAutoDetectOffset}
+              />
+              {midiAutoDetectOffset && (
+                <div className="tw-text-xs tw-text-neutral-400">
+                  {midiAutoDetectOffsetPrimed
+                    ? 'Move any knob to learn the offset.'
+                    : `Learned from CC ${Math.max(1, (Number(midiCCOffset) || 0) + 1)}.`}
+                </div>
+              )}
             </div>
             <div className="tw-space-y-1">
               <Label className="tw-text-xs">CC Number</Label>
               <Input value={ccNumber} onChange={(e) => setCcNumber(Math.max(0, Math.min(127, Number(e.target.value) || 0)))} />
             </div>
-            <div className="tw-flex tw-items-end tw-gap-2">
+            <div className="tw-flex tw-flex-wrap tw-items-end tw-gap-2">
               <Button variant="secondary" onClick={() => setLearn((v) => !v)}>{learn ? 'Listening…' : 'Learn CC'}</Button>
-              <Button onClick={addMapping} disabled={!param}>{editIndex !== null ? 'Save Mapping' : 'Add Mapping'}</Button>
-              <Button variant="secondary" onClick={autoMapAll} disabled={paramOptions.length === 0}>Auto Map</Button>
+              <Button onClick={addMapping} disabled={!param || !resolvedLayerId}>{editIndex !== null ? 'Save Mapping' : 'Add Mapping'}</Button>
+              <Button variant="secondary" onClick={autoMapAll} disabled={paramOptions.length === 0 || !resolvedLayerId}>Auto Map</Button>
               <label className="tw-flex tw-items-center tw-gap-2 tw-text-xs tw-ml-2">
                 <Switch checked={autoOnSelect} onCheckedChange={(v: boolean) => setAutoOnSelect(!!v)} />
                 Auto Map on select
               </label>
-              <div className="tw-flex tw-items-end tw-gap-2">
+              <div className="tw-basis-full tw-flex tw-items-end tw-gap-2">
                 <Label className="tw-text-xs">Knobs</Label>
                 <div className="tw-flex tw-items-center tw-gap-1">
                   <Input type="number" className="tw-w-14" value={autoMapStart} onChange={(e) => setAutoMapStart(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
@@ -254,34 +348,43 @@ export const LayerCCMapper: React.FC = () => {
               {layerMappings.length === 0 ? (
                 <div className="tw-text-xs tw-text-neutral-500 tw-px-2 tw-py-2">None yet.</div>
               ) : (
-                layerMappings.map(({ m, i }) => (
-                  <div key={i} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 last:tw-border-b-0">
-                    <div className="tw-text-xs tw-text-neutral-300">ch {m.channel} • CC {m.number} → {(m.target as any)?.param}</div>
-                    <div className="tw-flex tw-items-center tw-gap-2">
-                      <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
-                        <Switch checked={!!m.enabled} onCheckedChange={(v: boolean) => {
-                          const next = (mappings || []).slice();
-                          (next[i] as any).enabled = !!v;
-                          setMIDIMappings(next);
-                        }} />
-                        Enabled
-                      </label>
-                      <Button variant="secondary" onClick={() => {
-                        // Load into form for editing
-                        try {
-                          setEditIndex(i);
-                          setParam(String((m.target as any)?.param || ''));
-                          setChannel(Math.max(1, Math.min(16, Number(m.channel) || 1)));
-                          setCcNumber(Math.max(0, Math.min(127, Number(m.number) || 0)));
-                        } catch {}
-                      }}>Edit</Button>
-                      {editIndex === i && (
-                        <Button variant="ghost" onClick={() => { setEditIndex(null); }}>Cancel</Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => removeMappingAt(i)}>×</Button>
+                layerMappings.map(({ m, i }) => {
+                  const normalizedCC = Math.max(0, Math.min(127, Number(m.number) || 0));
+                  const physicalCC = ccOffsetActive
+                    ? Math.max(0, Math.min(127, ccOffsetValue + normalizedCC))
+                    : normalizedCC;
+                  const ccLabel = ccOffsetActive
+                    ? `CC ${physicalCC} → CC ${normalizedCC}`
+                    : `CC ${normalizedCC}`;
+                  return (
+                    <div key={i} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 last:tw-border-b-0">
+                      <div className="tw-text-xs tw-text-neutral-300">ch {m.channel} • {ccLabel} → {(m.target as any)?.param}</div>
+                      <div className="tw-flex tw-items-center tw-gap-2">
+                        <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
+                          <Switch checked={!!m.enabled} onCheckedChange={(v: boolean) => {
+                            const next = (mappings || []).slice();
+                            (next[i] as any).enabled = !!v;
+                            setMIDIMappings(next);
+                          }} />
+                          Enabled
+                        </label>
+                        <Button variant="secondary" onClick={() => {
+                          // Load into form for editing
+                          try {
+                            setEditIndex(i);
+                            setParam(String((m.target as any)?.param || ''));
+                            setChannel(Math.max(1, Math.min(16, Number(m.channel) || 1)));
+                            setCcNumber(Math.max(0, Math.min(127, Number(m.number) || 0)));
+                          } catch {}
+                        }}>Edit</Button>
+                        {editIndex === i && (
+                          <Button variant="ghost" onClick={() => { setEditIndex(null); }}>Cancel</Button>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => removeMappingAt(i)}>×</Button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

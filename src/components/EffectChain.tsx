@@ -37,6 +37,36 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   // Per-stage render targets to keep texture identity stable
   const rtRefs = useRef<Array<THREE.WebGLRenderTarget | null>>([]);
 
+  function seedRenderTarget(
+    gl: THREE.WebGLRenderer,
+    rt: THREE.WebGLRenderTarget,
+    texture: THREE.Texture | null,
+    camera: THREE.Camera
+  ) {
+    if (!rt || !texture) return;
+    const scene = new THREE.Scene();
+    const aspect = rt.width / rt.height;
+    const geom = new THREE.PlaneGeometry(aspect * 2, 2);
+    const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, toneMapped: false });
+    const mesh = new THREE.Mesh(geom, mat);
+    scene.add(mesh);
+
+    const prevTarget = gl.getRenderTarget();
+    const prevColor = new THREE.Color();
+    gl.getClearColor(prevColor);
+    const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+
+    gl.setRenderTarget(rt);
+    gl.setClearColor(0x000000, 0);
+    gl.render(scene, camera);
+
+    gl.setRenderTarget(prevTarget);
+    gl.setClearColor(prevColor, prevAlpha);
+
+    geom.dispose();
+    mat.dispose();
+  }
+
   // Determine effective render scale for video only (fallback 1)
   const defaultVideoRenderScale = (useStore as any).getState?.()?.defaultVideoRenderScale ?? 1;
   const effectiveScale = React.useMemo(() => {
@@ -72,6 +102,10 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           } catch {}
         }
       });
+      // Seed newly created RTs with the last valid final texture to avoid first-frame empties
+      rtRefs.current.forEach((rt) => {
+        if (rt) seedRenderTarget(gl, rt, (finalTextureRef as any)?.current || null, camera);
+      });
       return;
     }
     for (let i = 0; i < rtRefs.current.length; i++) {
@@ -89,6 +123,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         try {
           (rtRefs.current[i]!.texture as any).colorSpace = (THREE as any).LinearSRGBColorSpace || (rtRefs.current[i]!.texture as any).colorSpace;
         } catch {}
+        // Seed new RT with previous final texture
+        seedRenderTarget(gl, rtRefs.current[i]!, (finalTextureRef as any)?.current || null, camera);
         continue;
       }
       if (rt && (rt.width !== w || rt.height !== h)) {
@@ -104,6 +140,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         try {
           (rtRefs.current[i]!.texture as any).colorSpace = (THREE as any).LinearSRGBColorSpace || (rtRefs.current[i]!.texture as any).colorSpace;
         } catch {}
+        // Seed resized RT with previous final texture
+        seedRenderTarget(gl, rtRefs.current[i]!, (finalTextureRef as any)?.current || null, camera);
       }
     }
   };
@@ -252,6 +290,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   const finalTextureRef = useRef<THREE.Texture | null>(null);
 
   useFrame(() => {
+    // Ensure no automatic clears between passes
+    try { (gl as any).autoClear = false; } catch {}
     ensureRTs();
     let currentTexture: THREE.Texture | null = seedTexture || null;
     const nextInputTextures: Array<THREE.Texture | null> = items.map(() => null);
@@ -284,6 +324,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           if (!videoRtRef.current || videoRtRef.current.width !== w || videoRtRef.current.height !== h) {
             videoRtRef.current?.dispose();
             videoRtRef.current = new THREE.WebGLRenderTarget(w, h, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false });
+            // Seed video RT with previous final texture
+            seedRenderTarget(gl, videoRtRef.current, (finalTextureRef as any)?.current || null, camera);
           }
           // apply fit mode scaling on mesh
           const m = videoMeshRef.current as THREE.Mesh;
@@ -438,9 +480,11 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           const prevClear = new THREE.Color();
           gl.getClearColor(prevClear);
           const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+          // Do not clear color; preserve prior contents to avoid flashes
           gl.setClearColor(0x000000, 0);
           gl.setRenderTarget(videoRtRef.current!);
-          gl.clear(true, true, true);
+          // Clear depth/stencil each frame so seeded depth values do not block new draws
+          gl.clear(false, true, true);
           gl.render(videoSceneRef.current!, camera);
           gl.setRenderTarget(currentRT);
           gl.setClearColor(prevClear, prevAlpha);
@@ -464,9 +508,11 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         const prevClear = new THREE.Color();
         gl.getClearColor(prevClear);
         const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+        // Do not clear color; prior pass is drawn as a background quad
         gl.setClearColor(0x000000, 0);
         gl.setRenderTarget(rt);
-        gl.clear(true, true, true);
+        // Clear depth/stencil so layered draws don't reuse stale buffers
+        gl.clear(false, true, true);
         gl.render(offscreenScenes[idx], camera);
         gl.setRenderTarget(currentRT);
         gl.setClearColor(prevClear, prevAlpha);
@@ -501,9 +547,11 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         if (needsInput && !hasInput) {
           // do not update currentTexture; keep previous
         } else {
+          // Do not clear color; background quad already contains previous pass
           gl.setClearColor(0x000000, 0);
           gl.setRenderTarget(rt);
-          gl.clear(true, true, true);
+          // Clear depth/stencil to prevent earlier frames from blocking renders
+          gl.clear(false, true, true);
           gl.render(offscreenScenes[idx], camera);
           gl.setRenderTarget(currentRT);
           gl.setClearColor(prevClear, prevAlpha);
@@ -586,8 +634,13 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           createPortal(
             React.createElement(
               EffectErrorBoundary,
-              { effectId: item.effectId },
-              React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras })
+              { 
+                effectId: item.effectId,
+                children: React.createElement(
+                  EffectComponent, 
+                  { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras }
+                )
+              }
             ),
             offscreenScenes[idx]
           )

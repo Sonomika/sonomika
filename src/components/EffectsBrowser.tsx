@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { HeartIcon, HeartFilledIcon, PlusIcon } from '@radix-ui/react-icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { UserEffectsLoader } from './UserEffectsLoader';
+import { useStore } from '../store/store';
 
 interface EffectsBrowserProps {
   onClose?: () => void;
@@ -21,6 +22,8 @@ type LightEffect = {
 };
 
 export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
+  const { showSystemEffectsTab } = (useStore() as any) || {};
+  const showLibraryTab = (() => { try { return typeof window !== 'undefined' && !!(window as any).electron; } catch { return false; } })();
   const FAVORITES_KEY = 'vj-effect-favorites';
   const BANK_TAB_KEY = 'vj-bank-last-tab';
   const [isLoading, setIsLoading] = useState(true);
@@ -29,9 +32,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'effects' | 'sources' | 'user' | 'external' | 'favorites'>(() => {
     try {
       const stored = localStorage.getItem(BANK_TAB_KEY) as 'user' | 'external' | null;
-      if (stored === 'user' || stored === 'external') return stored;
+      if (stored === 'user' && showLibraryTab) return 'user';
+      if (stored === 'external' && !!showSystemEffectsTab) return 'external';
     } catch {}
-    return 'external';
+    return !!showSystemEffectsTab ? 'external' : 'user';
   });
   const [externalFilter, setExternalFilter] = useState<'all' | 'effects' | 'sources'>('all');
   const [userFilter, setUserFilter] = useState<'all' | 'effects' | 'sources'>('all');
@@ -240,18 +244,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     );
   }
 
-  if (!isLoading && effects.length === 0) {
-    return (
-      <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
-        <div className="tw-flex-1 tw-overflow-auto tw-p-4">
-          <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
-            <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No Effects Found</h3>
-            <p>No effects are available to display.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Do not early-return when list is empty; still render tabs so the System tab is visible in web
 
   return (
     <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
@@ -264,8 +257,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           }
         }}>
           <TabsList>
-            <TabsTrigger value="user">Library</TabsTrigger>
-            <TabsTrigger value="external">System</TabsTrigger>
+            {showLibraryTab && (<TabsTrigger value="user">Library</TabsTrigger>)}
+            {!!showSystemEffectsTab && (<TabsTrigger value="external">System</TabsTrigger>)}
             <TabsTrigger value="favorites" title="Favorites">
               {activeTab === 'favorites' ? (
                 <HeartFilledIcon className="tw-w-4 tw-h-4" />
@@ -274,8 +267,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               )}
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="user" />
-          <TabsContent value="external" />
+          {showLibraryTab && (<TabsContent value="user" />)}
+          {!!showSystemEffectsTab && (<TabsContent value="external" />)}
           <TabsContent value="favorites" />
         </Tabs>
       </div>
@@ -306,6 +299,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             try { localStorage.setItem(BANK_TAB_KEY, val); } catch {}
           }
         }}>
+          {showLibraryTab && (
           <TabsContent value="user">
             <div className="tw-space-y-2">
               <div className="tw-mb-1">
@@ -367,6 +361,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               ))}
             </div>
           </TabsContent>
+          )}
           <TabsContent value="external">
             <div className="tw-space-y-2">
               <div className="tw-mb-1">

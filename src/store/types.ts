@@ -159,12 +159,18 @@ export interface AppState {
   midiForceChannel1?: boolean; // If true, remap incoming MIDI events to channel 1
   // Normalize incoming CC numbers by subtracting this offset (e.g., 31 makes CC32 behave like CC1)
   midiCCOffset?: number;
+  // When true, learn CC offset automatically from the next incoming CC message
+  midiAutoDetectOffset?: boolean;
+  // Internal flag that indicates the auto-detect mode is waiting for the next CC message
+  midiAutoDetectOffsetPrimed?: boolean;
   selectedLayerId: string | null;
   selectedTimelineClip: any | null;
   previewMode: 'composition' | 'layer';
   showTimeline: boolean; // Persisted: whether timeline view is active
   middlePanelTab?: 'global' | 'layer';
   rightPanelTab?: 'media' | 'effects' | 'midi' | 'lfo';
+  // Show/hide the System effects tab in the EffectsBrowser
+  showSystemEffectsTab?: boolean;
   transitionType: TransitionType;
   transitionDuration: number;
   assets: Asset[];

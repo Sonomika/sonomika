@@ -45,6 +45,24 @@ export function getCachedVideoCanvas(assetId: string): HTMLCanvasElement | undef
   return videoFrameCanvasCache.get(assetId);
 }
 
+export function clearCachedVideoCanvas(assetId: string): void {
+  const canvas = videoFrameCanvasCache.get(assetId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const w = canvas.width || 0;
+  const h = canvas.height || 0;
+  if (w === 0 || h === 0) {
+    ctx.clearRect(0, 0, w, h);
+    return;
+  }
+  try { ctx.save?.(); } catch {}
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, w, h);
+  try { ctx.restore?.(); } catch {}
+}
+
 async function preloadImageAsset(asset: any): Promise<HTMLImageElement> {
   const id = asset.id;
   if (!id) return Promise.reject(new Error('Image asset missing id'));

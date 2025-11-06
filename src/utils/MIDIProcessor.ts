@@ -10,6 +10,8 @@ type StoreActions = {
   globalPlay: (opts?: { force?: boolean; source?: string }) => void;
   globalPause: (opts?: { force?: boolean; source?: string }) => void;
   globalStop: (opts?: { force?: boolean; source?: string }) => void;
+  setMidiCCOffset: (offset: number) => void;
+  setMidiAutoDetectOffsetPrimed: (primed: boolean) => void;
 };
 
 type Store = AppState & StoreActions;
@@ -26,6 +28,10 @@ export class MIDIProcessor {
   // Global-effects batching (slotId -> { paramName -> value })
   private pendingGlobalUpdates: Map<string, Record<string, number>> = new Map();
   private lastAppliedGlobalValues: Map<string, number> = new Map();
+  // Timeline clip updates batching (clipId -> { paramName -> value }) for same sensitivity as column mode
+  private pendingTimelineUpdates: Map<string, Record<string, number>> = new Map();
+  private pendingTimelineOpacityUpdates: Map<string, number> = new Map();
+  private timelineApplyScheduled: boolean = false;
 
   private constructor() {
     this.mappings = [];
@@ -68,9 +74,128 @@ export class MIDIProcessor {
     }
   }
 
+  private queueTimelineUpdate(clipId: string, paramName: string, value: number) {
+    // Timeline updates trigger expensive re-renders (syncs to tracks via useEffect)
+    // Use slightly higher epsilon to reduce update frequency and match column mode sensitivity
+    const key = `timeline:${clipId}:${paramName}`;
+    const prev = this.lastAppliedParamValues.get(key);
+    // Skip tiny changes - use same epsilon as column mode (0.002 of range)
+    // This prevents excessive updates that slow down sliders
+    if (prev !== undefined && Math.abs(prev - value) < 0.002) return;
+    this.lastAppliedParamValues.set(key, value);
+
+    if (paramName === 'opacity') {
+      this.pendingTimelineOpacityUpdates.set(clipId, value);
+    } else {
+      if (!this.pendingTimelineUpdates.has(clipId)) {
+        this.pendingTimelineUpdates.set(clipId, {});
+      }
+      const existing = this.pendingTimelineUpdates.get(clipId)!;
+      existing[paramName] = value;
+    }
+
+    // Use same requestAnimationFrame batching as column mode
+    if (!this.timelineApplyScheduled) {
+      this.timelineApplyScheduled = true;
+      const flush = () => {
+        try {
+          this.flushTimelineUpdates();
+        } finally {
+          // Always reset scheduled flag, matching column mode's pattern
+          this.timelineApplyScheduled = false;
+        }
+      };
+      try {
+        if (typeof window !== 'undefined' && typeof (window as any).requestAnimationFrame === 'function') {
+          requestAnimationFrame(flush);
+        } else {
+          setTimeout(flush, 0);
+        }
+      } catch {
+        setTimeout(flush, 0);
+      }
+    }
+  }
+
+  private flushTimelineUpdates() {
+    try {
+      const state: any = useStore.getState();
+      if (!state.showTimeline || !state.selectedTimelineClip) {
+        this.pendingTimelineUpdates.clear();
+        this.pendingTimelineOpacityUpdates.clear();
+        return;
+      }
+
+      const selectedClip = state.selectedTimelineClip;
+      const clipId = selectedClip.id;
+      
+      // Capture pending updates at the start to avoid processing new updates that come in during processing
+      // This ensures we only process what was queued at this moment, matching column mode behavior
+      const pendingOpacityValue = this.pendingTimelineOpacityUpdates.get(clipId);
+      const pendingParamUpdates = this.pendingTimelineUpdates.get(clipId);
+      
+      // Clear pending updates immediately (like column mode does) to prevent accumulation
+      // This ensures updates stop immediately when knob stops turning
+      this.pendingTimelineOpacityUpdates.delete(clipId);
+      this.pendingTimelineUpdates.delete(clipId);
+
+      // If no pending updates, nothing to do
+      if (pendingOpacityValue === undefined && (!pendingParamUpdates || Object.keys(pendingParamUpdates).length === 0)) {
+        return;
+      }
+
+      let hasUpdates = false;
+      const clipData = { ...(selectedClip.data || {}) } as any;
+      const currentParams = { ...(clipData.params || {}) } as Record<string, any>;
+      const currentOpacity = clipData.opacity;
+
+      // Apply opacity updates only if changed significantly
+      if (pendingOpacityValue !== undefined) {
+        // Only update if change is significant (same epsilon check)
+        if (currentOpacity === undefined || Math.abs(currentOpacity - pendingOpacityValue) >= 0.002) {
+          clipData.opacity = pendingOpacityValue;
+          hasUpdates = true;
+        }
+      }
+
+      // Apply param updates only if changed significantly
+      if (pendingParamUpdates && Object.keys(pendingParamUpdates).length > 0) {
+        let paramsChanged = false;
+        Object.entries(pendingParamUpdates).forEach(([name, v]) => {
+          const prevValue = currentParams[name]?.value;
+          // Only update if change is significant (same epsilon check)
+          if (prevValue === undefined || Math.abs(prevValue - v) >= 0.002) {
+            const prev = currentParams[name] || {};
+            currentParams[name] = { ...prev, value: v as number };
+            paramsChanged = true;
+          }
+        });
+        if (paramsChanged) {
+          clipData.params = currentParams;
+          hasUpdates = true;
+        }
+      }
+
+      // Only call setSelectedTimelineClip if we have real changes
+      if (hasUpdates && typeof state.setSelectedTimelineClip === 'function') {
+        state.setSelectedTimelineClip({ ...selectedClip, data: clipData });
+      }
+    } catch {}
+  }
+
   private flushParamUpdates() {
     try {
       const state: any = useStore.getState();
+      const isTimeline = !!state.showTimeline;
+      
+      // In timeline mode, don't update column mode layers - they're completely separate
+      if (isTimeline) {
+        // Timeline mode updates are handled by flushTimelineUpdates
+        this.pendingParamUpdates.clear();
+        return;
+      }
+      
+      // Column mode: update layers normally
       const updateLayer = state.updateLayer as (layerId: string, updates: any) => void;
       for (const [layerId, changes] of this.pendingParamUpdates.entries()) {
         const layer = this.findLayer(layerId) as any;
@@ -81,33 +206,6 @@ export class MIDIProcessor {
           currentParams[name] = { ...prevObj, value: v as number };
         });
         updateLayer(layerId, { params: currentParams });
-
-        // When editing in timeline mode, mirror changes into the selectedTimelineClip so UI sliders update
-        try {
-          const st: any = useStore.getState();
-          const clip = st.selectedTimelineClip;
-          if (st.showTimeline && clip) {
-            let matches = false;
-            if (clip.layerId && clip.layerId === layerId) matches = true;
-            if (!matches) {
-              const clipAsset = clip?.data?.asset || {};
-              const assetId = clipAsset.id || clipAsset.name;
-              const layerAsset = (layer && (layer.asset || {})) || {};
-              const layerAssetId = layerAsset.id || layerAsset.name;
-              if (assetId && layerAssetId && assetId === layerAssetId) matches = true;
-            }
-            if (matches && typeof st.setSelectedTimelineClip === 'function') {
-              const clipData = { ...(clip.data || {}) } as any;
-              const clipParams = { ...(clipData.params || {}) } as Record<string, any>;
-              Object.entries(changes).forEach(([name, v]) => {
-                const prev = clipParams[name] || {};
-                clipParams[name] = { ...prev, value: v as number };
-              });
-              clipData.params = clipParams;
-              st.setSelectedTimelineClip({ ...clip, data: clipData });
-            }
-          }
-        } catch {}
       }
       // Flush global-effect updates in a single scene update per frame
       if (this.pendingGlobalUpdates.size > 0) {
@@ -253,10 +351,56 @@ export class MIDIProcessor {
           }
           case 'layer': {
             const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
-            const layer = this.findLayer(layerTarget.id);
-            if (layer) {
+            const st: any = useStore.getState();
+            
+            // In timeline mode, update the clip directly (independent from column mode)
+            if (st.showTimeline && st.selectedTimelineClip && layerTarget.param) {
+              const selectedClip = st.selectedTimelineClip;
+              
+              // Get effect metadata for min/max from the clip's asset
+              let min = 0;
+              let max = 1;
+              try {
+                const clipAsset = selectedClip.data?.asset || {};
+                const effectId = clipAsset.id || clipAsset.name || clipAsset.effectId;
+                if (effectId) {
+                  const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
+                  const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
+                  if (metadata?.parameters) {
+                    const paramConfig = metadata.parameters.find((p: any) => p.name === layerTarget.param);
+                    if (paramConfig) {
+                      if (typeof paramConfig.min === 'number') min = paramConfig.min;
+                      if (typeof paramConfig.max === 'number') max = paramConfig.max;
+                    }
+                  }
+                }
+                
+                // Check clip params for min/max as fallback
+                if (selectedClip.data?.params?.[layerTarget.param]) {
+                  const clipParam = selectedClip.data.params[layerTarget.param];
+                  if (clipParam && typeof clipParam === 'object') {
+                    if (typeof clipParam.min === 'number') min = clipParam.min;
+                    if (typeof clipParam.max === 'number') max = clipParam.max;
+                  }
+                }
+              } catch {}
+              
+              const range = max - min;
+              const normalizedValue = velocity / 127;
+              const mappedValue = min + (range * normalizedValue);
+              
+              // Queue timeline updates with same batching as column mode for matching sensitivity
+              this.queueTimelineUpdate(selectedClip.id, layerTarget.param, mappedValue);
+              break; // Skip column mode processing in timeline mode
+            }
+            
+            // Column mode: use existing layer resolution logic
+            let layer = this.findLayer(layerTarget.id);
+            
+            if (layer && layerTarget.param) {
+              const effectiveLayerId = layer.id;
               if (layerTarget.param === 'opacity') {
-                store.updateLayer(layerTarget.id, { opacity: velocity / 127 });
+                store.updateLayer(effectiveLayerId, { opacity: velocity / 127 });
               } else if (layerTarget.param) {
                 // Derive min/max more robustly: prefer effect metadata, else infer from existing value object
                 const metadata = this.getEffectMetadataForLayer(layer) as any;
@@ -277,7 +421,7 @@ export class MIDIProcessor {
                 const range = max - min;
                 const normalizedValue = velocity / 127;
                 const mappedValue = min + (range * normalizedValue);
-                this.queueLayerParamUpdate(layerTarget.id, layerTarget.param, mappedValue);
+                this.queueLayerParamUpdate(effectiveLayerId, layerTarget.param, mappedValue);
               }
             }
             break;
@@ -312,9 +456,26 @@ export class MIDIProcessor {
   }
 
   handleCCMessage(cc: number, value: number, channel: number): void {
-    const store = useStore.getState() as Store;
+    let store = useStore.getState() as Store;
     const force = !!(store as any).midiForceChannel1;
     const effectiveChannel = force ? 1 : channel;
+
+    if (store.midiAutoDetectOffset && store.midiAutoDetectOffsetPrimed) {
+      try {
+        const learnedOffset = Math.max(0, Math.min(127, cc > 0 ? cc - 1 : 0));
+        if (typeof store.setMidiCCOffset === 'function') {
+          store.setMidiCCOffset(learnedOffset);
+        }
+        if (typeof store.setMidiAutoDetectOffsetPrimed === 'function') {
+          store.setMidiAutoDetectOffsetPrimed(false);
+        }
+      } catch {
+        // Ignore learning errors but continue processing with existing offset
+      } finally {
+        store = useStore.getState() as Store;
+      }
+    }
+
     const ccOffset = Math.max(0, Math.min(127, Number((store as any).midiCCOffset) || 0));
     const normalizedCC = Math.max(0, Math.min(127, cc - ccOffset));
 
@@ -368,11 +529,57 @@ export class MIDIProcessor {
           }
           case 'layer': {
             const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
-            const layer = this.findLayer(layerTarget.id);
-            if (layer) {
+            const st: any = useStore.getState();
+            
+            // In timeline mode, update the clip directly (independent from column mode)
+            if (st.showTimeline && st.selectedTimelineClip && layerTarget.param) {
+              const selectedClip = st.selectedTimelineClip;
+              
+              // Get effect metadata for min/max from the clip's asset
+              let min = 0;
+              let max = 1;
+              try {
+                const clipAsset = selectedClip.data?.asset || {};
+                const effectId = clipAsset.id || clipAsset.name || clipAsset.effectId;
+                if (effectId) {
+                  const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
+                  const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
+                  if (metadata?.parameters) {
+                    const paramConfig = metadata.parameters.find((p: any) => p.name === layerTarget.param);
+                    if (paramConfig) {
+                      if (typeof paramConfig.min === 'number') min = paramConfig.min;
+                      if (typeof paramConfig.max === 'number') max = paramConfig.max;
+                    }
+                  }
+                }
+                
+                // Check clip params for min/max as fallback
+                if (selectedClip.data?.params?.[layerTarget.param]) {
+                  const clipParam = selectedClip.data.params[layerTarget.param];
+                  if (clipParam && typeof clipParam === 'object') {
+                    if (typeof clipParam.min === 'number') min = clipParam.min;
+                    if (typeof clipParam.max === 'number') max = clipParam.max;
+                  }
+                }
+              } catch {}
+              
+              const range = max - min;
+              const normalizedValue = value / 127;
+              const mappedValue = min + (range * normalizedValue);
+              
+              // Queue timeline updates with same batching as column mode for matching sensitivity
+              this.queueTimelineUpdate(selectedClip.id, layerTarget.param, mappedValue);
+              break; // Skip column mode processing in timeline mode
+            }
+            
+            // Column mode: use existing layer resolution logic
+            let layer = this.findLayer(layerTarget.id);
+            
+            if (layer && layerTarget.param) {
+              const effectiveLayerId = layer.id;
               if (layerTarget.param === 'opacity') {
-                store.updateLayer(layerTarget.id, { opacity: value / 127 });
-              } else if (layerTarget.param) {
+                store.updateLayer(effectiveLayerId, { opacity: value / 127 });
+              } else {
                 const metadata = this.getEffectMetadataForLayer(layer) as any;
                 const paramConfig = metadata?.parameters?.find((p: any) => p.name === layerTarget.param);
                 let min = 0; let max = 1;
@@ -381,17 +588,17 @@ export class MIDIProcessor {
                   if (typeof paramConfig.max === 'number') max = paramConfig.max;
                 } else {
                   try {
-                    const existing = ((layer as any).params || {})[layerTarget.param];
-                    if (existing && typeof existing === 'object') {
-                      if (typeof existing.min === 'number') min = existing.min;
-                      if (typeof existing.max === 'number') max = existing.max;
+                    const layerParam = ((layer as any).params || {})[layerTarget.param];
+                    if (layerParam && typeof layerParam === 'object') {
+                      if (typeof layerParam.min === 'number') min = layerParam.min;
+                      if (typeof layerParam.max === 'number') max = layerParam.max;
                     }
                   } catch {}
                 }
                 const range = max - min;
                 const normalizedValue = value / 127;
                 const mappedValue = min + (range * normalizedValue);
-                this.queueLayerParamUpdate(layerTarget.id, layerTarget.param, mappedValue);
+                this.queueLayerParamUpdate(effectiveLayerId, layerTarget.param, mappedValue);
               }
             }
             break;
@@ -527,14 +734,98 @@ export class MIDIProcessor {
   }
 
   private findLayer(layerId: string) {
-    const store = useStore.getState();
-    const currentScene = store.scenes.find(s => s.id === store.currentSceneId);
-    if (!currentScene) return null;
-
-    for (const column of currentScene.columns) {
-      const layer = column.layers.find(l => l.id === layerId);
-      if (layer) return layer;
+    const store: any = useStore.getState();
+    const isTimeline = !!store.showTimeline;
+    
+    // Handle timeline pseudo-layer IDs (e.g., "timeline-layer-{clipId}")
+    if (isTimeline && String(layerId).startsWith('timeline-layer-')) {
+      const clipId = String(layerId).replace('timeline-layer-', '');
+      const selectedClip = store.selectedTimelineClip;
+      
+      // If the selected clip matches this pseudo ID, resolve to the actual layer
+      if (selectedClip && selectedClip.id === clipId) {
+        // First try to use explicit layerId from the clip
+        if (selectedClip.layerId) {
+          const actualLayerId = selectedClip.layerId;
+          // Try to find the actual layer in timeline scenes
+          const sceneList = store.timelineScenes || [];
+          const sceneId = store.currentTimelineSceneId;
+          const currentScene = sceneList.find((s: any) => s && s.id === sceneId);
+          if (currentScene) {
+            for (const column of currentScene.columns || []) {
+              const layer = column.layers.find((l: any) => l.id === actualLayerId);
+              if (layer) return layer;
+            }
+          }
+          // If not found in timeline scenes, try column scenes
+          const columnSceneList = store.scenes || [];
+          const columnSceneId = store.currentSceneId;
+          const columnScene = columnSceneList.find((s: any) => s && s.id === columnSceneId);
+          if (columnScene) {
+            for (const column of columnScene.columns || []) {
+              const layer = column.layers.find((l: any) => l.id === actualLayerId);
+              if (layer) return layer;
+            }
+          }
+        }
+        
+        // If no explicit layerId but we have clip data, try to resolve by asset matching
+        if (selectedClip.data) {
+          const assetId = selectedClip.data?.asset?.id || selectedClip.data?.asset?.name || selectedClip.data?.name;
+          const isVideo = selectedClip.data?.type === 'video' || selectedClip.data?.asset?.type === 'video';
+          
+          // Check timeline scenes first
+          const sceneList = store.timelineScenes || [];
+          const sceneId = store.currentTimelineSceneId;
+          const currentScene = sceneList.find((s: any) => s && s.id === sceneId);
+          if (currentScene) {
+            const allLayers = currentScene.columns.flatMap((c: any) => c.layers || []);
+            const match = isVideo
+              ? allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === assetId || l?.asset?.name === assetId))
+              : allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === assetId || l?.asset?.name === assetId));
+            if (match) return match;
+          }
+          
+          // Fallback to column scenes
+          const columnSceneList = store.scenes || [];
+          const columnSceneId = store.currentSceneId;
+          const columnScene = columnSceneList.find((s: any) => s && s.id === columnSceneId);
+          if (columnScene) {
+            const allLayers = columnScene.columns.flatMap((c: any) => c.layers || []);
+            const match = isVideo
+              ? allLayers.find((l: any) => l?.asset?.type === 'video' && (l?.asset?.id === assetId || l?.asset?.name === assetId))
+              : allLayers.find((l: any) => (l?.asset?.isEffect || l?.type === 'effect') && (l?.asset?.id === assetId || l?.asset?.name === assetId));
+            if (match) return match;
+          }
+        }
+      }
     }
+    
+    // Standard lookup: try timeline scenes first if in timeline mode
+    const sceneList = isTimeline ? (store.timelineScenes || []) : (store.scenes || []);
+    const sceneId = isTimeline ? store.currentTimelineSceneId : store.currentSceneId;
+    let currentScene = sceneList.find((s: any) => s && s.id === sceneId);
+    
+    if (currentScene) {
+      for (const column of currentScene.columns || []) {
+        const layer = column.layers.find((l: any) => l.id === layerId);
+        if (layer) return layer;
+      }
+    }
+    
+    // Fallback: if in timeline mode and not found, also check column scenes
+    if (isTimeline) {
+      const columnSceneList = store.scenes || [];
+      const columnSceneId = store.currentSceneId;
+      const columnScene = columnSceneList.find((s: any) => s && s.id === columnSceneId);
+      if (columnScene) {
+        for (const column of columnScene.columns || []) {
+          const layer = column.layers.find((l: any) => l.id === layerId);
+          if (layer) return layer;
+        }
+      }
+    }
+    
     return null;
   }
 
