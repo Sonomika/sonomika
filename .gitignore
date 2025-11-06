@@ -13,6 +13,7 @@ dist/
 build/
 out/
 release/
+dist-portable/
 
 # OS generated files
 .DS_Store

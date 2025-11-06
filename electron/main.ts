@@ -220,6 +220,7 @@ function createWindow() {
   
   if (isDev) {
     console.log('Running in development mode');
+<<<<<<< HEAD
     // Try to load from dev server with better error handling
     const loadDevURL = (host: string, port: number, retryCount = 0) => {
       const url = `http://${host}:${port}`;
@@ -251,6 +252,64 @@ function createWindow() {
     
     // Wait a bit longer for dev server to start, then try localhost first
     setTimeout(() => loadDevURL('localhost', 5173), 2000);
+=======
+    // Prefer explicit dev server URL if provided by Vite plugin
+    const preferredUrl = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL;
+    const candidates: string[] = [];
+    if (preferredUrl) {
+      candidates.push(preferredUrl);
+    }
+    // Fallback to common ports
+    candidates.push('http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175');
+
+    const tryLoadSequentially = (urls: string[], index = 0) => {
+      if (!urls[index]) {
+        console.log('All dev URLs failed, loading fallback HTML');
+        const candidatePaths = [
+          path.join(__dirname, '../web/index.html'),
+          path.join(__dirname, '../dist/index.html'),
+          path.join(__dirname, '../index.html'),
+          path.join(__dirname, '../../index.html'),
+        ];
+        const found = candidatePaths.find(p => {
+          try { return fs.existsSync(p); } catch { return false; }
+        });
+        if (found) {
+          console.log('Loading fallback file:', found);
+          mainWindow!.loadFile(found).catch((error) => {
+            console.error('Failed to load fallback HTML:', error);
+            mainWindow!.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+          });
+        } else {
+          console.warn('No fallback index.html found. Loading data URL.');
+          mainWindow!.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+        }
+        return;
+      }
+      const url = urls[index];
+      console.log(`Trying to load dev URL: ${url}`);
+      mainWindow!.loadURL(url).then(() => {
+        console.log(`Successfully loaded: ${url}`);
+        mainWindow!.webContents.openDevTools();
+      }).catch((_error) => {
+        // Small delay before trying next candidate
+        setTimeout(() => tryLoadSequentially(urls, index + 1), 400);
+      });
+    };
+
+    // Clear caches to avoid stale optimized deps during dev, then start attempts
+    try {
+      const ses = mainWindow!.webContents.session;
+      Promise.all([
+        ses.clearCache(),
+        ses.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] })
+      ]).catch(() => {}).finally(() => {
+        setTimeout(() => tryLoadSequentially(candidates), 400);
+      });
+    } catch {
+      setTimeout(() => tryLoadSequentially(candidates), 400);
+    }
+>>>>>>> dd5981ff627981bee24613b9f5dbc2b5cae5a7d9
   } else {
     console.log('Running in production mode');
     const appPath = app.getAppPath();
