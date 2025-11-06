@@ -573,8 +573,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
                 React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
                 React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
               ),
-              offscreenScenes[idx],
-              portalKey
+              offscreenScenes[idx]
             )
           )
         );
@@ -590,8 +589,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
               { effectId: item.effectId },
               React.createElement(EffectComponent, { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras })
             ),
-            offscreenScenes[idx],
-            fxPortalKey
+            offscreenScenes[idx]
           )
         )
       );

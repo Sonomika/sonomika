@@ -84,6 +84,15 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   // Detect Electron vs Web
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
 
+  // Resolve logo path for both dev and production
+  // Vite copies public/icons/ to dist/icons/ during build
+  // With base: './', we need to use relative path from index.html location
+  const getLogoPath = () => {
+    // In production, dist/icons/sonomika.svg should exist
+    // Use relative path which works with base: './'
+    return './icons/sonomika.svg';
+  };
+
   // Radix Popover handles outside clicks when controlled via open/onOpenChange
   // so we avoid manual document listeners that could intercept item clicks
 
@@ -130,7 +139,20 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
       <div className="tw-h-8 tw-flex tw-items-center tw-justify-between tw-pl-0 tw-pr-2 tw-cursor-grab app-drag-region" style={{ backgroundColor: '#0d0d0d' }}>
         <div className="tw-flex tw-items-center tw-flex-none tw-min-w-[120px]">
           <div className="tw-ml-[3px] tw-px-3 tw-py-2 tw-rounded tw-transition-colors app-no-drag">
-            <img src="/icons/sonomika.svg" alt="sonomika" className="tw-h-3 tw-w-auto logo-svg" />
+            <img src={getLogoPath()} alt="sonomika" className="tw-h-3 tw-w-auto logo-svg" onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              // Try multiple fallback paths
+              const fallbacks = [
+                '/icons/sonomika.svg',
+                './icons/sonomika.svg',
+                '../icons/sonomika.svg',
+                'icons/sonomika.svg'
+              ];
+              const currentIndex = fallbacks.indexOf(target.src);
+              if (currentIndex < fallbacks.length - 1) {
+                target.src = fallbacks[currentIndex + 1];
+              }
+            }} />
           </div>
           {currentPresetName && (
             <>

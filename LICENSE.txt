@@ -1,0 +1,37 @@
+TERMS AND CONDITIONS FOR SONOMIKA
+
+Last Updated: 2024
+
+1. ACCEPTANCE OF TERMS
+By installing, copying, or using Sonomika ("the Software"), you agree to be bound by the terms and conditions of this agreement. If you do not agree to these terms, do not install or use the Software.
+
+2. LICENSE GRANT
+Subject to the terms and conditions of this agreement, you are granted a non-exclusive, non-transferable license to use the Software for personal or commercial purposes.
+
+3. RESTRICTIONS
+You may not:
+- Reverse engineer, decompile, or disassemble the Software
+- Remove any proprietary notices or labels from the Software
+- Rent, lease, or lend the Software to third parties
+- Use the Software for any illegal purpose
+
+4. INTELLECTUAL PROPERTY
+The Software and all intellectual property rights therein are owned by the copyright holders. This license does not grant you any rights to use such trademarks, service marks, or logos.
+
+5. DISCLAIMER OF WARRANTIES
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+6. LIMITATION OF LIABILITY
+IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR AUTHORS BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT, OR CONSEQUENTIAL DAMAGES WHATSOEVER (INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR ANY OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OF OR INABILITY TO USE THE SOFTWARE, EVEN IF THE COPYRIGHT HOLDERS HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+7. TERMINATION
+This license is effective until terminated. Your rights under this license will terminate automatically without notice if you fail to comply with any term of this license.
+
+8. GOVERNING LAW
+This agreement shall be governed by and construed in accordance with the laws of the jurisdiction in which the Software is used.
+
+9. ENTIRE AGREEMENT
+This agreement constitutes the entire agreement between you and the copyright holders regarding the use of the Software.
+
+By clicking "I Agree" or by installing the Software, you acknowledge that you have read and understood this agreement and agree to be bound by its terms and conditions.
+

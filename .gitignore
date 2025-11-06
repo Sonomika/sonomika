@@ -12,6 +12,7 @@ examples/
 dist/
 build/
 out/
+release/
 
 # OS generated files
 .DS_Store

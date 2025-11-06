@@ -207,8 +207,8 @@ function createWindow() {
   if (isDev) {
     console.log('Running in development mode');
     // Try to load from dev server with better error handling
-    const loadDevURL = (port: number, retryCount = 0) => {
-      const url = `http://localhost:${port}`;
+    const loadDevURL = (host: string, port: number, retryCount = 0) => {
+      const url = `http://${host}:${port}`;
       console.log(`Trying to load: ${url} (attempt ${retryCount + 1})`);
       
       mainWindow!.loadURL(url).then(() => {
@@ -218,42 +218,32 @@ function createWindow() {
         console.log(`Failed to load ${url}:`, error.message);
         
         // Retry logic with exponential backoff
-        if (retryCount < 3) {
+        if (retryCount < 5) {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
           console.log(`Retrying in ${delay}ms...`);
-          setTimeout(() => loadDevURL(port, retryCount + 1), delay);
+          setTimeout(() => loadDevURL(host, port, retryCount + 1), delay);
         } else {
-          console.log('All ports failed, loading fallback HTML');
-          const candidatePaths = [
-            path.join(__dirname, '../web/index.html'),
-            path.join(__dirname, '../dist/index.html'),
-            path.join(__dirname, '../index.html'),
-            path.join(__dirname, '../../index.html'),
-          ];
-          const found = candidatePaths.find(p => {
-            try { return fs.existsSync(p); } catch { return false; }
-          });
-          if (found) {
-            console.log('Loading fallback file:', found);
-            mainWindow!.loadFile(found).catch((error) => {
-              console.error('Failed to load fallback HTML:', error);
-              mainWindow!.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
-            });
+          // Try alternative host (IPv4 vs IPv6)
+          if (host === 'localhost') {
+            console.log('Trying IPv4 address 127.0.0.1 instead...');
+            setTimeout(() => loadDevURL('127.0.0.1', port, 0), 500);
           } else {
-            console.warn('No fallback index.html found. Loading data URL.');
-            mainWindow!.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Loading...</p></body></html>`);
+            console.log('All attempts failed, showing error message');
+            mainWindow!.loadURL(`data:text/html,<html><body style="font-family: sans-serif; padding: 20px;"><h1>Dev Server Not Available</h1><p>Could not connect to Vite dev server at http://localhost:${port}</p><p>Please ensure the dev server is running:</p><pre style="background: #f0f0f0; padding: 10px; border-radius: 4px;">npm run dev:electron</pre></body></html>`);
           }
         }
       });
     };
     
-    // Only try Electron dev server port 5173
-    setTimeout(() => loadDevURL(5173), 500);
+    // Wait a bit longer for dev server to start, then try localhost first
+    setTimeout(() => loadDevURL('localhost', 5173), 2000);
   } else {
     console.log('Running in production mode');
+    const appPath = app.getAppPath();
     const prodCandidates = [
-      path.join(__dirname, '../web/index.html'),
-      path.join(__dirname, '../dist/index.html')
+      path.join(appPath, 'dist/index.html'),
+      path.join(__dirname, '../dist/index.html'),
+      path.join(__dirname, '../web/index.html')
     ];
     const found = prodCandidates.find(p => {
       try { return fs.existsSync(p); } catch { return false; }
@@ -263,6 +253,8 @@ function createWindow() {
       mainWindow.loadFile(found);
     } else {
       console.error('No production index.html found at', prodCandidates);
+      console.error('App path:', appPath);
+      console.error('__dirname:', __dirname);
       mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Missing build.</p></body></html>`);
     }
   }
