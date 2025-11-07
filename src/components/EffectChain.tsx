@@ -292,6 +292,19 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   useFrame(() => {
     // Ensure no automatic clears between passes
     try { (gl as any).autoClear = false; } catch {}
+    // Explicitly clear the default framebuffer once per frame to avoid trails
+    // when preserveDrawingBuffer is true and the canvas clear alpha is 0
+    try {
+      const prevTarget = gl.getRenderTarget();
+      const prevClear = new THREE.Color();
+      gl.getClearColor(prevClear);
+      const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+      gl.setRenderTarget(null);
+      gl.setClearColor(0x000000, 0);
+      gl.clear(true, true, true);
+      gl.setRenderTarget(prevTarget);
+      gl.setClearColor(prevClear, prevAlpha);
+    } catch {}
     ensureRTs();
     let currentTexture: THREE.Texture | null = seedTexture || null;
     const nextInputTextures: Array<THREE.Texture | null> = items.map(() => null);
@@ -494,25 +507,20 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       } else if (item.type === 'source') {
         const rt = rtRefs.current[idx]!;
         const currentRT = gl.getRenderTarget();
-        // update background quad to previous pass texture
+        // For sources, treat the stage as replacing content each frame — no previous-pass background
         const bgMesh = bgMeshesRef.current[idx];
         if (bgMesh) {
+          bgMesh.visible = false;
           const mat = bgMesh.material as THREE.MeshBasicMaterial;
-          const nextMap = currentTexture as any;
-          if (mat.map !== nextMap) {
-            mat.map = nextMap;
-            mat.needsUpdate = true;
-          }
-          bgMesh.visible = !!nextMap;
+          if (mat.map) { (mat as any).map = null; mat.needsUpdate = true; }
         }
         const prevClear = new THREE.Color();
         gl.getClearColor(prevClear);
         const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
-        // Do not clear color; prior pass is drawn as a background quad
+        // Clear color + depth/stencil so no accumulation/trails occur within source stages
         gl.setClearColor(0x000000, 0);
         gl.setRenderTarget(rt);
-        // Clear depth/stencil so layered draws don't reuse stale buffers
-        gl.clear(false, true, true);
+        gl.clear(true, true, true);
         gl.render(offscreenScenes[idx], camera);
         gl.setRenderTarget(currentRT);
         gl.setClearColor(prevClear, prevAlpha);
