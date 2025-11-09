@@ -67,3 +67,4 @@ jspm_packages/
 dist-electron/
 
 tsconfig.node.tsbuildinfo
+bundled/sets/debug-test-preset.vjpreset
