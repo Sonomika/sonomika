@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { HeartIcon, HeartFilledIcon, PlusIcon } from '@radix-ui/react-icons';
+import { HeartIcon, HeartFilledIcon } from '@radix-ui/react-icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { UserEffectsLoader } from './UserEffectsLoader';
-import { useStore } from '../store/store';
 
 interface EffectsBrowserProps {
   onClose?: () => void;
@@ -22,20 +21,29 @@ type LightEffect = {
 };
 
 export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
-  const { showSystemEffectsTab } = (useStore() as any) || {};
-  const showLibraryTab = (() => { try { return typeof window !== 'undefined' && !!(window as any).electron; } catch { return false; } })();
+  const isElectron = (() => {
+    try {
+      return typeof window !== 'undefined' && !!(window as any).electron;
+    } catch {
+      return false;
+    }
+  })();
+  const showLibraryTab = isElectron;
+  const showBundledTab = !isElectron;
   const FAVORITES_KEY = 'vj-effect-favorites';
-  const BANK_TAB_KEY = 'vj-bank-last-tab';
+  const BUNDLED_TAB_KEY = 'vj-bundled-last-tab';
   const [isLoading, setIsLoading] = useState(true);
   const [loadingText, setLoadingText] = useState('Discovering effects...');
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'effects' | 'sources' | 'user' | 'external' | 'favorites'>(() => {
     try {
-      const stored = localStorage.getItem(BANK_TAB_KEY) as 'user' | 'external' | null;
+      const stored = localStorage.getItem(BUNDLED_TAB_KEY) as 'user' | 'external' | null;
       if (stored === 'user' && showLibraryTab) return 'user';
-      if (stored === 'external' && !!showSystemEffectsTab) return 'external';
+      if (stored === 'external' && showBundledTab) return 'external';
     } catch {}
-    return !!showSystemEffectsTab ? 'external' : 'user';
+    if (showLibraryTab) return 'user';
+    if (showBundledTab) return 'external';
+    return 'favorites';
   });
   const [externalFilter, setExternalFilter] = useState<'all' | 'effects' | 'sources'>('all');
   const [userFilter, setUserFilter] = useState<'all' | 'effects' | 'sources'>('all');
@@ -51,7 +59,6 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
       setLoadingText('Refreshing effects...');
       const { EffectDiscovery } = await import('../utils/EffectDiscovery');
       const discovery = EffectDiscovery.getInstance();
-      // Ensure user FX are autoloaded before listing
       try {
         const enabled = localStorage.getItem('vj-autoload-user-effects-enabled') === '1';
         const dir = localStorage.getItem('vj-fx-user-dir') || '';
@@ -59,7 +66,6 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           await discovery.loadUserEffectsFromDirectory(dir);
         }
       } catch {}
-      // Prefer filesystem-based discovery in Electron for immediate detection of new files
       const light = await discovery.listAvailableEffectsFromFilesystem();
       if (!mounted) return;
       const mapped: LightEffect[] = light.map((e: any) => ({
@@ -85,11 +91,10 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   useEffect(() => {
     refreshEffects();
     const handler = () => refreshEffects();
-    window.addEventListener('vj-bank-updated', handler as any);
-    return () => { window.removeEventListener('vj-bank-updated', handler as any); };
+    window.addEventListener('vj-bundled-updated', handler as any);
+    return () => { window.removeEventListener('vj-bundled-updated', handler as any); };
   }, []);
 
-  // Load favorites from localStorage once
   useEffect(() => {
     try {
       const stored = localStorage.getItem(FAVORITES_KEY);
@@ -106,8 +111,6 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   };
 
   const effectKey = (e: LightEffect) => e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`;
-
-  // Utility: clean display name by removing trailing "(External)" and redundant whitespace
   const displayName = (name: string) => (name || '').replace(/\s*\(External\)\s*$/i, '').trim();
 
   const toggleFavorite = (e: LightEffect) => {
@@ -128,18 +131,18 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     );
   }, [effects, search]);
 
-  const isExternalBank = (e: LightEffect) => {
+  const isBundledEffect = (e: LightEffect) => {
+    if (!showBundledTab) return false;
     const src = (e as any)?.fileKey || '';
-    // Treat any non-user effect as System; also keep legacy bank/ path check
     const isSystem = e?.metadata?.isUserEffect === false;
-    const looksLikeBankPath = typeof src === 'string' && src.includes('bank/');
-    return isSystem || looksLikeBankPath;
+    const looksLikeBundledPath = typeof src === 'string' && (src.includes('bundled/') || src.startsWith('effects/') || src.startsWith('sources/'));
+    return isSystem || looksLikeBundledPath;
   };
 
-  const visualEffectsAll = filtered.filter((e) => !(e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect && !isExternalBank(e));
-  const generativeSourcesAll = filtered.filter((e) => (e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect && !isExternalBank(e));
-  const userEffectsAll = filtered.filter((e) => e.metadata?.isUserEffect && !isExternalBank(e));
-  const externalBankAll = filtered.filter((e) => isExternalBank(e));
+  const visualEffectsAll = filtered.filter((e) => !(e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect && !isBundledEffect(e));
+  const generativeSourcesAll = filtered.filter((e) => (e.metadata?.isSource || e.metadata?.folder === 'sources') && !e.metadata?.isUserEffect && !isBundledEffect(e));
+  const userEffectsAll = filtered.filter((e) => e.metadata?.isUserEffect && !isBundledEffect(e));
+  const bundledAll = filtered.filter((e) => isBundledEffect(e));
 
   const visualEffects = Array.from(
     visualEffectsAll.reduce((map, e) => {
@@ -190,8 +193,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     return userEffects;
   }, [userEffects, userFilter]);
 
-  const externalBankEffects = Array.from(
-    externalBankAll.reduce((map, e) => {
+  const bundledEffects = Array.from(
+    bundledAll.reduce((map, e) => {
       const existing = map.get(e.id);
       if (!existing) map.set(e.id, e);
       return map;
@@ -199,12 +202,11 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
   );
 
   const externalFiltered = useMemo(() => {
-    if (externalFilter === 'effects') return externalBankEffects.filter((e) => !e.metadata?.isSource);
-    if (externalFilter === 'sources') return externalBankEffects.filter((e) => !!e.metadata?.isSource);
-    return externalBankEffects;
-  }, [externalBankEffects, externalFilter]);
+    if (externalFilter === 'effects') return bundledEffects.filter((e) => !e.metadata?.isSource);
+    if (externalFilter === 'sources') return bundledEffects.filter((e) => !!e.metadata?.isSource);
+    return bundledEffects;
+  }, [bundledEffects, externalFilter]);
 
-  // Favorites across ALL sources (system, user, external) from current filtered set
   const favoritedAll = useMemo(() => {
     const onlyFaved = filtered.filter((e) => favorites.includes(effectKey(e)));
     const map = new Map<string, LightEffect>();
@@ -224,7 +226,6 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     [favoritedAll]
   );
 
-  // Unified favorites collection and filter
   const favoritesFiltered = useMemo(() => {
     if (favoritesFilter === 'effects') return favoritedEffects;
     if (favoritesFilter === 'sources') return favoritedSources;
@@ -244,21 +245,19 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     );
   }
 
-  // Do not early-return when list is empty; still render tabs so the System tab is visible in web
-
   return (
     <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-h-full tw-w-full tw-rounded-md tw-border tw-border-neutral-800">
       <div className="tw-mb-2">
         <Tabs value={activeTab} onValueChange={(v) => {
           const val = v as 'user' | 'external' | 'favorites';
           setActiveTab(val);
-          if (val === 'user' || val === 'external') {
-            try { localStorage.setItem(BANK_TAB_KEY, val); } catch {}
+          if ((val === 'user' && showLibraryTab) || (val === 'external' && showBundledTab)) {
+            try { localStorage.setItem(BUNDLED_TAB_KEY, val); } catch {}
           }
         }}>
           <TabsList>
             {showLibraryTab && (<TabsTrigger value="user">Library</TabsTrigger>)}
-            {!!showSystemEffectsTab && (<TabsTrigger value="external">System</TabsTrigger>)}
+            {showBundledTab && (<TabsTrigger value="external">Bundled</TabsTrigger>)}
             <TabsTrigger value="favorites" title="Favorites">
               {activeTab === 'favorites' ? (
                 <HeartFilledIcon className="tw-w-4 tw-h-4" />
@@ -268,7 +267,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             </TabsTrigger>
           </TabsList>
           {showLibraryTab && (<TabsContent value="user" />)}
-          {!!showSystemEffectsTab && (<TabsContent value="external" />)}
+          {showBundledTab && (<TabsContent value="external" />)}
           <TabsContent value="favorites" />
         </Tabs>
       </div>
@@ -280,7 +279,6 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
           onChange={(e) => setSearch(e.target.value)}
           className="tw-flex-1 tw-rounded tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
         />
-        {/* Refresh effects using compact param button styling */}
         <button
           type="button"
           onClick={refreshEffects}
@@ -295,8 +293,8 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
         <Tabs value={activeTab} onValueChange={(v) => {
           const val = v as 'user' | 'external' | 'favorites';
           setActiveTab(val);
-          if (val === 'user' || val === 'external') {
-            try { localStorage.setItem(BANK_TAB_KEY, val); } catch {}
+          if ((val === 'user' && showLibraryTab) || (val === 'external' && showBundledTab)) {
+            try { localStorage.setItem(BUNDLED_TAB_KEY, val); } catch {}
           }
         }}>
           {showLibraryTab && (
@@ -338,16 +336,14 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   }}
                   title={`${e.name}: ${e.description} (Author: ${e.author})`}
                 >
-                  <div className="tw-flex tw-items-center tw-justify-between">
+                  <div className="tw-flex tw-items-center tw-justifyetween">
                     <div>
                       <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                       <div className="tw-text-xs ">by {e.author}</div>
                     </div>
                     <button
                       onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
-                      className={
-                        'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'
-                      }
+                      className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'}
                       title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
                     >
                       {favorites.includes(effectKey(e)) ? (
@@ -362,6 +358,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
             </div>
           </TabsContent>
           )}
+          {showBundledTab && (
           <TabsContent value="external">
             <div className="tw-space-y-2">
               <div className="tw-mb-1">
@@ -369,21 +366,21 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='all' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setExternalFilter('all')}
-                  >All {externalBankEffects.length}</button>
+                  >All {bundledEffects.length}</button>
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='effects' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setExternalFilter('effects')}
-                  >Effects {externalBankEffects.filter((e) => !e.metadata?.isSource).length}</button>
+                  >Effects {bundledEffects.filter((e) => !e.metadata?.isSource).length}</button>
                   <button
                     className={`tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 ${externalFilter==='sources' ? 'tw-bg-neutral-700 tw-border-neutral-700 ' : 'tw-bg-neutral-800  tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                     onClick={() => setExternalFilter('sources')}
-                  >Sources {externalBankEffects.filter((e) => !!e.metadata?.isSource).length}</button>
+                  >Sources {bundledEffects.filter((e) => !!e.metadata?.isSource).length}</button>
                 </div>
               </div>
-              {externalBankEffects.length === 0 && (
+              {bundledEffects.length === 0 && (
                 <div className="tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-6 tw-text-center">
-                  <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No System items</h3>
-                  <p>Portable items in project bank will appear here.</p>
+                  <h3 className="tw-text-lg tw-font-semibold tw-mb-1">No Bundled items</h3>
+                  <p>Bundled effects will appear here.</p>
                 </div>
               )}
               {externalFiltered.map((e) => (
@@ -418,6 +415,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
               ))}
             </div>
           </TabsContent>
+          )}
           <TabsContent value="favorites">
             <div className="tw-space-y-2">
               <div className="tw-mb-1">
@@ -483,7 +481,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
         onOpenChange={setUserEffectsLoaderOpen}
         onEffectsLoaded={(count) => {
           console.log(`Loaded ${count} user effects`);
-          refreshEffects(); // Refresh the effects list to show newly loaded effects
+          refreshEffects();
         }}
       />
     </div>
