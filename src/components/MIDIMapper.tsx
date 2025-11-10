@@ -152,6 +152,40 @@ export const MIDIMapper: React.FC = () => {
     updateMappings(next);
   };
 
+  const loadMappingsFromContent = (raw: string) => {
+    try {
+      const parsed = JSON.parse(raw);
+      const mappingsOnly = parsed?.data?.midiMappings || parsed?.midiMappings || parsed;
+      const maybeForce = parsed?.data?.midiForceChannel1 ?? parsed?.midiForceChannel1;
+      if (Array.isArray(mappingsOnly)) {
+        setMIDIMappings(mappingsOnly as any);
+        setSelectedIndex(0);
+        setActiveTab('mappings');
+        if (typeof maybeForce === 'boolean') {
+          setMIDIForceChannel1(maybeForce);
+        }
+      } else {
+        console.warn('Selected file did not contain midiMappings array');
+      }
+    } catch (err) {
+      console.warn('Failed to parse MIDI mapping file:', err);
+    }
+  };
+
+  const handleFileList = (files: FileList | null) => {
+    const file = files && files.length > 0 ? files[0] : null;
+    if (!file) return;
+    file
+      .text()
+      .then((text) => loadMappingsFromContent(text))
+      .catch((err) => console.warn('Failed to read MIDI mapping file:', err))
+      .finally(() => {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      });
+  };
+
   // System Save: Electron showSaveDialog or File System Access API
   const saveMappingsToFile = async () => {
     try {
@@ -256,17 +290,7 @@ export const MIDIMapper: React.FC = () => {
                     if (!result.canceled && result.filePaths && result.filePaths[0]) {
                       const content = await (window as any).electron.readFileText(result.filePaths[0]);
                       if (content) {
-                        try {
-                          const parsed = JSON.parse(content);
-                          const mappingsOnly = parsed?.data?.midiMappings || parsed?.midiMappings || parsed;
-                          if (Array.isArray(mappingsOnly)) {
-                            setMIDIMappings(mappingsOnly as any);
-                          } else {
-                            console.warn('Selected file did not contain midiMappings array');
-                          }
-                        } catch (e) {
-                          console.warn('Failed to parse MIDI mapping file:', e);
-                        }
+                        loadMappingsFromContent(content);
                       }
                     }
                   })();
@@ -468,7 +492,13 @@ export const MIDIMapper: React.FC = () => {
           )}
           </div>
         </div>
-
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json,application/json"
+          className="tw-hidden"
+          onChange={(event) => handleFileList(event.target.files)}
+        />
     </div>
   );
 }; 
