@@ -24,6 +24,11 @@ export const UploadPanel: React.FC<Props> = ({ onUploaded }) => {
     setBusy(true);
     setProgress(0);
     try {
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+      if (isElectron) {
+        setError('File upload is not available in Electron mode');
+        return;
+      }
       const supabase = getSupabase();
       const ext = file.name.split('.').pop() || 'mp4';
       const key = `u/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;

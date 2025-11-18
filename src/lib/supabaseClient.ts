@@ -28,20 +28,49 @@ function createElectronStorageAdapter() {
 }
 
 export const getSupabase = (): SupabaseClient => {
+  // Skip Supabase in Electron mode
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+  if (isElectron) {
+    // Return a no-op client stub for Electron
+    const stubUrl = 'https://disabled.supabase.co';
+    const stubKey = 'disabled';
+    if (!client) {
+      client = createClient(stubUrl, stubKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          storage: undefined,
+        },
+      });
+    }
+    return client;
+  }
+
   if (client) return client;
   const env = (import.meta as any).env || {};
   const url = env.VITE_SUPABASE_URL || (typeof window !== 'undefined' && (window as any).__SUPABASE_URL__) || '';
   const anon = env.VITE_SUPABASE_ANON_KEY || (typeof window !== 'undefined' && (window as any).__SUPABASE_ANON_KEY__) || '';
   if (!url || !anon) {
-    throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY for web builds.');
+    // Return a no-op client stub instead of throwing
+    const stubUrl = 'https://disabled.supabase.co';
+    const stubKey = 'disabled';
+    client = createClient(stubUrl, stubKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        storage: undefined,
+      },
+    });
+    return client;
   }
-  const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
   client = createClient(url, anon, {
     auth: {
       persistSession: true,
-      autoRefreshToken: true,
+      autoRefreshToken: false, // Disabled to prevent refresh attempts on disabled accounts
       detectSessionInUrl: true,
-      storage: isElectron ? (createElectronStorageAdapter() as any) : undefined,
+      storage: undefined,
     },
   });
   return client;

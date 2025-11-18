@@ -336,7 +336,7 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   }}
                   title={`${e.name}: ${e.description} (Author: ${e.author})`}
                 >
-                  <div className="tw-flex tw-items-center tw-justifyetween">
+                  <div className="tw-flex tw-items-center tw-justify-between">
                     <div>
                       <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                       <div className="tw-text-xs ">by {e.author}</div>
