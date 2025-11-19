@@ -1,37 +1,69 @@
-TERMS AND CONDITIONS FOR SONOMIKA
+STROBE WARNING
 
-Last Updated: 2024
+This software may generate flashing or strobing visual effects. These may trigger discomfort or seizures in individuals sensitive to light. Use with caution. The developer is not liable for any adverse effects, health issues or incidents resulting from exposure to such visual content.
 
-1. ACCEPTANCE OF TERMS
-By installing, copying, or using Sonomika ("the Software"), you agree to be bound by the terms and conditions of this agreement. If you do not agree to these terms, do not install or use the Software.
+SONOMICA SUSTAINABLE-USE LICENCE
 
-2. LICENSE GRANT
-Subject to the terms and conditions of this agreement, you are granted a non-exclusive, non-transferable license to use the Software for personal or commercial purposes.
+Copyright © Sonomica
 
-3. RESTRICTIONS
-You may not:
-- Reverse engineer, decompile, or disassemble the Software
-- Remove any proprietary notices or labels from the Software
-- Rent, lease, or lend the Software to third parties
-- Use the Software for any illegal purpose
+All rights reserved.
 
-4. INTELLECTUAL PROPERTY
-The Software and all intellectual property rights therein are owned by the copyright holders. This license does not grant you any rights to use such trademarks, service marks, or logos.
+ACCEPTANCE
 
-5. DISCLAIMER OF WARRANTIES
-THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+By using or distributing Sonomica (the Software), you agree to be bound by the terms of this licence.
 
-6. LIMITATION OF LIABILITY
-IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR AUTHORS BE LIABLE FOR ANY SPECIAL, INCIDENTAL, INDIRECT, OR CONSEQUENTIAL DAMAGES WHATSOEVER (INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR ANY OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OF OR INABILITY TO USE THE SOFTWARE, EVEN IF THE COPYRIGHT HOLDERS HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+GRANT OF LICENCE
 
-7. TERMINATION
-This license is effective until terminated. Your rights under this license will terminate automatically without notice if you fail to comply with any term of this license.
+You are granted a non-exclusive, worldwide, royalty-free, non-transferable, non-sublicensable licence to use, copy, modify and distribute the Software code, subject to the limitations below.
 
-8. GOVERNING LAW
-This agreement shall be governed by and construed in accordance with the laws of the jurisdiction in which the Software is used.
+LIMITATIONS AND PERMITTED USE
 
-9. ENTIRE AGREEMENT
-This agreement constitutes the entire agreement between you and the copyright holders regarding the use of the Software.
+You may use or modify the Software code for your own purposes, but you may not copy, reuse or redistribute the Software framework in a form that is substantially the same as the original. Any reused or redistributed version must be clearly distinct in structure, functionality and presentation.
 
-By clicking "I Agree" or by installing the Software, you acknowledge that you have read and understood this agreement and agree to be bound by its terms and conditions.
+You may distribute the Software code or provide it to others only if you do so free of charge for non-commercial purposes.
 
+You may not remove, alter or obscure any copyright, licence or other proprietary notices contained within the code.
+
+BRANDING AND IDENTITY
+
+You may not use the name Sonomica, its logo, any associated branding, the user interface design, or any visual identity elements in any redistributed or derivative version of the Software. These elements remain the exclusive property of the developer.
+
+Any redistributed or modified version must remove all Sonomica branding and replace it with clearly distinct branding of your own.
+
+You may not present any derivative version in a way that suggests endorsement or affiliation with the original developer.
+
+WHAT IS NOT PERMITTED
+
+You may not offer the Software or a derivative of it as a paid product or paid service.
+
+You may not repackage the Software with Sonomica branding or assets and sell it.
+
+You may not embed the Software in a commercial product where the primary value is derived from Sonomica's functionality, unless you obtain a separate commercial licence from the developer.
+
+THIRD-PARTY ASSETS, OUTPUT AND BRANDING
+
+The underlying framework and any non-code components that form part of the Software's core functionality remain the property of the developer. You may not extract, reuse or redistribute the framework or any built-in components as standalone content or include them in a competing product.
+
+Any shaders, presets, media or other creative content made by users are open source and may be shared, modified and distributed for commercial or non-commercial purposes.
+
+All outputs created through the Software, including visuals, recordings and media, belong to the user and may be used for commercial or non-commercial projects.
+
+UPDATES AND SUPPORT
+
+The developer may release updates, fixes or improvements at their discretion. There is no obligation to provide updates or support.
+
+DISCLAIMER OF WARRANTY
+
+The Software is provided "as is", without warranty of any kind, either express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose or non-infringement. Use is at your own risk.
+
+LIMITATION OF LIABILITY
+
+To the maximum extent permitted by law, the developer shall not be liable for any direct, indirect, incidental or consequential damages arising out of or connected with the use of the Software. This includes, but is not limited to, loss of profits, loss of data, business interruption, hardware damage, equipment failure, health issues and any other losses or claims of any kind. The user accepts full responsibility for all risks associated with installing or operating the Software.
+
+TERMINATION
+
+Your rights under this licence will terminate automatically if you fail to comply with any term. Upon termination you must cease all use and distribution of the Software and destroy all copies in your possession or control.
+
+GOVERNING LAW
+
+This agreement shall be governed by and construed in accordance with the laws of the United Kingdom

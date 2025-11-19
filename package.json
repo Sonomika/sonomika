@@ -164,8 +164,9 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Sonomika",
       "deleteAppDataOnUninstall": false,
-      "license": "LICENSE.txt",
-      "warningsAsErrors": false
+      "license": "LICENSE.rtf",
+      "warningsAsErrors": false,
+      "perMachine": true
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
