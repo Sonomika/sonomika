@@ -22,7 +22,7 @@ export const metadata = {
   ],
 };
 
-export default function InteractiveCubesSourceExternal({ count = 300, radius = 0.50, groupScale = 0.70, rotationSpeed = 0.010, highlightColor = '#ff0000', cubeSize = 0.10 }) {
+export default function InteractiveCubesSource({ count = 300, radius = 0.50, groupScale = 0.70, rotationSpeed = 0.010, highlightColor = '#ff0000', cubeSize = 0.10 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
 

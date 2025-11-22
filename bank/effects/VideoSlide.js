@@ -18,7 +18,7 @@ export const metadata = {
   ],
 };
 
-export default function VideoSlideExternal({ slideSpeed = 1.0, slideDirection = 'horizontal', slideAmount = 0.5, videoTexture, bpm = 120 }) {
+export default function VideoSlide({ slideSpeed = 1.0, slideDirection = 'horizontal', slideAmount = 0.5, videoTexture, bpm = 120 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const materialRef = useRef(null);

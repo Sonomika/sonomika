@@ -6,7 +6,7 @@ const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
   name: 'Binary',
-  description: 'Renders input as matrix of binary symbols using GPU shader.',
+  description: 'Renders input as matrix of binary symbols',
   category: 'Effects',
   author: 'AI',
   version: '1.0.0',
@@ -22,7 +22,7 @@ export const metadata = {
   ],
 };
 
-export default function BinaryExternal({ videoTexture, characters='01', fontSize=54, cellSize=24, color='#00ff55', invert=false, opacity=1, preserveColors=false, isGlobal=false, compositionWidth, compositionHeight }) {
+export default function Binary({ videoTexture, characters='01', fontSize=54, cellSize=24, color='#00ff55', invert=false, opacity=1, preserveColors=false, isGlobal=false, compositionWidth, compositionHeight }) {
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
   const meshRef = useRef(null);

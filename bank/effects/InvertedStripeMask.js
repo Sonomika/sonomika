@@ -6,7 +6,7 @@ export const metadata = {
   parameters: [ { name: 'stripes', type: 'number', value: 24, min: 2, max: 200, step: 1 }, { name: 'angle', type: 'number', value: Math.PI*0.25, min: 0, max: Math.PI*2, step: 0.01 }, { name: 'speed', type: 'number', value: 0.25, min: 0.0, max: 5.0, step: 0.01 }, { name: 'duty', type: 'number', value: 0.5, min: 0.05, max: 0.95, step: 0.01 }, { name: 'soften', type: 'number', value: 0.02, min: 0.0, max: 0.25, step: 0.005 } ],
 };
 
-export default function InvertedStripeMaskExternal({ videoTexture, isGlobal=false, stripes=24, angle=Math.PI*0.25, speed=0.25, duty=0.5, soften=0.02, compositionWidth, compositionHeight }){
+export default function InvertedStripeMask({ videoTexture, isGlobal=false, stripes=24, angle=Math.PI*0.25, speed=0.25, duty=0.5, soften=0.02, compositionWidth, compositionHeight }){
   if (!React || !THREE || !r3f) return null; const { useThree, useFrame } = r3f; const meshRef=useRef(null); const materialRef=useRef(null);
   let gl, scene, camera, size; try{ const ctx=useThree(); if (ctx){ gl=ctx.gl; scene=ctx.scene; camera=ctx.camera; size=ctx.size; } } catch{}
   const effectiveW=Math.max(1, compositionWidth || (size&&size.width) || 1920); const effectiveH=Math.max(1, compositionHeight || (size&&size.height) || 1080);

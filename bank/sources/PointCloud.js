@@ -22,7 +22,7 @@ export const metadata = {
   ],
 };
 
-export default function PointCloudSourceExternal({ pointSize=0.005, color='#00ff00', rotationSpeed=1.0, scale=1.0, density=0.5, bpmSync=true }) {
+export default function PointCloudSource({ pointSize=0.005, color='#00ff00', rotationSpeed=1.0, scale=1.0, density=0.5, bpmSync=true }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const meshRef = useRef(null);

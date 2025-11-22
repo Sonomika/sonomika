@@ -22,7 +22,7 @@ export const metadata = {
   ],
 };
 
-export default function WebcamSourceExternal({ deviceId = '', width = 1280, height = 720, fps = 30, mirror = true, fitMode = 'cover' }) {
+export default function WebcamSource({ deviceId = '', width = 1280, height = 720, fps = 30, mirror = true, fitMode = 'cover' }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
 

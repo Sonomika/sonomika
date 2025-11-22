@@ -18,7 +18,7 @@ export const metadata = {
   ],
 };
 
-export default function PixelateEffectExternal({ pixelSize = 0.02, intensity = 1.0, videoTexture, isGlobal = false, compositionWidth, compositionHeight }) {
+export default function PixelateEffect({ pixelSize = 0.02, intensity = 1.0, videoTexture, isGlobal = false, compositionWidth, compositionHeight }) {
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
 

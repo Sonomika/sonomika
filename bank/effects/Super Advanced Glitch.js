@@ -6,7 +6,7 @@ const { useRef, useMemo } = React || {};
 
 export const metadata = {
   name: 'Super Advanced Glitch',
-  description: 'Analog/digital/CRT glitches with BPM-aware timing.',
+  description: 'Analog/digital/CRT glitches',
   category: 'Effects',
   author: 'AI',
   version: '1.0.0',
@@ -22,7 +22,7 @@ export const metadata = {
   ],
 };
 
-export default function AdvancedGlitchExternal({ intensity=1.0, speed=1.0, duration=5.0, amount=0.5, enableAnalog=true, enableDigital=true, enableCRT=false, videoTexture }) {
+export default function AdvancedGlitch({ intensity=1.0, speed=1.0, duration=5.0, amount=0.5, enableAnalog=true, enableDigital=true, enableCRT=false, videoTexture }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const meshRef = useRef(null); const materialRef = useRef(null);

@@ -20,7 +20,7 @@ export const metadata = {
   ],
 };
 
-export default function GenericPulseSourceExternal({ color = '#ff6666', speed = 2.0, intensity = 0.2, geometryType = 'sphere', geometryArgs = [0.5,16,16] }) {
+export default function GenericPulseSource({ color = '#ff6666', speed = 2.0, intensity = 0.2, geometryType = 'sphere', geometryArgs = [0.5,16,16] }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const meshRef = useRef(null);

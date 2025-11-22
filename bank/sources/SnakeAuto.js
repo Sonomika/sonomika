@@ -17,7 +17,7 @@ export const metadata = {
   ],
 };
 
-export default function SnakeAutoSourceExternal({ gridSize=40, cellSize=0.05, gameSpeed=8, snakeLength=20, growthRate=6, wrapAround=true, colorHead='#ffffff', colorBody='#33ff88', colorFood='#ff3366', turnBias=0.7 }){
+export default function SnakeAutoSource({ gridSize=40, cellSize=0.05, gameSpeed=8, snakeLength=20, growthRate=6, wrapAround=true, colorHead='#ffffff', colorBody='#33ff88', colorFood='#ff3366', turnBias=0.7 }){
   if (!React || !THREE || !r3f) return null; const { useFrame } = r3f; const groupRef=useRef(null); const timeAccRef=useRef(0); const dirRef=useRef({x:1,y:0}); const snakeRef=useRef([]); const foodRef=useRef({x:0,y:0}); const targetLenRef=useRef(snakeLength); const [tick,setTick]=useState(0);
   const effectiveCellSize=Math.min(cellSize, 0.075); const geom=useMemo(()=> new THREE.PlaneGeometry(effectiveCellSize, effectiveCellSize), [effectiveCellSize]);
   const matBody=useMemo(()=>{ const m=new THREE.MeshBasicMaterial({ color:new THREE.Color(colorBody), transparent:true }); m.depthTest=false; m.depthWrite=false; m.blending=THREE.AdditiveBlending; m.side=THREE.DoubleSide; return m; }, [colorBody]);

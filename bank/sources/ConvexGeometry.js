@@ -21,7 +21,7 @@ export const metadata = {
   ],
 };
 
-export default function ConvexGeometrySourceExternal({ pointSize = 0.015, opacity = 0.5, rotationSpeed = 0.01, radius = 0.3, groupScale = 0.8 }) {
+export default function ConvexGeometrySource({ pointSize = 0.015, opacity = 0.5, rotationSpeed = 0.01, radius = 0.3, groupScale = 0.8 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
 

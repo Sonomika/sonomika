@@ -26,7 +26,7 @@ export const metadata = {
   ],
 };
 
-export default function BouncingLetters3DExternal({ text='VJ SYSTEM', count=24, fontSize=0.25, speed=1.0, gravity=0.0, bounciness=0.8, friction=0.05, color='#66ccff', randomSeed=0, zDepth=0.5 }) {
+export default function BouncingLetters3D({ text='VJ SYSTEM', count=24, fontSize=0.25, speed=1.0, gravity=0.0, bounciness=0.8, friction=0.05, color='#66ccff', randomSeed=0, zDepth=0.5 }) {
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
   const groupRef = useRef(null);

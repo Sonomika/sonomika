@@ -25,7 +25,7 @@ export const metadata = {
   ],
 };
 
-export default function WhiteTrackerDotExternal({ threshold=0.9, sensitivity=1.0, downscale=64, dotSize=0.05, dotColor='#ffffff', trail=0.7, invert=false, showLine=true, lineLength=128, lineColor='#ffffff', lineOpacity=0.8, videoTexture, isGlobal=false, compositionWidth, compositionHeight }){
+export default function WhiteTrackerDot({ threshold=0.9, sensitivity=1.0, downscale=64, dotSize=0.05, dotColor='#ffffff', trail=0.7, invert=false, showLine=true, lineLength=128, lineColor='#ffffff', lineOpacity=0.8, videoTexture, isGlobal=false, compositionWidth, compositionHeight }){
   if (!React || !THREE || !r3f) return null; const { useThree, useFrame } = r3f;
 
   const meshRef = useRef(null);

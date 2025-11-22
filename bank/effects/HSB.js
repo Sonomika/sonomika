@@ -6,7 +6,7 @@ const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
   name: 'HSB Color Adjust',
-  description: 'Adjust hue, saturation, brightness; works as layer or global.',
+  description: 'Adjust hue, saturation',
   category: 'Effects',
   author: 'AI',
   version: '1.0.0',
@@ -19,7 +19,7 @@ export const metadata = {
   ],
 };
 
-export default function HSBEffectExternal({ hue = 0.0, saturation = 1.0, brightness = 1.0, videoTexture, isGlobal = false, compositionWidth, compositionHeight }) {
+export default function HSBEffect({ hue = 0.0, saturation = 1.0, brightness = 1.0, videoTexture, isGlobal = false, compositionWidth, compositionHeight }) {
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
   const meshRef = useRef(null);

@@ -24,7 +24,7 @@ export const metadata = {
   ],
 };
 
-export default function RotatingParticleSourceExternal({ rotationSpeed=1.0, particleCount=100, particleSize=0.1, particleSpeed=1.0, orbitRadius=3.0, centralObject='cube', particleColor='#ffffff', centralColor='#ffffff', bpm=120 }) {
+export default function RotatingParticleSource({ rotationSpeed=1.0, particleCount=100, particleSize=0.1, particleSpeed=1.0, orbitRadius=3.0, centralObject='cube', particleColor='#ffffff', centralColor='#ffffff', bpm=120 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const centralRef = useRef(null);

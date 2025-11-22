@@ -6,7 +6,7 @@ const r3f = globalThis.r3f;
 const { useEffect, useMemo, useRef, useState } = React || {};
 
 export const metadata = {
-  name: 'Webcam Source (External) + FaceTrack',
+  name: 'Webcam Source + FaceTrack',
   description: 'Live webcam feed as a source layer with optional face tracking (face-api.js).',
   category: 'Sources',
   icon: '',
@@ -24,7 +24,7 @@ export const metadata = {
   ],
 };
 
-export default function WebcamSourceExternal({ deviceId = '', width = 1280, height = 720, fps = 30, mirror = true, fitMode = 'cover', enableFaceTrack = false }) {
+export default function WebcamSource({ deviceId = '', width = 1280, height = 720, fps = 30, mirror = true, fitMode = 'cover', enableFaceTrack = false }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
 

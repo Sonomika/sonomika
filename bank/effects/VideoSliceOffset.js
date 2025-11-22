@@ -27,7 +27,7 @@ export const metadata = {
   ],
 };
 
-export default function VideoSliceOffsetExternal({
+export default function VideoSliceOffset({
   sliceCount = 41,
   offsetAmount = 0.48,
   sliceWidth = 0.05,

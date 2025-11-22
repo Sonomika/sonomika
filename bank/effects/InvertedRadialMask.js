@@ -6,7 +6,7 @@ export const metadata = {
   parameters: [ { name: 'radius', type: 'number', value: 0.35, min: 0.0, max: 1.0, step: 0.01 }, { name: 'width', type: 'number', value: 0.2, min: 0.01, max: 1.0, step: 0.01 }, { name: 'speed', type: 'number', value: 0.5, min: 0.0, max: 5.0, step: 0.05 }, { name: 'wobble', type: 'number', value: 0.15, min: 0.0, max: 1.0, step: 0.01 }, { name: 'centerX', type: 'number', value: 0.0, min: -0.5, max: 0.5, step: 0.01 }, { name: 'centerY', type: 'number', value: 0.0, min: -0.5, max: 0.5, step: 0.01 } ],
 };
 
-export default function InvertedRadialMaskExternal({ videoTexture, isGlobal=false, radius=0.35, width=0.2, speed=0.5, wobble=0.15, centerX=0.0, centerY=0.0, compositionWidth, compositionHeight }){
+export default function InvertedRadialMask({ videoTexture, isGlobal=false, radius=0.35, width=0.2, speed=0.5, wobble=0.15, centerX=0.0, centerY=0.0, compositionWidth, compositionHeight }){
   if (!React || !THREE || !r3f) return null; const { useThree, useFrame } = r3f; const meshRef=useRef(null); const materialRef=useRef(null);
   let gl, scene, camera, size; try{ const ctx=useThree(); if (ctx){ gl=ctx.gl; scene=ctx.scene; camera=ctx.camera; size=ctx.size; } } catch{}
   const effectiveW=Math.max(1, compositionWidth || (size&&size.width) || 1920); const effectiveH=Math.max(1, compositionHeight || (size&&size.height) || 1080);

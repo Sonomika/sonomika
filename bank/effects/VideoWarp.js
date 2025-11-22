@@ -20,7 +20,7 @@ export const metadata = {
   ],
 };
 
-export default function VideoWarpEffectExternal({ intensity = 0.1, frequency = 3.0, speed = 1.0, waveType = 'sine', videoTexture, isGlobal = false, compositionWidth, compositionHeight }) {
+export default function VideoWarpEffect({ intensity = 0.1, frequency = 3.0, speed = 1.0, waveType = 'sine', videoTexture, isGlobal = false, compositionWidth, compositionHeight }) {
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
 

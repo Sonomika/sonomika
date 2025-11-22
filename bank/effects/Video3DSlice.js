@@ -23,7 +23,7 @@ export const metadata = {
   ],
 };
 
-export default function Video3DSliceExternal({ videoTexture, opacity=1, sliceCount=10, separationDistance=0.5, rotationIntensity=1, depthSpread=2, animationSpeed=1, chaosLevel=0.5, isGlobal=false, compositionWidth, compositionHeight }){
+export default function Video3DSlice({ videoTexture, opacity=1, sliceCount=10, separationDistance=0.5, rotationIntensity=1, depthSpread=2, animationSpeed=1, chaosLevel=0.5, isGlobal=false, compositionWidth, compositionHeight }){
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
   const groupRef = useRef(null); const timeRef = useRef(0);

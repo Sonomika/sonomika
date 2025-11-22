@@ -23,7 +23,7 @@ export const metadata = {
   ],
 };
 
-export default function BlobDetectionExternal({ enabled=true, threshold=128, minArea=50, maxArea=5000, maxBlobs=10, analysisScale=0.25, blobColor='#ff0000' }){
+export default function BlobDetection({ enabled=true, threshold=128, minArea=50, maxArea=5000, maxBlobs=10, analysisScale=0.25, blobColor='#ff0000' }){
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const groupRef = useRef(null);

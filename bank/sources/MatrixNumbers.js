@@ -23,7 +23,7 @@ export const metadata = {
   ],
 };
 
-export default function MatrixNumbersSourceExternal({ opacity = 1, nodeCount = 100, connectionDistance = 4.0, numberSize = 0.5, animationSpeed = 1.0, colorIntensity = 1.0, spaceSize = 8, flowSpeed = 2.0, numberChangeSpeed = 1.0 }) {
+export default function MatrixNumbersSource({ opacity = 1, nodeCount = 100, connectionDistance = 4.0, numberSize = 0.5, animationSpeed = 1.0, colorIntensity = 1.0, spaceSize = 8, flowSpeed = 2.0, numberChangeSpeed = 1.0 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const groupRef = useRef(null);

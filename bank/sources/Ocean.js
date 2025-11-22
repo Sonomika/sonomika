@@ -30,7 +30,7 @@ function toVec3(hex) {
   try { const c = new THREE.Color(hex); return new THREE.Vector3(c.r, c.g, c.b); } catch { return new THREE.Vector3(1,1,1); }
 }
 
-export default function OceanSourceExternal({
+export default function OceanSource({
   planeSize = 4.0,
   waveScale = 0.08,
   waveSpeed = 0.6,

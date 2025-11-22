@@ -5,7 +5,7 @@ const r3f = globalThis.r3f;
 const { useEffect, useMemo, useRef, useState } = React || {};
 
 export const metadata = {
-  name: 'Marching Cubes (External)',
+  name: 'Marching Cubes',
   description: 'Exact MarchingCubes look using the three.js addon and external cubemap/texture URLs.',
   category: 'Sources',
   author: 'AI',
@@ -28,7 +28,7 @@ export const metadata = {
   ],
 };
 
-export default function MarchingCubesExternal({
+export default function MarchingCubes({
   addonUrl = 'https://unpkg.com/three@0.160.0/examples/jsm/objects/MarchingCubes.js',
   envPath = 'https://threejs.org/examples/textures/cube/SwedishRoyalCastle/',
   envFormat = '.jpg',

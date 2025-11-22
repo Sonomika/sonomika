@@ -24,11 +24,12 @@ export const metadata = {
     { name: 'pulseSoftness', type: 'number', value: 0.15, min: 0.0, max: 0.5, step: 0.01, description: 'Soft edge around pulses' },
     { name: 'mirror', type: 'boolean', value: false, description: 'Mirror input across Y before processing' },
     { name: 'circularMask', type: 'boolean', value: true, description: 'Mask to circle edges' },
+    { name: 'bpmSync', type: 'boolean', value: true, description: 'Sync pulse speed to BPM' },
     { name: 'seed', type: 'number', value: 4242, min: 0, max: 100000, step: 1, description: 'Random seed' },
   ],
 };
 
-export default function RadialMosaicPulseExternal({
+export default function RadialMosaicPulse({
   rings = 4,
   slices = 12,
   rotationAmount = 0.6,
@@ -38,6 +39,7 @@ export default function RadialMosaicPulseExternal({
   pulseSoftness = 0.15,
   mirror = false,
   circularMask = true,
+  bpmSync = true,
   bpm = 120,
   seed = 4242,
   videoTexture,
@@ -121,6 +123,7 @@ export default function RadialMosaicPulseExternal({
     uniform float circularMaskU;
 
     uniform float bpm;
+    uniform float bpmSync;
     uniform float seedU;
     uniform int inputIsSRGB;
 
@@ -145,7 +148,14 @@ export default function RadialMosaicPulseExternal({
     // smooth pulse between 0..1 with duty and softness
     float tilePulse(float id, float t) {
       float phase = hash11(id + seedU * 0.33) * 6.2831853;
-      float freq = max(0.0, bpm) / 60.0 * max(0.001, pulseSpeed);
+      float freq;
+      if (bpmSync > 0.5) {
+        // Sync to BPM: pulseSpeed acts as a multiplier
+        freq = max(0.0, bpm) / 60.0 * max(0.001, pulseSpeed);
+      } else {
+        // Independent pulse speed (not synced to BPM)
+        freq = max(0.001, pulseSpeed);
+      }
       float s = 0.5 + 0.5 * sin((t * freq) * 6.2831853 + phase);
       // map s to on/off using duty with softness
       float edge = pulseSoftness;
@@ -259,6 +269,7 @@ export default function RadialMosaicPulseExternal({
         circularMaskU: { value: circularMask ? 1.0 : 0.0 },
 
         bpm: { value: resolveLinkedBpm() },
+        bpmSync: { value: bpmSync ? 1.0 : 0.0 },
         seedU: { value: seed },
 
         inputIsSRGB: { value: 1 },
@@ -268,7 +279,7 @@ export default function RadialMosaicPulseExternal({
       depthWrite: false,
       toneMapped: false,
     });
-  }, [videoTexture, bufferTexture, isGlobal, renderTarget, rings, slices, rotationAmount, rotationSpeed, pulseSpeed, pulseDuty, pulseSoftness, mirror, circularMask, bpm, seed]);
+  }, [videoTexture, bufferTexture, isGlobal, renderTarget, rings, slices, rotationAmount, rotationSpeed, pulseSpeed, pulseDuty, pulseSoftness, mirror, circularMask, bpmSync, bpm, seed]);
 
   useEffect(() => { if (shaderMaterial) materialRef.current = shaderMaterial; }, [shaderMaterial]);
 
@@ -293,6 +304,7 @@ export default function RadialMosaicPulseExternal({
     if (materialRef.current.uniforms.bpm.value !== linkedBpm) {
       materialRef.current.uniforms.bpm.value = linkedBpm;
     }
+    materialRef.current.uniforms.bpmSync.value = bpmSync ? 1.0 : 0.0;
     materialRef.current.uniforms.seedU.value = seed;
 
     // Input source maintenance, including global capture pass

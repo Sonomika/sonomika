@@ -6,7 +6,7 @@ const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
   name: 'Edge Detect',
-  description: 'Sobel edge detection with threshold and invert. Works as layer or global.',
+  description: 'Sobel edge detection with threshold and invert',
   category: 'Effects',
   author: 'AI',
   version: '1.0.0',
@@ -19,7 +19,7 @@ export const metadata = {
   ],
 };
 
-export default function EdgeDetectEffectExternal({ videoTexture, isGlobal = false, strength = 1.0, threshold = 0.0, invert = false, compositionWidth, compositionHeight }) {
+export default function EdgeDetectEffect({ videoTexture, isGlobal = false, strength = 1.0, threshold = 0.0, invert = false, compositionWidth, compositionHeight }) {
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
 

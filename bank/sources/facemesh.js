@@ -28,7 +28,7 @@ export const metadata = {
   ],
 };
 
-export default function WebcamSourceExternal({
+export default function WebcamSource({
   deviceId = '',
   width = 1280,
   height = 720,

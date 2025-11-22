@@ -22,7 +22,7 @@ export const metadata = {
   ],
 };
 
-export default function FBMFlowSourceExternal({ timeSpeed = 4.74, zoom = 0.01, rotate = 2.381, panX = -10.0, panY = 9.338, palette = 'original' }){
+export default function FBMFlowSource({ timeSpeed = 4.74, zoom = 0.01, rotate = 2.381, panX = -10.0, panY = 9.338, palette = 'original' }){
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
 

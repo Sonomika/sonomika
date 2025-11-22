@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useMemo, useRef, useState } = React || {};
 
 export const metadata = {
-  name: 'Snake Responsive Source', description: 'Auto snake that adapts to canvas size.', category: 'Sources', author: 'AI', version: '1.0.0', isSource: true,
+  name: 'Snake', description: 'Snake', category: 'Sources', author: 'AI', version: '1.0.0', isSource: true,
   parameters: [
     { name: 'cellsAcross', type: 'number', value: 40, min: 5, max: 200, step: 1 },
     { name: 'gameSpeed', type: 'number', value: 8, min: 1, max: 30, step: 1 },
@@ -16,7 +16,7 @@ export const metadata = {
   ],
 };
 
-export default function SnakeResponsiveSourceExternal({ cellsAcross=40, gameSpeed=8, snakeLength=20, growthRate=6, wrapAround=true, colorHead='#ffffff', colorBody='#33ff88', colorFood='#ff3366', turnBias=0.7 }){
+export default function Snake({ cellsAcross=40, gameSpeed=8, snakeLength=20, growthRate=6, wrapAround=true, colorHead='#ffffff', colorBody='#33ff88', colorFood='#ff3366', turnBias=0.7 }){
   if (!React || !THREE || !r3f) return null; const { useFrame, useThree } = r3f; const groupRef=useRef(null); const timeAccRef=useRef(0); const dirRef=useRef({x:1,y:0}); const snakeRef=useRef([]); const foodRef=useRef({x:0,y:0}); const targetLenRef=useRef(snakeLength); const [tick,setTick]=useState(0); const { size } = useThree?.() || { size:{width:1920,height:1080} };
   const aspect = size.width>0 && size.height>0 ? size.width/size.height : 16/9; const planeW = aspect*2, planeH=2; const shorter = Math.min(planeW, planeH); const cellWorldSize = Math.max(0.001, shorter/Math.max(2, Math.floor(cellsAcross))); const gridCols=Math.max(2, Math.floor(planeW/cellWorldSize)); const gridRows=Math.max(2, Math.floor(planeH/cellWorldSize)); const halfW=planeW/2, halfH=planeH/2;
   const geom=useMemo(()=> new THREE.PlaneGeometry(cellWorldSize, cellWorldSize), [cellWorldSize]);

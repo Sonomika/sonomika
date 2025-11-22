@@ -20,7 +20,7 @@ export const metadata = {
   ],
 };
 
-export default function GlitchScanlinesExternal({ videoTexture, isGlobal = false, lineDensity = 600.0, distortion = 0.0025, noiseSpeed = 1.0, colorBleed = 0.0015, compositionWidth, compositionHeight }) {
+export default function GlitchScanlines({ videoTexture, isGlobal = false, lineDensity = 600.0, distortion = 0.0025, noiseSpeed = 1.0, colorBleed = 0.0015, compositionWidth, compositionHeight }) {
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
   const meshRef = useRef(null);

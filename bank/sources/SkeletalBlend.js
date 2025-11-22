@@ -79,7 +79,7 @@ function ensureGLTFLoader() {
   return tryLoad(candidates);
 }
 
-export default function SkeletalBlendSourceExternal({
+export default function SkeletalBlendSource({
   modelUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb',
   showModel = true,
   showSkeleton = false,

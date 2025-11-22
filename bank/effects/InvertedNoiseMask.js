@@ -6,7 +6,7 @@ export const metadata = {
   parameters: [ { name: 'scale', type: 'number', value: 3.0, min: 0.5, max: 12.0, step: 0.1 }, { name: 'threshold', type: 'number', value: 0.5, min: 0.0, max: 1.0, step: 0.01 }, { name: 'contrast', type: 'number', value: 2.0, min: 0.5, max: 4.0, step: 0.05 }, { name: 'speed', type: 'number', value: 0.5, min: 0.0, max: 5.0, step: 0.05 }, { name: 'softness', type: 'number', value: 0.05, min: 0.0, max: 0.3, step: 0.005 } ],
 };
 
-export default function InvertedNoiseMaskExternal({ videoTexture, isGlobal=false, scale=3.0, threshold=0.5, contrast=2.0, speed=0.5, softness=0.05, compositionWidth, compositionHeight }){
+export default function InvertedNoiseMask({ videoTexture, isGlobal=false, scale=3.0, threshold=0.5, contrast=2.0, speed=0.5, softness=0.05, compositionWidth, compositionHeight }){
   if (!React || !THREE || !r3f) return null; const { useThree, useFrame } = r3f; const meshRef=useRef(null); const materialRef=useRef(null);
   let gl, scene, camera, size; try{ const ctx=useThree(); if (ctx){ gl=ctx.gl; scene=ctx.scene; camera=ctx.camera; size=ctx.size; } } catch{}
   const effectiveW=Math.max(1, compositionWidth || (size&&size.width) || 1920); const effectiveH=Math.max(1, compositionHeight || (size&&size.height) || 1080);

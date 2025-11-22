@@ -14,7 +14,7 @@ export const metadata = {
   ],
 };
 
-export default function VoronoiGlassExternal({ videoTexture, isGlobal=false, refractionStrength=0.07, cellScale=3.0, edgeSharpness=0.4, dispersion=0.003, edgeBrightness=0.0, speed=1.75, mixOriginal=0.0, compositionWidth, compositionHeight }){
+export default function VoronoiGlass({ videoTexture, isGlobal=false, refractionStrength=0.07, cellScale=3.0, edgeSharpness=0.4, dispersion=0.003, edgeBrightness=0.0, speed=1.75, mixOriginal=0.0, compositionWidth, compositionHeight }){
   if (!React || !THREE || !r3f) return null; const { useThree, useFrame } = r3f; const meshRef=useRef(null); const materialRef=useRef(null);
   let gl, scene, camera, size; try{ const ctx=useThree(); if (ctx){ gl=ctx.gl; scene=ctx.scene; camera=ctx.camera; size=ctx.size; } } catch{}
   const effectiveW=Math.max(1, compositionWidth || (size&&size.width) || 1920); const effectiveH=Math.max(1, compositionHeight || (size&&size.height) || 1080);

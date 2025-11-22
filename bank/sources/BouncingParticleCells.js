@@ -21,7 +21,7 @@ export const metadata = {
   ],
 };
 
-export default function BouncingParticleCellsExternal({ numParticles=600, cellSize=0.02, speed=1.0, color='#66ccff', shape='square' }){
+export default function BouncingParticleCells({ numParticles=600, cellSize=0.02, speed=1.0, color='#66ccff', shape='square' }){
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
   const { size } = useThree?.() || { size: { width: 1920, height: 1080 } };

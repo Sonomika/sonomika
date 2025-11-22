@@ -20,7 +20,7 @@ export const metadata = {
   ],
 };
 
-export default function CRTFrameExternal({ videoTexture, isGlobal=false, vignette=0.35, curvature=0.15, bloom=0.1, scanlineMix=0.35, compositionWidth, compositionHeight }){
+export default function CRTFrame({ videoTexture, isGlobal=false, vignette=0.35, curvature=0.15, bloom=0.1, scanlineMix=0.35, compositionWidth, compositionHeight }){
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
   const meshRef = useRef(null); const materialRef = useRef(null);

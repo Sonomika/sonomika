@@ -8,7 +8,7 @@ const useFrame = (r3f && r3f.useFrame) || (() => {});
 
 export const metadata = {
   name: 'ASCII',
-  description: 'ASCII posterization over input with GPU shader.',
+  description: 'ASCII',
   category: 'Effects',
   author: 'AI',
   version: '1.0.0',
@@ -43,7 +43,7 @@ function normalizeColor(input) {
   return '#ffffff';
 }
 
-export default function ASCIIExternal({
+export default function ASCII({
   videoTexture,
   characters = " .:,'-^=*+?!|0#X%WM@",
   fontSize = 72,

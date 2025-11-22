@@ -9,7 +9,7 @@ const useFrame = (r3f && r3f.useFrame) || (() => {});
 
 export const metadata = {
   name: 'Spectral DataGlitch',
-  description: 'Blocky temporal tears, scanlines and spectral drift. Designed to sit on top of an input stream.',
+  description: 'Blocky temporal tears, scanlines and spectral drift',
   category: 'Effects',
   author: 'AI',
   version: '1.0.0',
@@ -51,7 +51,7 @@ function normalizeColor(input) {
   return '#ffffff';
 }
 
-export default function SpectralDataGlitchExternal({
+export default function SpectralDataGlitch({
   videoTexture,
   glitchStrength = 0.55,
   blockSize = 24,

@@ -6,7 +6,7 @@ const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
   name: 'Directional Blur',
-  description: 'Motion-like blur in a chosen direction with configurable taps.',
+  description: 'Motion-like blur',
   category: 'Effects',
   author: 'AI',
   version: '1.0.0',
@@ -19,7 +19,7 @@ export const metadata = {
   ],
 };
 
-export default function DirectionalBlurExternal({ videoTexture, isGlobal = false, angle = Math.PI*0.25, radius = 6.0, samples = 16, compositionWidth, compositionHeight }) {
+export default function DirectionalBlur({ videoTexture, isGlobal = false, angle = Math.PI*0.25, radius = 6.0, samples = 16, compositionWidth, compositionHeight }) {
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
   const meshRef = useRef(null);

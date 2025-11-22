@@ -27,7 +27,7 @@ export const metadata = {
   ],
 };
 
-export default function BackgroundColorSourceExternal({
+export default function BackgroundColorSource({
   color = '#000000', gradientType = 'solid', gradientColors = ['#ff0000', '#00ff00', '#0000ff'], gradientStops = [0,0.5,1], gradientDirection = 'horizontal', gradientCenter = [0.5,0.5], gradientRadius = 1.0, animate = false, animationSpeed = 1.0, animationType = 'pulse'
 }) {
   if (!React || !THREE || !r3f) return null;

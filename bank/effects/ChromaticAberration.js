@@ -20,7 +20,7 @@ export const metadata = {
   ],
 };
 
-export default function ChromaticAberrationExternal({ intensity = 1.0, speed = 1.0, dispScale = 2.0, samples = 64, contrast = 12.0, videoTexture }) {
+export default function ChromaticAberration({ intensity = 1.0, speed = 1.0, dispScale = 2.0, samples = 64, contrast = 12.0, videoTexture }) {
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
 

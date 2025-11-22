@@ -17,7 +17,7 @@ export const metadata = {
   ],
 };
 
-export default function ShaderFeedbackExternal({ feedbackAmount=0.9, feedbackScale=1.0, feedbackRotate=0.0, feedbackTranslateX=0.0, feedbackTranslateY=0.0, noiseAmount=0.15, noiseScale=2.5, lightLeakIntensity=0.3, lightLeakColor='#ff7e47', pulseStrength=0.15, videoTexture, compositionWidth=1920, compositionHeight=1080 }){
+export default function ShaderFeedback({ feedbackAmount=0.9, feedbackScale=1.0, feedbackRotate=0.0, feedbackTranslateX=0.0, feedbackTranslateY=0.0, noiseAmount=0.15, noiseScale=2.5, lightLeakIntensity=0.3, lightLeakColor='#ff7e47', pulseStrength=0.15, videoTexture, compositionWidth=1920, compositionHeight=1080 }){
   if (!React || !THREE || !r3f) return null; const { useFrame, useThree } = r3f; const { gl } = useThree?.() || { gl: null };
   const outputPlaneRef=useRef(null); const outputMaterialRef=useRef(null); const pingRef=useRef(null); const pongRef=useRef(null); const fbSceneRef=useRef(null); const fbCameraRef=useRef(null); const fbQuadRef=useRef(null); const fbMaterialRef=useRef(null);
 

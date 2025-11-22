@@ -74,7 +74,7 @@ function createLavaTexture(size) {
   return tex;
 }
 
-export default function LavaShaderSourceExternal({ timeSpeed = 1.0, uvScaleX = 3.0, uvScaleY = 1.0, torusRadius = 0.35, tubeRadius = 0.15, rotationSpeedX = 0.05, rotationSpeedY = 0.0125, fogDensity = 0.0 }) {
+export default function LavaShaderSource({ timeSpeed = 1.0, uvScaleX = 3.0, uvScaleY = 1.0, torusRadius = 0.35, tubeRadius = 0.15, rotationSpeedX = 0.05, rotationSpeedY = 0.0125, fogDensity = 0.0 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
 

@@ -17,7 +17,7 @@ export const metadata = {
   ],
 };
 
-export default function PulseHexagonSourceExternal({ color = '#00ff00' }) {
+export default function PulseHexagonSource({ color = '#00ff00' }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const meshRef = useRef(null);
