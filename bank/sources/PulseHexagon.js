@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Pulse Hexagon',
   description: 'Hexagonal ring pulsing with BPM.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

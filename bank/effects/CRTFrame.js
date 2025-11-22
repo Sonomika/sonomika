@@ -8,7 +8,7 @@ export const metadata = {
   name: 'CRT Frame',
   description: 'CRT-style curved screen with scanlines, vignette, and bloom.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

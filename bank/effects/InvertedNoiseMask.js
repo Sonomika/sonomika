@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Inverted Noise Mask', description: 'FBM noise inverted mask with soft edges.', category: 'Effects', author: 'AI', version: '1.0.0', replacesVideo: true, canBeGlobal: true,
+  name: 'Inverted Noise Mask', description: 'FBM noise inverted mask with soft edges.', category: 'Effects', author: 'VJ', version: '1.0.0', replacesVideo: true, canBeGlobal: true,
   parameters: [ { name: 'scale', type: 'number', value: 3.0, min: 0.5, max: 12.0, step: 0.1 }, { name: 'threshold', type: 'number', value: 0.5, min: 0.0, max: 1.0, step: 0.01 }, { name: 'contrast', type: 'number', value: 2.0, min: 0.5, max: 4.0, step: 0.05 }, { name: 'speed', type: 'number', value: 0.5, min: 0.0, max: 5.0, step: 0.05 }, { name: 'softness', type: 'number', value: 0.05, min: 0.0, max: 0.3, step: 0.005 } ],
 };
 

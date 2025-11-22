@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Chromatic Aberration',
   description: 'Chromatic dispersion with displacement; single input texture.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   parameters: [

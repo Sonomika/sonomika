@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Portable Source Template',
   description: 'Boilerplate for converting Three.js examples to a portable source (no imports, no DOM).',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

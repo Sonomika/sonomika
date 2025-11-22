@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Rotating Square Glitch',
   description: 'Grid-based rotating squares with heavy glitch distortions.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   isSource: true,
   parameters: [

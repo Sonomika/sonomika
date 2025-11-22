@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Marching Cubes',
   description: 'Exact MarchingCubes look using the three.js addon and external cubemap/texture URLs.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

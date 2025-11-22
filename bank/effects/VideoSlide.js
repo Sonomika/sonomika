@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Video Slide',
   description: 'Slides/pans input with multiple motion patterns and BPM sync.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   parameters: [

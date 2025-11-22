@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useEffect, useMemo, useRef, useState } = React || {};
 
 export const metadata = {
-  name: 'SSS Model Source', description: 'FBX model using Subsurface Scattering shader.', category: 'Sources', author: 'AI', version: '1.0.0', isSource: true,
+  name: 'SSS Model Source', description: 'FBX model using Subsurface Scattering shader.', category: 'Sources', author: 'VJ', version: '1.0.0', isSource: true,
   parameters: [
     { name: 'modelUrl', type: 'string', value: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/fbx/stanford-bunny.fbx' },
     { name: 'albedoMapUrl', type: 'string', value: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/fbx/white.jpg' },

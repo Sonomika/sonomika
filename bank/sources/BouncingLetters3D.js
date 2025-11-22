@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Bouncing Letters 3D',
   description: 'Letters bounce within bounds in 3D. Renders as colored points externally.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

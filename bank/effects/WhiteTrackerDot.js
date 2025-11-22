@@ -6,7 +6,7 @@ export const metadata = {
   name: 'White Tracker Dot',
   description: 'Finds bright/white regions in the video texture and follows with a dot.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: false,
   canBeGlobal: true,

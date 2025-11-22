@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo } = React || {};
 
 export const metadata = {
-  name: 'ShaderToy', description: 'ShaderToy-like procedural shader source', category: 'Sources', author: 'AI', version: '1.0.0', isSource: true,
+  name: 'ShaderToy', description: 'ShaderToy-like procedural shader source', category: 'Sources', author: 'VJ', version: '1.0.0', isSource: true,
   parameters: [ { name: 'shaderCode', type: 'text', value: '' }, { name: 'intensity', type: 'number', value: 1.0, min: 0.0, max: 2.0, step: 0.1 }, { name: 'speed', type: 'number', value: 1.0, min: 0.1, max: 5.0, step: 0.1 }, { name: 'color1', type: 'color', value: '#ff0000' }, { name: 'color2', type: 'color', value: '#00ff00' }, { name: 'color3', type: 'color', value: '#0000ff' }, { name: 'color4', type: 'color', value: '#ffffff' } ],
 };
 

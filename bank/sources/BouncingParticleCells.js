@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Bouncing Particle Cells',
   description: 'Instanced squares/circles/glyphs bouncing within bounds.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

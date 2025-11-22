@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Pixelate Effect',
   description: 'Applies a pixelation filter to input content. Works as layer or global.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

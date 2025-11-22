@@ -9,7 +9,7 @@ export const metadata = {
   description: 'Solid color and gradients with optional animation.',
   category: 'Sources',
   icon: '',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

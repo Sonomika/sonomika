@@ -9,7 +9,7 @@ export const metadata = {
   description: 'Live webcam feed as a source layer.',
   category: 'Sources',
   icon: '',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

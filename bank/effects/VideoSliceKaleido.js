@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Video Slice Kaleidoscope',
   description: 'Kaleidoscopic mirroring using angular slices; layer or global.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

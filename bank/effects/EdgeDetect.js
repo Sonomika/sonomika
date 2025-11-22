@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Edge Detect',
   description: 'Sobel edge detection with threshold and invert',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

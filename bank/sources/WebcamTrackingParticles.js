@@ -9,7 +9,7 @@ export const metadata = {
   description: 'Tracks a colored object (e.g., magenta) from webcam and steers particles.',
   category: 'Sources',
   icon: '',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

@@ -9,7 +9,7 @@ export const metadata = {
   description: 'Live webcam feed as a source layer with optional ml5.js FaceMesh overlay.',
   category: 'Sources',
   icon: '',
-  author: 'AI',
+  author: 'VJ',
   version: '2.0.0',
   folder: 'sources',
   isSource: true,

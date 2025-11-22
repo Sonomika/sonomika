@@ -10,7 +10,7 @@ export const metadata = {
   name: 'ASCII',
   description: 'ASCII',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

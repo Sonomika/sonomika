@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Inverted Stripe Mask', description: 'Scrolling angled stripes as inverted mask.', category: 'Effects', author: 'AI', version: '1.0.0', replacesVideo: true, canBeGlobal: true,
+  name: 'Inverted Stripe Mask', description: 'Scrolling angled stripes as inverted mask.', category: 'Effects', author: 'VJ', version: '1.0.0', replacesVideo: true, canBeGlobal: true,
   parameters: [ { name: 'stripes', type: 'number', value: 24, min: 2, max: 200, step: 1 }, { name: 'angle', type: 'number', value: Math.PI*0.25, min: 0, max: Math.PI*2, step: 0.01 }, { name: 'speed', type: 'number', value: 0.25, min: 0.0, max: 5.0, step: 0.01 }, { name: 'duty', type: 'number', value: 0.5, min: 0.05, max: 0.95, step: 0.01 }, { name: 'soften', type: 'number', value: 0.02, min: 0.0, max: 0.25, step: 0.005 } ],
 };
 

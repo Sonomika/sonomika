@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Binary',
   description: 'Renders input as matrix of binary symbols',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

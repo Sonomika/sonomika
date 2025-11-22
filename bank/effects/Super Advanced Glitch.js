@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Super Advanced Glitch',
   description: 'Analog/digital/CRT glitches',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   parameters: [

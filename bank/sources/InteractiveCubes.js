@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Interactive Cubes',
   description: 'Many cubes with hover highlight via raycaster; rotates slowly',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

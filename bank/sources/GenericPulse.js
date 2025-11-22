@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Generic Pulse',
   description: 'Pulsing geometry source with BPM-based animation.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

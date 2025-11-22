@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useState } = React || {};
 
 export const metadata = {
-  name: 'Data Visualization', description: 'Animated HUD-style text and lines with BPM pulse.', category: 'Sources', author: 'AI', version: '1.0.0', folder: 'sources', isSource: true,
+  name: 'Data Visualization', description: 'Animated HUD-style text and lines with BPM pulse.', category: 'Sources', author: 'VJ', version: '1.0.0', folder: 'sources', isSource: true,
   parameters: [ { name: 'color', type: 'color', value: '#00ff00' }, { name: 'intensity', type: 'number', value: 1.0, min: 0.1, max: 3.0, step: 0.1 }, { name: 'speed', type: 'number', value: 1.0, min: 0.1, max: 5.0, step: 0.1 }, { name: 'textCount', type: 'number', value: 24, min: 5, max: 50, step: 1 }, { name: 'lineCount', type: 'number', value: 16, min: 4, max: 32, step: 1 } ],
 };
 

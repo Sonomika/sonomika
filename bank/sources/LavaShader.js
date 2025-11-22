@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Lava Shader',
   description: 'Animated lava shader on a torus, procedurally textured',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

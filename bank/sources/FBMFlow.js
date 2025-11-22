@@ -8,7 +8,7 @@ export const metadata = {
   name: 'FBM Flow',
   description: 'Procedural flowing fbm pattern (shader) rendered on a full-frame plane',
   category: 'Sources',
-  author: 'User + AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

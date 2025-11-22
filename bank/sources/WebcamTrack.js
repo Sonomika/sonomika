@@ -9,7 +9,7 @@ export const metadata = {
   description: 'Live webcam feed as a source layer with optional face tracking (face-api.js).',
   category: 'Sources',
   icon: '',
-  author: 'AI',
+  author: 'VJ',
   version: '1.1.0',
   folder: 'sources',
   isSource: true,

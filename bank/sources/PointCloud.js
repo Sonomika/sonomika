@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Point Cloud',
   description: '3D point cloud with BPM sync rotation and pulse.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

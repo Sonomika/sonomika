@@ -8,7 +8,7 @@ export const metadata = {
   name: 'HSB Color Adjust',
   description: 'Adjust hue, saturation',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

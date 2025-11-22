@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo } = React || {};
 
 export const metadata = {
-  name: 'Flux Source', description: 'Procedural flowing effect with noise, light leaks, BPM pulse.', category: 'Sources', author: 'AI', version: '1.0.0', folder: 'sources', isSource: true,
+  name: 'Flux Source', description: 'Procedural flowing effect with noise, light leaks, BPM pulse.', category: 'Sources', author: 'VJ', version: '1.0.0', folder: 'sources', isSource: true,
   parameters: [
     { name: 'intensity', type: 'number', value: 1.0, min: 0, max: 2, step: 0.1 },
     { name: 'speed', type: 'number', value: 1.0, min: 0, max: 3, step: 0.1 },

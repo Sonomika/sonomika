@@ -11,7 +11,7 @@ export const metadata = {
   name: 'Spectral DataGlitch',
   description: 'Blocky temporal tears, scanlines and spectral drift',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

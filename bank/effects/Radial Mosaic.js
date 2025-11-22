@@ -10,7 +10,7 @@ export const metadata = {
   description: 'Concentric rings and angular slices rotate & pulse independently.',
   category: 'Video Effects',
   icon: '',
-  author: 'VJ System',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

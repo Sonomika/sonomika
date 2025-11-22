@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Blob Detection',
   description: 'Simple blob visualization from a hidden canvas processing pass.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

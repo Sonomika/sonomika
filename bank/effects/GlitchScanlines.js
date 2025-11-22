@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Glitch Scanlines',
   description: 'Analog scanlines with horizontal noise distortion and RGB split.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

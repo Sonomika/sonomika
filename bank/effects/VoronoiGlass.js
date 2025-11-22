@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Voronoi Glass', description: 'Voronoi refraction with dispersion and edges.', category: 'Effects', author: 'AI', version: '1.0.0', replacesVideo: true, canBeGlobal: true,
+  name: 'Voronoi Glass', description: 'Voronoi refraction with dispersion and edges.', category: 'Effects', author: 'VJ', version: '1.0.0', replacesVideo: true, canBeGlobal: true,
   parameters: [
     { name: 'refractionStrength', type: 'number', value: 0.07, min: 0.0, max: 0.2, step: 0.005 },
     { name: 'cellScale', type: 'number', value: 3.0, min: 2.0, max: 60.0, step: 0.5 },

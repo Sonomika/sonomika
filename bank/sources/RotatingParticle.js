@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Rotating Particle',
   description: 'Central mesh with orbiting particles and BPM pulse.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

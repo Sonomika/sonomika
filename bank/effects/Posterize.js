@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Posterize',
   description: 'Quantizes colors into discrete levels with gamma and saturation.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

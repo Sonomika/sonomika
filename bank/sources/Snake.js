@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useMemo, useRef, useState } = React || {};
 
 export const metadata = {
-  name: 'Snake', description: 'Snake', category: 'Sources', author: 'AI', version: '1.0.0', isSource: true,
+  name: 'Snake', description: 'Snake', category: 'Sources', author: 'VJ', version: '1.0.0', isSource: true,
   parameters: [
     { name: 'cellsAcross', type: 'number', value: 40, min: 5, max: 200, step: 1 },
     { name: 'gameSpeed', type: 'number', value: 8, min: 1, max: 30, step: 1 },

@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Polar Kaleidoscope',
   description: 'Polar kaleidoscope with segment mirroring, rotation, swirl, radial scale.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

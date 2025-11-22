@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Marching Metaballs (Shader)',
   description: 'Shader-raymarched metaballs inspired by Three.js MarchingCubes example (no addons/imports).',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

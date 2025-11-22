@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Video Warp',
   description: 'Distorts input with wave patterns; BPM-ready if provided globally.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

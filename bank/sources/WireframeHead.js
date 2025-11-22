@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useEffect, useMemo, useRef, useState } = React || {};
 
 export const metadata = {
-  name: 'Wireframe Head Source', description: 'Edge-thickness wireframe of BufferGeometry JSON.', category: 'Sources', author: 'AI', version: '1.0.0', isSource: true,
+  name: 'Wireframe Head Source', description: 'Edge-thickness wireframe of BufferGeometry JSON.', category: 'Sources', author: 'VJ', version: '1.0.0', isSource: true,
   parameters: [
     { name: 'modelUrl', type: 'string', value: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/json/WaltHeadLo_buffergeometry.json' },
     { name: 'thickness', type: 'number', value: 1, min: 0, max: 4, step: 0.01 },

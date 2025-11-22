@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Matrix Numbers',
   description: 'Floating numbers with dynamic connections in 3D space.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

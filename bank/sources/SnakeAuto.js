@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useMemo, useRef, useState } = React || {};
 
 export const metadata = {
-  name: 'Snake Auto Source', description: 'Auto-playing snake on a grid.', category: 'Sources', author: 'AI', version: '1.0.0', isSource: true,
+  name: 'Snake Auto Source', description: 'Auto-playing snake on a grid.', category: 'Sources', author: 'VJ', version: '1.0.0', isSource: true,
   parameters: [
     { name: 'gridSize', type: 'number', value: 40, min: 10, max: 120, step: 1 },
     { name: 'cellSize', type: 'number', value: 0.05, min: 0.01, max: 0.075, step: 0.001 },

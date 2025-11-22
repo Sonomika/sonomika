@@ -8,7 +8,7 @@ export const metadata = {
   name: '3D Video Slices',
   description: 'Splits input into animated 3D horizontal slices.',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

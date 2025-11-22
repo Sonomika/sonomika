@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Directional Blur',
   description: 'Motion-like blur',
   category: 'Effects',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,

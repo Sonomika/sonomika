@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Convex Geometry Source',
   description: 'Rotating convex hull of a dodecahedron vertices with point sprites',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

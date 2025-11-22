@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Ocean',
   description: 'Animated ocean shader on a large plane with a bobbing cube',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useEffect, useState } = React || {};
 
 export const metadata = {
-  name: 'PCD Point Cloud', description: 'Animated 3D point cloud with BPM sync.', category: 'Sources', author: 'AI', version: '1.0.0', replacesVideo: false, isSource: true,
+  name: 'PCD Point Cloud', description: 'Animated 3D point cloud with BPM sync.', category: 'Sources', author: 'VJ', version: '1.0.0', replacesVideo: false, isSource: true,
   parameters: [
     { name: 'pointSize', type: 'number', value: 0.005, min: 0.001, max: 0.02, step: 0.001 },
     { name: 'pointColor', type: 'color', value: '#ffffff' },

@@ -9,7 +9,7 @@ export const metadata = {
   name: 'Skeletal Blend Source',
   description: 'GLTF skeletal animation blending (idle/walk/run) with weights',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

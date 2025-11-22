@@ -9,7 +9,7 @@ export const metadata = {
   description: 'Slices input into strips and offsets them for glitch-like motion.',
   category: 'Effects',
   icon: '',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   replacesVideo: true,
   canBeGlobal: true,
