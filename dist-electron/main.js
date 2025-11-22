@@ -206,30 +206,47 @@ function createWindow() {
   const isDev = process.env.NODE_ENV === "development" || !electron.app.isPackaged;
   if (isDev) {
     console.log("Running in development mode");
-    const loadDevURL = (host, port, retryCount = 0) => {
-      const url = `http://${host}:${port}`;
-      console.log(`Trying to load: ${url} (attempt ${retryCount + 1})`);
+    const preferredUrl = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL;
+    const port = Number(process.env.VITE_DEV_SERVER_PORT || 5173);
+    const candidates = [];
+    const appendCandidate = (url) => {
+      if (!url) return;
+      if (!candidates.includes(url)) {
+        candidates.push(url);
+      }
+    };
+    appendCandidate(preferredUrl);
+    appendCandidate(`http://localhost:${port}`);
+    appendCandidate(`http://127.0.0.1:${port}`);
+    const loadSequentially = (remaining, attempt = 0) => {
+      if (!mainWindow) return;
+      if (remaining.length === 0) {
+        console.warn("All dev server attempts failed; showing inline error page");
+        const message = encodeURIComponent(`<!DOCTYPE html><html><body style="font-family: sans-serif; background: #141414; color: #f5f5f5; padding: 32px;">
+          <h1>Dev Server Not Available</h1>
+          <p>Could not connect to the Vite dev server on port ${port}.</p>
+          <p>Make sure it is running with:</p>
+          <pre style="background:#1f1f1f; padding:16px; border-radius:8px;">npm run dev
+npm run dev:electron</pre>
+        </body></html>`);
+        mainWindow.loadURL(`data:text/html,${message}`);
+        return;
+      }
+      const url = remaining[0];
+      const remainingNext = remaining.slice(1);
+      const nextAttempt = attempt + 1;
+      console.log(`Trying dev server URL: ${url} (attempt ${nextAttempt})`);
       mainWindow.loadURL(url).then(() => {
-        console.log(`Successfully loaded: ${url}`);
-        mainWindow.webContents.openDevTools();
+        console.log(`Electron loaded renderer from ${url}`);
+        mainWindow?.webContents.openDevTools({ mode: "detach" });
       }).catch((error) => {
-        console.log(`Failed to load ${url}:`, error.message);
-        if (retryCount < 5) {
-          const delay = Math.min(1e3 * Math.pow(2, retryCount), 5e3);
-          console.log(`Retrying in ${delay}ms...`);
-          setTimeout(() => loadDevURL(host, port, retryCount + 1), delay);
-        } else {
-          if (host === "localhost") {
-            console.log("Trying IPv4 address 127.0.0.1 instead...");
-            setTimeout(() => loadDevURL("127.0.0.1", port, 0), 500);
-          } else {
-            console.log("All attempts failed, showing error message");
-            mainWindow.loadURL(`data:text/html,<html><body style="font-family: sans-serif; padding: 20px;"><h1>Dev Server Not Available</h1><p>Could not connect to Vite dev server at http://localhost:${port}</p><p>Please ensure the dev server is running:</p><pre style="background: #f0f0f0; padding: 10px; border-radius: 4px;">npm run dev:electron</pre></body></html>`);
-          }
-        }
+        console.warn(`Failed to load ${url}: ${error?.message || error}`);
+        const backoff = Math.min(5e3, 1e3 * Math.pow(2, attempt));
+        console.log(`Retrying with next candidate in ${backoff}ms`);
+        setTimeout(() => loadSequentially(remainingNext, nextAttempt), backoff);
       });
     };
-    setTimeout(() => loadDevURL("localhost", 5173), 2e3);
+    setTimeout(() => loadSequentially(candidates), 1200);
   } else {
     console.log("Running in production mode");
     const appPath = electron.app.getAppPath();
