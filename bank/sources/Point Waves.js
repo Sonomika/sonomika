@@ -5,7 +5,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect, useState } = React || {};
 
 export const metadata = {
-  name: 'Point Cloud',
+  name: 'Point Waves',
   description: '3D point cloud with BPM sync rotation and pulse.',
   category: 'Sources',
   author: 'VJ',
@@ -22,7 +22,7 @@ export const metadata = {
   ],
 };
 
-export default function PointCloudSource({ pointSize=0.005, color='#00ff00', rotationSpeed=1.0, scale=1.0, density=0.5, bpmSync=true }) {
+export default function PointWavesSource({ pointSize=0.005, color='#00ff00', rotationSpeed=1.0, scale=1.0, density=0.5, bpmSync=true }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const meshRef = useRef(null);

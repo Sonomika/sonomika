@@ -2,7 +2,7 @@
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
-const { useRef, useEffect } = React || {};
+const { useRef, useEffect, useMemo } = React || {};
 
 export const metadata = {
   name: 'Background Color Source',
@@ -31,9 +31,14 @@ export default function BackgroundColorSource({
   color = '#000000', gradientType = 'solid', gradientColors = ['#ff0000', '#00ff00', '#0000ff'], gradientStops = [0,0.5,1], gradientDirection = 'horizontal', gradientCenter = [0.5,0.5], gradientRadius = 1.0, animate = false, animationSpeed = 1.0, animationType = 'pulse'
 }) {
   if (!React || !THREE || !r3f) return null;
-  const { useFrame } = r3f;
+  const { useFrame, useThree } = r3f;
 
   const materialRef = useRef(null);
+  const { size } = useThree?.() || { size: { width: 1920, height: 1080 } };
+  const aspect = useMemo(() => {
+    try { if (size && size.width > 0 && size.height > 0) return size.width / size.height; } catch {}
+    return 16 / 9;
+  }, [size]);
 
   const vertexShader = `
     varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
@@ -84,7 +89,7 @@ export default function BackgroundColorSource({
   return React.createElement(
     'mesh',
     null,
-    React.createElement('planeGeometry', { args: [2, 2] }),
+    React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
     React.createElement('shaderMaterial', {
       ref: materialRef,
       vertexShader,

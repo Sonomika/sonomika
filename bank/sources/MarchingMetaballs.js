@@ -13,7 +13,7 @@ export const metadata = {
   folder: 'sources',
   isSource: true,
   parameters: [
-    { name: 'speed', type: 'number', value: 1.0, min: 0.0, max: 8.0, step: 0.05 },
+    { name: 'speed', type: 'number', value: 1.5, min: 0.0, max: 8.0, step: 0.05 },
     { name: 'numBlobs', type: 'number', value: 10, min: 1, max: 50, step: 1 },
     { name: 'radius', type: 'number', value: 0.28, min: 0.05, max: 0.6, step: 0.01 },
     { name: 'isoLevel', type: 'number', value: 1.0, min: 0.3, max: 2.5, step: 0.01 },
@@ -26,7 +26,7 @@ export const metadata = {
 };
 
 export default function MarchingMetaballs({
-  speed = 1.0,
+  speed = 1.5,
   numBlobs = 10,
   radius = 0.28,
   isoLevel = 1.0,
@@ -62,15 +62,23 @@ export default function MarchingMetaballs({
     // pseudo-random from index
     float hash(float n){ return fract(sin(n)*43758.5453123); }
 
-    // Metaball positions in 3D (normalized space around origin)
+    // Metaball positions in 3D (normalized space around origin) - enhanced animation
     vec3 blobPos(int i, float t){
       float fi = float(i);
-      float a = t*(1.03+0.21*cos(0.37*fi)) + fi*1.3;
-      float b = t*(0.91+0.17*sin(0.19*fi)) + fi*0.7;
-      float x = 0.6*sin(a);
-      float y = 0.6*abs(cos(b));
-      float z = 0.6*cos(a*0.7 + sin(b));
-      return vec3(x,y,z) * 0.5; // fit into unit box
+      // More varied and dynamic motion patterns
+      float phase1 = t * (1.2 + 0.3*cos(0.4*fi)) + fi * 1.5;
+      float phase2 = t * (0.9 + 0.25*sin(0.23*fi)) + fi * 0.8;
+      float phase3 = t * (1.1 + 0.2*cos(0.31*fi + 1.0)) + fi * 1.1;
+      
+      // Orbital motion with varying radii
+      float orbitRadius = 0.5 + 0.2*sin(t*0.3 + fi*0.5);
+      float x = orbitRadius * sin(phase1);
+      float y = orbitRadius * abs(cos(phase2)) + 0.1*sin(t*0.5 + fi);
+      float z = orbitRadius * cos(phase1*0.8 + sin(phase2)) + 0.15*cos(t*0.4 + fi*0.7);
+      
+      // Add pulsing/breathing effect
+      float pulse = 1.0 + 0.15*sin(t*0.8 + fi*0.3);
+      return vec3(x, y, z) * 0.5 * pulse;
     }
 
     // Field value: sum of sphere influences
@@ -78,7 +86,7 @@ export default function MarchingMetaballs({
       float v = 0.0;
       for(int i=0;i<64;i++){
         if(i>=uCount) break;
-        vec3 c = blobPos(i, uTime*uSpeed*0.5);
+        vec3 c = blobPos(i, uTime*uSpeed);
         float d2 = dot(p-c, p-c);
         v += r*r / max(1e-6, d2);
       }
@@ -101,10 +109,16 @@ export default function MarchingMetaballs({
       return normalize(vec3(dx, dy, dz));
     }
 
-    // Simple PBR-ish lighting (ambient + single dir light + spec)
+    // Simple PBR-ish lighting (ambient + animated dir light + spec)
     vec3 shade(vec3 p, vec3 n, vec3 viewDir){
       vec3 base = uColor;
-      vec3 L = normalize(vec3(0.6, 0.7, 0.5));
+      // Animated light direction - rotates around the scene
+      float lightAngle = uTime * uSpeed * 0.2;
+      vec3 L = normalize(vec3(
+        0.6*cos(lightAngle) + 0.3*sin(lightAngle*0.7),
+        0.7 + 0.2*sin(lightAngle*0.5),
+        0.5*sin(lightAngle) + 0.4*cos(lightAngle*0.9)
+      ));
       float ndl = max(0.0, dot(n, L));
       // specular
       vec3 H = normalize(L + viewDir);
@@ -116,9 +130,25 @@ export default function MarchingMetaballs({
 
     void main(){
       // Camera ray setup: orthographic onto plane, then view into scene box
-      vec2 uv = vUv*2.0-1.0; uv.x *= uResolution.x/uResolution.y; // correct aspect for ray setup
-      vec3 ro = vec3(0.0, 0.0, 2.0);
-      vec3 rd = normalize(vec3(uv.xy, -1.8));
+      // Add animated camera rotation for more dynamic view
+      vec2 uv = vUv*2.0-1.0; uv.x *= uResolution.x/uResolution.y;
+      
+      // Animated camera position - gentle rotation around the scene
+      float camAngle = uTime * uSpeed * 0.15;
+      float camDist = 2.2;
+      vec3 ro = vec3(
+        sin(camAngle) * 0.3,
+        cos(camAngle * 0.7) * 0.2,
+        camDist + 0.1*sin(uTime * uSpeed * 0.2)
+      );
+      
+      // Look at center with slight rotation
+      vec3 target = vec3(0.0, 0.0, 0.0);
+      vec3 forward = normalize(target - ro);
+      vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+      vec3 up = cross(right, forward);
+      
+      vec3 rd = normalize(forward + uv.x * right * 0.8 + uv.y * up * 0.8);
 
       float t = 0.0; float d; bool hit=false; vec3 pos;
       for(int i=0;i<256;i++){

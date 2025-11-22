@@ -6,8 +6,8 @@ const { useRef, useEffect } = React || {};
 const useFrame = (r3f && r3f.useFrame) || (() => {});
 
 export const metadata = {
-  name: 'Skeletal Blend Source',
-  description: 'GLTF skeletal animation blending (idle/walk/run) with weights',
+  name: '3D Model',
+  description: 'GLTF skeletal animation blending (idle/walk/run) with weights. From the Three.js examples',
   category: 'Sources',
   author: 'VJ',
   version: '1.0.0',
@@ -79,7 +79,7 @@ function ensureGLTFLoader() {
   return tryLoad(candidates);
 }
 
-export default function SkeletalBlendSource({
+export default function Model3DSource({
   modelUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb',
   showModel = true,
   showSkeleton = false,
@@ -109,7 +109,7 @@ export default function SkeletalBlendSource({
 
     ensureGLTFLoader().then((loader) => {
       if (!loader) {
-        console.warn('[SkeletalBlendSource.external] GLTFLoader could not be initialized.');
+        console.warn('[Model3DSource] GLTFLoader could not be initialized.');
         return;
       }
       loader.load(
@@ -166,10 +166,10 @@ export default function SkeletalBlendSource({
         }
         },
         undefined,
-        (err) => { console.error('[SkeletalBlendSource.external] GLTF load error:', { err, url }); }
+        (err) => { console.error('[Model3DSource] GLTF load error:', { err, url }); }
       );
     }).catch(() => {
-      console.warn('[SkeletalBlendSource.external] Failed to load GLTFLoader script.');
+      console.warn('[Model3DSource] Failed to load GLTFLoader script.');
     });
 
     return () => { disposed = true; };

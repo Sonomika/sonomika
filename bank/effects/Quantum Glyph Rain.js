@@ -1,4 +1,4 @@
-// Portable external GLYPH RAIN effect (no imports). Use with globals:
+// Portable GLYPH RAIN effect (no imports). Use with globals:
 // window.React, window.THREE, window.r3f
 const React = globalThis.React;
 const THREE = globalThis.THREE;

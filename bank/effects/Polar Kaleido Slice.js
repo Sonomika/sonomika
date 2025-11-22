@@ -1,4 +1,4 @@
-// Portable external Polar Kaleido Slice effect. Uses globals: window.React, window.THREE, window.r3f
+// Portable Polar Kaleido Slice effect. Uses globals: window.React, window.THREE, window.r3f
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;

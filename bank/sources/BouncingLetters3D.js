@@ -2,11 +2,11 @@
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
-const { useMemo, useRef } = React || {};
+const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
   name: 'Bouncing Letters 3D',
-  description: 'Letters bounce within bounds in 3D. Renders as colored points externally.',
+  description: 'Letters bounce within bounds in 3D. Renders as colored points.',
   category: 'Sources',
   author: 'VJ',
   version: '1.0.0',
@@ -30,7 +30,7 @@ export default function BouncingLetters3D({ text='VJ SYSTEM', count=24, fontSize
   if (!React || !THREE || !r3f) return null;
   const { useThree, useFrame } = r3f;
   const groupRef = useRef(null);
-  const pointsRef = useRef(null);
+  const spritesRef = useRef([]);
 
   const { size } = useThree?.() || { size: { width: 1920, height: 1080 } };
   const aspect = (size.width>0 && size.height>0) ? size.width/size.height : 16/9;
@@ -39,6 +39,26 @@ export default function BouncingLetters3D({ text='VJ SYSTEM', count=24, fontSize
   const rng = useMemo(() => {
     if (!randomSeed) return Math.random; let s = (randomSeed>>>0); return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s>>>0)%0xffff)/0xffff; };
   }, [randomSeed]);
+
+  const createTextTexture = useMemo(() => {
+    return (char, col) => {
+      const canvas = document.createElement('canvas');
+      const size = 256;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.clearRect(0, 0, size, size);
+      ctx.font = `bold ${size * 0.8}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = `rgb(${Math.floor(col.r*255)}, ${Math.floor(col.g*255)}, ${Math.floor(col.b*255)})`;
+      ctx.fillText(char, size/2, size/2);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      return texture;
+    };
+  }, []);
 
   const letters = useMemo(() => {
     const chars = (text && text.length>0 ? text : 'VJ').split(''); const n = Math.max(1, Math.min(count, 200)); const arr = new Array(n);
@@ -52,35 +72,60 @@ export default function BouncingLetters3D({ text='VJ SYSTEM', count=24, fontSize
     return arr;
   }, [text, count, halfW, halfH, zDepth, fontSize, rng, color]);
 
-  const { geom, colors } = useMemo(() => {
-    const geom = new THREE.BufferGeometry();
-    const pos = new Float32Array(letters.length * 3);
-    const colors = new Float32Array(letters.length * 3);
-    for (let i=0;i<letters.length;i++){ pos[i*3+0]=letters[i].position.x; pos[i*3+1]=letters[i].position.y; pos[i*3+2]=letters[i].position.z; colors[i*3+0]=letters[i].color.r; colors[i*3+1]=letters[i].color.g; colors[i*3+2]=letters[i].color.b; }
-    geom.setAttribute('position', new THREE.BufferAttribute(pos,3));
-    geom.setAttribute('color', new THREE.BufferAttribute(colors,3));
-    return { geom, colors: pos };
-  }, [letters]);
+  const sprites = useMemo(() => {
+    const spriteArray = [];
+    for (let i=0;i<letters.length;i++){
+      const L = letters[i];
+      const texture = createTextTexture(L.ch, L.color);
+      if (!texture) continue;
+      const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(fontSize, fontSize, 1);
+      sprite.position.copy(L.position);
+      spriteArray.push(sprite);
+    }
+    return spriteArray;
+  }, [letters, fontSize, createTextTexture]);
 
-  const mat = useMemo(() => new THREE.PointsMaterial({ size: fontSize*0.6, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthTest:false, depthWrite:false }), [fontSize]);
+  useEffect(() => {
+    if (!groupRef.current) return;
+    sprites.forEach(sprite => {
+      if (!groupRef.current.children.includes(sprite)) {
+        groupRef.current.add(sprite);
+      }
+    });
+    return () => {
+      sprites.forEach(sprite => {
+        if (sprite.material && sprite.material.map) sprite.material.map.dispose();
+        if (sprite.material) sprite.material.dispose();
+        if (groupRef.current && groupRef.current.children.includes(sprite)) {
+          groupRef.current.remove(sprite);
+        }
+      });
+    };
+  }, [sprites]);
 
   useFrame((_, delta) => {
     const dt = Math.min(0.05, delta); const left = -halfW + fontSize*0.6; const right = halfW - fontSize*0.6; const bottom = -halfH + fontSize*0.6; const top = halfH - fontSize*0.6; const front = zDepth - fontSize*0.2; const back = -zDepth + fontSize*0.2;
-    const posAttr = pointsRef.current?.geometry?.getAttribute('position'); if (!posAttr) return; const arr = posAttr.array;
     for (let i=0;i<letters.length;i++){
-      const L = letters[i]; L.velocity.y -= gravity * dt; L.position.x += L.velocity.x * dt * speed; L.position.y += L.velocity.y * dt * speed; L.position.z += L.velocity.z * dt * speed;
+      const L = letters[i];
+      const sprite = sprites[i];
+      if (!sprite) continue;
+      L.velocity.y -= gravity * dt;
+      L.position.x += L.velocity.x * dt * speed;
+      L.position.y += L.velocity.y * dt * speed;
+      L.position.z += L.velocity.z * dt * speed;
       if (L.position.x <= left){ L.position.x = left; L.velocity.x = Math.abs(L.velocity.x) * bounciness; L.velocity.y *= 1 - friction; L.velocity.z *= 1 - friction; }
       if (L.position.x >= right){ L.position.x = right; L.velocity.x = -Math.abs(L.velocity.x) * bounciness; L.velocity.y *= 1 - friction; L.velocity.z *= 1 - friction; }
       if (L.position.y <= bottom){ L.position.y = bottom; L.velocity.y = Math.abs(L.velocity.y) * bounciness; L.velocity.x *= 1 - friction; L.velocity.z *= 1 - friction; }
       if (L.position.y >= top){ L.position.y = top; L.velocity.y = -Math.abs(L.velocity.y) * bounciness; L.velocity.x *= 1 - friction; L.velocity.z *= 1 - friction; }
       if (L.position.z >= front){ L.position.z = front; L.velocity.z = -Math.abs(L.velocity.z) * bounciness; L.velocity.x *= 1 - friction; L.velocity.y *= 1 - friction; }
       if (L.position.z <= back){ L.position.z = back; L.velocity.z = Math.abs(L.velocity.z) * bounciness; L.velocity.x *= 1 - friction; L.velocity.y *= 1 - friction; }
-      arr[i*3+0]=L.position.x; arr[i*3+1]=L.position.y; arr[i*3+2]=L.position.z;
+      sprite.position.copy(L.position);
     }
-    posAttr.needsUpdate = true;
   });
 
-  return React.createElement('points', { ref: pointsRef, geometry: geom }, React.createElement('primitive', { object: mat }));
+  return React.createElement('group', { ref: groupRef });
 }
 
 

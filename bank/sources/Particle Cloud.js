@@ -2,7 +2,7 @@
 const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useEffect, useState } = React || {};
 
 export const metadata = {
-  name: 'PCD Point Cloud', description: 'Animated 3D point cloud with BPM sync.', category: 'Sources', author: 'VJ', version: '1.0.0', replacesVideo: false, isSource: true,
+  name: 'Particle Cloud', description: 'Animated 3D point cloud with BPM sync.', category: 'Sources', author: 'VJ', version: '1.0.0', replacesVideo: false, isSource: true,
   parameters: [
     { name: 'pointSize', type: 'number', value: 0.005, min: 0.001, max: 0.02, step: 0.001 },
     { name: 'pointColor', type: 'color', value: '#ffffff' },
@@ -14,7 +14,7 @@ export const metadata = {
   ],
 };
 
-export default function PCDPointCloudSource({ pointSize=0.005, pointColor='#ffffff', rotationSpeed=0.5, scale=1.0, autoRotate=true, bpmSync=false, intensity=0.5 }){
+export default function ParticleCloudSource({ pointSize=0.005, pointColor='#ffffff', rotationSpeed=0.5, scale=1.0, autoRotate=true, bpmSync=false, intensity=0.5 }){
   if (!React || !THREE || !r3f) return null; const { useFrame } = r3f; const groupRef=useRef(null); const pointsRef=useRef(null); const [pointCloud,setPointCloud]=useState(null); const [loading,setLoading]=useState(true);
   const geometry = useMemo(()=>{ const g=new THREE.BufferGeometry(); const count=10000; const positions=new Float32Array(count*3); const colors=new Float32Array(count*3); const base=new THREE.Color(pointColor); for(let i=0;i<count;i++){ const theta=Math.random()*Math.PI*2; const phi=Math.acos(Math.random()*2-1); const radius=0.5+Math.random()*0.5; positions[i*3] = radius*Math.sin(phi)*Math.cos(theta); positions[i*3+1]= radius*Math.sin(phi)*Math.sin(theta); positions[i*3+2]= radius*Math.cos(phi); const varAmt=0.3; colors[i*3] = Math.min(1, Math.max(0, base.r + (Math.random()-0.5)*varAmt)); colors[i*3+1]= Math.min(1, Math.max(0, base.g + (Math.random()-0.5)*varAmt)); colors[i*3+2]= Math.min(1, Math.max(0, base.b + (Math.random()-0.5)*varAmt)); } g.setAttribute('position', new THREE.BufferAttribute(positions,3)); g.setAttribute('color', new THREE.BufferAttribute(colors,3)); return g; }, [pointColor]);
   const material = useMemo(()=> new THREE.PointsMaterial({ size:pointSize, vertexColors:true, transparent:true, opacity:0.8, sizeAttenuation:true, blending:THREE.AdditiveBlending }), [pointSize]);
