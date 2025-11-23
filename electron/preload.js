@@ -84,6 +84,9 @@ try {
         },
         getScreenSizes: () => {
             return electron_1.ipcRenderer.invoke('get-screen-sizes');
+        },
+        getDocumentsFolder: () => {
+            return electron_1.ipcRenderer.invoke('get-documents-folder');
         }
     });
 

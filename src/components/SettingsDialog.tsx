@@ -12,7 +12,7 @@ interface SettingsDialogProps {
 }
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
-  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast, fontColor, setFontColor, showSystemEffectsTab, setShowSystemEffectsTab } = useStore() as any;
+  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast, fontColor, setFontColor } = useStore() as any;
   const [debugMode, setDebugMode] = useState<boolean>(() => {
     try { return !!JSON.parse(localStorage.getItem('vj-debug-enabled') || 'false'); } catch { return false; }
   });
@@ -27,6 +27,41 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   const [autoloadUserFx, setAutoloadUserFx] = useState<boolean>(() => {
     try { return localStorage.getItem('vj-autoload-user-effects-enabled') === '1'; } catch { return false; }
   });
+
+  // Initialize with Documents folder on first install if not set
+  useEffect(() => {
+    const initializeDefaultFxDir = async () => {
+      try {
+        // Only set default if not already set
+        const existing = localStorage.getItem('vj-fx-user-dir');
+        if (existing) return; // User has already set a directory
+        
+        // Check if we're in Electron and can get Documents folder
+        if (typeof window !== 'undefined' && (window as any).electron?.getDocumentsFolder) {
+          const result = await (window as any).electron.getDocumentsFolder();
+          if (result?.success && result?.path) {
+            // Point to the bank folder where effects are stored
+            const fsApi = (window as any).fsApi;
+            const defaultPath = fsApi?.join 
+              ? fsApi.join(result.path, 'bank')
+              : `${result.path}${fsApi?.sep || (process.platform === 'win32' ? '\\' : '/')}bank`;
+            
+            // Set it in localStorage and state
+            localStorage.setItem('vj-fx-user-dir', defaultPath);
+            setFxDir(defaultPath);
+            // Enable autoload by default on first install
+            localStorage.setItem('vj-autoload-user-effects-enabled', '1');
+            setAutoloadUserFx(true);
+            console.log('Initialized User FX Directory to:', defaultPath);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to initialize default FX directory:', e);
+      }
+    };
+    
+    initializeDefaultFxDir();
+  }, []);
 
   // OpenAI API key settings
   const STORAGE_KEY_API = 'vj-ai-openai-api-key';
@@ -121,15 +156,6 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                 placeholder="00bcd4"
               />
             </div>
-          </div>
-
-          {/* System effects visibility */}
-          <div className="tw-flex tw-items-center tw-justify-between">
-            <div>
-              <div className="tw-text-sm tw-text-neutral-200">Show System effects</div>
-              <div className="tw-text-xs tw-text-neutral-400">Toggle visibility of the System tab in the Effects browser</div>
-            </div>
-            <Switch checked={!!showSystemEffectsTab} onCheckedChange={(v) => setShowSystemEffectsTab(!!v)} />
           </div>
 
           <div className="tw-flex tw-items-center tw-justify-between">

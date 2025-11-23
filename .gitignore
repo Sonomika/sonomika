@@ -68,3 +68,4 @@ dist-electron/
 
 tsconfig.node.tsbuildinfo
 bundled/sets/debug-test-preset.vjpreset
+deploy/app-files/user-documents/sets/debug-test-preset.vjpreset

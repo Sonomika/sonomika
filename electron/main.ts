@@ -101,6 +101,101 @@ function persistEncryptedAuthStoreToDisk() {
   }
 }
 
+function initializeUserDocumentsFolders() {
+  try {
+    const documentsPath = app.getPath('documents');
+    const sonomikaDocsPath = path.join(documentsPath, 'Sonomika');
+    
+    // Create main Sonomika folder in Documents if it doesn't exist
+    if (!fs.existsSync(sonomikaDocsPath)) {
+      fs.mkdirSync(sonomikaDocsPath, { recursive: true });
+      console.log('Created Sonomika folder in Documents:', sonomikaDocsPath);
+    }
+    
+    // Define folders to create
+    const folders = ['bank', 'midi mapping', 'music', 'recordings', 'sets', 'video'];
+    
+    // Create each folder if it doesn't exist
+    for (const folderName of folders) {
+      const folderPath = path.join(sonomikaDocsPath, folderName);
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+        console.log('Created folder:', folderPath);
+      }
+    }
+    
+    // Copy bank folder contents from app resources if available
+    const bankSourcePaths = [
+      path.join(process.resourcesPath || '', 'app.asar.unpacked', 'bank'),
+      path.join(__dirname, '../bank'),
+      path.join(process.cwd(), 'bank'),
+    ];
+    
+    const bankDestPath = path.join(sonomikaDocsPath, 'bank');
+    let bankCopied = false;
+    
+    for (const sourcePath of bankSourcePaths) {
+      if (fs.existsSync(sourcePath) && !bankCopied) {
+        try {
+          // Copy bank folder contents
+          copyDirectoryRecursive(sourcePath, bankDestPath);
+          console.log('Copied bank folder from', sourcePath, 'to', bankDestPath);
+          bankCopied = true;
+        } catch (e) {
+          console.warn('Failed to copy bank folder from', sourcePath, ':', e);
+        }
+      }
+    }
+    
+    // Copy sets folder contents if available
+    const setsSourcePaths = [
+      path.join(process.resourcesPath || '', 'app.asar.unpacked', 'sets'),
+      path.join(__dirname, '../sets'),
+      path.join(process.cwd(), 'sets'),
+      path.join(process.cwd(), 'bundled', 'sets'),
+    ];
+    
+    const setsDestPath = path.join(sonomikaDocsPath, 'sets');
+    
+    for (const sourcePath of setsSourcePaths) {
+      if (fs.existsSync(sourcePath)) {
+        try {
+          copyDirectoryRecursive(sourcePath, setsDestPath);
+          console.log('Copied sets folder from', sourcePath, 'to', setsDestPath);
+          break;
+        } catch (e) {
+          console.warn('Failed to copy sets folder from', sourcePath, ':', e);
+        }
+      }
+    }
+    
+  } catch (e) {
+    console.error('Failed to initialize user Documents folders:', e);
+  }
+}
+
+function copyDirectoryRecursive(src: string, dest: string) {
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+  
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    
+    if (entry.isDirectory()) {
+      copyDirectoryRecursive(srcPath, destPath);
+    } else {
+      // Only copy if destination doesn't exist (don't overwrite user files)
+      if (!fs.existsSync(destPath)) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+}
+
 function createWindow() {
   // Create the browser window
   const appIconPath = resolveAppIconPath();
@@ -834,6 +929,9 @@ app.whenReady().then(() => {
   // Load persisted auth store
   loadEncryptedAuthStoreFromDisk();
   
+  // Initialize user Documents folders on first run
+  initializeUserDocumentsFolders();
+  
   // Register protocol for local file access
   protocol.registerFileProtocol('local-file', (request, callback) => {
     const filePath = request.url.replace('local-file://', '');
@@ -1056,6 +1154,17 @@ app.whenReady().then(() => {
         success: false,
         error: String(e)
       };
+    }
+  });
+
+  ipcMain.handle('get-documents-folder', async () => {
+    try {
+      const documentsPath = app.getPath('documents');
+      const sonomikaDocsPath = path.join(documentsPath, 'Sonomika');
+      return { success: true, path: sonomikaDocsPath };
+    } catch (e) {
+      console.error('Failed to get Documents folder:', e);
+      return { success: false, error: String(e) };
     }
   });
 

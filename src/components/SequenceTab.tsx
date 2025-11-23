@@ -163,7 +163,7 @@ const SequenceTab: React.FC = () => {
   }, [hasHydrated, sequenceEnabledGlobal, currentSceneId, triggerPoints, triggerConfigs, audioFiles, selectedFile, autoFillCount, autoFillRandomize, autoFillOverflowStrategy]);
 
   // Get current scene and columns
-  const currentScene = scenes.find(s => s.id === currentSceneId);
+  const currentScene = scenes.find((s: any) => s.id === currentSceneId);
   const triggersEnabled = !!sequenceEnabledGlobal;
   const columns = currentScene?.columns || [];
 
@@ -306,7 +306,7 @@ const SequenceTab: React.FC = () => {
   // Handle audio end-of-track action based on scene setting
   const handleEnded = useCallback(() => {
     try {
-      const scene = scenes.find(s => s.id === currentSceneId);
+      const scene = scenes.find((s: any) => s.id === currentSceneId);
       const action = scene?.endOfSceneAction || 'stop';
       if (action === 'loop') {
         // Reset trigger one-shots and restart audio
@@ -389,11 +389,11 @@ const SequenceTab: React.FC = () => {
   const deriveSelectedCell = useCallback((): { columnId: string; row: number } | null => {
     try {
       if (!selectedLayerId) return null;
-      const scene = scenes.find(s => s.id === currentSceneId);
+      const scene = scenes.find((s: any) => s.id === currentSceneId);
       if (!scene) return null;
       for (let c = 0; c < (scene.columns?.length || 0); c++) {
         const col = scene.columns[c];
-        const rowIdx = (col.layers || []).findIndex(l => l?.id === selectedLayerId);
+        const rowIdx = (col.layers || []).findIndex((l: any) => l?.id === selectedLayerId);
         if (rowIdx >= 0) {
           return { columnId: col.id, row: rowIdx + 1 };
         }
@@ -405,17 +405,17 @@ const SequenceTab: React.FC = () => {
   }, [scenes, currentSceneId, selectedLayerId]);
 
   const deriveDefaultTriggerAction = useCallback((): TriggerAction | null => {
-    const scene = scenes.find(s => s.id === currentSceneId);
+    const scene = scenes.find((s: any) => s.id === currentSceneId);
     // Prefer the currently selected/playing column
     if (playingColumnId && scene) {
-      const idx = Math.max(0, (scene.columns || []).findIndex(c => c.id === playingColumnId));
+      const idx = Math.max(0, (scene.columns || []).findIndex((c: any) => c.id === playingColumnId));
       const columnIndex = idx >= 0 ? idx + 1 : undefined;
       return { type: 'column', columnId: playingColumnId, columnIndex, action: 'play' } as TriggerAction;
     }
     // Else, if a specific layer (cell) is selected, use its column+row
     const cell = deriveSelectedCell();
     if (cell && scene) {
-      const idx = Math.max(0, (scene.columns || []).findIndex(c => c.id === cell.columnId));
+      const idx = Math.max(0, (scene.columns || []).findIndex((c: any) => c.id === cell.columnId));
       const columnIndex = idx >= 0 ? idx + 1 : undefined;
       return { type: 'cell', columnId: cell.columnId, columnIndex, row: cell.row, action: 'play' } as TriggerAction;
     }
@@ -449,13 +449,13 @@ const SequenceTab: React.FC = () => {
     const deriveBaseColumnIndex = (): number => {
       try {
         if (playingColumnId) {
-          const idx = (currentScene?.columns || []).findIndex(c => c.id === playingColumnId);
+          const idx = (currentScene?.columns || []).findIndex((c: any) => c.id === playingColumnId);
           if (idx >= 0) return idx + 1;
         }
         // Fallback to selected cell's column
         const sel = deriveSelectedCell?.();
         if (sel) {
-          const idx = (currentScene?.columns || []).findIndex(c => c.id === sel.columnId);
+          const idx = (currentScene?.columns || []).findIndex((c: any) => c.id === sel.columnId);
           if (idx >= 0) return idx + 1;
         }
       } catch {}
@@ -468,7 +468,7 @@ const SequenceTab: React.FC = () => {
       try {
         const overrideColId = (activeLayerOverrides || ({} as any))[row];
         if (overrideColId) {
-          const j = (currentScene?.columns || []).findIndex(c => c.id === overrideColId);
+          const j = (currentScene?.columns || []).findIndex((c: any) => c.id === overrideColId);
           if (j >= 0) return j + 1;
         }
       } catch {}
@@ -551,7 +551,7 @@ const SequenceTab: React.FC = () => {
               const resolvedIdx: Record<number, number> = {};
               const idxFromId = (id: string | null | undefined): number | null => {
                 if (!id) return null;
-                const j = columns.findIndex(c => c.id === id);
+                const j = columns.findIndex((c: any) => c.id === id);
                 return j >= 0 ? j + 1 : null;
               };
               for (let r = 1; r <= rowsCount; r++) resolved[r] = null;
@@ -591,7 +591,7 @@ const SequenceTab: React.FC = () => {
                   // If the overridden row points to a different column, restart its video layer to ensure playback
                   try {
                     const scene = currentScene;
-                    const targetCol = (scene?.columns || []).find(c => c.id === targetId);
+                    const targetCol = (scene?.columns || []).find((c: any) => c.id === targetId);
                     const getLayerFor = (col: any, ln: number) => (col?.layers || []).find((l: any) => l.layerNum === ln || l.name === `Layer ${ln}`) || null;
                     const layer = getLayerFor(targetCol as any, rowNum);
                     if (layer && (layer.type === 'video' || (layer as any)?.asset?.type === 'video')) {
@@ -662,7 +662,7 @@ const SequenceTab: React.FC = () => {
               const rowsCount = Math.min(6, Math.max(1, Number(currentScene?.numRows) || 3));
               const idxFromId = (id: string | null | undefined): number | null => {
                 if (!id) return null;
-                const j = columns.findIndex(c => c.id === id);
+                const j = columns.findIndex((c: any) => c.id === id);
                 return j >= 0 ? j + 1 : null;
               };
               const playingIdx = idxFromId(st.playingColumnId) || 1;
@@ -968,7 +968,7 @@ const SequenceTab: React.FC = () => {
   // Generate/refresh auto markers: always include 0.000, replace prior auto markers, keep manual ones
   const generateAutoMarkers = useCallback(() => {
     try {
-      const scene = scenes.find(s => s.id === currentSceneId);
+      const scene = scenes.find((s: any) => s.id === currentSceneId);
       if (!scene) return;
       const cols = (scene.columns || []).filter((c: any) => (c.layers || []).some((l: any) => !!l?.asset));
       const numRows = Math.min(6, Math.max(1, Number(scene.numRows) || 3));
@@ -1004,7 +1004,7 @@ const SequenceTab: React.FC = () => {
         }
       });
 
-      const colIds = cols.map(c => c.id);
+      const colIds = cols.map((c: any) => c.id);
       const nextPoints = Array.from(new Set<number>([...manualPoints, ...picked])).sort((a,b)=>a-b);
       const nextConfigs: Record<number, TriggerConfig> = { ...(manualConfigs as any) } as any;
 
@@ -1317,7 +1317,7 @@ const SequenceTab: React.FC = () => {
                     const colAct = (config?.actions || []).find(a => a.type === 'column');
                     if (colAct?.columnIndex) return Number(colAct.columnIndex);
                     if (colAct?.columnId) {
-                      const idx = columns.findIndex(c => c.id === colAct.columnId);
+                      const idx = columns.findIndex((c: any) => c.id === colAct.columnId);
                       if (idx >= 0) return idx + 1;
                     }
                   } catch {}
@@ -1331,7 +1331,7 @@ const SequenceTab: React.FC = () => {
                       const r = Math.max(1, Number((act as any).row) || 1);
                       let idx = Number((act as any).columnIndex) || 0;
                       if (!idx && (act as any).columnId) {
-                        const j = columns.findIndex(c => c.id === (act as any).columnId);
+                        const j = columns.findIndex((c: any) => c.id === (act as any).columnId);
                         if (j >= 0) idx = j + 1;
                       }
                       if (idx > 0) rowToCellIndex[r] = idx;
@@ -1346,7 +1346,7 @@ const SequenceTab: React.FC = () => {
                     try {
                       const overrideColId = (activeLayerOverrides || ({} as any))[rowNum];
                       if (overrideColId) {
-                        const j = columns.findIndex(c => c.id === overrideColId);
+                        const j = columns.findIndex((c: any) => c.id === overrideColId);
                         if (j >= 0) idx = j + 1;
                       }
                     } catch {}
@@ -1433,7 +1433,7 @@ const SequenceTab: React.FC = () => {
                               const colAct = (cfg?.actions || []).find(a => a.type === 'column');
                               if (colAct?.columnIndex) return Number(colAct.columnIndex);
                               if (colAct?.columnId) {
-                                const idx = columns.findIndex(c => c.id === colAct.columnId);
+                                const idx = columns.findIndex((c: any) => c.id === colAct.columnId);
                                 if (idx >= 0) return idx + 1;
                               }
                             } catch {}
@@ -1445,7 +1445,7 @@ const SequenceTab: React.FC = () => {
                               const colAct = (cfg?.actions || []).find(a => a.type === 'column');
                               if (colAct?.columnIndex) return Number(colAct.columnIndex);
                               if (colAct?.columnId) {
-                                const idx = columns.findIndex(c => c.id === colAct.columnId);
+                                const idx = columns.findIndex((c: any) => c.id === colAct.columnId);
                                 if (idx >= 0) return idx + 1;
                               }
                             } catch {}
@@ -1456,12 +1456,12 @@ const SequenceTab: React.FC = () => {
                               const cellAct = (cfg?.actions || []).find(a => a.type === 'cell' && Number(a.row) === row);
                               if (cellAct?.columnIndex) return Number(cellAct.columnIndex);
                               if ((cellAct as any)?.columnId) {
-                                const idx = columns.findIndex(c => c.id === (cellAct as any).columnId);
+                                const idx = columns.findIndex((c: any) => c.id === (cellAct as any).columnId);
                                 if (idx >= 0) return idx + 1;
                               }
                               const overrideColId = (activeLayerOverrides || ({} as any))[row];
                               if (overrideColId) {
-                                const idx2 = columns.findIndex(c => c.id === overrideColId);
+                                const idx2 = columns.findIndex((c: any) => c.id === overrideColId);
                                 if (idx2 >= 0) return idx2 + 1;
                               }
                             } catch {}
@@ -1498,7 +1498,7 @@ const SequenceTab: React.FC = () => {
                                   <Select
                                     value={String(currentColumnIndex)}
                                     onChange={(val) => setColumnIndex(Math.max(1, Number(val) || 1))}
-                                    options={columns.map((c, i) => ({ value: String(i + 1), label: String(i + 1) }))}
+                                    options={columns.map((c: any, i: number) => ({ value: String(i + 1), label: String(i + 1) }))}
                                     className="tw-h-7 tw-text-xs"
                                   />
                                 </div>
@@ -1517,7 +1517,7 @@ const SequenceTab: React.FC = () => {
                                       <Select
                                         value={String(getCellIndexForRow(rowNum))}
                                         onChange={(val) => setCellIndexForRow(rowNum, Math.max(1, Number(val) || 1))}
-                                        options={columns.map((c, i) => ({ value: String(i + 1), label: String(i + 1) }))}
+                                        options={columns.map((c: any, i: number) => ({ value: String(i + 1), label: String(i + 1) }))}
                                         className="tw-h-7 tw-text-xs tw-w-28"
                                       />
                                     </div>

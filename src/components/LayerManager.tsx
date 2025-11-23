@@ -1767,7 +1767,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         const action = e.target.value as 'loop' | 'play_next' | 'random' | 'stop';
                         console.log('🎛️ Updating timeline scene end action:', { sceneId: currentTimelineSceneId, action });
                         updateTimelineScene(currentTimelineSceneId, { endOfSceneAction: action });
-                        console.log('🎛️ Timeline scene updated. Current scenes:', timelineScenes.map(s => ({ id: s.id, name: s.name, endOfSceneAction: s.endOfSceneAction })));
+                        console.log('🎛️ Timeline scene updated. Current scenes:', timelineScenes.map((s: any) => ({ id: s.id, name: s.name, endOfSceneAction: s.endOfSceneAction })));
                       }}
                       className="tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1 tw-min-w-0 tw-flex-shrink-0"
                       title="Action when scene ends"

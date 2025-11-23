@@ -505,8 +505,8 @@ const ColumnScene: React.FC<{
   // Memoize asset keys to avoid unnecessary reloads
   const columnAssetKeys = useMemo(() => {
     return column.layers
-      .filter(layer => layer.asset)
-      .map(layer => String(layer.asset.id))
+      .filter((layer: any) => layer.asset)
+      .map((layer: any) => String(layer.asset.id))
       .sort()
       .join('|');
   }, [column.layers]);

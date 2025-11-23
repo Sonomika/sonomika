@@ -88,6 +88,79 @@ function persistEncryptedAuthStoreToDisk() {
     console.warn("Failed to persist encrypted auth store:", e);
   }
 }
+function initializeUserDocumentsFolders() {
+  try {
+    const documentsPath = electron.app.getPath("documents");
+    const sonomikaDocsPath = path.join(documentsPath, "Sonomika");
+    if (!fs.existsSync(sonomikaDocsPath)) {
+      fs.mkdirSync(sonomikaDocsPath, { recursive: true });
+      console.log("Created Sonomika folder in Documents:", sonomikaDocsPath);
+    }
+    const folders = ["bank", "midi mapping", "music", "recordings", "sets", "video"];
+    for (const folderName of folders) {
+      const folderPath = path.join(sonomikaDocsPath, folderName);
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+        console.log("Created folder:", folderPath);
+      }
+    }
+    const bankSourcePaths = [
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "bank"),
+      path.join(__dirname, "../bank"),
+      path.join(process.cwd(), "bank")
+    ];
+    const bankDestPath = path.join(sonomikaDocsPath, "bank");
+    let bankCopied = false;
+    for (const sourcePath of bankSourcePaths) {
+      if (fs.existsSync(sourcePath) && !bankCopied) {
+        try {
+          copyDirectoryRecursive(sourcePath, bankDestPath);
+          console.log("Copied bank folder from", sourcePath, "to", bankDestPath);
+          bankCopied = true;
+        } catch (e) {
+          console.warn("Failed to copy bank folder from", sourcePath, ":", e);
+        }
+      }
+    }
+    const setsSourcePaths = [
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "sets"),
+      path.join(__dirname, "../sets"),
+      path.join(process.cwd(), "sets"),
+      path.join(process.cwd(), "bundled", "sets")
+    ];
+    const setsDestPath = path.join(sonomikaDocsPath, "sets");
+    for (const sourcePath of setsSourcePaths) {
+      if (fs.existsSync(sourcePath)) {
+        try {
+          copyDirectoryRecursive(sourcePath, setsDestPath);
+          console.log("Copied sets folder from", sourcePath, "to", setsDestPath);
+          break;
+        } catch (e) {
+          console.warn("Failed to copy sets folder from", sourcePath, ":", e);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Failed to initialize user Documents folders:", e);
+  }
+}
+function copyDirectoryRecursive(src, dest) {
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectoryRecursive(srcPath, destPath);
+    } else {
+      if (!fs.existsSync(destPath)) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+}
 function createWindow() {
   const appIconPath = resolveAppIconPath();
   const appIcon = appIconPath ? electron.nativeImage.createFromPath(appIconPath) : void 0;
@@ -810,6 +883,7 @@ electron.app.whenReady().then(() => {
   }
   createCustomMenu();
   loadEncryptedAuthStoreFromDisk();
+  initializeUserDocumentsFolders();
   electron.protocol.registerFileProtocol("local-file", (request, callback) => {
     const filePath = request.url.replace("local-file://", "");
     console.log("Loading local file:", filePath);
@@ -1042,6 +1116,16 @@ electron.app.whenReady().then(() => {
         success: false,
         error: String(e)
       };
+    }
+  });
+  electron.ipcMain.handle("get-documents-folder", async () => {
+    try {
+      const documentsPath = electron.app.getPath("documents");
+      const sonomikaDocsPath = path.join(documentsPath, "Sonomika");
+      return { success: true, path: sonomikaDocsPath };
+    } catch (e) {
+      console.error("Failed to get Documents folder:", e);
+      return { success: false, error: String(e) };
     }
   });
   electron.ipcMain.handle("read-file-text", async (event, filePath) => {
