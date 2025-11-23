@@ -190,6 +190,21 @@ export const LayerCCMapper: React.FC = () => {
   useEffect(() => {
     try { localStorage.setItem('vj-auto-map-on-select', autoOnSelect ? '1' : '0'); } catch {}
   }, [autoOnSelect]);
+
+  // Focus mode UI controls (logic runs globally in MIDIMapper)
+  // Read from localStorage to keep UI in sync with global state
+  const [focusMode, setFocusMode] = useState<boolean>(() => {
+    try { const v = localStorage.getItem('vj-focus-mode'); return v === null ? false : v === '1'; } catch { return false; }
+  });
+  const [focusRow, setFocusRow] = useState<number>(() => {
+    try { const v = parseInt(localStorage.getItem('vj-focus-row') || '2', 10); return Math.max(1, Math.min(10, Number.isFinite(v) ? v : 2)); } catch { return 2; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('vj-focus-mode', focusMode ? '1' : '0'); } catch {}
+  }, [focusMode]);
+  useEffect(() => {
+    try { localStorage.setItem('vj-focus-row', String(Math.max(1, Math.min(10, Number(focusRow) || 2)))); } catch {}
+  }, [focusRow]);
   const prevResolvedLayerIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!autoOnSelect) return;
@@ -338,6 +353,25 @@ export const LayerCCMapper: React.FC = () => {
                   <span className="tw-text-neutral-400">-</span>
                   <Input type="number" className="tw-w-14" value={autoMapEnd} onChange={(e) => setAutoMapEnd(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
                 </div>
+              </div>
+              <div className="tw-basis-full tw-flex tw-items-center tw-gap-2 tw-pt-1 tw-border-t tw-border-neutral-800">
+                <label className="tw-flex tw-items-center tw-gap-2 tw-text-xs">
+                  <Switch checked={focusMode} onCheckedChange={(v: boolean) => setFocusMode(!!v)} />
+                  Focus Mode
+                </label>
+                {focusMode && (
+                  <div className="tw-flex tw-items-center tw-gap-2">
+                    <Label className="tw-text-xs">Row</Label>
+                    <Input 
+                      type="number" 
+                      className="tw-w-14" 
+                      value={focusRow} 
+                      onChange={(e) => setFocusRow(Math.max(1, Math.min(10, Number(e.target.value) || 2)))} 
+                      min={1}
+                      max={10}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -20,6 +20,7 @@ import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
 import { Button } from './ui';
 import AIEffectsLab from './AIEffectsLab';
+import { useFocusMode } from '../hooks/useFocusMode';
 // Scenes header now uses ContextMenu for actions
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui/ContextMenu';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
@@ -71,6 +72,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   useEffect(() => {
     console.log('🎵 LayerManager playingColumnId changed:', playingColumnId);
   }, [playingColumnId]);
+
+  // Global focus mode: auto-select layer at specified row when column/clip changes
+  // This runs globally even when MIDI tab is not active
+  useFocusMode();
   const [bpmInputValue, setBpmInputValue] = useState(bpm.toString());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState<boolean>(false);
