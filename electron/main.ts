@@ -113,7 +113,7 @@ function initializeUserDocumentsFolders() {
     }
     
     // Define folders to create
-    const folders = ['bank', 'midi mapping', 'music', 'recordings', 'sets', 'video'];
+    const folders = ['bank', 'midi mapping', 'music', 'recordings', 'sets', 'video', 'ai-templates'];
     
     // Create each folder if it doesn't exist
     for (const folderName of folders) {
@@ -166,6 +166,201 @@ function initializeUserDocumentsFolders() {
         } catch (e) {
           console.warn('Failed to copy sets folder from', sourcePath, ':', e);
         }
+      }
+    }
+    
+    // Ensure ai-templates folder exists in Documents/Sonomika
+    const aiTemplatesDestPath = path.join(sonomikaDocsPath, 'ai-templates');
+    if (!fs.existsSync(aiTemplatesDestPath)) {
+      fs.mkdirSync(aiTemplatesDestPath, { recursive: true });
+    }
+
+    // Seed ai-templates with default provider templates as plain JavaScript
+    // These are written only if the user doesn't already have a file, so they remain user-editable.
+    const builtinTemplates: Array<{ filename: string; content: string }> = [
+      {
+        filename: 'openai.js',
+        content: `
+const openaiTemplate = {
+  id: 'openai',
+  name: 'OpenAI (GPT)',
+  description: 'OpenAI GPT models including GPT-4, GPT-3.5, and GPT-5',
+  apiEndpoint: 'https://api.openai.com/v1/chat/completions',
+  defaultModel: 'gpt-5-mini',
+  models: [
+    { value: 'gpt-5', label: 'gpt-5' },
+    { value: 'gpt-5-mini', label: 'gpt-5-mini' },
+    { value: 'gpt-4o', label: 'gpt-4o' },
+    { value: 'gpt-4o-mini', label: 'gpt-4o-mini' },
+    { value: 'o4-mini', label: 'o4-mini' },
+  ],
+  apiKeyStorageKey: 'vj-ai-openai-api-key',
+  modelStorageKey: 'vj-ai-openai-model',
+  apiKeyPlaceholder: 'sk-...',
+  // Models matching this pattern use the provider default temperature only
+  noTemperaturePattern: /^gpt-5/i,
+  defaultTemperature: 0.7,
+
+  buildRequestBody: (params) => {
+    const body = {
+      model: params.model,
+      messages: params.messages,
+    };
+
+    if (!openaiTemplate.noTemperaturePattern || !openaiTemplate.noTemperaturePattern.test(params.model)) {
+      body.temperature = params.temperature != null ? params.temperature : openaiTemplate.defaultTemperature;
+    }
+
+    return body;
+  },
+
+  buildRequestHeaders: (apiKey) => ({
+    Authorization: 'Bearer ' + String(apiKey || '').trim(),
+    'Content-Type': 'application/json',
+  }),
+
+  extractResponseText: (responseData) => {
+    try {
+      return (
+        (responseData &&
+          responseData.choices &&
+          responseData.choices[0] &&
+          responseData.choices[0].message &&
+          responseData.choices[0].message.content) ||
+        ''
+      );
+    } catch {
+      return '';
+    }
+  },
+
+  extractErrorMessage: (errorResponse, statusCode) => {
+    try {
+      if (typeof errorResponse === 'string') {
+        try {
+          const parsed = JSON.parse(errorResponse);
+          return (
+            (parsed && parsed.error && parsed.error.message) ||
+            parsed.message ||
+            'OpenAI error ' + String(statusCode)
+          );
+        } catch {
+          return 'OpenAI error ' + String(statusCode) + ': ' + errorResponse;
+        }
+      }
+      return (
+        (errorResponse && errorResponse.error && errorResponse.error.message) ||
+        errorResponse.message ||
+        'OpenAI error ' + String(statusCode)
+      );
+    } catch {
+      return 'OpenAI error ' + String(statusCode);
+    }
+  },
+};
+
+module.exports = openaiTemplate;
+module.exports.default = openaiTemplate;
+`.trimStart(),
+      },
+      {
+        filename: 'gemini.js',
+        content: `
+const geminiTemplate = {
+  id: 'gemini',
+  name: 'Google Gemini',
+  description: 'Google Gemini models (Gemini Pro, Gemini Ultra, etc.)',
+  apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+  defaultModel: 'gemini-pro',
+  models: [
+    { value: 'gemini-pro', label: 'Gemini Pro' },
+    { value: 'gemini-ultra', label: 'Gemini Ultra' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+  ],
+  apiKeyStorageKey: 'vj-ai-gemini-api-key',
+  modelStorageKey: 'vj-ai-gemini-model',
+  apiKeyPlaceholder: 'AIza...',
+  defaultTemperature: 0.7,
+
+  buildRequestBody: (params) => {
+    const contentParts = (params.messages || [])
+      .filter((msg) => msg && msg.role === 'user')
+      .map((msg) => ({ text: msg.content }));
+
+    return {
+      contents: [
+        {
+          parts: contentParts,
+        },
+      ],
+      generationConfig: {
+        temperature: params.temperature != null ? params.temperature : geminiTemplate.defaultTemperature,
+      },
+    };
+  },
+
+  buildRequestHeaders: () => ({
+    'Content-Type': 'application/json',
+  }),
+
+  extractResponseText: (responseData) => {
+    try {
+      return (
+        (responseData &&
+          responseData.candidates &&
+          responseData.candidates[0] &&
+          responseData.candidates[0].content &&
+          responseData.candidates[0].content.parts &&
+          responseData.candidates[0].content.parts[0] &&
+          responseData.candidates[0].content.parts[0].text) ||
+        ''
+      );
+    } catch {
+      return '';
+    }
+  },
+
+  extractErrorMessage: (errorResponse, statusCode) => {
+    try {
+      if (typeof errorResponse === 'string') {
+        try {
+          const parsed = JSON.parse(errorResponse);
+          return (
+            (parsed && parsed.error && parsed.error.message) ||
+            parsed.message ||
+            'Gemini error ' + String(statusCode)
+          );
+        } catch {
+          return 'Gemini error ' + String(statusCode) + ': ' + errorResponse;
+        }
+      }
+      return (
+        (errorResponse && errorResponse.error && errorResponse.error.message) ||
+        errorResponse.message ||
+        'Gemini error ' + String(statusCode)
+      );
+    } catch {
+      return 'Gemini error ' + String(statusCode);
+    }
+  },
+};
+
+module.exports = geminiTemplate;
+module.exports.default = geminiTemplate;
+`.trimStart(),
+      },
+    ];
+
+    for (const tpl of builtinTemplates) {
+      try {
+        const destFile = path.join(aiTemplatesDestPath, tpl.filename);
+        if (!fs.existsSync(destFile)) {
+          fs.writeFileSync(destFile, tpl.content, 'utf8');
+          console.log('Seeded AI template file:', destFile);
+        }
+      } catch (e) {
+        console.warn('Failed to seed AI template file', tpl.filename, e);
       }
     }
     

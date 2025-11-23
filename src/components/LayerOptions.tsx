@@ -23,21 +23,11 @@ const LockIcon: React.FC<{ className?: string }> = ({ className }) => (
 const UnlockIcon: React.FC<{ className?: string }> = ({ className }) => (
   <LockOpen1Icon className={className || 'tw-w-3.5 tw-h-3.5'} />
 );
+// Random icon uses the shared DiceIcon so it renders consistently in all contexts
 const RandomIcon: React.FC<{ className?: string }> = ({ className }) => {
-  const baseSize = 'tw-w-3.5 tw-h-3.5 tw-inline-block';
+  const baseSize = 'tw-w-3.5 tw-h-3.5';
   const cls = className ? `${baseSize} ${className}` : baseSize;
-  return (
-    <span
-      aria-hidden
-      className={cls}
-      style={{
-        WebkitMask: 'url(/icons/dice.svg) center / contain no-repeat',
-        mask: 'url(/icons/dice.svg) center / contain no-repeat',
-        backgroundColor: 'currentColor',
-        display: 'inline-block'
-      }}
-    />
-  );
+  return <DiceIcon className={cls} />;
 };
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {

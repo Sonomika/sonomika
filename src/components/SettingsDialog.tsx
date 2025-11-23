@@ -5,6 +5,8 @@ import { useStore } from '../store/store';
 import { Button, Slider, Select, Input } from './ui';
 import { useToast } from '../hooks/use-toast';
 import { getSupabase } from '../lib/supabaseClient';
+import { AITemplateLoader } from '../utils/AITemplateLoader';
+import { AITemplate } from '../types/aiTemplate';
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -63,16 +65,73 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     initializeDefaultFxDir();
   }, []);
 
-  // OpenAI API key settings
-  const STORAGE_KEY_API = 'vj-ai-openai-api-key';
-  const STORAGE_KEY_MODEL = 'vj-ai-openai-model';
-  const [apiKey, setApiKey] = useState<string>(() => {
-    try { return localStorage.getItem(STORAGE_KEY_API) || ''; } catch { return ''; }
+  // AI Provider template settings
+  const [templates, setTemplates] = useState<AITemplate[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState<string>(() => {
+    try { return localStorage.getItem('vj-ai-selected-provider') || 'openai'; } catch { return 'openai'; }
   });
-  const [model, setModel] = useState<string>(() => {
-    try { return localStorage.getItem(STORAGE_KEY_MODEL) || 'gpt-5-mini'; } catch { return 'gpt-5-mini'; }
-  });
+  const [selectedTemplate, setSelectedTemplate] = useState<AITemplate | null>(null);
+  const [apiKey, setApiKey] = useState<string>('');
+  const [model, setModel] = useState<string>('');
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
+
+  // Load templates when dialog opens (force reload to pick up file deletions)
+  useEffect(() => {
+    if (!isOpen) return; // Only load when dialog is open
+    
+    const loadTemplates = async () => {
+      try {
+        const loader = AITemplateLoader.getInstance();
+        // Force reload templates when dialog opens to pick up any file changes/deletions
+        await loader.reloadTemplates();
+        const loadedTemplates = loader.getAllTemplates();
+        console.log('SettingsDialog: Loaded templates:', loadedTemplates.length, loadedTemplates.map(t => t.id));
+        setTemplates(loadedTemplates);
+        
+        // Set template based on selected provider ID (from state or localStorage)
+        const currentProviderId = selectedProviderId || (() => {
+          try { return localStorage.getItem('vj-ai-selected-provider') || 'openai'; } catch { return 'openai'; }
+        })();
+        
+        const template = loader.getTemplate(currentProviderId) || loader.getDefaultTemplate();
+        if (template) {
+          setSelectedTemplate(template);
+          // Load API key and model for selected template
+          try {
+            const storedKey = localStorage.getItem(template.apiKeyStorageKey) || '';
+            const storedModel = localStorage.getItem(template.modelStorageKey) || template.defaultModel;
+            setApiKey(storedKey);
+            setModel(storedModel);
+          } catch {}
+        } else {
+          console.warn('SettingsDialog: No template found for provider:', currentProviderId);
+        }
+      } catch (error) {
+        console.error('SettingsDialog: Failed to load templates:', error);
+      }
+    };
+    loadTemplates();
+  }, [isOpen]); // Reload templates when dialog opens
+
+  // Update selected template when provider changes
+  useEffect(() => {
+    if (selectedProviderId && templates.length > 0) {
+      const loader = AITemplateLoader.getInstance();
+      const template = loader.getTemplate(selectedProviderId);
+      if (template) {
+        setSelectedTemplate(template);
+        try {
+          const storedKey = localStorage.getItem(template.apiKeyStorageKey) || '';
+          const storedModel = localStorage.getItem(template.modelStorageKey) || template.defaultModel;
+          setApiKey(storedKey);
+          setModel(storedModel);
+          localStorage.setItem('vj-ai-selected-provider', selectedProviderId);
+        } catch {}
+      } else {
+        console.warn(`Template not found for provider: ${selectedProviderId}. Available templates:`, Array.from(loader.getAllTemplates().map(t => t.id)));
+      }
+    }
+  }, [selectedProviderId, templates]);
 
   useEffect(() => {
     const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
@@ -104,8 +163,9 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   };
 
   const handleSaveApiKey = () => {
+    if (!selectedTemplate) return;
     try { 
-      localStorage.setItem(STORAGE_KEY_API, apiKey.trim()); 
+      localStorage.setItem(selectedTemplate.apiKeyStorageKey, apiKey.trim()); 
       toast({ description: 'API key saved' });
     } catch (e) {
       toast({ description: 'Failed to save API key' });
@@ -113,12 +173,30 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   };
 
   const handleSaveModel = (m: string) => {
+    if (!selectedTemplate) return;
     setModel(m);
     try { 
-      localStorage.setItem(STORAGE_KEY_MODEL, m); 
+      localStorage.setItem(selectedTemplate.modelStorageKey, m); 
       toast({ description: 'Model saved' });
     } catch (e) {
       toast({ description: 'Failed to save model' });
+    }
+  };
+
+  const handleProviderChange = (providerId: string) => {
+    setSelectedProviderId(providerId);
+    // Immediately update template to avoid stale state
+    const loader = AITemplateLoader.getInstance();
+    const template = loader.getTemplate(providerId);
+    if (template) {
+      setSelectedTemplate(template);
+      try {
+        const storedKey = localStorage.getItem(template.apiKeyStorageKey) || '';
+        const storedModel = localStorage.getItem(template.modelStorageKey) || template.defaultModel;
+        setApiKey(storedKey);
+        setModel(storedModel);
+        localStorage.setItem('vj-ai-selected-provider', providerId);
+      } catch {}
     }
   };
 
@@ -318,54 +396,78 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
 
           <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
           
-          {/* OpenAI API Settings */}
+          {/* AI Provider Settings */}
           <div className="tw-space-y-3">
-            <div className="tw-text-sm tw-text-neutral-200">OpenAI API</div>
-            <div className="tw-text-xs tw-text-neutral-400">Configure your OpenAI API key and model for AI effects generation</div>
+            <div className="tw-text-sm tw-text-neutral-200">AI Provider</div>
+            <div className="tw-text-xs tw-text-neutral-400">Configure your AI provider API key and model for AI effects generation</div>
             
-            <div className="tw-space-y-2">
-              <div className="tw-text-xs tw-text-neutral-400">API Key</div>
-              <div className="tw-flex tw-items-center tw-gap-2">
-                <Input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={showApiKey ? apiKey : getMaskedApiKey()}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
-                  className="tw-flex-1 tw-text-xs"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="tw-text-xs"
-                >
-                  {showApiKey ? 'Hide' : 'Show'}
-                </Button>
-                <Button
-                  onClick={handleSaveApiKey}
-                  className="tw-text-xs"
-                >
-                  Save
-                </Button>
-              </div>
-            </div>
+            {templates.length > 0 ? (
+              <>
+                <div className="tw-space-y-2">
+                  <div className="tw-text-xs tw-text-neutral-400">Provider</div>
+                  <div className="tw-flex tw-items-center tw-gap-2">
+                    <Select
+                      value={selectedProviderId}
+                      onChange={(val) => handleProviderChange(String(val))}
+                      options={templates.map(t => ({
+                        value: t.id,
+                        label: t.name,
+                      }))}
+                      className="tw-text-xs"
+                    />
+                  </div>
+                  {selectedTemplate && (
+                    <div className="tw-text-xs tw-text-neutral-500">{selectedTemplate.description}</div>
+                  )}
+                </div>
 
-            <div className="tw-space-y-2">
-              <div className="tw-text-xs tw-text-neutral-400">Model</div>
-              <div className="tw-flex tw-items-center tw-gap-2">
-                <Select
-                  value={model}
-                  onChange={(val) => handleSaveModel(String(val))}
-                  options={[
-                    { value: 'gpt-5', label: 'gpt-5' },
-                    { value: 'gpt-5-mini', label: 'gpt-5-mini' },
-                    { value: 'gpt-4o', label: 'gpt-4o' },
-                    { value: 'gpt-4o-mini', label: 'gpt-4o-mini' },
-                    { value: 'o4-mini', label: 'o4-mini' },
-                  ]}
-                  className="tw-text-xs"
-                />
+                {selectedTemplate && (
+                  <>
+                    <div className="tw-space-y-2">
+                      <div className="tw-text-xs tw-text-neutral-400">API Key</div>
+                      <div className="tw-flex tw-items-center tw-gap-2">
+                        <Input
+                          type={showApiKey ? 'text' : 'password'}
+                          value={showApiKey ? apiKey : getMaskedApiKey()}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          placeholder={selectedTemplate.apiKeyPlaceholder}
+                          className="tw-flex-1 tw-text-xs"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="tw-text-xs"
+                        >
+                          {showApiKey ? 'Hide' : 'Show'}
+                        </Button>
+                        <Button
+                          onClick={handleSaveApiKey}
+                          className="tw-text-xs"
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="tw-space-y-2">
+                      <div className="tw-text-xs tw-text-neutral-400">Model</div>
+                      <div className="tw-flex tw-items-center tw-gap-2">
+                        <Select
+                          value={model}
+                          onChange={(val) => handleSaveModel(String(val))}
+                          options={selectedTemplate.models}
+                          className="tw-text-xs"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="tw-text-xs tw-text-neutral-500">
+                Loading templates... (Check console for errors if this persists)
               </div>
-            </div>
+            )}
           </div>
 
           {(typeof window === 'undefined' || !(window as any).electron) && (

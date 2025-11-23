@@ -127,7 +127,8 @@
     "asarUnpack": [
       "**/ffmpeg-static/**/*",
       "**/ffprobe-static/**/*",
-      "**/bank/**/*"
+      "**/bank/**/*",
+      "**/src/ai-templates/**/*"
     ],
     "extraResources": [
       {
@@ -147,6 +148,13 @@
       {
         "from": "bundled/sets",
         "to": "sets",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "src/ai-templates",
+        "to": "src/ai-templates",
         "filter": [
           "**/*"
         ]

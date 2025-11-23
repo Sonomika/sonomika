@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Input, Label, Select, Textarea, Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea, Separator, Switch, Button } from './ui';
 import { useStore } from '../store/store';
+import { AITemplateLoader } from '../utils/AITemplateLoader';
+import { callAIAPI } from '../utils/AIApiCaller';
+import { AITemplate } from '../types/aiTemplate';
 
 interface RefEffectOption {
   id: string;
@@ -11,9 +14,6 @@ interface RefEffectOption {
 }
 
 const DEFAULT_PROMPT = `Make a new original effect based on this code`;
-
-const STORAGE_KEY_API = 'vj-ai-openai-api-key';
-const STORAGE_KEY_MODEL = 'vj-ai-openai-model';
 
 export const AIEffectsLab: React.FC = () => {
   const { scenes, currentSceneId, showTimeline, timelineScenes, currentTimelineSceneId, selectedLayerId } = useStore() as any;
@@ -40,13 +40,10 @@ export const AIEffectsLab: React.FC = () => {
     } catch { return null; }
   }, [selectedLayer]);
   // Reference effect selection removed; editor is now the single source of truth
-  // API key and model now managed in Settings dialog
-  const [apiKey, setApiKey] = useState<string>(() => {
-    try { return localStorage.getItem(STORAGE_KEY_API) || ''; } catch { return ''; }
-  });
-  const [model, setModel] = useState<string>(() => {
-    try { return localStorage.getItem(STORAGE_KEY_MODEL) || 'gpt-5-mini'; } catch { return 'gpt-5-mini'; }
-  });
+  // AI provider settings now managed in Settings dialog
+  const [selectedTemplate, setSelectedTemplate] = useState<AITemplate | null>(null);
+  const [apiKey, setApiKey] = useState<string>('');
+  const [model, setModel] = useState<string>('');
   const [thinking, setThinking] = useState<boolean>(false);
   const [prompt, setPrompt] = useState<string>(DEFAULT_PROMPT);
   const [code, setCode] = useState<string>(() => {
@@ -160,27 +157,52 @@ export const AIEffectsLab: React.FC = () => {
     })();
   }, [selectedEffectId, loadSourceForEffectId]);
 
-  // Listen for API key changes from Settings dialog
+  // Load selected provider and settings from Settings dialog
   useEffect(() => {
-    const handleStorageChange = () => {
+    const loadProviderSettings = async () => {
       try {
-        const newApiKey = localStorage.getItem(STORAGE_KEY_API) || '';
-        const newModel = localStorage.getItem(STORAGE_KEY_MODEL) || 'gpt-5-mini';
-        setApiKey(newApiKey);
-        setModel(newModel);
-      } catch {}
+        const loader = AITemplateLoader.getInstance();
+        await loader.loadTemplates();
+        
+        const selectedProviderId = localStorage.getItem('vj-ai-selected-provider') || 'openai';
+        const template = loader.getTemplate(selectedProviderId) || loader.getDefaultTemplate();
+        
+        if (template) {
+          setSelectedTemplate(template);
+          const storedKey = localStorage.getItem(template.apiKeyStorageKey) || '';
+          const storedModel = localStorage.getItem(template.modelStorageKey) || template.defaultModel;
+          setApiKey(storedKey);
+          setModel(storedModel);
+        }
+      } catch (error) {
+        console.error('Failed to load AI provider settings:', error);
+      }
+    };
+    
+    loadProviderSettings();
+    
+    // Listen for changes from Settings dialog
+    const handleStorageChange = () => {
+      loadProviderSettings();
     };
     
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    // Also poll periodically since storage event doesn't fire in same window
+    const interval = setInterval(loadProviderSettings, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   // Reference dropdown removed
   // API key and model saving now handled in Settings dialog
 
-  // Generate effect code with OpenAI
+  // Generate effect code with selected AI provider
   const handleGenerate = async () => {
-    if (!apiKey) { setStatus('Configure your OpenAI API key in Settings first'); return; }
+    if (!selectedTemplate) { setStatus('No AI provider selected. Configure in Settings first.'); return; }
+    if (!apiKey) { setStatus(`Configure your ${selectedTemplate.name} API key in Settings first`); return; }
     setThinking(true);
     setStatus('Generating with AI...');
     try {
@@ -189,31 +211,16 @@ export const AIEffectsLab: React.FC = () => {
       const combined = truncated
         ? `${String(prompt || '')}\n\nExample:\n\`\`\`js\n${truncated}\n\`\`\``
         : String(prompt || '');
-      const body: any = {
+
+      const text = await callAIAPI({
+        template: selectedTemplate,
+        apiKey,
         model,
         messages: [
           { role: 'user', content: combined }
         ],
-      };
-      // Some models (e.g., gpt-5) only support the default temperature; skip when not supported
-      if (!/^gpt-5/i.test(model)) {
-        body.temperature = 0.7;
-      }
-
-      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey.trim()}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
       });
-      if (!resp.ok) {
-        const t = await resp.text();
-        throw new Error(`OpenAI error ${resp.status}: ${t}`);
-      }
-      const data = await resp.json();
-      const text = data?.choices?.[0]?.message?.content || '';
+
       // Extract only code if response includes fenced blocks; otherwise use raw
       const match = /```[a-zA-Z]*\n([\s\S]*?)```/m.exec(text);
       const cleaned = match ? match[1] : text.replace(/^```[a-zA-Z]*\n?|```$/g, '');
@@ -336,8 +343,9 @@ export const AIEffectsLab: React.FC = () => {
   const handleFixOutput = async () => {
     try {
       if (!code.trim()) { setStatus('Nothing to fix'); return; }
+      if (!selectedTemplate) { setStatus('No AI provider selected. Configure in Settings first.'); return; }
       const hasApi = !!apiKey && apiKey.trim().length > 0;
-      if (!hasApi) { setStatus('Add API key in Settings to use Fix Output'); return; }
+      if (!hasApi) { setStatus(`Add ${selectedTemplate.name} API key in Settings to use Fix Output`); return; }
       setThinking(true);
       setStatus('Fixing with AI...');
 
@@ -686,6 +694,8 @@ export const AIEffectsLab: React.FC = () => {
         '}',
       ].join('\n');
 
+      if (!selectedTemplate) { setStatus('No AI provider selected. Configure in Settings first.'); return; }
+
       const combined = [
         'why is the effect not working send whole code fix with no comment',
         '',
@@ -698,22 +708,14 @@ export const AIEffectsLab: React.FC = () => {
         workingExample,
       ].join('\n');
 
-      const body: any = {
+      const text = await callAIAPI({
+        template: selectedTemplate,
+        apiKey,
         model,
         messages: [ { role: 'user', content: combined } ],
-      };
-      if (!/^gpt-5/i.test(model)) body.temperature = 0.0;
-      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey.trim()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        temperature: 0.0,
       });
-      if (!resp.ok) {
-        const t = await resp.text();
-        throw new Error(`OpenAI error ${resp.status}: ${t}`);
-      }
-      const data = await resp.json();
-      const text = data?.choices?.[0]?.message?.content || '';
+
       const fence = /```[a-zA-Z]*\n([\s\S]*?)```/m.exec(text);
       const cleaned = fence ? fence[1] : text.replace(/^```[a-zA-Z]*\n?|```$/g, '');
       setCode(cleaned);
