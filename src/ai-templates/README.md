@@ -4,12 +4,15 @@ This directory contains templates for different AI providers. Each template defi
 
 ## Adding a New AI Provider Template
 
-To add support for a new AI provider, create a new TypeScript file in this directory following this structure:
+To add support for a new AI provider, create a new JavaScript file (`.js`) in this directory following this structure:
 
-```typescript
-import { AITemplate } from '../types/aiTemplate';
-
-const myProviderTemplate: AITemplate = {
+```javascript
+/**
+ * My Provider Template
+ * 
+ * Template for My Provider's AI models
+ */
+const myProviderTemplate = {
   id: 'my-provider',                    // Unique identifier
   name: 'My Provider',                  // Display name
   description: 'Description of provider',
@@ -32,23 +35,24 @@ const myProviderTemplate: AITemplate = {
   }),
   
   // Build request headers (usually includes Authorization)
-  buildRequestHeaders: (apiKey: string) => ({
+  buildRequestHeaders: (apiKey) => ({
     'Authorization': `Bearer ${apiKey.trim()}`,
     'Content-Type': 'application/json',
   }),
   
   // Extract the generated text from API response
-  extractResponseText: (responseData: any) => {
+  extractResponseText: (responseData) => {
     return responseData?.choices?.[0]?.message?.content || '';
   },
   
   // Optional: Custom error message extraction
-  extractErrorMessage: (errorResponse: any, statusCode: number) => {
+  extractErrorMessage: (errorResponse, statusCode) => {
     return errorResponse?.error?.message || `Error ${statusCode}`;
   },
 };
 
-export default myProviderTemplate;
+module.exports = myProviderTemplate;
+module.exports.default = myProviderTemplate;
 ```
 
 ### Special Cases
@@ -82,7 +86,7 @@ Once you create a template file, it will be automatically discovered and loaded 
 
 **Templates are automatically copied to your Documents folder on first run!**
 
-When the app starts, all templates from `src/ai-templates/` are copied to:
+When the app starts, all `.js` template files from `src/ai-templates/` are copied to:
 - **Windows**: `Documents/Sonomika/ai-templates/`
 - **macOS/Linux**: `Documents/Sonomika/ai-templates/`
 
@@ -90,10 +94,10 @@ When the app starts, all templates from `src/ai-templates/` are copied to:
 
 You can edit templates in the Documents folder to customize them:
 1. Navigate to `Documents/Sonomika/ai-templates/`
-2. Edit any `.js` file (or copy a `.ts` file and rename to `.js`)
+2. Edit any `.js` file
 3. Restart the app or reload templates
 
-**Note**: User templates must be `.js` files (JavaScript), not TypeScript. If you copy a `.ts` file, remove type annotations or convert it to JavaScript.
+**Note**: Templates are JavaScript (`.js`) files that get copied to users' Documents folders on first run.
 
 ### Template Loading Priority
 

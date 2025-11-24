@@ -1,11 +1,9 @@
-import { AITemplate } from '../types/aiTemplate';
-
 /**
  * OpenAI Provider Template
  * 
  * Template for OpenAI's GPT models (GPT-4, GPT-3.5, etc.)
  */
-const openaiTemplate: AITemplate = {
+const openaiTemplate = {
   id: 'openai',
   name: 'OpenAI (GPT)',
   description: 'OpenAI GPT models including GPT-4, GPT-3.5, and GPT-5',
@@ -25,7 +23,7 @@ const openaiTemplate: AITemplate = {
   defaultTemperature: 0.7,
   
   buildRequestBody: (params) => {
-    const body: any = {
+    const body = {
       model: params.model,
       messages: params.messages,
     };
@@ -38,16 +36,16 @@ const openaiTemplate: AITemplate = {
     return body;
   },
   
-  buildRequestHeaders: (apiKey: string) => ({
+  buildRequestHeaders: (apiKey) => ({
     'Authorization': `Bearer ${apiKey.trim()}`,
     'Content-Type': 'application/json',
   }),
   
-  extractResponseText: (responseData: any) => {
+  extractResponseText: (responseData) => {
     return responseData?.choices?.[0]?.message?.content || '';
   },
   
-  extractErrorMessage: (errorResponse: any, statusCode: number) => {
+  extractErrorMessage: (errorResponse, statusCode) => {
     if (typeof errorResponse === 'string') {
       try {
         const parsed = JSON.parse(errorResponse);
@@ -60,5 +58,6 @@ const openaiTemplate: AITemplate = {
   },
 };
 
-export default openaiTemplate;
+module.exports = openaiTemplate;
+module.exports.default = openaiTemplate;
 

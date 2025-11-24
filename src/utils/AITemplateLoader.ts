@@ -7,11 +7,6 @@
 
 import { AITemplate } from '../types/aiTemplate';
 
-// Direct imports as fallback - these are always available
-import openaiTemplate from '../ai-templates/openai';
-import grokTemplate from '../ai-templates/grok';
-import geminiTemplate from '../ai-templates/gemini';
-
 export class AITemplateLoader {
   private static instance: AITemplateLoader;
   private templates: Map<string, AITemplate> = new Map();
@@ -149,11 +144,8 @@ export class AITemplateLoader {
         await this.loadBundledTemplates();
         console.log(`After bundled load: ${this.templates.size} templates`);
 
-        // Final fallback: direct imports if still nothing
-        if (this.templates.size === 0) {
-          console.warn('⚠️ No templates found, using direct imports as fallback...');
-          this.loadDirectImports();
-        }
+        // Note: Direct imports removed - templates are loaded from Documents folder
+        // or from extraResources. If no templates found, user needs to check their setup.
       }
       
       if (this.templates.size === 0) {
@@ -479,29 +471,6 @@ export class AITemplateLoader {
     );
   }
 
-  /**
-   * Load templates using direct imports (fallback method)
-   * This ensures templates are always available even if file-based loading fails
-   */
-  private loadDirectImports(): void {
-    try {
-      // These are imported at the top of the file, so they're always available
-      // Grok is temporarily disabled, so we only include OpenAI and Gemini here
-      const directTemplates = [openaiTemplate, /* grokTemplate, */ geminiTemplate];
-      
-      for (const template of directTemplates) {
-        if (template && this.isValidTemplate(template)) {
-          // Only add if not already loaded (user templates take priority)
-          if (!this.templates.has(template.id)) {
-            this.templates.set(template.id, template);
-            console.log(`✅ Loaded AI template via direct import: ${template.id} (${template.name})`);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load templates via direct imports:', error);
-    }
-  }
 
   /**
    * Reload templates (useful if templates are added dynamically)

@@ -148,7 +148,11 @@ function initializeUserDocumentsFolders() {
     }
     
     // Copy sets folder contents if available
+    // Priority: user-documents/sets > bundled/sets > other locations
     const setsSourcePaths = [
+      path.join(process.resourcesPath || '', 'app.asar.unpacked', 'user-documents', 'sets'),
+      path.join(__dirname, '../user-documents', 'sets'),
+      path.join(process.cwd(), 'user-documents', 'sets'),
       path.join(process.resourcesPath || '', 'app.asar.unpacked', 'sets'),
       path.join(__dirname, '../sets'),
       path.join(process.cwd(), 'sets'),
@@ -169,199 +173,112 @@ function initializeUserDocumentsFolders() {
       }
     }
     
+    // Copy additional user-documents folders (midi mapping, music, recordings, video)
+    // Note: sets is handled separately above with higher priority
+    const userDocsSourcePaths = [
+      path.join(process.resourcesPath || '', 'app.asar.unpacked', 'user-documents'),
+      path.join(__dirname, '../user-documents'),
+      path.join(process.cwd(), 'user-documents'),
+    ];
+    
+    for (const userDocsSource of userDocsSourcePaths) {
+      if (fs.existsSync(userDocsSource)) {
+        try {
+          // Copy each subfolder from user-documents to Documents/Sonomika
+          // Exclude 'sets' as it's already handled above
+          const subfolders = ['midi mapping', 'music', 'recordings', 'video'];
+          for (const subfolder of subfolders) {
+            const srcSubfolder = path.join(userDocsSource, subfolder);
+            const destSubfolder = path.join(sonomikaDocsPath, subfolder);
+            if (fs.existsSync(srcSubfolder)) {
+              copyDirectoryRecursive(srcSubfolder, destSubfolder);
+              console.log('Copied', subfolder, 'folder from', srcSubfolder, 'to', destSubfolder);
+            }
+          }
+          break;
+        } catch (e) {
+          console.warn('Failed to copy user-documents folders from', userDocsSource, ':', e);
+        }
+      }
+    }
+    
     // Ensure ai-templates folder exists in Documents/Sonomika
     const aiTemplatesDestPath = path.join(sonomikaDocsPath, 'ai-templates');
     if (!fs.existsSync(aiTemplatesDestPath)) {
       fs.mkdirSync(aiTemplatesDestPath, { recursive: true });
     }
 
-    // Seed ai-templates with default provider templates as plain JavaScript
-    // These are written only if the user doesn't already have a file, so they remain user-editable.
-    const builtinTemplates: Array<{ filename: string; content: string }> = [
-      {
-        filename: 'openai.js',
-        content: `
-const openaiTemplate = {
-  id: 'openai',
-  name: 'OpenAI (GPT)',
-  description: 'OpenAI GPT models including GPT-4, GPT-3.5, and GPT-5',
-  apiEndpoint: 'https://api.openai.com/v1/chat/completions',
-  defaultModel: 'gpt-5-mini',
-  models: [
-    { value: 'gpt-5', label: 'gpt-5' },
-    { value: 'gpt-5-mini', label: 'gpt-5-mini' },
-    { value: 'gpt-4o', label: 'gpt-4o' },
-    { value: 'gpt-4o-mini', label: 'gpt-4o-mini' },
-    { value: 'o4-mini', label: 'o4-mini' },
-  ],
-  apiKeyStorageKey: 'vj-ai-openai-api-key',
-  modelStorageKey: 'vj-ai-openai-model',
-  apiKeyPlaceholder: 'sk-...',
-  // Models matching this pattern use the provider default temperature only
-  noTemperaturePattern: /^gpt-5/i,
-  defaultTemperature: 0.7,
-
-  buildRequestBody: (params) => {
-    const body = {
-      model: params.model,
-      messages: params.messages,
-    };
-
-    if (!openaiTemplate.noTemperaturePattern || !openaiTemplate.noTemperaturePattern.test(params.model)) {
-      body.temperature = params.temperature != null ? params.temperature : openaiTemplate.defaultTemperature;
-    }
-
-    return body;
-  },
-
-  buildRequestHeaders: (apiKey) => ({
-    Authorization: 'Bearer ' + String(apiKey || '').trim(),
-    'Content-Type': 'application/json',
-  }),
-
-  extractResponseText: (responseData) => {
-    try {
-      return (
-        (responseData &&
-          responseData.choices &&
-          responseData.choices[0] &&
-          responseData.choices[0].message &&
-          responseData.choices[0].message.content) ||
-        ''
-      );
-    } catch {
-      return '';
-    }
-  },
-
-  extractErrorMessage: (errorResponse, statusCode) => {
-    try {
-      if (typeof errorResponse === 'string') {
-        try {
-          const parsed = JSON.parse(errorResponse);
-          return (
-            (parsed && parsed.error && parsed.error.message) ||
-            parsed.message ||
-            'OpenAI error ' + String(statusCode)
-          );
-        } catch {
-          return 'OpenAI error ' + String(statusCode) + ': ' + errorResponse;
-        }
-      }
-      return (
-        (errorResponse && errorResponse.error && errorResponse.error.message) ||
-        errorResponse.message ||
-        'OpenAI error ' + String(statusCode)
-      );
-    } catch {
-      return 'OpenAI error ' + String(statusCode);
-    }
-  },
-};
-
-module.exports = openaiTemplate;
-module.exports.default = openaiTemplate;
-`.trimStart(),
-      },
-      {
-        filename: 'gemini.js',
-        content: `
-const geminiTemplate = {
-  id: 'gemini',
-  name: 'Google Gemini',
-  description: 'Google Gemini models (Gemini Pro, Gemini Ultra, etc.)',
-  apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
-  defaultModel: 'gemini-pro',
-  models: [
-    { value: 'gemini-pro', label: 'Gemini Pro' },
-    { value: 'gemini-ultra', label: 'Gemini Ultra' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-  ],
-  apiKeyStorageKey: 'vj-ai-gemini-api-key',
-  modelStorageKey: 'vj-ai-gemini-model',
-  apiKeyPlaceholder: 'AIza...',
-  defaultTemperature: 0.7,
-
-  buildRequestBody: (params) => {
-    const contentParts = (params.messages || [])
-      .filter((msg) => msg && msg.role === 'user')
-      .map((msg) => ({ text: msg.content }));
-
-    return {
-      contents: [
-        {
-          parts: contentParts,
-        },
-      ],
-      generationConfig: {
-        temperature: params.temperature != null ? params.temperature : geminiTemplate.defaultTemperature,
-      },
-    };
-  },
-
-  buildRequestHeaders: () => ({
-    'Content-Type': 'application/json',
-  }),
-
-  extractResponseText: (responseData) => {
-    try {
-      return (
-        (responseData &&
-          responseData.candidates &&
-          responseData.candidates[0] &&
-          responseData.candidates[0].content &&
-          responseData.candidates[0].content.parts &&
-          responseData.candidates[0].content.parts[0] &&
-          responseData.candidates[0].content.parts[0].text) ||
-        ''
-      );
-    } catch {
-      return '';
-    }
-  },
-
-  extractErrorMessage: (errorResponse, statusCode) => {
-    try {
-      if (typeof errorResponse === 'string') {
-        try {
-          const parsed = JSON.parse(errorResponse);
-          return (
-            (parsed && parsed.error && parsed.error.message) ||
-            parsed.message ||
-            'Gemini error ' + String(statusCode)
-          );
-        } catch {
-          return 'Gemini error ' + String(statusCode) + ': ' + errorResponse;
-        }
-      }
-      return (
-        (errorResponse && errorResponse.error && errorResponse.error.message) ||
-        errorResponse.message ||
-        'Gemini error ' + String(statusCode)
-      );
-    } catch {
-      return 'Gemini error ' + String(statusCode);
-    }
-  },
-};
-
-module.exports = geminiTemplate;
-module.exports.default = geminiTemplate;
-`.trimStart(),
-      },
+    // Copy ai-templates from app resources to user Documents folder
+    // These are copied only if they don't already exist, so user edits are preserved
+    // In production: extraResources are in process.resourcesPath/src/ai-templates
+    // In production: asarUnpack files are in process.resourcesPath/app.asar.unpacked/src/ai-templates
+    // In development: files are relative to __dirname or app.getAppPath()
+    const appPath = app.getAppPath();
+    const aiTemplatesSourcePaths = [
+      // Production: extraResources location (most likely)
+      path.join(process.resourcesPath || '', 'src', 'ai-templates'),
+      // Production: asarUnpack location
+      path.join(process.resourcesPath || '', 'app.asar.unpacked', 'src', 'ai-templates'),
+      // Development: relative to compiled main.js
+      path.join(__dirname, '../src/ai-templates'),
+      path.join(__dirname, '../../src/ai-templates'),
+      // Development: relative to app path
+      path.join(appPath, 'src/ai-templates'),
+      // Development: current working directory
+      path.join(process.cwd(), 'src/ai-templates'),
     ];
-
-    for (const tpl of builtinTemplates) {
-      try {
-        const destFile = path.join(aiTemplatesDestPath, tpl.filename);
-        if (!fs.existsSync(destFile)) {
-          fs.writeFileSync(destFile, tpl.content, 'utf8');
-          console.log('Seeded AI template file:', destFile);
+    
+    let templatesCopied = 0;
+    
+    // Check if destination folder is empty (user might have deleted files)
+    const destEntries = fs.existsSync(aiTemplatesDestPath) 
+      ? fs.readdirSync(aiTemplatesDestPath).filter(f => f.endsWith('.js'))
+      : [];
+    const isDestEmpty = destEntries.length === 0;
+    
+    if (isDestEmpty) {
+      console.log('AI templates folder is empty, will copy template files...');
+    }
+    
+    for (const sourcePath of aiTemplatesSourcePaths) {
+      if (fs.existsSync(sourcePath)) {
+        try {
+          console.log('Checking AI templates source path:', sourcePath);
+          const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
+          console.log(`Found ${entries.length} entries in ${sourcePath}`);
+          
+          for (const entry of entries) {
+            // Only copy .js files (skip .ts files, README, and other files)
+            if (entry.isFile() && entry.name.endsWith('.js')) {
+              const srcFile = path.join(sourcePath, entry.name);
+              const destFile = path.join(aiTemplatesDestPath, entry.name);
+              
+              // Copy if destination doesn't exist OR if folder is empty (force refresh)
+              if (!fs.existsSync(destFile) || isDestEmpty) {
+                fs.copyFileSync(srcFile, destFile);
+                console.log('Copied AI template file:', entry.name, 'to', destFile);
+                templatesCopied++;
+              } else {
+                console.log('Skipped AI template file (already exists):', entry.name);
+              }
+            }
+          }
+          
+          if (templatesCopied > 0) {
+            console.log(`Successfully copied ${templatesCopied} AI template file(s) from ${sourcePath}`);
+            break; // Stop after first successful source
+          }
+        } catch (e) {
+          console.warn('Failed to copy AI templates from', sourcePath, ':', e);
         }
-      } catch (e) {
-        console.warn('Failed to seed AI template file', tpl.filename, e);
+      } else {
+        console.log('AI templates source path does not exist:', sourcePath);
       }
+    }
+    
+    if (templatesCopied === 0) {
+      console.warn('⚠️ No AI template files were copied. Checked paths:', aiTemplatesSourcePaths);
+      console.warn('   This might indicate the template files are not included in the build.');
     }
     
   } catch (e) {

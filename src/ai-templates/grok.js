@@ -1,11 +1,9 @@
-import { AITemplate } from '../types/aiTemplate';
-
 /**
  * Grok Provider Template (xAI)
  * 
  * Template for xAI's Grok models
  */
-const grokTemplate: AITemplate = {
+const grokTemplate = {
   id: 'grok',
   name: 'Grok (xAI)',
   description: 'xAI Grok models via API',
@@ -26,16 +24,16 @@ const grokTemplate: AITemplate = {
     temperature: params.temperature ?? grokTemplate.defaultTemperature,
   }),
   
-  buildRequestHeaders: (apiKey: string) => ({
+  buildRequestHeaders: (apiKey) => ({
     'Authorization': `Bearer ${apiKey.trim()}`,
     'Content-Type': 'application/json',
   }),
   
-  extractResponseText: (responseData: any) => {
+  extractResponseText: (responseData) => {
     return responseData?.choices?.[0]?.message?.content || '';
   },
   
-  extractErrorMessage: (errorResponse: any, statusCode: number) => {
+  extractErrorMessage: (errorResponse, statusCode) => {
     if (typeof errorResponse === 'string') {
       try {
         const parsed = JSON.parse(errorResponse);
@@ -48,5 +46,6 @@ const grokTemplate: AITemplate = {
   },
 };
 
-export default grokTemplate;
+module.exports = grokTemplate;
+module.exports.default = grokTemplate;
 

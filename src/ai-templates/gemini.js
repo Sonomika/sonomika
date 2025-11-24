@@ -1,11 +1,9 @@
-import { AITemplate } from '../types/aiTemplate';
-
 /**
  * Google Gemini Provider Template
  * 
  * Template for Google's Gemini models
  */
-const geminiTemplate: AITemplate = {
+const geminiTemplate = {
   id: 'gemini',
   name: 'Google Gemini',
   description: 'Google Gemini models (Gemini Pro, Gemini Ultra, etc.)',
@@ -38,16 +36,16 @@ const geminiTemplate: AITemplate = {
     };
   },
   
-  buildRequestHeaders: (apiKey: string) => ({
+  buildRequestHeaders: () => ({
     'Content-Type': 'application/json',
   }),
   
-  extractResponseText: (responseData: any) => {
+  extractResponseText: (responseData) => {
     // Gemini response structure is different
     return responseData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
   },
   
-  extractErrorMessage: (errorResponse: any, statusCode: number) => {
+  extractErrorMessage: (errorResponse, statusCode) => {
     if (typeof errorResponse === 'string') {
       try {
         const parsed = JSON.parse(errorResponse);
@@ -60,5 +58,6 @@ const geminiTemplate: AITemplate = {
   },
 };
 
-export default geminiTemplate;
+module.exports = geminiTemplate;
+module.exports.default = geminiTemplate;
 

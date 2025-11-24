@@ -128,7 +128,8 @@
       "**/ffmpeg-static/**/*",
       "**/ffprobe-static/**/*",
       "**/bank/**/*",
-      "**/src/ai-templates/**/*"
+      "**/src/ai-templates/**/*",
+      "**/user-documents/**/*"
     ],
     "extraResources": [
       {
@@ -155,6 +156,13 @@
       {
         "from": "src/ai-templates",
         "to": "src/ai-templates",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "user-documents",
+        "to": "user-documents",
         "filter": [
           "**/*"
         ]
