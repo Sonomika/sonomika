@@ -87,6 +87,37 @@ try {
         },
         getDocumentsFolder: () => {
             return electron_1.ipcRenderer.invoke('get-documents-folder');
+        },
+        // Record menu events from main process (native app menu)
+        onRecordStart: (handler) => {
+            try {
+                electron_1.ipcRenderer.on('record:start', () => {
+                    try {
+                        handler && handler();
+                    }
+                    catch (e) {
+                        console.warn('Preload: onRecordStart handler failed', e);
+                    }
+                });
+            }
+            catch (e) {
+                console.warn('Preload: onRecordStart registration failed', e);
+            }
+        },
+        onRecordSettings: (handler) => {
+            try {
+                electron_1.ipcRenderer.on('record:settings', () => {
+                    try {
+                        handler && handler();
+                    }
+                    catch (e) {
+                        console.warn('Preload: onRecordSettings handler failed', e);
+                    }
+                });
+            }
+            catch (e) {
+                console.warn('Preload: onRecordSettings registration failed', e);
+            }
         }
     });
 

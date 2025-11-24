@@ -162,6 +162,23 @@ function App() {
     return { h: h * 360, s: s * 100, l: l * 100 };
   };
 
+  const findMainCanvas = () => {
+    // Priority 1: Canvas inside CanvasRenderer
+    let c = document.querySelector('.canvas-renderer canvas');
+    if (c) return c as HTMLCanvasElement;
+
+    // Priority 2: Any canvas that is NOT dummy and has reasonable size
+    const all = document.querySelectorAll('canvas');
+    for (const cand of Array.from(all)) {
+       if (cand.id !== 'dummy-mirror-canvas' && cand.width > 100 && cand.height > 100) {
+         return cand as HTMLCanvasElement;
+       }
+    }
+    
+    // Fallback
+    return document.querySelector('canvas') as HTMLCanvasElement;
+  };
+
   useEffect(() => {
     // Mark Electron environment for CSS targeting (e.g., scrollbar styling)
     try {
@@ -522,7 +539,7 @@ function App() {
         setIsMirrorOpen(false);
       } else {
         // Find or create the main canvas element
-        let canvas = document.querySelector('canvas') as HTMLCanvasElement;
+        let canvas = findMainCanvas();
         
         if (!canvas) {
           console.log('No canvas found yet, mirror will open and wait for content');
@@ -937,7 +954,7 @@ function App() {
 
   const handleAdvancedMirror = async (opts?: { count?: number; orientation?: 'horizontal' | 'vertical' }) => {
     try {
-      let canvas = document.querySelector('canvas') as HTMLCanvasElement;
+      let canvas = findMainCanvas();
       if (!canvas) {
         canvas = document.createElement('canvas');
         canvas.width = 1920;
@@ -954,80 +971,6 @@ function App() {
       console.error('Advanced mirror error', e);
     }
   };
-
-  useEffect(() => {
-    const startHandler = async () => {
-      try {
-        const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-        if (!canvas || !(canvas as any).captureStream) return;
-        const stream: MediaStream = (canvas as any).captureStream(30);
-        try {
-          const track = stream.getVideoTracks?.()[0] as any;
-          if (track && typeof track.requestFrame === 'function') {
-            const req = () => { try { track.requestFrame(); } catch {} };
-            // Nudge a few initial frames so the recording isn't empty
-            req();
-            setTimeout(req, 50);
-            setTimeout(req, 100);
-          }
-        } catch {}
-        const supportsVP9 = (window as any).MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
-        const mime = supportsVP9 ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp8';
-        const recorder = new MediaRecorder(stream, { mimeType: mime });
-        const chunks: BlobPart[] = [];
-        recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-        recorder.onstop = async () => {
-          const blob = new Blob(chunks, { type: mime });
-          const buffer = new Uint8Array(await blob.arrayBuffer());
-          try {
-            // Check if Electron APIs are available
-            if (!(window as any).electron) {
-              throw new Error('Electron APIs not available');
-            }
-            
-            if (typeof (window as any).electron.showSaveDialog !== 'function') {
-              throw new Error('showSaveDialog function not available');
-            }
-            
-            if (typeof (window as any).electron.saveBinaryFile !== 'function') {
-              throw new Error('saveBinaryFile function not available');
-            }
-            
-            const result = await (window as any).electron.showSaveDialog({
-              title: 'Save Recording',
-              defaultPath: 'recording.webm',
-              filters: [{ name: 'WebM', extensions: ['webm'] }]
-            });
-            if (result && !result.canceled && result.filePath) {
-              const ok = await (window as any).electron.saveBinaryFile(result.filePath, buffer);
-              if (ok) {
-                toast({ description: 'Recording saved successfully.' });
-              } else {
-                toast({ description: 'Failed to save recording.' });
-              }
-            } else {
-              toast({ description: 'Recording save canceled.' });
-            }
-          } catch (error) {
-            console.error('Error saving recording:', error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            toast({ description: 'Error saving recording: ' + errorMessage });
-          }
-        };
-        recorder.start();
-        toast({ description: 'Recording started...' });
-      } catch {}
-    };
-    const settingsHandler = () => {
-      toast({ description: 'Record Settings coming soon.' });
-    };
-    try { (window as any).electron?.onRecordStart?.(startHandler); } catch {}
-    try { (window as any).electron?.onRecordSettings?.(settingsHandler); } catch {}
-    // Removed: auto-start recording on first global play
-    return () => {
-      // no-op: listeners are process-wide; safe to leave in dev
-    };
-  }, [toast, isRecording]);
 
   // Offline recording frame loop: copies preview canvas into an offscreen canvas and sends PNGs to main via IPC
   useEffect(() => {
@@ -1053,7 +996,7 @@ function App() {
           const shouldSend = interval === 0 ? !sending : (ts - (sess.last || 0) >= interval && !sending);
           if (shouldSend) {
             sess.last = ts;
-            const preview = document.querySelector('canvas') as HTMLCanvasElement | null;
+            const preview = findMainCanvas();
             if (preview && sess.ctx) {
               try {
                 sess.ctx.drawImage(preview, 0, 0, sess.off.width, sess.off.height);
@@ -1091,6 +1034,405 @@ function App() {
     rafId = requestAnimationFrame(loop);
     return () => { try { cancelAnimationFrame(rafId); } catch {} };
   }, []);
+
+  // Shared toggle for live recording (used by title bar and native menu)
+  const handleRecordToggle = React.useCallback(() => {
+    // Reuse the same logic that was previously inlined in CustomTitleBar onRecord
+    (async () => {
+      try {
+        if (isRecording && recorderRef.current) { 
+          try { 
+            console.log('Stopping recording...');
+            recorderRef.current.stop(); 
+            // Update state immediately when stop is pressed
+            setIsRecording(false);
+            // Clean up only recording-specific audio streams (not app audio context)
+            // Note: Don't stop all audio tracks as this breaks AudioContextManager connections
+            if (recordingAudioStreamRef.current) {
+              console.log('Cleaning up recording-specific audio stream');
+              recordingAudioStreamRef.current.getTracks().forEach(track => track.stop());
+              recordingAudioStreamRef.current = null;
+            }
+            // Log audio context state after recording stop
+            try {
+              const { audioContextManager } = await import('./utils/AudioContextManager');
+              const debugInfo = audioContextManager.getDebugInfo();
+              console.log('[Recording Stop] AudioContextManager state preserved:', debugInfo);
+            } catch {}
+            console.log('Recording stopped - preserving app audio context connections');
+            console.log('Recording stop requested');
+          } catch (error) {
+            console.error('Error stopping recording:', error);
+            // Still update state even if there's an error
+            setIsRecording(false);
+          } 
+          return; 
+        }
+        const canvas = findMainCanvas();
+        if (!canvas || canvas.width === 0 || canvas.height === 0) {
+          console.error('Recording failed: No valid canvas found');
+          toast({ description: 'Recording failed: No valid canvas found' });
+          setIsRecording(false);
+          return;
+        }
+        console.log('Recording from canvas:', canvas, canvas.width, 'x', canvas.height);
+
+        const fps = recordSettings?.fps || 60; // Allow any FPS, default to 60 if 0/undefined
+        // Create an offscreen canvas at composition resolution so recording size matches composition
+        const comp = (useStore.getState() as any).compositionSettings || {};
+        const targetW = Math.max(1, Number(comp.width) || 1920);
+        const targetH = Math.max(1, Number(comp.height) || 1080);
+        
+        const recordCanvas: HTMLCanvasElement = document.createElement('canvas');
+        recordCanvas.width = targetW;
+        recordCanvas.height = targetH;
+        
+        // Ensure context is available
+        const rctx = recordCanvas.getContext('2d', { alpha: false });
+        if (!rctx) {
+           console.error('Recording failed: Could not create 2D context');
+           return;
+        }
+        
+        // Initialize with black
+        rctx.fillStyle = '#000000';
+        rctx.fillRect(0, 0, targetW, targetH);
+        
+        // Append to DOM (hidden) to ensure browser updates it
+        recordCanvas.style.position = 'fixed';
+        recordCanvas.style.left = '-9999px';
+        recordCanvas.style.top = '-9999px';
+        recordCanvas.style.visibility = 'hidden';
+        document.body.appendChild(recordCanvas);
+
+        if (!(recordCanvas as any).captureStream) {
+          document.body.removeChild(recordCanvas);
+          return;
+        }
+        
+        // Create capture stream
+        // Use 0 for manual requestFrame control, or fps for auto
+        // Since we are manually drawing to it, let's use auto stream from the canvas updates
+        const videoStream: MediaStream = (recordCanvas as any).captureStream(fps);
+        const videoTrack: any = (videoStream && videoStream.getVideoTracks && videoStream.getVideoTracks()[0]) || null;
+        
+        // Copy frames from the preview canvas into the record canvas
+        const copyIntervalMs = Math.max(16, Math.round(1000 / (fps || 60)));
+        let copyTimer: any = null;
+        
+        const startCopy = () => {
+          try { if (copyTimer) clearInterval(copyTimer); } catch {}
+          
+          const drawFrame = () => {
+              try {
+                  // Ensure source is valid
+                  if (canvas.width > 0 && canvas.height > 0) {
+                      rctx.drawImage(canvas, 0, 0, targetW, targetH);
+                      // Force frame update for stream
+                      if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+                          videoTrack.requestFrame();
+                      }
+                  }
+              } catch (e) {
+                  console.warn('Recording frame draw error:', e);
+              }
+          };
+          
+          // Draw immediately
+          drawFrame();
+          
+          copyTimer = setInterval(drawFrame, copyIntervalMs);
+        };
+        startCopy();
+        
+        // Get audio stream based on settings
+        let audioStream: MediaStream | null = null;
+        const audioSource = recordSettings?.audioSource || 'none';
+        
+        if (audioSource === 'microphone') {
+          try {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            recordingAudioStreamRef.current = audioStream; // Track for cleanup
+          } catch (err) {
+            console.warn('Failed to get microphone access:', err);
+            toast({ description: 'Microphone access denied. Recording without audio.' });
+          }
+        } else if (audioSource === 'app') {
+          try {
+            // Use app audio context manager to get internal audio
+            const { audioContextManager } = await import('./utils/AudioContextManager');
+            await audioContextManager.initialize();
+            
+            // Force timeline to register any existing audio elements before getting stream
+            // This ensures audio elements are registered even if timeline isn't currently playing
+            const store = useStore.getState() as any;
+            if (store.showTimeline) {
+              // Trigger a timeline preview update to ensure audio elements are created/registered
+              try {
+                document.dispatchEvent(new CustomEvent('forceTimelineAudioRegistration'));
+              } catch {}
+            }
+            
+            // Small delay to allow audio element registration to complete
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            audioStream = audioContextManager.getAppAudioStream();
+            
+            if (!audioStream) {
+              throw new Error('Failed to get app audio stream');
+            }
+            
+            const debugInfo = audioContextManager.getDebugInfo();
+            console.log('[Recording] App audio stream obtained with', audioStream.getAudioTracks().length, 'audio tracks');
+            console.log('[Recording] AudioContextManager debug info:', debugInfo);
+            
+            // Ensure audio context is running and producing data
+            // If no audio elements are registered, create a silent oscillator to keep MediaRecorder happy
+            if (debugInfo.registeredAudioElementCount === 0) {
+              console.log('[Recording] No audio elements registered, creating silent oscillator');
+              const silentOsc = audioContextManager.createSilentOscillator();
+              if (silentOsc) {
+                // Store reference to clean up later
+                (audioStream as any).__silentOscillator = silentOsc;
+                console.log('[Recording] Silent oscillator created and connected');
+              }
+            }
+          } catch (err) {
+            console.warn('Failed to get app audio access:', err);
+            toast({ description: 'App audio access failed. Recording without audio.' });
+          }
+        } else if (audioSource === 'system') {
+          try {
+            // Check if we're in Electron
+            const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+            if (!isElectron) {
+              // Fallback to web getDisplayMedia for non-Electron environments
+              audioStream = await navigator.mediaDevices.getDisplayMedia({ 
+                audio: { 
+                  echoCancellation: false,
+                  noiseSuppression: false,
+                  autoGainControl: false
+                }, 
+                video: false 
+              });
+              recordingAudioStreamRef.current = audioStream; // Track for cleanup
+            } else {
+              // Use Electron's native desktop capturer for system audio
+              const result = await (window as any).electron.getSystemAudioStream();
+              if (result.success) {
+                // Create a MediaStream from the desktop capturer source
+                const stream = await navigator.mediaDevices.getUserMedia({
+                  audio: {
+                    mandatory: {
+                      chromeMediaSource: 'desktop',
+                      chromeMediaSourceId: result.sourceId
+                    }
+                  } as any
+                });
+                audioStream = stream;
+                recordingAudioStreamRef.current = audioStream; // Track for cleanup
+              } else {
+                throw new Error(result.error || 'Failed to get system audio source');
+              }
+            }
+          } catch (err) {
+            console.warn('Failed to get system audio access:', err);
+            toast({ description: 'System audio access denied. Recording without audio.' });
+          }
+        }
+        
+        // Combine video and audio streams
+        const combinedStream = new MediaStream([...videoStream.getVideoTracks()]);
+        let hasValidAudio = false;
+        if (audioStream && audioStream.getAudioTracks().length > 0) {
+          const audioTrack = audioStream.getAudioTracks()[0];
+          // Only add audio track if it's ready and active
+          if (audioTrack.readyState === 'live' && audioTrack.enabled && !audioTrack.muted) {
+            combinedStream.addTrack(audioTrack);
+            hasValidAudio = true;
+            console.log('[Recording] Added audio track to stream:', {
+              id: audioTrack.id,
+              label: audioTrack.label,
+              enabled: audioTrack.enabled,
+              muted: audioTrack.muted,
+              readyState: audioTrack.readyState
+            });
+          } else {
+            console.warn('[Recording] Audio track not ready, recording without audio:', {
+              readyState: audioTrack.readyState,
+              enabled: audioTrack.enabled,
+              muted: audioTrack.muted
+            });
+            toast({ description: 'Audio track not ready, recording without audio.' });
+          }
+        }
+        
+        const useVp9 = (recordSettings?.codec === 'vp9');
+        const supportsVP9 = (window as any).MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
+        const mime = (useVp9 && supportsVP9) ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp8';
+        // Bitrate by quality (rough defaults). Users can refine later.
+        const quality = (recordSettings?.quality || 'medium') as 'low' | 'medium' | 'high';
+        const bits = quality === 'high' ? 12_000_000 : quality === 'medium' ? 6_000_000 : 3_000_000;
+        const audioBitrate = recordSettings?.audioBitrate || 128000;
+        
+        // Only set audio bitrate if we have valid audio
+        const recorderOptions: MediaRecorderOptions = {
+          mimeType: mime,
+          videoBitsPerSecond: bits
+        };
+        if (hasValidAudio) {
+          recorderOptions.audioBitsPerSecond = audioBitrate;
+        }
+        
+        let recorder: MediaRecorder;
+        try {
+          recorder = new MediaRecorder(combinedStream, recorderOptions);
+        } catch (error) {
+          console.error('[Recording] Failed to create MediaRecorder with audio, trying without:', error);
+          // Fallback: try without audio if MediaRecorder creation fails
+          const videoOnlyStream = new MediaStream([...videoStream.getVideoTracks()]);
+          recorder = new MediaRecorder(videoOnlyStream, {
+            mimeType: mime,
+            videoBitsPerSecond: bits
+          });
+          toast({ description: 'MediaRecorder failed with audio, recording video only.' });
+        }
+        const chunks: BlobPart[] = [];
+        recorder.ondataavailable = (e) => { 
+          if (e.data && e.data.size > 0) {
+            chunks.push(e.data);
+            console.log('[Recording] Received data chunk:', e.data.size, 'bytes, total chunks:', chunks.length);
+          }
+        };
+        recorder.onerror = (event) => {
+          console.error('[Recording] MediaRecorder error:', event);
+          toast({ description: 'Recording error occurred. Check console for details.' });
+        };
+        recorder.onstop = async () => {
+          console.log('Recording onstop callback triggered');
+          const blob = new Blob(chunks, { type: mime });
+          const buffer = new Uint8Array(await blob.arrayBuffer());
+          console.log('Recording blob size:', blob.size, 'bytes');
+          
+          try {
+            // Check if we're running in Electron
+            const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+            console.log('Running in Electron:', isElectron);
+            console.log('Window electron object:', (window as any).electron);
+            console.log('Available methods:', (window as any).electron ? Object.keys((window as any).electron) : 'none');
+            
+            // Check if Electron APIs are available
+            if (!isElectron || !(window as any).electron) {
+              console.error('Electron APIs not available, trying fallback...');
+              // Fallback: create download link
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'recording.webm';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              toast({ description: 'Recording downloaded (Electron APIs not available).' });
+              return;
+            }
+            
+            if (typeof (window as any).electron.showSaveDialog !== 'function') {
+              throw new Error('showSaveDialog function not available');
+            }
+            
+            if (typeof (window as any).electron.saveBinaryFile !== 'function') {
+              throw new Error('saveBinaryFile function not available');
+            }
+            
+            console.log('Electron APIs available, showing save dialog...');
+            const result = await (window as any).electron.showSaveDialog({
+              title: 'Save Recording',
+              defaultPath: 'recording.webm',
+              filters: [{ name: 'WebM', extensions: ['webm'] }]
+            });
+            console.log('Save dialog result:', result);
+            
+            if (result && !result.canceled && result.filePath) {
+              console.log('Saving to file:', result.filePath);
+              const ok = await (window as any).electron.saveBinaryFile(result.filePath, buffer);
+              console.log('Save result:', ok);
+              if (ok && buffer.length > 0) {
+                toast({ description: 'Recording saved successfully.' });
+              } else if (ok) {
+                toast({ description: 'Recording file was saved but appears to be empty.' });
+              } else {
+                toast({ description: 'Failed to save recording.' });
+              }
+            } else {
+              console.log('Save dialog was canceled or no file path provided');
+              toast({ description: 'Recording save canceled.' });
+            }
+          } catch (error) {
+            console.error('Error in save process:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            toast({ description: 'Error saving recording: ' + errorMessage });
+            
+            // Fallback: try download if Electron APIs fail
+            try {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'recording.webm';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              toast({ description: 'Recording downloaded as fallback.' });
+            } catch (fallbackError) {
+              console.error('Fallback download also failed:', fallbackError);
+              toast({ description: 'Failed to save or download recording.' });
+            }
+          }
+          
+          // Clean up audio streams
+          if (audioStream) {
+            // Stop silent oscillator if it was created
+            if ((audioStream as any).__silentOscillator) {
+              try {
+                (audioStream as any).__silentOscillator.stop();
+                (audioStream as any).__silentOscillator.disconnect();
+                delete (audioStream as any).__silentOscillator;
+                console.log('[Recording] Silent oscillator cleaned up');
+              } catch (e) {
+                console.warn('[Recording] Error cleaning up silent oscillator:', e);
+              }
+            }
+            audioStream.getTracks().forEach(track => track.stop());
+          }
+          try { if (copyTimer) clearInterval(copyTimer); } catch {}
+          try { document.body.removeChild(recordCanvas); } catch {}
+          setIsRecording(false);
+          recorderRef.current = null;
+          console.log('Recording cleanup completed');
+        };
+        recorder.start();
+        recorderRef.current = recorder;
+        const audioInfo = audioSource === 'none' ? 'no audio' : `${audioSource} @ ${audioBitrate/1000}kbps`;
+        toast({ description: `Recording started (@ ${fps}fps, ${quality}, ${audioInfo})...` });
+        setIsRecording(true);
+        console.log('Recording started, isRecording set to true');
+      } catch {}
+    })();
+  }, [isRecording, recordSettings, toast]);
+
+  // Wire native menu events to the same recording logic
+  useEffect(() => {
+    const start = () => handleRecordToggle();
+    const settingsHandler = () => {
+      setRecordSettingsOpen(true);
+    };
+    try { (window as any).electron?.onRecordStart?.(start); } catch {}
+    try { (window as any).electron?.onRecordSettings?.(settingsHandler); } catch {}
+    return () => {
+      // listeners are process-wide; safe to leave
+    };
+  }, [handleRecordToggle]);
 
   return (
     <ErrorBoundary>
@@ -1148,266 +1490,7 @@ function App() {
         }}
         onOfflineSave={undefined}
         isRecording={isRecording}
-        onRecord={() => {
-          // Reuse the same startHandler logic inline
-          (async () => {
-            try {
-              if (isRecording && recorderRef.current) { 
-                try { 
-                  console.log('Stopping recording...');
-                  recorderRef.current.stop(); 
-                  // Update state immediately when stop is pressed
-                  setIsRecording(false);
-                  // Clean up only recording-specific audio streams (not app audio context)
-                  // Note: Don't stop all audio tracks as this breaks AudioContextManager connections
-                  if (recordingAudioStreamRef.current) {
-                    console.log('Cleaning up recording-specific audio stream');
-                    recordingAudioStreamRef.current.getTracks().forEach(track => track.stop());
-                    recordingAudioStreamRef.current = null;
-                  }
-                  // Log audio context state after recording stop
-                  try {
-                    const { audioContextManager } = await import('./utils/AudioContextManager');
-                    const debugInfo = audioContextManager.getDebugInfo();
-                    console.log('[Recording Stop] AudioContextManager state preserved:', debugInfo);
-                  } catch {}
-                  console.log('Recording stopped - preserving app audio context connections');
-                  console.log('Recording stop requested');
-                } catch (error) {
-                  console.error('Error stopping recording:', error);
-                  // Still update state even if there's an error
-                  setIsRecording(false);
-                } 
-                return; 
-              }
-              const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
-              if (!canvas) return;
-              const fps = (recordSettings?.fps === 30 || recordSettings?.fps === 60) ? recordSettings.fps : 60;
-              // Create an offscreen canvas at composition resolution so recording size matches composition
-              const comp = (useStore.getState() as any).compositionSettings || {};
-              const targetW = Math.max(1, Number(comp.width) || 1920);
-              const targetH = Math.max(1, Number(comp.height) || 1080);
-              const recordCanvas: HTMLCanvasElement = document.createElement('canvas');
-              recordCanvas.width = targetW;
-              recordCanvas.height = targetH;
-              const rctx = recordCanvas.getContext('2d');
-              if (!rctx || !(recordCanvas as any).captureStream) return;
-              // Create capture stream ONCE and reuse its track
-              const videoStream: MediaStream = (recordCanvas as any).captureStream(fps);
-              const videoTrack: any = (videoStream && videoStream.getVideoTracks && videoStream.getVideoTracks()[0]) || null;
-              // Copy frames from the preview canvas into the record canvas at the selected FPS
-              const copyIntervalMs = Math.max(1, Math.round(1000 / fps));
-              let copyTimer: any = null;
-              const startCopy = () => {
-                try { if (copyTimer) clearInterval(copyTimer); } catch {}
-                copyTimer = setInterval(() => {
-                  try {
-                    // Draw preview canvas into recording canvas (scaled to comp size)
-                    rctx.drawImage(canvas, 0, 0, targetW, targetH);
-                    try { if (videoTrack && typeof videoTrack.requestFrame === 'function') videoTrack.requestFrame(); } catch {}
-                  } catch {}
-                }, copyIntervalMs);
-              };
-              startCopy();
-              
-              // Get audio stream based on settings
-              let audioStream: MediaStream | null = null;
-              const audioSource = recordSettings?.audioSource || 'none';
-              
-              if (audioSource === 'microphone') {
-                try {
-                  audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                  recordingAudioStreamRef.current = audioStream; // Track for cleanup
-                } catch (err) {
-                  console.warn('Failed to get microphone access:', err);
-                  toast({ description: 'Microphone access denied. Recording without audio.' });
-                }
-              } else if (audioSource === 'app') {
-                try {
-                  // Use app audio context manager to get internal audio
-                  const { audioContextManager } = await import('./utils/AudioContextManager');
-                  await audioContextManager.initialize();
-                  
-                  // Force timeline to register any existing audio elements before getting stream
-                  // This ensures audio elements are registered even if timeline isn't currently playing
-                  const store = useStore.getState() as any;
-                  if (store.showTimeline) {
-                    // Trigger a timeline preview update to ensure audio elements are created/registered
-                    try {
-                      document.dispatchEvent(new CustomEvent('forceTimelineAudioRegistration'));
-                    } catch {}
-                  }
-                  
-                  // Small delay to allow audio element registration to complete
-                  await new Promise(resolve => setTimeout(resolve, 100));
-                  
-                  audioStream = audioContextManager.getAppAudioStream();
-                  
-                  if (!audioStream) {
-                    throw new Error('Failed to get app audio stream');
-                  }
-                  
-                  const debugInfo = audioContextManager.getDebugInfo();
-                  console.log('[Recording] App audio stream obtained with', audioStream.getAudioTracks().length, 'audio tracks');
-                  console.log('[Recording] AudioContextManager debug info:', debugInfo);
-                } catch (err) {
-                  console.warn('Failed to get app audio access:', err);
-                  toast({ description: 'App audio access failed. Recording without audio.' });
-                }
-              } else if (audioSource === 'system') {
-                try {
-                  // Check if we're in Electron
-                  const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
-                  if (!isElectron) {
-                    // Fallback to web getDisplayMedia for non-Electron environments
-                    audioStream = await navigator.mediaDevices.getDisplayMedia({ 
-                      audio: { 
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false
-                      }, 
-                      video: false 
-                    });
-                    recordingAudioStreamRef.current = audioStream; // Track for cleanup
-                  } else {
-                    // Use Electron's native desktop capturer for system audio
-                    const result = await (window as any).electron.getSystemAudioStream();
-                    if (result.success) {
-                      // Create a MediaStream from the desktop capturer source
-                      const stream = await navigator.mediaDevices.getUserMedia({
-                        audio: {
-                          mandatory: {
-                            chromeMediaSource: 'desktop',
-                            chromeMediaSourceId: result.sourceId
-                          }
-                        } as any
-                      });
-                      audioStream = stream;
-                      recordingAudioStreamRef.current = audioStream; // Track for cleanup
-                    } else {
-                      throw new Error(result.error || 'Failed to get system audio source');
-                    }
-                  }
-                } catch (err) {
-                  console.warn('Failed to get system audio access:', err);
-                  toast({ description: 'System audio access denied. Recording without audio.' });
-                }
-              }
-              
-              // Combine video and audio streams
-              const combinedStream = new MediaStream([...videoStream.getVideoTracks()]);
-              if (audioStream && audioStream.getAudioTracks().length > 0) {
-                combinedStream.addTrack(audioStream.getAudioTracks()[0]);
-              }
-              
-              const useVp9 = (recordSettings?.codec === 'vp9');
-              const supportsVP9 = (window as any).MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
-              const mime = (useVp9 && supportsVP9) ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp8';
-              // Bitrate by quality (rough defaults). Users can refine later.
-              const quality = (recordSettings?.quality || 'medium') as 'low' | 'medium' | 'high';
-              const bits = quality === 'high' ? 12_000_000 : quality === 'medium' ? 6_000_000 : 3_000_000;
-              const audioBitrate = recordSettings?.audioBitrate || 128000;
-              const recorder = new MediaRecorder(combinedStream, { mimeType: mime, videoBitsPerSecond: bits, audioBitsPerSecond: audioBitrate });
-              const chunks: BlobPart[] = [];
-              recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-              recorder.onstop = async () => {
-                console.log('Recording onstop callback triggered');
-                const blob = new Blob(chunks, { type: mime });
-                const buffer = new Uint8Array(await blob.arrayBuffer());
-                console.log('Recording blob size:', blob.size, 'bytes');
-                
-                try {
-                  // Check if we're running in Electron
-                  const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
-                  console.log('Running in Electron:', isElectron);
-                  console.log('Window electron object:', (window as any).electron);
-                  console.log('Available methods:', (window as any).electron ? Object.keys((window as any).electron) : 'none');
-                  
-                  // Check if Electron APIs are available
-                  if (!isElectron || !(window as any).electron) {
-                    console.error('Electron APIs not available, trying fallback...');
-                    // Fallback: create download link
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'recording.webm';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    toast({ description: 'Recording downloaded (Electron APIs not available).' });
-                    return;
-                  }
-                  
-                  if (typeof (window as any).electron.showSaveDialog !== 'function') {
-                    throw new Error('showSaveDialog function not available');
-                  }
-                  
-                  if (typeof (window as any).electron.saveBinaryFile !== 'function') {
-                    throw new Error('saveBinaryFile function not available');
-                  }
-                  
-                  console.log('Electron APIs available, showing save dialog...');
-                  const result = await (window as any).electron.showSaveDialog({
-                    title: 'Save Recording',
-                    defaultPath: 'recording.webm',
-                    filters: [{ name: 'WebM', extensions: ['webm'] }]
-                  });
-                  console.log('Save dialog result:', result);
-                  
-                  if (result && !result.canceled && result.filePath) {
-                    console.log('Saving to file:', result.filePath);
-                    const ok = await (window as any).electron.saveBinaryFile(result.filePath, buffer);
-                    console.log('Save result:', ok);
-                    if (ok) {
-                      toast({ description: 'Recording saved successfully.' });
-                    } else {
-                      toast({ description: 'Failed to save recording.' });
-                    }
-                  } else {
-                    console.log('Save dialog was canceled or no file path provided');
-                    toast({ description: 'Recording save canceled.' });
-                  }
-                } catch (error) {
-                  console.error('Error in save process:', error);
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  toast({ description: 'Error saving recording: ' + errorMessage });
-                  
-                  // Fallback: try download if Electron APIs fail
-                  try {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'recording.webm';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    toast({ description: 'Recording downloaded as fallback.' });
-                  } catch (fallbackError) {
-                    console.error('Fallback download also failed:', fallbackError);
-                    toast({ description: 'Failed to save or download recording.' });
-                  }
-                }
-                
-                // Clean up audio streams
-                if (audioStream) {
-                  audioStream.getTracks().forEach(track => track.stop());
-                }
-                try { if (copyTimer) clearInterval(copyTimer); } catch {}
-                setIsRecording(false);
-                recorderRef.current = null;
-                console.log('Recording cleanup completed');
-              };
-              recorder.start();
-              recorderRef.current = recorder;
-              const audioInfo = audioSource === 'none' ? 'no audio' : `${audioSource} @ ${audioBitrate/1000}kbps`;
-              toast({ description: `Recording started (@ ${fps}fps, ${quality}, ${audioInfo})...` });
-              setIsRecording(true);
-              console.log('Recording started, isRecording set to true');
-            } catch {}
-          })();
-        }}
+        onRecord={handleRecordToggle}
         onRecordSettings={() => { setRecordSettingsOpen(true); }}
       />
       

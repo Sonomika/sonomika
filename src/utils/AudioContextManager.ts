@@ -176,6 +176,30 @@ export class AudioContextManager {
   }
 
   /**
+   * Create a silent oscillator to ensure audio stream produces data
+   * This is needed when no audio elements are registered but we want to record audio
+   */
+  createSilentOscillator(): OscillatorNode | null {
+    if (!this.isInitialized || !this.audioContext || !this.destinationNode) {
+      return null;
+    }
+
+    try {
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+      gainNode.gain.value = 0; // Silent
+      oscillator.connect(gainNode);
+      gainNode.connect(this.destinationNode);
+      oscillator.start();
+      console.log('[AudioContextManager] Created silent oscillator');
+      return oscillator;
+    } catch (error) {
+      console.error('[AudioContextManager] Failed to create silent oscillator:', error);
+      return null;
+    }
+  }
+
+  /**
    * Cleanup resources
    */
   cleanup(): void {
