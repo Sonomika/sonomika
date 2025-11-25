@@ -1088,19 +1088,7 @@ app.whenReady().then(() => {
     }
   });
 
-  // Offline render: save frames then stitch to MP4
-  const os = require('os');
-  const { spawn } = require('child_process');
-  const ffmpegPath = (() => { 
-    try { 
-      const p = require('ffmpeg-static'); 
-      console.log('[offline] ffmpeg-static path:', p);
-      return p; 
-    } catch (e) { 
-      console.warn('[offline] ffmpeg-static not found');
-      return null; 
-    } 
-  })();
+  // Offline render: disabled - using WebM recording via MediaRecorder instead
   let offlineSession: null | { dir: string; name: string; fps: number; index: number; width: number; height: number; quality?: 'low'|'medium'|'high' } = null;
   let offlineAudioPath: string | null = null;
 
@@ -1139,101 +1127,8 @@ app.whenReady().then(() => {
     if (!offlineSession) return { success: false, error: 'No session' };
     const p = offlineSession; offlineSession = null;
     try {
-      if (!p || !isFinite(p.index) || p.index <= 0) {
-        return { success: false, error: 'No frames captured' };
-      }
-      if (!ffmpegPath) throw new Error('ffmpeg-static not found');
-      // Destination: use user-selected path when provided
-      const desired = (payload?.destPath && typeof payload.destPath === 'string') ? String(payload.destPath) : '';
-      const outFile = desired && desired.trim().length > 0
-        ? (desired.toLowerCase().endsWith('.mp4') ? desired : `${desired}.mp4`)
-        : path.join(p.dir, `${p.name}.mp4`);
-      const outDir = path.dirname(outFile);
-      try { await fs.promises.mkdir(outDir, { recursive: true }); } catch {}
-      // Build ffmpeg args: read PNG sequence -> H.264 MP4
-      const inputPattern = path.join(outDir, 'frame_%06d.png');
-      // IMPORTANT: input frames are always in p.dir
-      const inputFrames = path.join(p.dir, 'frame_%06d.png');
-      const fpsOverride = Number(payload?.fps) || 0;
-      const effectiveFps = fpsOverride > 0 ? fpsOverride : (p.fps && p.fps > 0 ? p.fps : 0);
-      // Prefer glob pattern to tolerate dropped frame indices
-      const globPattern = path.join(p.dir, 'frame_*.png').replace(/\\/g, '/');
-      const args = [
-        '-y',
-        // Use measured/override fps when available to match preview timing
-        ...(effectiveFps > 0 ? ['-framerate', String(effectiveFps)] : []),
-        '-safe', '0',
-        '-pattern_type', 'glob',
-        '-i', globPattern,
-      ];
-      let audioInput = undefined as unknown as string; // Temporarily disable audio mux to restore working export
-      // If we have an audio path, wait briefly for it to be written (>0 bytes)
-      const fileReady = async (fp: string) => {
-        try { const st = await fs.promises.stat(fp); return st.isFile() && st.size > 0; } catch { return false; }
-      };
-      if (audioInput) {
-        try {
-          for (let i = 0; i < 15; i++) {
-            if (await fileReady(audioInput)) break;
-            await new Promise((r) => setTimeout(r, 100));
-          }
-          if (!(await fileReady(audioInput))) {
-            console.warn('[offline] audio not ready, skipping audio mux');
-            audioInput = undefined as unknown as string;
-          }
-        } catch {
-          audioInput = undefined as unknown as string;
-        }
-      }
-      if (audioInput) {
-        args.push('-i', audioInput, '-shortest');
-      }
-      // Map quality to CRF
-      const crf = p.quality === 'high' ? '16' : p.quality === 'low' ? '24' : '18';
-      args.push(
-        '-pix_fmt', 'yuv420p',
-        '-c:v', 'libx264',
-        '-preset', 'medium',
-        '-crf', crf,
-        outFile
-      );
-      const runFfmpeg = (argv: string[]) => new Promise<void>((resolve, reject) => {
-        console.log('[offline] finish: spawning ffmpeg', ffmpegPath, argv.join(' '));
-        const proc = spawn(ffmpegPath, argv, { stdio: ['ignore', 'pipe', 'pipe'], windowsVerbatimArguments: true });
-        let errBuf = '';
-        proc.stderr?.on('data', (d: Buffer) => { try { const t = d.toString(); errBuf += t; console.log('[ffmpeg]', t.trim()); } catch {} });
-        proc.on('error', reject);
-        proc.on('close', (code: number) => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${errBuf.split('\n').slice(-6).join('\n')}`)));
-      });
-      try {
-        await runFfmpeg(args);
-      } catch (err) {
-        // Fallback: try video-only if audio caused failure
-        if (audioInput) {
-          console.warn('[offline] mux with audio failed, retrying without audio');
-          const noAudioArgs = args.slice(0, 0);
-          // rebuild without audio input (-i audio ... -shortest)
-          const baseArgs: string[] = [
-            '-y',
-            ...(effectiveFps > 0 ? ['-framerate', String(effectiveFps)] : []),
-            '-safe', '0',
-            '-pattern_type', 'glob',
-            '-i', globPattern,
-            '-pix_fmt', 'yuv420p',
-            '-c:v', 'libx264',
-            '-preset', 'medium',
-            '-crf', crf,
-            outFile
-          ];
-          await runFfmpeg(baseArgs);
-        } else {
-          throw err;
-        }
-      }
-      console.log('[offline] finished. Video at', outFile);
-      try { if (offlineAudioPath) { await fs.promises.unlink(offlineAudioPath); } } catch {}
-      offlineAudioPath = null;
-      return { success: true, videoPath: outFile };
+      // Offline rendering to MP4 is disabled - use WebM recording via MediaRecorder instead
+      return { success: false, error: 'Offline rendering is disabled. Please use WebM recording via MediaRecorder instead.' };
     } catch (e) {
       console.error('[offline] finish error', e);
       return { success: false, error: String(e) };
