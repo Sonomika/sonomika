@@ -4,12 +4,31 @@ import path from 'path';
 
 const shouldMuteConsole = process.env.VJ_DEBUG_LOGS !== 'true';
 
+// Always allow icon debugging logs
+const originalLog = console.log;
+const originalWarn = console.warn;
+const originalInfo = console.info;
+
 if (shouldMuteConsole) {
   const noop = () => {};
   // eslint-disable-next-line no-console
-  console.log = noop;
+  console.log = (...args: any[]) => {
+    const message = args.join(' ');
+    if (message.includes('ICON') || message.includes('APP PATHS') || message.includes('RESOLVED') || message.includes('NO ICON') || message.includes('process.cwd') || message.includes('__dirname') || message.includes('Checking icon') || message.includes('✓') || message.includes('✗') || message.includes('Creating window') || message.includes('Icon loaded') || message.includes('user model') || message.includes('taskbar')) {
+      originalLog(...args);
+    } else {
+      noop();
+    }
+  };
   // eslint-disable-next-line no-console
-  console.warn = noop;
+  console.warn = (...args: any[]) => {
+    const message = args.join(' ');
+    if (message.includes('ICON') || message.includes('APP PATHS')) {
+      originalWarn(...args);
+    } else {
+      noop();
+    }
+  };
   // eslint-disable-next-line no-console
   console.info = noop;
 }
@@ -45,24 +64,52 @@ let encryptedAuthStore: Record<string, Buffer> = {};
 
 // Resolve an application icon path that works in dev and production
 function resolveAppIconPath(): string | undefined {
+  console.log('=== ICON RESOLUTION DEBUG ===');
+  console.log('process.cwd():', process.cwd());
+  console.log('__dirname:', __dirname);
+  console.log('process.resourcesPath:', process.resourcesPath);
+  console.log('app.getAppPath():', app.getAppPath());
+  console.log('app.getPath(exe):', app.getPath('exe'));
+  
   const candidates = [
-    // Prefer the requested PNG first (window icon), then ICO for Windows taskbar
-    path.join(process.cwd(), 'public', 'icons', 'sonomika_icon_2.png'),
-    path.join(__dirname, '../public/icons/sonomika_icon_2.png'),
-    path.join(__dirname, '../../public/icons/sonomika_icon_2.png'),
-    path.join(__dirname, '../icons/sonomika_icon_2.png'),
-    path.join(process.resourcesPath || '', 'icons', 'sonomika_icon_2.png'),
+    // On Windows, prefer ICO files first (better for window/taskbar icons)
     ...(process.platform === 'win32' ? [
-      path.join(process.cwd(), 'public', 'icons', 'sonomika_icon_2.ico'),
-      path.join(__dirname, '../public/icons/sonomika_icon_2.ico'),
-      path.join(__dirname, '../../public/icons/sonomika_icon_2.ico'),
-      path.join(__dirname, '../icons/sonomika_icon_2.ico'),
+      path.join(process.resourcesPath || '', 'icons', 'icon.ico'),
+      path.join(__dirname, '../icons/icon.ico'),
+      path.join(__dirname, '../../public/icons/icon.ico'),
+      path.join(__dirname, '../public/icons/icon.ico'),
+      path.join(process.cwd(), 'public', 'icons', 'icon.ico'),
+      // Fallback to old name for backwards compatibility
       path.join(process.resourcesPath || '', 'icons', 'sonomika_icon_2.ico'),
+      path.join(__dirname, '../icons/sonomika_icon_2.ico'),
     ] : []),
+    // Then check PNG files (fallback or for non-Windows)
+    path.join(process.resourcesPath || '', 'icons', 'icon.png'),
+    path.join(__dirname, '../icons/icon.png'),
+    path.join(__dirname, '../../public/icons/icon.png'),
+    path.join(__dirname, '../public/icons/icon.png'),
+    path.join(process.cwd(), 'public', 'icons', 'icon.png'),
+    // Fallback to old name for backwards compatibility
+    path.join(process.resourcesPath || '', 'icons', 'sonomika_icon_2.png'),
+    path.join(__dirname, '../icons/sonomika_icon_2.png'),
   ];
+  
+  console.log('Checking icon candidates:');
   for (const p of candidates) {
-    try { if (fs.existsSync(p)) return p; } catch {}
+    const exists = fs.existsSync(p);
+    console.log(`  ${exists ? '✓' : '✗'} ${p}`);
+    if (exists) {
+      try {
+        const stats = fs.statSync(p);
+        console.log(`    Size: ${stats.size} bytes, Modified: ${stats.mtime}`);
+      } catch (e) {
+        console.log(`    (Could not stat file)`);
+      }
+      console.log('=== RESOLVED ICON PATH ===');
+      return p;
+    }
   }
+  console.log('=== NO ICON FOUND ===');
   return undefined;
 }
 
@@ -311,7 +358,20 @@ function copyDirectoryRecursive(src: string, dest: string) {
 function createWindow() {
   // Create the browser window
   const appIconPath = resolveAppIconPath();
-  const appIcon = appIconPath ? nativeImage.createFromPath(appIconPath) : undefined;
+  console.log('Creating window with icon path:', appIconPath);
+  let appIcon = undefined;
+  if (appIconPath) {
+    try {
+      appIcon = nativeImage.createFromPath(appIconPath);
+      if (appIcon && !appIcon.isEmpty()) {
+        console.log('Icon loaded successfully, size:', appIcon.getSize());
+      } else {
+        console.warn('Icon file found but failed to load or is empty');
+      }
+    } catch (e) {
+      console.error('Error loading icon:', e);
+    }
+  }
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -363,6 +423,16 @@ function createWindow() {
     mainWindow!.show();
     // Prevent background throttling
     mainWindow!.webContents.setBackgroundThrottling(false);
+    
+    // Force icon update on Windows after window is shown (helps with taskbar icon)
+    if (process.platform === 'win32' && appIcon) {
+      try {
+        mainWindow!.setIcon(appIcon);
+        console.log('Forced icon update on window after show');
+      } catch (e) {
+        console.error('Error forcing icon update:', e);
+      }
+    }
   });
 
   // Ensure renderer-created child windows (via window.open) are chrome-less for output
@@ -537,7 +607,20 @@ function createMirrorWindow() {
   // via resize-mirror-window IPC call
 
   const appIconPath = resolveAppIconPath();
-  const appIcon = appIconPath ? nativeImage.createFromPath(appIconPath) : undefined;
+  console.log('Creating mirror window with icon path:', appIconPath);
+  let appIcon = undefined;
+  if (appIconPath) {
+    try {
+      appIcon = nativeImage.createFromPath(appIconPath);
+      if (appIcon && !appIcon.isEmpty()) {
+        console.log('Mirror window icon loaded successfully, size:', appIcon.getSize());
+      } else {
+        console.warn('Mirror window icon file found but failed to load or is empty');
+      }
+    } catch (e) {
+      console.error('Error loading mirror window icon:', e);
+    }
+  }
   mirrorWindow = new BrowserWindow({
     width: 1920, // Start with standard HD size; will be resized to canvas dimensions
     height: 1080, // Start with standard HD size; will be resized to canvas dimensions
@@ -1004,6 +1087,22 @@ function createCustomMenu() {
 
 app.whenReady().then(() => {
   console.log('Electron app is ready');
+  console.log('=== APP PATHS DEBUG ===');
+  console.log('app.getAppPath():', app.getPath('appData'));
+  console.log('app.getPath(exe):', app.getPath('exe'));
+  console.log('process.execPath:', process.execPath);
+  console.log('process.resourcesPath:', process.resourcesPath);
+  
+  // Set app user model ID on Windows to ensure correct taskbar icon
+  if (process.platform === 'win32') {
+    try {
+      app.setAppUserModelId('com.sonomika.app');
+      console.log('Set app user model ID for Windows taskbar icon');
+    } catch (e) {
+      console.error('Error setting app user model ID:', e);
+    }
+  }
+  
   try {
     // Allow audio playback without a user gesture to avoid play() stalls
     app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
@@ -1012,10 +1111,13 @@ app.whenReady().then(() => {
   // Set dock icon on macOS for consistency (guard for non-macOS builds)
   try {
     const iconPath = resolveAppIconPath();
+    console.log('Icon path resolved at app.whenReady():', iconPath);
     if (process.platform === 'darwin' && iconPath && (app as any).dock && typeof (app as any).dock.setIcon === 'function') {
       (app as any).dock.setIcon(nativeImage.createFromPath(iconPath));
     }
-  } catch {}
+  } catch (e) {
+    console.error('Error setting dock icon:', e);
+  }
   
   // Prevent app from pausing when windows lose focus
   app.commandLine.appendSwitch('disable-background-timer-throttling');
