@@ -873,7 +873,8 @@ export const AIEffectsLab: React.FC = () => {
               onDragOver={handleEditorDragOver}
               onDragLeave={handleEditorDragLeave}
               onDrop={handleEditorDrop}
-              className={`tw-w-full tw-min-h-[260px] tw-text-xs tw-resize-y tw-appearance-none ${draggingOverEditor ? 'tw-border tw-border-dashed tw-border-neutral-600' : ''}`}
+              rows={8}
+              className={`tw-w-full tw-text-xs tw-resize-y tw-appearance-none ${draggingOverEditor ? 'tw-border tw-border-dashed tw-border-neutral-600' : ''}`}
             />
             <input ref={hiddenFileInputRef} type="file" accept=".js,.mjs,.cjs,.ts,.tsx,.jsx" className="tw-hidden" onChange={handleHiddenFileChange} />
           </div>
