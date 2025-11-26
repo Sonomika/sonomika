@@ -1,0 +1,37 @@
+{
+  "type": "midi-mapping",
+  "name": "midi-mapping",
+  "timestamp": 1757000536002,
+  "version": "1.0.0",
+  "data": {
+    "midiMappings": [
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 12,
+        "target": {
+          "type": "column",
+          "index": 1
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 13,
+        "target": {
+          "type": "column",
+          "index": 2
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 14,
+        "target": {
+          "type": "column",
+          "index": 3
+        }
+      }
+    ]
+  }
+}

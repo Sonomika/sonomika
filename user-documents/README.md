@@ -31,5 +31,4 @@ The following folders are handled separately:
 - **`bank/`** - Effects and sources (copied from root `bank/` folder)
 - **`ai-templates/`** - AI templates (seeded from `src/ai-templates/`)
 
-**Priority for sets:** Files in `user-documents/sets/` take priority over `bundled/sets/` if both exist.
 

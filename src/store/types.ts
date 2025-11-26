@@ -157,6 +157,8 @@ export interface AppState {
   midiMappings: MIDIMapping[];
   // MIDI options
   midiForceChannel1?: boolean; // If true, remap incoming MIDI events to channel 1
+  // Selected MIDI input devices (empty array means no devices - MIDI disabled)
+  selectedMIDIDevices?: string[]; // Array of device names/IDs to listen to
   // Normalize incoming CC numbers by subtracting this offset (e.g., 31 makes CC32 behave like CC1)
   midiCCOffset?: number;
   // When true, learn CC offset automatically from the next incoming CC message

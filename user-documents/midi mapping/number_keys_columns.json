@@ -1,0 +1,290 @@
+{
+  "type": "midi-mapping",
+  "name": "midi-mapping",
+  "timestamp": 1757000714565,
+  "version": "1.0.0",
+  "data": {
+    "midiMappings": [
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 1
+        },
+        "key": "1",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 2
+        },
+        "key": "2",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 3
+        },
+        "key": "3",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 4
+        },
+        "key": "4",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 5
+        },
+        "key": "5",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 6
+        },
+        "key": "6",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 7
+        },
+        "key": "7",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 8
+        },
+        "key": "8",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 9
+        },
+        "key": "9",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 10
+        },
+        "key": "0",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 11
+        },
+        "key": "q",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 12
+        },
+        "key": "w",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 13
+        },
+        "key": "e",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 14
+        },
+        "key": "r",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 15
+        },
+        "key": "t",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 16
+        },
+        "key": "y",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 17
+        },
+        "key": "u",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 18
+        },
+        "key": "i",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 19
+        },
+        "key": "o",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      },
+      {
+        "type": "key",
+        "channel": 1,
+        "number": 36,
+        "target": {
+          "type": "column",
+          "index": 20
+        },
+        "key": "p",
+        "ctrl": false,
+        "shift": false,
+        "alt": false,
+        "meta": false
+      }
+    ]
+  }
+}

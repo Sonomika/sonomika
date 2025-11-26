@@ -11,11 +11,11 @@ import GlobalCCMapper from './GlobalCCMapper';
 interface MIDIDeviceOption { value: string; label?: string }
 
 export const MIDIMapper: React.FC = () => {
-  const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1 } = useStore() as any;
-  const { scenes, currentSceneId } = useStore() as any;
-  const [selectedDevice, setSelectedDevice] = useState<string>('Any device');
+  const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1, selectedMIDIDevices, setSelectedMIDIDevices, scenes, currentSceneId } = useStore() as any;
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'mappings' | 'layer-cc' | 'global-cc'>('mappings');
+  // Track if we've initialized from persisted state to prevent clearing on mount
+  const hasInitializedRef = useRef(false);
   const mappings = midiMappings as MIDIMapping[];
   // Removed custom save dialog; we now use system Save dialog (Electron or File System Access API)
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -47,15 +47,54 @@ export const MIDIMapper: React.FC = () => {
       const update = () => {
         const list = mgr.getInputSummaries().map((d) => ({ value: d.name }));
         setDeviceOptions(list);
-        // Keep selection sane if device disappears
-        const names = new Set(list.map((o) => o.value));
-        setSelectedDevice((prev) => (prev && names.has(prev) ? prev : 'Any device'));
+        // Wait for store to rehydrate before validating device selections
+        // Give rehydration time to complete (zustand persist is async)
+        setTimeout(() => {
+          const currentSelected = (useStore.getState() as any).selectedMIDIDevices;
+          // Only validate/filter if we have both devices and selections
+          if (list.length > 0 && Array.isArray(currentSelected) && currentSelected.length > 0) {
+            const names = new Set(list.map((o) => o.value));
+            const validSelected = currentSelected.filter((name: string) => names.has(name));
+            // Only update if we actually removed invalid devices AND still have valid ones
+            // Don't clear if all devices became invalid (might be temporary)
+            if (validSelected.length !== currentSelected.length && validSelected.length > 0) {
+              setSelectedMIDIDevices(validSelected);
+            }
+          }
+        }, 500); // Wait for rehydration to complete
       };
-      update();
+      // Delay initial update to allow store to rehydrate
+      const timeout = setTimeout(update, 200);
       mgr.onInputsChanged(update);
-      return () => { try { mgr.removeInputsChanged(update); } catch {} };
+      return () => { 
+        clearTimeout(timeout);
+        try { mgr.removeInputsChanged(update); } catch {} 
+      };
     } catch {}
-  }, []);
+    // Remove selectedMIDIDevices from deps to avoid clearing on mount/rehydrate
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setSelectedMIDIDevices]);
+
+  // Update MIDIManager when selected devices change, including on mount to restore persisted selection
+  useEffect(() => {
+    try {
+      const mgr = MIDIManager.getInstance();
+      // Always sync on mount and when selection changes
+      if (mgr.isInitialized()) {
+        mgr.setSelectedDevices(selectedMIDIDevices || []);
+      } else {
+        // If not initialized yet, wait a bit and try again
+        const timeout = setTimeout(() => {
+          try {
+            if (mgr.isInitialized()) {
+              mgr.setSelectedDevices(selectedMIDIDevices || []);
+            }
+          } catch {}
+        }, 500);
+        return () => clearTimeout(timeout);
+      }
+    } catch {}
+  }, [selectedMIDIDevices]);
 
   const noteOptions = [
     'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
@@ -261,8 +300,38 @@ export const MIDIMapper: React.FC = () => {
 
           <TabsContent value="mappings">
         <div className="tw-flex tw-flex-col tw-gap-2">
-          <div className="tw-min-w-[160px]">
-            <Select value={selectedDevice} onChange={(v) => setSelectedDevice(v as string)} options={[{ value: 'Any device' }, ...deviceOptions]} />
+          <div className="tw-flex tw-flex-col tw-gap-2">
+            <Label className="tw-text-xs">MIDI Devices</Label>
+            <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-py-2 tw-max-h-32 tw-overflow-y-auto tw-overflow-x-hidden tw-bg-neutral-900">
+              {deviceOptions.length === 0 ? (
+                <div className="tw-text-xs tw-text-neutral-400">No MIDI devices detected</div>
+              ) : (
+                <div className="tw-flex tw-flex-col tw-gap-2">
+                  {deviceOptions.map((device) => {
+                    const isSelected = (selectedMIDIDevices || []).includes(device.value);
+                    return (
+                      <div key={device.value} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-py-1">
+                        <Label className="tw-text-xs">{device.value}</Label>
+                        <Switch
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            const current = selectedMIDIDevices || [];
+                            if (checked) {
+                              setSelectedMIDIDevices([...current, device.value]);
+                            } else {
+                              setSelectedMIDIDevices(current.filter((d: string) => d !== device.value));
+                            }
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {(selectedMIDIDevices || []).length === 0 && (
+              <div className="tw-text-xs tw-text-neutral-400">No devices selected - MIDI input is disabled</div>
+            )}
           </div>
           <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
             <Label className="tw-text-xs">Force Channel 1</Label>

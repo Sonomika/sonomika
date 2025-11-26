@@ -195,7 +195,7 @@ function initializeUserDocumentsFolders() {
     }
     
     // Copy sets folder contents if available
-    // Priority: user-documents/sets > bundled/sets > other locations
+    // Priority: user-documents/sets > other locations
     const setsSourcePaths = [
       path.join(process.resourcesPath || '', 'app.asar.unpacked', 'user-documents', 'sets'),
       path.join(__dirname, '../user-documents', 'sets'),
@@ -203,7 +203,6 @@ function initializeUserDocumentsFolders() {
       path.join(process.resourcesPath || '', 'app.asar.unpacked', 'sets'),
       path.join(__dirname, '../sets'),
       path.join(process.cwd(), 'sets'),
-      path.join(process.cwd(), 'bundled', 'sets'),
     ];
     
     const setsDestPath = path.join(sonomikaDocsPath, 'sets');

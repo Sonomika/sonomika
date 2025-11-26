@@ -11,6 +11,9 @@
     "build:installer": "npm run build && node scripts/embed-icon.js && electron-builder",
     "build:installer:win": "npm run build && electron-builder --win",
     "build:installer:win:portable": "npm run build && electron-builder --win portable",
+    "build:installer:mac": "npm run build && electron-builder --mac",
+    "build:installer:mac:dmg": "npm run build && electron-builder --mac dmg",
+    "build:installer:mac:zip": "npm run build && electron-builder --mac zip",
     "dev": "vite",
     "dev:web": "vite --config vite.web.config.ts",
     "build:web": "vite build --config vite.web.config.ts",
@@ -143,13 +146,6 @@
         ]
       },
       {
-        "from": "bundled/sets",
-        "to": "sets",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
         "from": "src/ai-templates",
         "to": "src/ai-templates",
         "filter": [
@@ -210,7 +206,47 @@
     },
     "mac": {
       "icon": "public/icons/sonomika_icon_2.png",
-      "category": "public.app-category.audio"
+      "category": "public.app-category.audio",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "icon": "public/icons/sonomika_icon_2.png",
+      "background": null,
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 400
+      }
     }
   }
 }

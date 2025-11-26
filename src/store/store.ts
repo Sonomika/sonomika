@@ -110,6 +110,7 @@ const initialState: AppState = {
   fontColor: '#d6d6d6',
   midiMappings: [],
   midiForceChannel1: false,
+  selectedMIDIDevices: [], // Empty array means no devices - MIDI disabled
   midiCCOffset: 0,
   midiAutoDetectOffset: false,
   midiAutoDetectOffsetPrimed: false,
@@ -199,6 +200,7 @@ export const useStore = createWithEqualityFn<AppState & {
   removeMIDIMapping: (index: number) => void;
   setMIDIMappings: (mappings: MIDIMapping[]) => void;
   setMIDIForceChannel1: (forced: boolean) => void;
+  setSelectedMIDIDevices: (devices: string[]) => void;
   setMidiCCOffset: (offset: number) => void;
   setMidiAutoDetectOffset: (enabled: boolean) => void;
   setMidiAutoDetectOffsetPrimed: (primed: boolean) => void;
@@ -648,6 +650,11 @@ export const useStore = createWithEqualityFn<AppState & {
 
       setMIDIMappings: (mappings: MIDIMapping[]) => set({ midiMappings: mappings }),
       setMIDIForceChannel1: (forced: boolean) => set({ midiForceChannel1: !!forced }),
+      setSelectedMIDIDevices: (devices: string[]) => {
+        // Ensure we always set an array (even if empty) for persistence
+        const deviceArray = Array.isArray(devices) ? devices : [];
+        set({ selectedMIDIDevices: deviceArray });
+      },
       setMidiCCOffset: (offset: number) => set({ midiCCOffset: Math.max(0, Math.min(127, Number(offset) || 0)) }),
       setMidiAutoDetectOffset: (enabled: boolean) => set({
         midiAutoDetectOffset: !!enabled,
@@ -1257,6 +1264,7 @@ export const useStore = createWithEqualityFn<AppState & {
            showTimeline: state.showTimeline,
            midiMappings: state.midiMappings,
            midiForceChannel1: (state as any).midiForceChannel1,
+           selectedMIDIDevices: Array.isArray((state as any).selectedMIDIDevices) ? (state as any).selectedMIDIDevices : [],
           midiCCOffset: state.midiCCOffset,
           midiAutoDetectOffset: (state as any).midiAutoDetectOffset,
            selectedLayerId: state.selectedLayerId,
@@ -1282,19 +1290,20 @@ export const useStore = createWithEqualityFn<AppState & {
          };
        },
              onRehydrateStorage: () => (state) => {
-         // Respect persisted showTimeline; no override on rehydrate
-         // console.log('🔄 Store rehydrated successfully!');
-         // console.log('📊 Rehydrated data summary:');
-         // console.log('  - Assets:', state?.assets?.length || 0, 'items');
-         // console.log('  - Scenes:', state?.scenes?.length || 0, 'scenes');
-         // console.log('  - Current Scene ID:', state?.currentSceneId || 'none');
-         // console.log('  - Playing Column ID:', state?.playingColumnId || 'none');
-         // console.log('  - BPM:', state?.bpm || 120);
-         // console.log('  - Sidebar Visible:', state?.sidebarVisible);
-         // console.log('  - Selected Layer ID:', state?.selectedLayerId || 'none');
-         // console.log('  - Preview Mode:', state?.previewMode || 'composition');
-         // console.log('  - MIDI Mappings:', state?.midiMappings?.length || 0, 'mappings');
-         // console.log('  - Composition Settings:', state?.compositionSettings);
+        // Respect persisted showTimeline; no override on rehydrate
+        // console.log('🔄 Store rehydrated successfully!');
+        // console.log('📊 Rehydrated data summary:');
+        // console.log('  - Assets:', state?.assets?.length || 0, 'items');
+        // console.log('  - Scenes:', state?.scenes?.length || 0, 'scenes');
+        // console.log('  - Current Scene ID:', state?.currentSceneId || 'none');
+        // console.log('  - Playing Column ID:', state?.playingColumnId || 'none');
+        // console.log('  - BPM:', state?.bpm || 120);
+        // console.log('  - Sidebar Visible:', state?.sidebarVisible);
+        // console.log('  - Selected Layer ID:', state?.selectedLayerId || 'none');
+        // console.log('  - Preview Mode:', state?.previewMode || 'composition');
+        // console.log('  - MIDI Mappings:', state?.midiMappings?.length || 0, 'mappings');
+        // console.log('  - Selected MIDI Devices:', (state as any)?.selectedMIDIDevices || []);
+        // console.log('  - Composition Settings:', state?.compositionSettings);
          
          // Debug: Check what's actually in localStorage
          try {

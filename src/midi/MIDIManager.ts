@@ -6,19 +6,24 @@ type CCCallback = (cc: number, value: number, channel: number) => void;
 
 export class MIDIManager {
   private static instance: MIDIManager;
-  private inputs: Input[];
+  private inputs: Input[]; // Filtered inputs (only selected devices, or all if none selected)
+  private allInputs: Input[]; // All available inputs (for UI display)
   private noteCallbacks: Set<NoteCallback>;
   private ccCallbacks: Set<CCCallback>;
   private initialized: boolean;
   // Notify UI when device list changes
   private inputsChangedCallbacks: Set<() => void>;
+  // Selected device names (empty array means no devices - MIDI disabled)
+  private selectedDeviceNames: Set<string>;
 
   private constructor() {
     this.inputs = [];
+    this.allInputs = [];
     this.noteCallbacks = new Set();
     this.ccCallbacks = new Set();
     this.initialized = false;
     this.inputsChangedCallbacks = new Set();
+    this.selectedDeviceNames = new Set();
     this.initialize();
   }
 
@@ -53,7 +58,16 @@ export class MIDIManager {
       input.removeListener('continue');
     });
 
-    this.inputs = WebMidi.inputs;
+    // Store all available inputs for UI display
+    this.allInputs = WebMidi.inputs;
+    
+    // Filter inputs based on selected devices for actual MIDI listening
+    // If selectedDeviceNames is empty, use NO devices (disable MIDI)
+    const shouldFilter = this.selectedDeviceNames.size > 0;
+    this.inputs = shouldFilter 
+      ? this.allInputs.filter(input => this.selectedDeviceNames.has(input.name))
+      : [];
+
     this.inputs.forEach(input => {
       input.addListener('noteon', (e: NoteMessageEvent) => {
         this.noteCallbacks.forEach(callback => {
@@ -93,6 +107,15 @@ export class MIDIManager {
     this.notifyInputsChanged();
   }
 
+  // Set selected device names (empty array means no devices - MIDI disabled)
+  setSelectedDevices(deviceNames: string[]): void {
+    this.selectedDeviceNames = new Set(deviceNames);
+    // Re-setup inputs to apply the filter
+    if (this.initialized) {
+      this.setupInputs();
+    }
+  }
+
   addNoteCallback(callback: NoteCallback): void {
     this.noteCallbacks.add(callback);
   }
@@ -114,8 +137,9 @@ export class MIDIManager {
   }
 
   // Convenience summaries for UI consumption
+  // Always returns all available devices (not filtered) so UI can show all checkboxes
   getInputSummaries(): { id: string; name: string; manufacturer?: string }[] {
-    return (this.inputs || []).map((i) => ({ id: i.id, name: i.name, manufacturer: (i as any).manufacturer }));
+    return (this.allInputs || []).map((i) => ({ id: i.id, name: i.name, manufacturer: (i as any).manufacturer }));
   }
 
   onInputsChanged(cb: () => void): void {
