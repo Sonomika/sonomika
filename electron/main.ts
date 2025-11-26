@@ -1276,6 +1276,14 @@ app.whenReady().then(() => {
     }
   });
 
+  ipcMain.handle('get-app-path', async () => {
+    return app.getAppPath();
+  });
+
+  ipcMain.handle('get-resources-path', async () => {
+    return process.resourcesPath || app.getAppPath();
+  });
+
   ipcMain.handle('read-file-text', async (event, filePath: string) => {
     try {
       const data = await fs.promises.readFile(filePath, 'utf8');

@@ -88,6 +88,12 @@ try {
         getDocumentsFolder: () => {
             return electron_1.ipcRenderer.invoke('get-documents-folder');
         },
+        getAppPath: () => {
+            return electron_1.ipcRenderer.invoke('get-app-path');
+        },
+        getResourcesPath: () => {
+            return electron_1.ipcRenderer.invoke('get-resources-path');
+        },
         // Record menu events from main process (native app menu)
         onRecordStart: (handler) => {
             try {

@@ -7,7 +7,7 @@ const shouldMuteConsole = (() => {
   }
 })();
 
-// Suppress performance violation warnings from React scheduler
+// Suppress performance violation warnings from React scheduler and TensorFlow.js duplicate registration warnings
 const suppressViolationWarnings = () => {
   if (typeof window === 'undefined') return;
   
@@ -17,20 +17,32 @@ const suppressViolationWarnings = () => {
     const originalWarn = console.warn.bind(console);
     const originalError = console.error.bind(console);
     
-    // Filter function to suppress violation messages
+    // Filter function to suppress violation messages, TensorFlow.js warnings, and ml5.js messages
     const shouldSuppress = (args: any[]): boolean => {
       if (!args || args.length === 0) return false;
       const firstArg = args[0];
       if (typeof firstArg === 'string') {
         return firstArg.includes('[Violation]') || 
-               firstArg.includes("'message' handler took");
+               firstArg.includes("'message' handler took") ||
+               firstArg.includes('backend was already registered') ||
+               (firstArg.includes('kernel') && firstArg.includes('already registered')) ||
+               firstArg.includes('Platform browser has already been set') ||
+               firstArg.includes('Thank you for using ml5.js') ||
+               firstArg.includes('🌈') ||
+               firstArg.includes('ml5.js community');
       }
       // Check all string arguments
-      return args.some(arg => typeof arg === 'string' && 
-        (arg.includes('[Violation]') || arg.includes("'message' handler took")));
+      const allArgs = args.map(arg => String(arg)).join(' ');
+      return allArgs.includes('[Violation]') || 
+             allArgs.includes("'message' handler took") ||
+             allArgs.includes('backend was already registered') ||
+             (allArgs.includes('kernel') && allArgs.includes('already registered')) ||
+             allArgs.includes('Platform browser has already been set') ||
+             allArgs.includes('Thank you for using ml5.js') ||
+             allArgs.includes('ml5.js community');
     };
     
-    // Override console methods to filter violations
+    // Override console methods to filter violations and TensorFlow.js warnings
     console.log = (...args: any[]) => {
       if (!shouldSuppress(args)) {
         originalLog(...args);

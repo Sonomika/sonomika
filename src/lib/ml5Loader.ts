@@ -30,6 +30,13 @@ async function ensureTfBackend(): Promise<void> {
 	// Prefer WebGL if available; fall back to CPU
 	try {
 		const tf = await waitForTf();
+		// Suppress TensorFlow.js duplicate registration warnings
+		// These are harmless but noisy when ml5.js also loads TensorFlow.js
+		if (tf.env && typeof tf.env.set === 'function') {
+			try {
+				tf.env.set('IS_BROWSER', true);
+			} catch {}
+		}
 		// Try WebGL first
 		try {
 			await tf.setBackend('webgl');

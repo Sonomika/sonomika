@@ -5,7 +5,7 @@
   "main": "out/electron/main.js",
   "scripts": {
     "start": "electron .",
-    "build": "tsc -p tsconfig.electron.json && tsc && vite build",
+    "build": "tsc && vite build",
     "build:watch": "tsc --watch",
     "build:electron": "tsc -p tsconfig.electron.json",
     "build:installer": "npm run build && node scripts/embed-icon.js && electron-builder",
@@ -120,15 +120,14 @@
       "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
       "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
       "!**/{appveyor.yml,.travis.yml,circle.yml}",
-      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}",
-      "!dist/fonts/**/*",
-      "!dist/**/fonts/**/*"
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
     ],
     "asar": true,
     "asarUnpack": [
       "**/bank/**/*",
       "**/src/ai-templates/**/*",
-      "**/user-documents/**/*"
+      "**/user-documents/**/*",
+      "**/dist/fonts/**/*"
     ],
     "extraResources": [
       {

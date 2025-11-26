@@ -5,11 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' data: blob: file: local-file: http: https: ws: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net https://unpkg.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: file:; img-src 'self' data: blob: file: local-file:; media-src 'self' data: blob: file: local-file: https://*.dropboxusercontent.com;" />
     <title>sonomika</title>
-    <!-- Load TensorFlow.js from CDN -->
+    <!-- Suppress TensorFlow.js and ml5.js console warnings BEFORE they load -->
+    <script>
+      (function() {
+        if (typeof window === 'undefined') return;
+        const originalLog = console.log.bind(console);
+        const originalWarn = console.warn.bind(console);
+        const originalError = console.error.bind(console);
+        
+        const shouldSuppress = (args) => {
+          if (!args || args.length === 0) return false;
+          const allText = args.map(a => String(a)).join(' ');
+          return allText.includes('backend was already registered') ||
+                 (allText.includes('kernel') && allText.includes('already registered')) ||
+                 allText.includes('Platform browser has already been set') ||
+                 allText.includes('Thank you for using ml5.js') ||
+                 allText.includes('ml5.js community');
+        };
+        
+        console.log = function(...args) {
+          if (!shouldSuppress(args)) originalLog.apply(console, args);
+        };
+        console.warn = function(...args) {
+          if (!shouldSuppress(args)) originalWarn.apply(console, args);
+        };
+        console.error = function(...args) {
+          if (!shouldSuppress(args)) originalError.apply(console, args);
+        };
+      })();
+    </script>
+    <!-- Load TensorFlow.js core bundle from CDN (includes default backends) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.22.0/dist/tf-backend-webgl.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@4.22.0/dist/tf-backend-cpu.min.js"></script>
-    <!-- Load ml5.js from CDN -->
+    <!-- Load ml5.js from CDN (uses its own bundled TensorFlow) -->
     <script src="https://cdn.jsdelivr.net/npm/ml5@1.0.1/dist/ml5.min.js"></script>
   </head>
   <body>
