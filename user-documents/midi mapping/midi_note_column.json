@@ -1,14 +1,14 @@
 {
   "type": "midi-mapping",
   "name": "midi-mapping",
-  "timestamp": 1757000536002,
+  "timestamp": 1764176260615,
   "version": "1.0.0",
   "data": {
     "midiMappings": [
       {
         "type": "note",
         "channel": 1,
-        "number": 12,
+        "number": 48,
         "target": {
           "type": "column",
           "index": 1
@@ -17,7 +17,7 @@
       {
         "type": "note",
         "channel": 1,
-        "number": 13,
+        "number": 49,
         "target": {
           "type": "column",
           "index": 2
@@ -26,10 +26,280 @@
       {
         "type": "note",
         "channel": 1,
-        "number": 14,
+        "number": 50,
         "target": {
           "type": "column",
           "index": 3
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 51,
+        "target": {
+          "type": "column",
+          "index": 4
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 52,
+        "target": {
+          "type": "column",
+          "index": 5
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 53,
+        "target": {
+          "type": "column",
+          "index": 6
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 54,
+        "target": {
+          "type": "column",
+          "index": 7
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 55,
+        "target": {
+          "type": "column",
+          "index": 8
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 56,
+        "target": {
+          "type": "column",
+          "index": 9
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 57,
+        "target": {
+          "type": "column",
+          "index": 10
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 58,
+        "target": {
+          "type": "column",
+          "index": 11
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 59,
+        "target": {
+          "type": "column",
+          "index": 12
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 60,
+        "target": {
+          "type": "column",
+          "index": 13
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 61,
+        "target": {
+          "type": "column",
+          "index": 14
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 62,
+        "target": {
+          "type": "column",
+          "index": 15
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 63,
+        "target": {
+          "type": "column",
+          "index": 16
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 64,
+        "target": {
+          "type": "column",
+          "index": 17
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 65,
+        "target": {
+          "type": "column",
+          "index": 18
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 66,
+        "target": {
+          "type": "column",
+          "index": 19
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 67,
+        "target": {
+          "type": "column",
+          "index": 20
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 68,
+        "target": {
+          "type": "column",
+          "index": 21
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 69,
+        "target": {
+          "type": "column",
+          "index": 22
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 70,
+        "target": {
+          "type": "column",
+          "index": 23
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 71,
+        "target": {
+          "type": "column",
+          "index": 24
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 72,
+        "target": {
+          "type": "column",
+          "index": 25
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 73,
+        "target": {
+          "type": "column",
+          "index": 26
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 74,
+        "target": {
+          "type": "column",
+          "index": 27
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 75,
+        "target": {
+          "type": "column",
+          "index": 28
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 76,
+        "target": {
+          "type": "column",
+          "index": 29
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 77,
+        "target": {
+          "type": "column",
+          "index": 30
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 78,
+        "target": {
+          "type": "column",
+          "index": 31
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 79,
+        "target": {
+          "type": "column",
+          "index": 32
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 80,
+        "target": {
+          "type": "column",
+          "index": 33
         }
       }
     ]

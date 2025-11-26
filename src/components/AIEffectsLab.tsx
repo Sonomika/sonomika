@@ -298,13 +298,17 @@ export const AIEffectsLab: React.FC = () => {
               || /export\s+default\s+([A-Za-z0-9_]+)/.exec(src)?.[1];
           }
           if (name) {
-            const slug = String(name)
+            // Convert to CamelCaps (PascalCase) to match bank format
+            const camelCaps = String(name)
               .trim()
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/^-+|-+$/g, '')
-              || 'effect';
-            return `${slug}.js`;
+              .replace(/['"]/g, '')
+              .replace(/[^a-zA-Z0-9\s_-]/g, ' ')
+              .split(/[\s_-]+/)
+              .filter(Boolean)
+              .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+              .join('');
+
+            return `${camelCaps || 'Effect'}.js`;
           }
         } catch {}
         return `effect-${Date.now()}.js`;
