@@ -792,11 +792,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         const headerHeight = headerEl ? headerEl.offsetHeight : 0;
         let availableHeight = Math.max(0, containerHeight - headerHeight);
 
-        if (isPreviewFullscreen || fsFallbackActive) {
-          setPreviewSize({ width: window.innerWidth, height: window.innerHeight });
-          return;
-        }
-
         const aspect = (compositionSettings?.width || 1920) / (compositionSettings?.height || 1080);
         // Prefer fitting height, then clamp if width would overflow.
         // On single-column layout after refresh, containerHeight can be 0 on first tick.
@@ -2332,8 +2327,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 <div
                   style={
                     (isPreviewFullscreen || fsFallbackActive)
-                      ? ({ width: '100%', height: '100dvh' } as any)
-                      : ({ width: previewSize.width || undefined, height: previewSize.height || undefined } as any)
+                      ? ({
+                          width: previewSize.width || '100%',
+                          height: previewSize.height || '100dvh',
+                          maxWidth: '100%',
+                          maxHeight: '100dvh'
+                        } as any)
+                      : ({
+                          width: previewSize.width || undefined,
+                          height: previewSize.height || undefined
+                        } as any)
                   }
                 >
                   {(() => {

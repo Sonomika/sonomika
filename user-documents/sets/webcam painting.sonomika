@@ -1,0 +1,1585 @@
+{
+  "name": "webcam painting",
+  "displayName": "webcam painting",
+  "timestamp": 1764280471075,
+  "version": "1.0.0",
+  "description": "VJ Preset: webcam painting",
+  "data": {
+    "scenes": [
+      {
+        "id": "d43bf993-d8c6-4b86-9ce7-e913c498dba2",
+        "name": "1",
+        "columns": [
+          {
+            "id": "697537af-99a3-44ba-97d0-f48b652a7f50",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "d8101796-22da-41f4-be54-a93573eb70bc",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              },
+              {
+                "id": "layer-Layer 1-1-1764280160735",
+                "name": "Layer 1",
+                "type": "media",
+                "columnId": "Layer 1",
+                "layerNum": 1,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "user-c-usersridle-one-drive-documents-backup1_-cursor-sonomikabanksources-webcam-echo-datamosh",
+                  "name": "Webcam Echo Datamosh",
+                  "description": "Live webcam with WebCodecs datamosh repetition + canvas feedback echoes (falls back to VideoTexture). Supports speed multiplier, keyframe request, echo decay, copies, rotation and slight scale per echo.",
+                  "category": "Sources",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "deviceId",
+                        "type": "select",
+                        "value": "",
+                        "description": "Camera device",
+                        "options": [
+                          {
+                            "value": "",
+                            "label": "Default Camera"
+                          },
+                          {
+                            "value": "3a27f05c37b9efcb9409c78484db9480072623f2dd8cdc512117098e0bec5c88",
+                            "label": "OBSBOT Tiny 2 StreamCamera (3564:fef8)"
+                          },
+                          {
+                            "value": "8ae31e5a5c7c00951da64b1080091069fe0993acc2a92c7270e0a74a48dbfb82",
+                            "label": "EƖgato Virtual Camera"
+                          },
+                          {
+                            "value": "844405966e7b813c80368e22bd49aacd685a0157ccf170558a8447310f097bde",
+                            "label": "ASUS FHD webcam (3277:0059)"
+                          },
+                          {
+                            "value": "75df0092707b0326d1c736630d08a4869ad7522b456a9b8b03b88f1528c7c473",
+                            "label": "OBSBOT Virtual Camera"
+                          },
+                          {
+                            "value": "bea1a126f9be65d2dfe6addf5cc53b7d9f933e0248813e93d6f226ff74bacfa6",
+                            "label": "VTubeStudioCam"
+                          },
+                          {
+                            "value": "5d35d923159fe3ff7d88038034f4ee3024fc9802c0eacd747203f0128eea434f",
+                            "label": "OBS Virtual Camera"
+                          }
+                        ],
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "mirror",
+                        "type": "boolean",
+                        "value": false,
+                        "description": "Mirror horizontally"
+                      },
+                      {
+                        "name": "fitMode",
+                        "type": "select",
+                        "value": "tile",
+                        "description": "Video Size",
+                        "options": [
+                          {
+                            "value": "none",
+                            "label": "Original"
+                          },
+                          {
+                            "value": "contain",
+                            "label": "Fit"
+                          },
+                          {
+                            "value": "cover",
+                            "label": "Fill"
+                          },
+                          {
+                            "value": "stretch",
+                            "label": "Stretch"
+                          },
+                          {
+                            "value": "tile",
+                            "label": "Tile"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 2,
+                        "description": "Datamosh speed multiplier (repeats non-key frames)",
+                        "min": 1,
+                        "max": 10,
+                        "step": 1
+                      },
+                      {
+                        "name": "requestKeyframe",
+                        "type": "boolean",
+                        "value": true,
+                        "description": "Set to true to request a keyframe on next encode"
+                      },
+                      {
+                        "name": "trailDecay",
+                        "type": "number",
+                        "value": 0.81,
+                        "description": "Echo decay alpha per frame (0..1, lower = longer trail)",
+                        "min": 0.5,
+                        "max": 0.99,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "copies",
+                        "type": "number",
+                        "value": 1,
+                        "description": "Number of echo layers drawn each frame",
+                        "min": 1,
+                        "max": 12,
+                        "step": 1
+                      },
+                      {
+                        "name": "echoRotate",
+                        "type": "number",
+                        "value": 0.007,
+                        "description": "Rotation per echo (radians)",
+                        "min": 0,
+                        "max": 0.2,
+                        "step": 0.001
+                      },
+                      {
+                        "name": "echoScale",
+                        "type": "number",
+                        "value": 0.946,
+                        "description": "Scale multiplier per echo",
+                        "min": 0.9,
+                        "max": 1,
+                        "step": 0.0005
+                      }
+                    ],
+                    "category": "Sources",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": true,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": true
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "user-c-usersridle-one-drive-documents-backup1_-cursor-sonomikabanksources-webcam-echo-datamosh",
+                    "name": "Webcam Echo Datamosh",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "deviceId",
+                        "type": "select",
+                        "value": "",
+                        "description": "Camera device",
+                        "options": [
+                          {
+                            "value": "",
+                            "label": "Default Camera"
+                          },
+                          {
+                            "value": "3a27f05c37b9efcb9409c78484db9480072623f2dd8cdc512117098e0bec5c88",
+                            "label": "OBSBOT Tiny 2 StreamCamera (3564:fef8)"
+                          },
+                          {
+                            "value": "8ae31e5a5c7c00951da64b1080091069fe0993acc2a92c7270e0a74a48dbfb82",
+                            "label": "EƖgato Virtual Camera"
+                          },
+                          {
+                            "value": "844405966e7b813c80368e22bd49aacd685a0157ccf170558a8447310f097bde",
+                            "label": "ASUS FHD webcam (3277:0059)"
+                          },
+                          {
+                            "value": "75df0092707b0326d1c736630d08a4869ad7522b456a9b8b03b88f1528c7c473",
+                            "label": "OBSBOT Virtual Camera"
+                          },
+                          {
+                            "value": "bea1a126f9be65d2dfe6addf5cc53b7d9f933e0248813e93d6f226ff74bacfa6",
+                            "label": "VTubeStudioCam"
+                          },
+                          {
+                            "value": "5d35d923159fe3ff7d88038034f4ee3024fc9802c0eacd747203f0128eea434f",
+                            "label": "OBS Virtual Camera"
+                          }
+                        ],
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "mirror",
+                        "type": "boolean",
+                        "value": false,
+                        "description": "Mirror horizontally"
+                      },
+                      {
+                        "name": "fitMode",
+                        "type": "select",
+                        "value": "tile",
+                        "description": "Video Size",
+                        "options": [
+                          {
+                            "value": "none",
+                            "label": "Original"
+                          },
+                          {
+                            "value": "contain",
+                            "label": "Fit"
+                          },
+                          {
+                            "value": "cover",
+                            "label": "Fill"
+                          },
+                          {
+                            "value": "stretch",
+                            "label": "Stretch"
+                          },
+                          {
+                            "value": "tile",
+                            "label": "Tile"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 2,
+                        "description": "Datamosh speed multiplier (repeats non-key frames)",
+                        "min": 1,
+                        "max": 10,
+                        "step": 1
+                      },
+                      {
+                        "name": "requestKeyframe",
+                        "type": "boolean",
+                        "value": true,
+                        "description": "Set to true to request a keyframe on next encode"
+                      },
+                      {
+                        "name": "trailDecay",
+                        "type": "number",
+                        "value": 0.81,
+                        "description": "Echo decay alpha per frame (0..1, lower = longer trail)",
+                        "min": 0.5,
+                        "max": 0.99,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "copies",
+                        "type": "number",
+                        "value": 1,
+                        "description": "Number of echo layers drawn each frame",
+                        "min": 1,
+                        "max": 12,
+                        "step": 1
+                      },
+                      {
+                        "name": "echoRotate",
+                        "type": "number",
+                        "value": 0.007,
+                        "description": "Rotation per echo (radians)",
+                        "min": 0,
+                        "max": 0.2,
+                        "step": 0.001
+                      },
+                      {
+                        "name": "echoScale",
+                        "type": "number",
+                        "value": 0.946,
+                        "description": "Scale multiplier per echo",
+                        "min": 0.9,
+                        "max": 1,
+                        "step": 0.0005
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "deviceId": {
+                    "value": ""
+                  },
+                  "mirror": {
+                    "value": false
+                  },
+                  "fitMode": {
+                    "value": "cover"
+                  },
+                  "speed": {
+                    "value": 2
+                  },
+                  "requestKeyframe": {
+                    "value": true
+                  },
+                  "trailDecay": {
+                    "value": 0.81
+                  },
+                  "copies": {
+                    "value": 1
+                  },
+                  "echoRotate": {
+                    "value": 0.007
+                  },
+                  "echoScale": {
+                    "value": 0.946
+                  }
+                }
+              },
+              {
+                "id": "layer-Layer 2-2-1764280198194",
+                "name": "Layer 2",
+                "type": "media",
+                "columnId": "Layer 2",
+                "layerNum": 2,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "user-c-usersridle-one-drive-documents-backup1_-cursor-sonomikabankeffects-chromatic-drift-edge-dissolve",
+                  "name": "Chromatic Drift & Edge Dissolve",
+                  "description": "A feedback-based flowing drift with chromatic separation and edge-aware dissolve creates drifting colour ribbons that break on scene edits.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "driftScale",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 6,
+                        "min": 0,
+                        "max": 6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "frequency",
+                        "type": "number",
+                        "value": 4.59,
+                        "min": 0.1,
+                        "max": 8,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "chroma",
+                        "type": "number",
+                        "value": 0,
+                        "min": 0,
+                        "max": 0.05,
+                        "step": 0.0005
+                      },
+                      {
+                        "name": "edgeThreshold",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.005
+                      },
+                      {
+                        "name": "dissolve",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "decay",
+                        "type": "number",
+                        "value": 0.21,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.005
+                      },
+                      {
+                        "name": "grain",
+                        "type": "number",
+                        "value": 0.059,
+                        "min": 0,
+                        "max": 0.2,
+                        "step": 0.001
+                      },
+                      {
+                        "name": "seed",
+                        "type": "number",
+                        "value": 96,
+                        "min": 0,
+                        "max": 1000,
+                        "step": 1
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "user-c-usersridle-one-drive-documents-backup1_-cursor-sonomikabankeffects-chromatic-drift-edge-dissolve",
+                    "name": "Chromatic Drift & Edge Dissolve",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "driftScale",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 6,
+                        "min": 0,
+                        "max": 6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "frequency",
+                        "type": "number",
+                        "value": 4.59,
+                        "min": 0.1,
+                        "max": 8,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "chroma",
+                        "type": "number",
+                        "value": 0,
+                        "min": 0,
+                        "max": 0.05,
+                        "step": 0.0005
+                      },
+                      {
+                        "name": "edgeThreshold",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.005
+                      },
+                      {
+                        "name": "dissolve",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "decay",
+                        "type": "number",
+                        "value": 0.21,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.005
+                      },
+                      {
+                        "name": "grain",
+                        "type": "number",
+                        "value": 0.059,
+                        "min": 0,
+                        "max": 0.2,
+                        "step": 0.001
+                      },
+                      {
+                        "name": "seed",
+                        "type": "number",
+                        "value": 96,
+                        "min": 0,
+                        "max": 1000,
+                        "step": 1
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "driftScale": {
+                    "value": 1.02
+                  },
+                  "speed": {
+                    "value": 5.91
+                  },
+                  "frequency": {
+                    "value": 1.85
+                  },
+                  "chroma": {
+                    "value": 0
+                  },
+                  "edgeThreshold": {
+                    "value": 0.46
+                  },
+                  "dissolve": {
+                    "value": 1
+                  },
+                  "decay": {
+                    "value": 0.085
+                  },
+                  "grain": {
+                    "value": 0.025,
+                    "locked": false
+                  },
+                  "seed": {
+                    "value": 841
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "column-1764278090531-omtmgn6xv",
+            "name": "New Column (Copy)",
+            "layers": [
+              {
+                "id": "layer-1764278090531-jrgbytz3x",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "8ed64224-bd78-4b61-8d89-79270882ad4a",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "f5afb483-bf31-40c6-b222-c520ac3d29f0",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "4dd9db84-b779-4601-88d2-9436f190319c",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "9114ca67-bf08-411b-a9af-c56c1864ad86",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "e278f547-e0dc-4065-bef2-c184f6a8eaa9",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8f16b0d0-ec63-4595-adbb-f2b4ecd5aa60",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "e21b6fb5-787d-47b2-997e-e21e3aa2ba54",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "cf5998d5-9505-4b19-bd1e-42ac830011dd",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "72e4fba1-863d-4893-b288-d6df069d0728",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "eb73d5f7-3176-40bc-abcc-acf7192858f8",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "b876fc50-5f67-46aa-8dc5-d880efb8388e",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "5ec5f008-ae06-4628-b1c9-55a2ccb1ab3f",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "14dafa4e-2fa6-4fd9-89c0-3ec2357261af",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e0bdc830-3ab1-4efc-a83f-4127885dd5fc",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "a5e80ce7-82ef-40e5-aada-de15eb8a2112",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "07ca4993-9140-49c1-a9f8-da9bc39d2c9e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "3357e09b-37ad-43ce-ac34-d3ba96a3452f",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "17593137-9056-42b2-8844-e3877c0d40f7",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "693f66f2-5a5c-4432-8f7e-5f311915afa9",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "c19060ef-ed07-4837-89cd-71af6c98506f",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "7e85dba0-bf36-4081-8c73-55dcc6b7d148",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "57e7a8d4-e2db-4e60-8c26-e052a515d2ae",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "8682485b-b115-47c0-958a-8bf88d286e76",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "3f3e0230-5abb-4b80-a4c1-966a8d723783",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "8e9a20a6-6e6d-420c-a74f-a0a8de3513d0",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "b2c77832-7034-4407-91b5-7190d34cce0d",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "79db0457-3046-45f7-ba73-e35b496bff27",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "295ab32c-2b03-44cf-9f01-69885c577992",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "262134c0-d38f-46ab-b896-195a7f833ebd",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8cfa4df9-9af8-4d53-a600-f0a0daa3bbd4",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "6366ccea-fb65-429e-bb7e-a61f921e24ea",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "b38da40f-5847-4580-bfcc-662f3c17d0d7",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "57ddf571-e281-43d9-8c93-14e20322fb12",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e36bf0e8-38a9-476d-879f-67918ba4715f",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "7e4db425-2f58-4e74-8eeb-51329cc4fc9b",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4349973c-3c79-4408-af4b-3b991017dfc6",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "42660036-70f9-446a-afc7-272b4ac8e5d0",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "c5b35723-1de1-4c4f-8889-612e043bafbd",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "44cae9b8-5a84-4257-b617-8d5134efe79b",
+            "name": "Column 21",
+            "layers": []
+          },
+          {
+            "id": "28d85358-8ce2-4be9-80cf-c86f2ebf2daa",
+            "name": "Column 22",
+            "layers": []
+          },
+          {
+            "id": "db4e4664-3a75-45cf-a675-b25b330adde7",
+            "name": "Column 23",
+            "layers": []
+          },
+          {
+            "id": "227829d2-cfe1-4ec5-b137-bc275fa32bf2",
+            "name": "Column 24",
+            "layers": []
+          },
+          {
+            "id": "41900cc8-7f1b-4140-b2e6-a3f0c1fe5e5a",
+            "name": "Column 25",
+            "layers": []
+          },
+          {
+            "id": "c03cc821-f9b2-4950-8fe2-3d3b76d9a2a5",
+            "name": "Column 26",
+            "layers": []
+          },
+          {
+            "id": "3fb8eb56-362b-403b-9a81-7dbd714a555a",
+            "name": "Column 27",
+            "layers": []
+          },
+          {
+            "id": "aca3acf8-b25f-4d23-a81c-6fd26ae41958",
+            "name": "Column 28",
+            "layers": []
+          },
+          {
+            "id": "7041acd0-5162-47c1-8936-35b0ea2fdf21",
+            "name": "Column 29",
+            "layers": []
+          },
+          {
+            "id": "8da730d8-aa4d-4723-8638-9862be81c393",
+            "name": "Column 30",
+            "layers": []
+          }
+        ],
+        "globalEffects": [],
+        "numRows": 3,
+        "sequenceEnabled": false
+      }
+    ],
+    "currentSceneId": "d43bf993-d8c6-4b86-9ce7-e913c498dba2",
+    "timelineScenes": [
+      {
+        "id": "c65db434-f8ad-451b-a6b1-55a791b3e2fe",
+        "name": "1",
+        "columns": [
+          {
+            "id": "6855db15-eff7-4d9b-a0d9-b1ff7b5e436d",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "a9108269-deca-46be-93e0-b99dd9e1ce80",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "bd400741-bde5-4450-9fe9-631089325e53",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e22fd87e-9853-4c53-a104-4c5414060b13",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "1ab03592-ec2c-44ad-a002-b42371c12b60",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "6ab81e9d-86a0-4460-b0dc-0a95e3db155b",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "cbf03566-aba2-4468-8012-dccdf6988e1c",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4590810c-2154-4fc3-bb63-178718826be7",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "4f5c282f-9a71-4e89-9577-fd08810c1916",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4c245a87-ebb5-4fee-bbc8-ae515485acd1",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "17e2b639-3d9d-41e7-b338-b27c09c32bde",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8b0b9715-334b-4d1d-a069-8e57a8ab8d9e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "b14d7b95-045e-425d-a55f-0efdf241ecd3",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "0bb87072-e4dc-45b7-8b2a-67e6120fa028",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "99c048ab-bc6c-4402-b84a-82e7238f2a4d",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "cd475abe-258f-439d-8b76-866a4832e46c",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "dacd4ec3-1cf0-47c1-a7a2-ac8e03855ea3",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8c39068d-7a40-4f51-94b8-5cc6f7f8508e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "a42c0903-3854-4582-9710-450512be36c4",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8a9267de-1735-4587-b712-8938a66eb143",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "c994814d-7f49-4086-b025-36d825fa2273",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "a592a8e5-1db5-4407-87aa-27c54211b97e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "7396e026-710d-4c0f-9801-8f516cecf91d",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e3049b65-9782-4c4b-8a72-18f1c9e3b090",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "4e5bd4c2-af80-4564-9e01-8dc5b12edd8b",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "32afa082-df60-4ac5-8638-8aed76bb80eb",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "233f3233-aa8d-45b7-811f-11f388e33bc6",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "405ff032-d877-464d-85f1-2a9f979b8404",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "06a6e3b1-42c0-4eef-8be2-ed9f54bafd75",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "fb19df1b-d653-4769-9041-934498ff72e4",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "d61e6c97-cecb-47ce-943c-3778e2b04755",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e1c973a5-0ee9-452d-bfa7-2eb650df9147",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "ae58972b-0bc6-4c30-8c7a-a0c6d3bae963",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "260b2bc4-a23e-4270-948e-a53dbe29f993",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "e022de74-23d0-445c-a4f6-157dab08f7d6",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "2ca6e2b5-ca6e-475e-a1a1-c0dc489c8b6b",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "d5f597b2-5aab-485f-a3b9-aea5eade0503",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "f76d630c-9427-4cdf-b815-ff7bd06a6f55",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "7ea6ed44-b2a2-43ad-83cf-0fe8351a7c2d",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "6442931d-97b9-49d8-a1be-1aa5a83ec9dc",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "6e717716-ab41-49a1-a074-0d09a7730db9",
+            "name": "Column 21",
+            "layers": []
+          },
+          {
+            "id": "fb3c5a5e-6bbf-419d-856a-3ee47ff5f113",
+            "name": "Column 22",
+            "layers": []
+          },
+          {
+            "id": "062ce534-bc4e-4bde-9efa-d2de76904648",
+            "name": "Column 23",
+            "layers": []
+          },
+          {
+            "id": "3ea4cef2-f509-456d-b232-d95224e85896",
+            "name": "Column 24",
+            "layers": []
+          },
+          {
+            "id": "d606cb14-a51a-442b-8f29-dad639f468fc",
+            "name": "Column 25",
+            "layers": []
+          },
+          {
+            "id": "fcca5737-c10c-45d3-ba78-35addc54f831",
+            "name": "Column 26",
+            "layers": []
+          },
+          {
+            "id": "742672d5-cb5f-41c0-bcc3-714de088e3c0",
+            "name": "Column 27",
+            "layers": []
+          },
+          {
+            "id": "74518178-e064-46bb-bdff-e519822e52ce",
+            "name": "Column 28",
+            "layers": []
+          },
+          {
+            "id": "25b46d72-1bfc-4581-859c-bcde7f77891e",
+            "name": "Column 29",
+            "layers": []
+          },
+          {
+            "id": "1a7c6b6f-4062-42b0-88da-ed961ff60466",
+            "name": "Column 30",
+            "layers": []
+          }
+        ],
+        "globalEffects": [],
+        "numRows": 3,
+        "sequenceEnabled": false
+      }
+    ],
+    "currentTimelineSceneId": "c65db434-f8ad-451b-a6b1-55a791b3e2fe",
+    "playingColumnId": "697537af-99a3-44ba-97d0-f48b652a7f50",
+    "bpm": 120,
+    "sidebarVisible": true,
+    "midiMappings": [
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "driftScale"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "speed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 3,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "frequency"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 4,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "chroma"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 5,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "edgeThreshold"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 6,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "dissolve"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 7,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "decay"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 8,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "grain"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 9,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "seed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "speed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "ribbons"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 3,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "particlesPerRibbon"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 4,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "baseRadius"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 5,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "thickness"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 6,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "intensity"
+        }
+      }
+    ],
+    "selectedLayerId": "layer-Layer 2-2-1764280198194",
+    "previewMode": "composition",
+    "transitionType": "fade",
+    "transitionDuration": 500,
+    "compositionSettings": {
+      "width": 1080,
+      "height": 1920,
+      "aspectRatio": "1080:1920",
+      "backgroundColor": "#000000"
+    },
+    "assets": []
+  }
+}
