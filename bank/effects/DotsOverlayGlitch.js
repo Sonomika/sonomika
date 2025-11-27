@@ -1,9 +1,23 @@
 // sonomika template
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useEffect } = React || {};
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Dots Overlay Glitch', description: 'Animated dot overlay with simple glitch motion.', category: 'Effects', author: 'VJ', version: '1.0.0', replacesVideo: false, canBeGlobal: true,
-  parameters: [ { name: 'uDotSize', type: 'number', value: 5.0, min: 1.0, max: 20.0, step: 0.1 }, { name: 'uGlitchIntensity', type: 'number', value: 0.5, min: 0.0, max: 1.0, step: 0.01 }, { name: 'uOpacity', type: 'number', value: 1.0, min: 0.0, max: 1.0, step: 0.01 } ],
+  name: 'Dots Overlay Glitch',
+  description: 'Animated dot overlay with simple glitch motion.',
+  category: 'Effects',
+  author: 'VJ',
+  version: '1.0.0',
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
+  parameters: [
+    { name: 'uDotSize', type: 'number', value: 5.0, min: 1.0, max: 20.0, step: 0.1 },
+    { name: 'uGlitchIntensity', type: 'number', value: 0.5, min: 0.0, max: 1.0, step: 0.01 },
+    { name: 'uOpacity', type: 'number', value: 1.0, min: 0.0, max: 1.0, step: 0.01 },
+  ],
 };
 
 export default function DotsOverlayGlitch({ videoTexture, isGlobal=false, compositionWidth, compositionHeight, uDotSize=5.0, uGlitchIntensity=0.5, uOpacity=1.0 }){

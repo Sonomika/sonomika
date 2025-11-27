@@ -32,6 +32,23 @@ const RandomIcon: React.FC<{ className?: string }> = ({ className }) => {
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
   const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip } = useStore() as any;
+  // Bank discovery is async; when effects finish loading we need to re-run lookups
+  // so that effect metadata (name/parameters) is available even before the user
+  // clicks a cell or opens dev tools after an Electron refresh.
+  const [bankVersion, setBankVersion] = useState(0);
+  React.useEffect(() => {
+    const onBankUpdated = () => {
+      setBankVersion((v) => v + 1);
+    };
+    try {
+      window.addEventListener('vj-bank-updated', onBankUpdated as any);
+    } catch {}
+    return () => {
+      try {
+        window.removeEventListener('vj-bank-updated', onBankUpdated as any);
+      } catch {}
+    };
+  }, []);
   // Subscribe to live LFO modulations so sliders reflect movement during playback (esp. timeline)
   const modulatedValues = useLFOStore((state) => state.modulatedValues);
   // Video options store
@@ -85,6 +102,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   // Try multiple ways to find the effect component
   let effectComponent = null;
   if (hasEffect) {
+    // Include bankVersion so lookups re-run when discovery finishes
+    void bankVersion;
     effectComponent = effectId ? getEffect(effectId) : null;
     if (!effectComponent && effectId) {
       const variations = [

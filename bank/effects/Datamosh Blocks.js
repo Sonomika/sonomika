@@ -1,3 +1,4 @@
+// sonomika template
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
@@ -10,6 +11,7 @@ export const metadata = {
   icon: '',
   author: 'VJ',
   version: '1.0.0',
+  folder: 'effects',
   replacesVideo: true,
   canBeGlobal: true,
   parameters: [

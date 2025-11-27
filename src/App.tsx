@@ -236,14 +236,18 @@ function App() {
           const { EffectDiscovery } = await import('./utils/EffectDiscovery');
           const discovery = EffectDiscovery.getInstance();
           // Try to restore last AI effect so it persists across refresh/crash
+          // Skip if user has explicitly disabled AI effect restoration
           try {
-            const last = localStorage.getItem('vj-ai-last-code');
-            if (last && last.trim()) {
-              try {
-                await discovery.loadUserEffectFromContent(last, 'ai-live-edit.js');
-                console.log('Restored last AI effect from localStorage');
-              } catch (e) {
-                console.warn('Failed to restore last AI effect', e);
+            const shouldRestore = localStorage.getItem('vj-ai-restore-enabled') !== '0';
+            if (shouldRestore) {
+              const last = localStorage.getItem('vj-ai-last-code');
+              if (last && last.trim()) {
+                try {
+                  await discovery.loadUserEffectFromContent(last, 'ai-live-edit.js');
+                  console.log('Restored last AI effect from localStorage');
+                } catch (e) {
+                  console.warn('Failed to restore last AI effect', e);
+                }
               }
             }
           } catch {}

@@ -1,4 +1,4 @@
-// sonomika template — Galaxy Spinning (Abstract Particles)
+// sonomika template
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
@@ -8,7 +8,7 @@ export const metadata = {
   name: 'Spinning Galaxy',
   description: 'Soft instanced particles arranged in spiral arms, spinning with thickness, twinkle and abstract motion.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.1.1',
   folder: 'sources',
   isSource: true,

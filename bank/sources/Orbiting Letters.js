@@ -8,7 +8,7 @@ export const metadata = {
   description:
     'Letters orbit around a center point leaving concentric echo rings. Rings change hue over time and optionally face the camera.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

@@ -1,13 +1,14 @@
-// sonomika template (original effect: Orbital Ribbons)
-// Neon ribbon-like particle orbits with connecting lines and BPM-reactive pulsing.
-
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useState } = React || {};
+// sonomika template
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useRef, useMemo, useState } = React || {};
 
 export const metadata = {
   name: 'Orbital Ribbons',
   description: 'Neon ribbon-like orbits: particles follow elliptical paths with connecting lines. Pulses to BPM and adjustable parameters.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

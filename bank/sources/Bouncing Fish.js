@@ -1,8 +1,17 @@
-// Sonomika template: `Bouncing School` — auto-wrapped from internal component
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useMemo, useRef, useState, useEffect } = React || {};
+// sonomika template
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useMemo, useRef, useState, useEffect } = React || {};
 
 export const metadata = {
-  name: `Bouncing School`, description: `Instanced fish-like boids that swim, wiggle and bounce elastically off the screen edges.`, category: 'Sources', author: 'VJ', version: '1.0.0', isSource: true,
+  name: 'Bouncing School',
+  description: 'Instanced fish-like boids that swim, wiggle and bounce elastically off the screen edges.',
+  category: 'Sources',
+  author: 'VJ',
+  version: '1.0.0',
+  folder: 'sources',
+  isSource: true,
   parameters: [
     { name: 'numFish', type: 'number', value: 300, min: 10, max: 5000, step: 10 },
     { name: 'fishSize', type: 'number', value: 0.04, min: 0.01, max: 0.2, step: 0.01 },

@@ -1,8 +1,17 @@
-// Sonomika template: "Platform Dash" — side-scrolling platformer effect inspired by classic platform games
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useMemo, useRef, useState } = React || {};
+// sonomika template
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useMemo, useRef, useState } = React || {};
 
 export const metadata = {
-  name: 'Platform Dash', description: 'Auto-running platformer visual: platforms, coins, enemies and jumps (Super Mario-esque).', category: 'Sources', author: 'AI', version: '1.0.0', isSource: true,
+  name: 'Platform Dash',
+  description: 'Auto-running platformer visual: platforms, coins, enemies and jumps (Super Mario-esque).',
+  category: 'Sources',
+  author: 'VJ',
+  version: '1.0.0',
+  folder: 'sources',
+  isSource: true,
   parameters: [
     { name: 'tilesAcross', type: 'number', value: 40, min: 8, max: 200, step: 1 },
     { name: 'runSpeed', type: 'number', value: 6, min: 1, max: 30, step: 0.5 },

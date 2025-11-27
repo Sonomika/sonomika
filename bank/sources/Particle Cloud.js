@@ -1,5 +1,8 @@
 // sonomika template
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useEffect, useState } = React || {};
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useRef, useMemo, useEffect, useState } = React || {};
 
 export const metadata = {
   name: 'Particle Cloud', description: 'Animated 3D point cloud with BPM sync.', category: 'Sources', author: 'VJ', version: '1.0.0', replacesVideo: false, isSource: true,

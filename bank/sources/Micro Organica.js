@@ -1,4 +1,4 @@
-// sonomika: MicroOrganica — smooth flowing cell-like worms with continuous organic motion
+// sonomika template
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
@@ -9,8 +9,9 @@ export const metadata = {
   description:
     'Smooth organic worms and cell-like threads that flow with continuous undulation and drift. A more fluid, lifelike variant of MicroCaterpillars.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.1',
+  folder: 'sources',
   isSource: true,
   parameters: [
     { name: 'count', type: 'number', value: 24, min: 1, max: 200, step: 1 },

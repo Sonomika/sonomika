@@ -1,5 +1,8 @@
 // sonomika template
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo } = React || {};
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useRef, useMemo } = React || {};
 
 export const metadata = {
   name: 'Monjori Shader', description: 'Monjori-style shader with BPM sync and color modes.', category: 'Sources', author: 'VJ', version: '1.0.0', isSource: true,

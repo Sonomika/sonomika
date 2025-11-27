@@ -1,5 +1,4 @@
-// sonomika template (derived version)
-// "Orbital Nebula" - layered translucent rings of particles with BPM pulse and central glow (middle dot removed, angle option added)
+// sonomika template
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
@@ -9,7 +8,7 @@ export const metadata = {
   name: 'Orbital Nebula',
   description: 'Layered particle rings forming a nebula with swirl motion and BPM-synced pulse.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.1',
   folder: 'sources',
   isSource: true,

@@ -1,9 +1,24 @@
 // sonomika template
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo } = React || {};
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useRef, useMemo } = React || {};
 
 export const metadata = {
-  name: 'Video Datamosh Glitch', description: 'Datamosh-style artifacts and variants.', category: 'Effects', author: 'VJ', version: '1.0.0', replacesVideo: true,
-  parameters: [ { name: 'intensity', type: 'number', value: 0.3, min: 0.0, max: 1.0, step: 0.05 }, { name: 'frequency', type: 'number', value: 2.0, min: 0.1, max: 10.0, step: 0.1 }, { name: 'glitchType', type: 'select', value: 'datamosh', options:['datamosh','rgb_split','block_shift','scanlines'] }, { name: 'colorShift', type: 'number', value: 0.02, min: 0.0, max: 0.1, step: 0.001 }, { name: 'blockSize', type: 'number', value: 0.1, min: 0.01, max: 0.5, step: 0.01 } ],
+  name: 'Video Datamosh Glitch',
+  description: 'Datamosh-style artifacts and variants.',
+  category: 'Effects',
+  author: 'VJ',
+  version: '1.0.0',
+  folder: 'effects',
+  replacesVideo: true,
+  parameters: [
+    { name: 'intensity', type: 'number', value: 0.3, min: 0.0, max: 1.0, step: 0.05 },
+    { name: 'frequency', type: 'number', value: 2.0, min: 0.1, max: 10.0, step: 0.1 },
+    { name: 'glitchType', type: 'select', value: 'datamosh', options: ['datamosh', 'rgb_split', 'block_shift', 'scanlines'] },
+    { name: 'colorShift', type: 'number', value: 0.02, min: 0.0, max: 0.1, step: 0.001 },
+    { name: 'blockSize', type: 'number', value: 0.1, min: 0.01, max: 0.5, step: 0.01 },
+  ],
 };
 
 export default function VideoDatamoshGlitch({ intensity=0.3, frequency=2.0, glitchType='datamosh', colorShift=0.02, blockSize=0.1, videoTexture }){

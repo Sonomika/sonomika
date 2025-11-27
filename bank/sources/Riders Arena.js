@@ -1,12 +1,16 @@
-// sonomika: Riders Arena (based on Snake Responsive Source template)
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useMemo, useRef, useState } = React || {};
+// sonomika template
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useMemo, useRef, useState } = React || {};
 
 export const metadata = {
   name: 'Riders Arena',
   description: 'Autonomous lightcycle arena with fading trails and responsive grid.',
   category: 'Sources',
-  author: 'AI',
+  author: 'VJ',
   version: '1.0.0',
+  folder: 'sources',
   isSource: true,
   parameters: [
     { name: 'cellsAcross', type: 'number', value: 40, min: 6, max: 300, step: 1 },

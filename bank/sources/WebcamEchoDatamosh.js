@@ -5,53 +5,65 @@ const r3f = globalThis.r3f;
 const { useEffect, useMemo, useRef, useState } = React || {};
 
 export const metadata = {
-  name: 'Webcam Source Datamosh',
-  description: 'Live webcam feed using WebCodecs encoder/decoder pipeline (falls back to VideoTexture if unavailable). Supports speed multiplier and requesting keyframes.',
+  name: 'Webcam Echo Datamosh',
+  description: 'Live webcam with WebCodecs datamosh repetition + canvas feedback echoes (falls back to VideoTexture). Supports speed multiplier, keyframe request, echo decay, copies, rotation and slight scale per echo.',
   category: 'Sources',
-  icon: '',
   author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,
   parameters: [
     { name: 'deviceId', type: 'select', value: '', description: 'Camera device', options: [{ value: '', label: 'Default Camera' }], lockDefault: true },
-    { name: 'mirror', type: 'boolean', value: true, description: 'Mirror horizontally' },
-    { name: 'fitMode', type: 'select', value: 'cover', description: 'Video Size', options: [
+    { name: 'mirror', type: 'boolean', value: false, description: 'Mirror horizontally' },
+    { name: 'fitMode', type: 'select', value: 'tile', description: 'Video Size', options: [
       { value: 'none', label: 'Original' }, { value: 'contain', label: 'Fit' }, { value: 'cover', label: 'Fill' }, { value: 'stretch', label: 'Stretch' }, { value: 'tile', label: 'Tile' }
     ] },
-    { name: 'speed', type: 'number', value: 2, description: 'Playback speed multiplier (how many times non-key frames are decoded)', min: 1, max: 10, step: 1 },
-    { name: 'requestKeyframe', type: 'boolean', value: false, description: 'Set to true to request a keyframe on next encode' },
+    { name: 'speed', type: 'number', value: 2, description: 'Datamosh speed multiplier (repeats non-key frames)', min: 1, max: 10, step: 1 },
+    { name: 'requestKeyframe', type: 'boolean', value: true, description: 'Set to true to request a keyframe on next encode' },
+    { name: 'trailDecay', type: 'number', value: 0.81, description: 'Echo decay alpha per frame (0..1, lower = longer trail)', min: 0.5, max: 0.99, step: 0.01 },
+    { name: 'copies', type: 'number', value: 1, description: 'Number of echo layers drawn each frame', min: 1, max: 12, step: 1 },
+    { name: 'echoRotate', type: 'number', value: 0.007, description: 'Rotation per echo (radians)', min: 0, max: 0.2, step: 0.001 },
+    { name: 'echoScale', type: 'number', value: 0.946, description: 'Scale multiplier per echo', min: 0.9, max: 1, step: 0.0005 },
   ],
 };
 
-export default function WebcamSourceWebCodecs({
+export default function WebcamEchoDatamosh({
   deviceId = '',
   width = 1280,
   height = 720,
   fps = 30,
-  mirror = true,
-  fitMode = 'cover',
+  mirror = false,
+  fitMode = 'tile',
   speed = 2,
-  requestKeyframe = false,
+  requestKeyframe = true,
+  trailDecay = 0.81,
+  copies = 1,
+  echoRotate = 0.007,
+  echoScale = 0.946,
 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const canvasRef = useRef(null); // offscreen canvas to draw decoded frames
+
+  // main canvas that will be the texture shown in scene
+  const canvasRef = useRef(null);
   const canvasTexRef = useRef(null);
+
+  // ping canvas to hold previous frame for feedback
+  const pingRef = useRef(null);
+
   const [tex, setTex] = useState(null);
   const [videoAspect, setVideoAspect] = useState(16 / 9);
 
-  // WebCodecs refs
+  // WebCodecs
   const encoderRef = useRef(null);
   const decoderRef = useRef(null);
-  const isWebCodecsReadyRef = useRef(false);
-  const useKeyFrameRef = useRef(false);
-  const pendingRequestKeyframeRef = useRef(false);
+  const isWCRef = useRef(false);
+  const pendingKeyframeRef = useRef(false);
 
-  // Start webcam and prepare <video>
+  // Start webcam and set up canvases + WebCodecs
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -59,74 +71,138 @@ export default function WebcamSourceWebCodecs({
         const constraints = { video: { deviceId: deviceId || undefined, width, height, frameRate: fps } };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         if (!mounted) {
-          stream.getTracks().forEach((t) => t.stop());
+          stream.getTracks().forEach(t => t.stop());
           return;
         }
         streamRef.current = stream;
+
         const video = document.createElement('video');
         video.autoplay = true; video.muted = true; video.playsInline = true;
         video.srcObject = stream;
         await video.play().catch(() => {});
         videoRef.current = video;
-        // update aspect
         if (video.videoWidth && video.videoHeight) setVideoAspect(video.videoWidth / video.videoHeight);
 
-        // create offscreen canvas for decoded frames
+        // main canvas
         const cvs = document.createElement('canvas');
         cvs.width = width;
         cvs.height = height;
-        canvasRef.current = cvs;
         const ctx = cvs.getContext('2d');
-        // optional initial clear
         ctx.clearRect(0, 0, cvs.width, cvs.height);
+        canvasRef.current = cvs;
 
-        // create CanvasTexture for three.js mesh
+        // ping canvas (stores previous composite)
+        const ping = document.createElement('canvas');
+        ping.width = width;
+        ping.height = height;
+        const pctx = ping.getContext('2d');
+        pctx.clearRect(0, 0, ping.width, ping.height);
+        pingRef.current = ping;
+
         const canvasTex = new THREE.CanvasTexture(cvs);
         canvasTex.minFilter = THREE.LinearFilter; canvasTex.magFilter = THREE.LinearFilter; canvasTex.generateMipmaps = false;
-        try { (canvasTex).colorSpace = (THREE).SRGBColorSpace || (canvasTex).colorSpace; } catch {}
+        try { (canvasTex).colorSpace = (THREE).SRGBColorSpace || canvasTex.colorSpace; } catch {}
         canvasTexRef.current = canvasTex;
         setTex(canvasTex);
 
-        // If WebCodecs available, set up encoder/decoder
+        // try WebCodecs
         if (window.VideoEncoder && window.VideoDecoder && window.VideoFrame) {
           try {
             // Decoder
             const decoder = new VideoDecoder({
               output: async (frame) => {
-                // draw decoded frame to canvas
+                // draw decoded frame + feedback echoes to main canvas
                 try {
-                  // lock canvas size to frame
-                  const w = frame.codedWidth || cvs.width;
-                  const h = frame.codedHeight || cvs.height;
-                  if (cvs.width !== w || cvs.height !== h) {
-                    cvs.width = w; cvs.height = h;
+                  const cvsLocal = canvasRef.current;
+                  const pingLocal = pingRef.current;
+                  if (!cvsLocal || !pingLocal) {
+                    frame.close && frame.close();
+                    return;
                   }
-                  const ctx2 = cvs.getContext('2d');
+                  // ensure canvas size matches
+                  const w = frame.codedWidth || cvsLocal.width;
+                  const h = frame.codedHeight || cvsLocal.height;
+                  if (cvsLocal.width !== w || cvsLocal.height !== h) {
+                    cvsLocal.width = pingLocal.width = w;
+                    cvsLocal.height = pingLocal.height = h;
+                  }
+                  const ctx2 = cvsLocal.getContext('2d');
+                  // draw previous composite with slight globalAlpha for decay
                   ctx2.save();
+                  ctx2.clearRect(0, 0, cvsLocal.width, cvsLocal.height);
+
+                  // draw several echoes from ping canvas with rotation/scale and alpha multiplication
+                  const pctx2 = pingLocal.getContext('2d');
+                  // We will composite: start with a faded copy of previous framebuffer
+                  ctx2.globalCompositeOperation = 'source-over';
+                  ctx2.globalAlpha = 1.0;
+                  // draw a faded baseline of previous frame
+                  ctx2.drawImage(pingLocal, 0, 0, cvsLocal.width, cvsLocal.height);
+                  // apply decay overlay (draw a semi-transparent rect to slowly fade)
+                  ctx2.fillStyle = `rgba(0,0,0,${1 - Math.min(0.999, Math.max(0, trailDecay))})`;
+                  ctx2.fillRect(0, 0, cvsLocal.width, cvsLocal.height);
+
+                  // get bitmap of decoded frame for better draw performance if possible
+                  let bitmap = null;
+                  try { bitmap = await createImageBitmap(frame); } catch (e) {}
+
+                  // draw central fresh frame (the live frame) onto an offscreen small context to be used for echoes
+                  const sourceCanvas = document.createElement('canvas');
+                  sourceCanvas.width = cvsLocal.width;
+                  sourceCanvas.height = cvsLocal.height;
+                  const sctx = sourceCanvas.getContext('2d');
                   if (mirror) {
-                    ctx2.clearRect(0, 0, cvs.width, cvs.height);
-                    ctx2.translate(cvs.width, 0);
-                    ctx2.scale(-1, 1);
-                  } else {
-                    ctx2.clearRect(0, 0, cvs.width, cvs.height);
+                    sctx.save();
+                    sctx.translate(sourceCanvas.width, 0);
+                    sctx.scale(-1, 1);
                   }
-                  // Use createImageBitmap for better compatibility
-                  try {
-                    const bitmap = await createImageBitmap(frame);
-                    ctx2.drawImage(bitmap, 0, 0, cvs.width, cvs.height);
+                  if (bitmap) {
+                    sctx.drawImage(bitmap, 0, 0, sourceCanvas.width, sourceCanvas.height);
                     bitmap.close && bitmap.close();
-                  } catch (e) {
-                    // fallback: attempt to draw VideoFrame directly
-                    try {
-                      ctx2.drawImage(frame, 0, 0, cvs.width, cvs.height);
-                    } catch {}
+                  } else {
+                    // fallback: attempt to draw frame directly
+                    try { sctx.drawImage(frame, 0, 0, sourceCanvas.width, sourceCanvas.height); } catch {}
                   }
-                  if (mirror) ctx2.restore();
-                  frame.close();
-                  // update texture
+                  if (mirror) sctx.restore();
+
+                  // draw multiple echoes: progressively transform and draw with additive blending
+                  // we draw from farthest (most decayed) to nearest.
+                  ctx2.globalCompositeOperation = 'lighter';
+                  let currentAlpha = 0.6; // base alpha for echoes
+                  const alphaStep = (1 - Math.max(0, trailDecay)) / Math.max(1, copies);
+                  for (let i = copies - 1; i >= 0; i--) {
+                    const scaleFactor = Math.pow(echoScale, i);
+                    const rot = echoRotate * (i); // small rotation per echo
+                    const dx = (1 - scaleFactor) * cvsLocal.width * 0.5;
+                    const dy = (1 - scaleFactor) * cvsLocal.height * 0.5;
+
+                    ctx2.save();
+                    ctx2.translate(cvsLocal.width / 2, cvsLocal.height / 2);
+                    ctx2.rotate(rot);
+                    ctx2.translate(-cvsLocal.width / 2, -cvsLocal.height / 2);
+                    ctx2.globalAlpha = Math.max(0, currentAlpha - i * alphaStep);
+                    ctx2.drawImage(sourceCanvas,
+                      dx, dy, cvsLocal.width * scaleFactor, cvsLocal.height * scaleFactor);
+                    ctx2.restore();
+                  }
+
+                  // finally draw the freshest frame in source-over to keep clarity
+                  ctx2.globalCompositeOperation = 'source-over';
+                  ctx2.globalAlpha = 1.0;
+                  ctx2.drawImage(sourceCanvas, 0, 0, cvsLocal.width, cvsLocal.height);
+
+                  // update ping: copy current canvas into ping for next frame
+                  const pctx3 = pingLocal.getContext('2d');
+                  pctx3.globalCompositeOperation = 'source-over';
+                  pctx3.clearRect(0, 0, pingLocal.width, pingLocal.height);
+                  pctx3.drawImage(cvsLocal, 0, 0, pingLocal.width, pingLocal.height);
+
+                  frame.close && frame.close();
+
+                  // update three texture
                   if (canvasTexRef.current) canvasTexRef.current.needsUpdate = true;
                 } catch (err) {
-                  try { frame.close(); } catch {}
+                  try { frame.close && frame.close(); } catch {}
                 }
               },
               error: (err) => console.error('Decoder error:', err),
@@ -134,43 +210,35 @@ export default function WebcamSourceWebCodecs({
             decoder.configure({ codec: 'vp8' });
             decoderRef.current = decoder;
 
-            // Encoder
+            // Encoder (encode incoming video frames)
             const encoder = new VideoEncoder({
               output: (chunk) => {
-                // handle encoded chunk: decode it (once for keyframes, multiple times for non-key to create speed multiplication)
                 if (!decoderRef.current) return;
                 try {
                   if (chunk.type === 'key') {
                     decoderRef.current.decode(chunk);
                   } else {
-                    // decode multiple times to emulate "speed" repetition
                     const n = Math.max(1, Math.round(speed || 1));
                     for (let i = 0; i < n; i++) {
-                      // Each decode uses the same EncodedVideoChunk object - that's okay per spec
                       decoderRef.current.decode(chunk);
                     }
                   }
                 } catch (e) {
-                  // decoding may throw if queue is full or not ready
                   console.error('Decode error while handling chunk:', e);
                 }
               },
               error: (err) => console.error('Encoder error:', err),
             });
 
-            encoder.configure({
-              codec: 'vp8',
-              width: width,
-              height: height,
-            });
+            encoder.configure({ codec: 'vp8', width, height });
             encoderRef.current = encoder;
-            isWebCodecsReadyRef.current = true;
+            isWCRef.current = true;
           } catch (e) {
             console.warn('WebCodecs setup failed, falling back to VideoTexture:', e);
-            isWebCodecsReadyRef.current = false;
+            isWCRef.current = false;
           }
         } else {
-          isWebCodecsReadyRef.current = false;
+          isWCRef.current = false;
         }
       } catch (e) {
         console.error('Webcam start failed', e);
@@ -185,57 +253,41 @@ export default function WebcamSourceWebCodecs({
       try { if (canvasTexRef.current) { canvasTexRef.current.dispose && canvasTexRef.current.dispose(); canvasTexRef.current = null; } } catch {}
       setTex(null);
     };
-  }, [deviceId, width, height, fps, mirror]); // recreate on size/camera changes
+  }, [deviceId, width, height, fps, mirror]);
 
-  // react to requestKeyframe prop: if toggled true, set flag to request keyframe on next encode
+  // request keyframe handling
   useEffect(() => {
-    if (requestKeyframe) {
-      pendingRequestKeyframeRef.current = true;
-    }
+    if (requestKeyframe) pendingKeyframeRef.current = true;
   }, [requestKeyframe]);
 
-  // update speed when prop changes
-  useEffect(() => {
-    // nothing to do here except let encoder output handler read 'speed' from closure.
-    // but to ensure the latest value is used when encoding, we can store in ref if needed.
-  }, [speed]);
-
-  // Main encode loop using r3f useFrame so it ticks with render loop
+  // encode loop integrated with r3f render loop
   useFrame(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // if WebCodecs available use encoder pipeline, otherwise update a regular VideoTexture with video directly
-    if (!isWebCodecsReadyRef.current) {
-      // fallback: if no WebCodecs, create/update video texture if not already created
+    // fallback path: if no WebCodecs, use VideoTexture
+    if (!isWCRef.current) {
       if (!tex) {
-        // create THREE.VideoTexture from video element
         try {
           const vtex = new THREE.VideoTexture(video);
           vtex.minFilter = THREE.LinearFilter; vtex.magFilter = THREE.LinearFilter; vtex.generateMipmaps = false;
-          try { (vtex).colorSpace = (THREE).SRGBColorSpace || (vtex).colorSpace; } catch {}
+          try { (vtex).colorSpace = (THREE).SRGBColorSpace || vtex.colorSpace; } catch {}
           setTex(vtex);
           canvasTexRef.current = vtex;
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
       } else {
-        // ensure needsUpdate (VideoTexture normally updates automatically)
         tex.needsUpdate = true;
       }
       return;
     }
 
-    // If WebCodecs pipeline is ready:
     if (!encoderRef.current || encoderRef.current.state === 'closed') return;
     try {
-      // create VideoFrame from video element
-      // prefer new VideoFrame(video) if available
       let frame = null;
       try {
         frame = new VideoFrame(video);
       } catch (e) {
-        // fallback: draw video to temp canvas and create VideoFrame from that
+        // fallback: draw to tmp canvas then make VideoFrame
         const tmp = document.createElement('canvas');
         tmp.width = video.videoWidth || width;
         tmp.height = video.videoHeight || height;
@@ -247,36 +299,28 @@ export default function WebcamSourceWebCodecs({
         }
         ctx.drawImage(video, 0, 0, tmp.width, tmp.height);
         if (mirror) ctx.restore();
-        try {
-          frame = new VideoFrame(tmp);
-        } catch (err) {
-          // give up this tick
-          return;
-        }
+        try { frame = new VideoFrame(tmp); } catch (err) { return; }
       }
 
-      // if a keyframe was requested, set keyFrame option for this encode
       let keyOpt = false;
-      if (pendingRequestKeyframeRef.current) {
+      if (pendingKeyframeRef.current) {
         keyOpt = true;
-        pendingRequestKeyframeRef.current = false;
+        pendingKeyframeRef.current = false;
       }
 
       encoderRef.current.encode(frame, { keyFrame: keyOpt });
       frame.close && frame.close();
     } catch (err) {
-      // could fail if encoder queue is full or not configured yet
-      // console.debug('encode skip', err);
+      // skip this tick
     }
   });
 
-  // Compute plane geometry and scale similar to template
+  // sizing/fit logic similar to template
   const { size } = useThree();
   const compositionAspect = (size && size.width > 0 && size.height > 0) ? (size.width / size.height) : (16 / 9);
   const planeW = compositionAspect * 2;
   const planeH = 2;
 
-  // Compute mesh scale based on fitMode and videoAspect
   let scaleX = 1, scaleY = 1;
   if (fitMode === 'contain') {
     if (videoAspect > compositionAspect) scaleY = compositionAspect / videoAspect; else scaleX = videoAspect / compositionAspect;
@@ -284,7 +328,7 @@ export default function WebcamSourceWebCodecs({
     const compWpx = size.width || 1; const compHpx = size.height || 1; const vW = (videoRef.current?.videoWidth || width); const vH = (videoRef.current?.videoHeight || height); scaleX = Math.max(0.0001, vW / compWpx); scaleY = Math.max(0.0001, vH / compHpx);
   }
 
-  // Apply repeat/cropping based on fitMode for CanvasTexture or VideoTexture
+  // texture repeat/fit adjustments
   useEffect(() => {
     if (!tex) return;
     const t = tex;
@@ -304,7 +348,7 @@ export default function WebcamSourceWebCodecs({
     t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.set(1,1); t.offset.set(0,0); t.needsUpdate = true;
   }, [tex, fitMode, planeW, planeH, videoAspect, compositionAspect]);
 
-  // Render mesh using the prepared texture (CanvasTexture or VideoTexture).
+  // render mesh
   return tex ? (
     React.createElement('mesh', { scale: [ (mirror ? -1 : 1) * scaleX, scaleY, 1 ] },
       React.createElement('planeGeometry', { args: [planeW, planeH] }),
@@ -313,7 +357,7 @@ export default function WebcamSourceWebCodecs({
   ) : null;
 }
 
-// Populate camera options dynamically
+// populate camera options dynamically (same as template)
 (async function populateCameraOptions(){
   try {
     if (!navigator.mediaDevices?.enumerateDevices) return;

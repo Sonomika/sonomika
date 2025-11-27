@@ -929,6 +929,25 @@ export class EffectDiscovery {
   }
 
   /**
+   * Remove a specific user effect by source name (e.g., 'ai-live-edit.js')
+   */
+  removeUserEffectBySourceName(sourceName: string): boolean {
+    const idBase = sourceName.replace(/\.(js|mjs)$/i, '') || 'user-effect';
+    const id = this.generateEffectId(`${idBase}.tsx`);
+    const effectId = `user-${id}`;
+    
+    const removed = this.userEffects.delete(effectId);
+    if (removed) {
+      // Also try to remove from registry
+      try {
+        const { unregisterEffect } = require('./effectRegistry');
+        unregisterEffect(effectId);
+      } catch {}
+    }
+    return removed;
+  }
+
+  /**
    * Load a single user effect from raw JS module content (ESM), suitable for external .js files.
    * The module must export default React component and optional `metadata`.
    * Note: External JS must not use bare imports; rely on globals (window.React, window.THREE, window.r3f).

@@ -1,9 +1,26 @@
 // sonomika template
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useRef, useMemo, useEffect } = React || {};
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Inverted Radial Mask', description: 'Inverted animated ring mask with wobble.', category: 'Effects', author: 'VJ', version: '1.0.0', replacesVideo: true, canBeGlobal: true,
-  parameters: [ { name: 'radius', type: 'number', value: 0.35, min: 0.0, max: 1.0, step: 0.01 }, { name: 'width', type: 'number', value: 0.2, min: 0.01, max: 1.0, step: 0.01 }, { name: 'speed', type: 'number', value: 0.5, min: 0.0, max: 5.0, step: 0.05 }, { name: 'wobble', type: 'number', value: 0.15, min: 0.0, max: 1.0, step: 0.01 }, { name: 'centerX', type: 'number', value: 0.0, min: -0.5, max: 0.5, step: 0.01 }, { name: 'centerY', type: 'number', value: 0.0, min: -0.5, max: 0.5, step: 0.01 } ],
+  name: 'Inverted Radial Mask',
+  description: 'Inverted animated ring mask with wobble.',
+  category: 'Effects',
+  author: 'VJ',
+  version: '1.0.0',
+  folder: 'effects',
+  replacesVideo: true,
+  canBeGlobal: true,
+  parameters: [
+    { name: 'radius', type: 'number', value: 0.35, min: 0.0, max: 1.0, step: 0.01 },
+    { name: 'width', type: 'number', value: 0.2, min: 0.01, max: 1.0, step: 0.01 },
+    { name: 'speed', type: 'number', value: 0.5, min: 0.0, max: 5.0, step: 0.05 },
+    { name: 'wobble', type: 'number', value: 0.15, min: 0.0, max: 1.0, step: 0.01 },
+    { name: 'centerX', type: 'number', value: 0.0, min: -0.5, max: 0.5, step: 0.01 },
+    { name: 'centerY', type: 'number', value: 0.0, min: -0.5, max: 0.5, step: 0.01 },
+  ],
 };
 
 export default function InvertedRadialMask({ videoTexture, isGlobal=false, radius=0.35, width=0.2, speed=0.5, wobble=0.15, centerX=0.0, centerY=0.0, compositionWidth, compositionHeight }){

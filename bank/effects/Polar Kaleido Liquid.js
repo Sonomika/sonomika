@@ -1,8 +1,17 @@
-// Sonomika template: `Polar Kaleido Liquid` — auto-wrapped from internal component
-const React = globalThis.React; const THREE = globalThis.THREE; const r3f = globalThis.r3f; const { useMemo, useRef, useState, useEffect } = React || {};
+// sonomika template
+const React = globalThis.React;
+const THREE = globalThis.THREE;
+const r3f = globalThis.r3f;
+const { useMemo, useRef, useState, useEffect } = React || {};
 
 export const metadata = {
-  name: `Polar Kaleido Liquid`, description: `A kaleidoscopic, liquid-style refraction + chromatic blur with animated ripples.`, category: 'Effects', author: 'VJ', version: '1.0.0', isSource: false,
+  name: 'Polar Kaleido Liquid',
+  description: 'A kaleidoscopic, liquid-style refraction + chromatic blur with animated ripples.',
+  category: 'Effects',
+  author: 'VJ',
+  version: '1.0.0',
+  folder: 'effects',
+  isSource: false,
   parameters: [
     { name: 'segments', type: 'number', value: 6.0, min: 2, max: 16, step: 0.1, description: 'Number of kaleidoscope segments' },
     { name: 'baseAngle', type: 'number', value: 0.0, min: 0, max: 6.283, step: 0.01, description: 'Base rotation angle' },

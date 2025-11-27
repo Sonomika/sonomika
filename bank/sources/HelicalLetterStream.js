@@ -1,5 +1,4 @@
-// sonomika template (original effect)
-// Helical Letter Stream
+// sonomika template
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
@@ -9,7 +8,7 @@ export const metadata = {
   name: 'Helical Letter Stream',
   description: 'Letters flow along a rotating helix. Adjustable radius, twist, speed and color. Renders as textured sprites.',
   category: 'Sources',
-  author: 'VJ (original)',
+  author: 'VJ',
   version: '1.0.0',
   folder: 'sources',
   isSource: true,

@@ -1,15 +1,16 @@
-// Sonomika template: `Prismatic Coral Waves` — auto-wrapped from internal component
+// sonomika template
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: `Prismatic Coral Waves`,
-  description: `A glassy, prismatic water-like ripple with coral-like fractal waves, caustic light bands, directional streak flares, thin-film color shifts, haze, and film grain.`,
+  name: 'Prismatic Coral Waves',
+  description: 'A glassy, prismatic water-like ripple with coral-like fractal waves, caustic light bands, directional streak flares, thin-film color shifts, haze, and film grain.',
   category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
+  folder: 'effects',
   isSource: false,
   parameters: [
     { name: 'refraction', type: 'number', value: 0.18, min: 0, max: 1, step: 0.01 },
