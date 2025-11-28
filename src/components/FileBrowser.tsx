@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Select } from './ui';
 import { generateVideoThumbnail } from '../utils/ThumbnailCache';
-import { PlayIcon, StopIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
+import { MagnifyingGlassIcon } from '@radix-ui/react-icons';
 
 type FileEntry = {
   name: string;
@@ -327,63 +327,6 @@ const FileBrowser: React.FC = () => {
 
   const MemoImageThumb = React.memo(ImageThumb);
 
-  // Inline audio preview (play/stop) for audio files
-  const AudioInlinePreview: React.FC<{ path: string }> = ({ path }) => {
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-
-    const getSrc = (p: string) => (p.startsWith('local-file://') ? p : `local-file://${p}`);
-
-    useEffect(() => {
-      return () => {
-        try { audioRef.current?.pause(); } catch {}
-        audioRef.current = null;
-      };
-    }, []);
-
-    const ensureAudio = () => {
-      if (!audioRef.current) {
-        const a = new Audio(getSrc(path));
-        a.preload = 'metadata';
-        a.onended = () => setIsPlaying(false);
-        audioRef.current = a;
-      }
-      return audioRef.current;
-    };
-
-    const handlePlay = () => {
-      const a = ensureAudio();
-      try { a.currentTime = 0; } catch {}
-      a.play().then(() => setIsPlaying(true)).catch(() => {});
-    };
-
-    const handleStop = () => {
-      const a = audioRef.current;
-      if (!a) return;
-      try { a.pause(); } catch {}
-      try { a.currentTime = 0; } catch {}
-      setIsPlaying(false);
-    };
-
-    return (
-      <div className="tw-w-12 tw-h-9 tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-flex tw-items-center tw-justify-center tw-gap-1 tw-rounded-[2px]">
-        <button
-          onClick={handlePlay}
-          title="Play"
-          className={`tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border  ${isPlaying ? 'tw-bg-neutral-800 tw-border-neutral-700' : 'tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700'}`}
-        >
-          <PlayIcon className="tw-w-3 tw-h-3" />
-        </button>
-        <button
-          onClick={handleStop}
-          title="Stop"
-          className="tw-inline-flex tw-items-center tw-justify-center tw-w-5 tw-h-5 tw-rounded tw-border  tw-bg-neutral-800 hover:tw-bg-neutral-700 tw-border-neutral-700"
-        >
-          <StopIcon className="tw-w-3 tw-h-3" />
-        </button>
-      </div>
-    );
-  };
 
   const formatFileSize = (bytes: number, decimalPoint = 2) => {
     if (bytes === 0) return '0 Bytes';
@@ -622,16 +565,15 @@ const FileBrowser: React.FC = () => {
               >
                 {/* Mobile layout - stacked */}
                 <div className="tw-flex tw-flex-col sm:tw-hidden tw-gap-2">
-                  <div className="tw-flex tw-items-center tw-gap-3">
-                    <div className="tw-flex-shrink-0 tw-w-12 tw-h-9">
-                      {type === 'video' && <MemoInlineThumb path={it.path} />}
-                      {type === 'image' && (
-                        <MemoImageThumb path={localSrc} name={it.name} />
-                      )}
-                      {type === 'audio' && (
-                        <AudioInlinePreview path={it.path} />
-                      )}
-                    </div>
+                  <div className={`tw-flex tw-items-center ${type === 'audio' ? '' : 'tw-gap-3'}`}>
+                    {type !== 'audio' && (
+                      <div className="tw-flex-shrink-0 tw-w-12 tw-h-9">
+                        {type === 'video' && <MemoInlineThumb path={it.path} />}
+                        {type === 'image' && (
+                          <MemoImageThumb path={localSrc} name={it.name} />
+                        )}
+                      </div>
+                    )}
                     <div className="tw-min-w-0 tw-flex-1">
                       <div className="tw-text-sm tw-font-medium  tw-truncate tw-max-w-48" title={it.name}>{it.name}</div>
                       <div className="tw-text-xs  tw-mt-1">{type.toUpperCase()}</div>
@@ -659,17 +601,16 @@ const FileBrowser: React.FC = () => {
                 {/* Desktop layout - two rows */}
                 <div className="tw-hidden sm:tw-block">
                   {/* Top row - Preview and Name */}
-                  <div className="tw-flex tw-items-center tw-gap-3 tw-mb-2">
+                  <div className={`tw-flex tw-items-center ${type === 'audio' ? '' : 'tw-gap-3'} tw-mb-2`}>
                     {/* Preview thumbnail */}
-                    <div className="tw-flex-shrink-0 tw-w-12 tw-h-9">
-                      {type === 'video' && <MemoInlineThumb path={it.path} />}
-                      {type === 'image' && (
-                        <MemoImageThumb path={localSrc} name={it.name} />
-                      )}
-                      {type === 'audio' && (
-                        <AudioInlinePreview path={it.path} />
-                      )}
-                    </div>
+                    {type !== 'audio' && (
+                      <div className="tw-flex-shrink-0 tw-w-12 tw-h-9">
+                        {type === 'video' && <MemoInlineThumb path={it.path} />}
+                        {type === 'image' && (
+                          <MemoImageThumb path={localSrc} name={it.name} />
+                        )}
+                      </div>
+                    )}
                     
                     {/* File name and type */}
                     <div className="tw-min-w-0 tw-flex-1">

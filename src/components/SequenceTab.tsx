@@ -3,7 +3,7 @@ import { useStore } from '../store/store';
 import CustomWaveform, { CustomWaveformRef } from './CustomWaveform';
 import { Button, ScrollArea, Select, Input, Label, Switch } from './ui';
 import { ActionLogger } from '../utils/ActionLogger';
-import { TrashIcon, PlayIcon, PauseIcon, StopIcon, UploadIcon, GearIcon, ZoomInIcon, ZoomOutIcon, ReloadIcon } from '@radix-ui/react-icons';
+import { TrashIcon, PlayIcon, PauseIcon, StopIcon, GearIcon, ZoomInIcon, ZoomOutIcon, ReloadIcon } from '@radix-ui/react-icons';
 
 interface TriggerConfig {
   id: string;
@@ -37,7 +37,6 @@ const SequenceTab: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string>('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const waveformRef = useRef<CustomWaveformRef>(null);
   // Debounce map: triggerTime -> last fired performance timestamp
   const lastFiredRef = useRef<Record<number, number>>({});
@@ -198,28 +197,6 @@ const SequenceTab: React.FC = () => {
       if (changedAny) setTriggerConfigs(next);
     } catch {}
   }, [currentScene?.numRows, columns?.length, triggerPoints]);
-
-  // Handle file selection from input
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    handleFiles(files);
-  }, []);
-
-  // Handle files (from input or drag & drop)
-  const handleFiles = useCallback((files: File[]) => {
-    const first = files.find(file => file.type.startsWith('audio/'));
-    if (!first) return;
-    const audioFile: AudioFile = {
-      id: Math.random().toString(36).substr(2, 9),
-      file: first,
-      name: first.name,
-      duration: 0, // Will be updated when loaded
-      path: (first as any).path || undefined,
-    };
-
-    setAudioFiles([audioFile]);
-    setSelectedFile(audioFile);
-  }, []);
 
   // Handle drag and drop from files library
   const handleFileDrop = useCallback((file: File) => {
@@ -1087,6 +1064,11 @@ const SequenceTab: React.FC = () => {
         <div 
           className="tw-w-full tw-h-full tw-rounded-lg"
           onDragOver={(e) => {
+            // Only show visual feedback for JSON payloads from Files tab
+            const hasJson = e.dataTransfer.types.includes('application/json');
+            if (!hasJson) {
+              return;
+            }
             e.preventDefault();
             try { e.dataTransfer.dropEffect = 'copy'; } catch {}
             e.currentTarget.classList.add('tw-border-blue-400', 'tw-bg-blue-50/10');
@@ -1099,15 +1081,7 @@ const SequenceTab: React.FC = () => {
             e.preventDefault();
             e.currentTarget.classList.remove('tw-border-blue-400', 'tw-bg-blue-50/10');
             
-            // 1) Accept file objects (from desktop)
-            const files = Array.from(e.dataTransfer.files || []);
-            const audioFiles = files.filter(file => file.type.startsWith('audio/'));
-            if (audioFiles.length > 0) {
-              handleFiles(audioFiles);
-              return;
-            }
-
-            // 2) Accept JSON asset payloads from Files/Media tabs
+            // Only accept JSON asset payloads from Files tab
             const json = e.dataTransfer.getData('application/json');
             if (json) {
               try {
@@ -1222,18 +1196,11 @@ const SequenceTab: React.FC = () => {
           ) : (
             <div className="tw-flex tw-flex-col tw-items-center tw-justify-center tw-h-full tw-text-neutral-400">
               <div className="tw-text-sm tw-text-center">
-                Drag audio files here or click "Add"
+                Drag audio files from the Files tab
               </div>
               <div className="tw-text-xs tw-mt-2 tw-text-neutral-500">
                 Supports MP3, WAV, OGG, FLAC
               </div>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="tw-mt-4 tw-text-xs tw-rounded tw-border tw-px-2 tw-py-1 tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700 tw-flex tw-items-center tw-gap-1"
-              >
-                <UploadIcon className="tw-w-3 tw-h-3" />
-                Add
-              </button>
             </div>
           )}
         </div>
@@ -1284,14 +1251,6 @@ const SequenceTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*"
-        onChange={handleFileSelect}
-        className="tw-hidden"
-      />
 
 
       {/* Trigger List */}

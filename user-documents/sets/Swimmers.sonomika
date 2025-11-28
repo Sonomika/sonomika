@@ -1,0 +1,2993 @@
+{
+  "name": "Swimmers",
+  "displayName": "Swimmers",
+  "timestamp": 1764330767074,
+  "version": "1.0.0",
+  "description": "VJ Preset: Swimmers",
+  "data": {
+    "scenes": [
+      {
+        "id": "d43bf993-d8c6-4b86-9ce7-e913c498dba2",
+        "name": "1",
+        "columns": [
+          {
+            "id": "697537af-99a3-44ba-97d0-f48b652a7f50",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "d8101796-22da-41f4-be54-a93573eb70bc",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              },
+              {
+                "id": "layer-Layer 2-2-1764328558404",
+                "name": "Layer 2",
+                "type": "media",
+                "columnId": "Layer 2",
+                "layerNum": 2,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "c-r-t -frame",
+                  "name": "CRT Frame",
+                  "description": "CRT-style curved screen with scanlines, vignette, and bloom.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "vignette",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "curvature",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 0.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "bloom",
+                        "type": "number",
+                        "value": 0.1,
+                        "min": 0,
+                        "max": 0.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanlineMix",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "c-r-t -frame",
+                    "name": "CRT Frame",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "vignette",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "curvature",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 0.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "bloom",
+                        "type": "number",
+                        "value": 0.1,
+                        "min": 0,
+                        "max": 0.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanlineMix",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layer-Layer 1-1-1764329604888",
+                "name": "Layer 1",
+                "type": "media",
+                "columnId": "Layer 1",
+                "layerNum": 1,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "micro -swimmers",
+                  "name": "Micro Swimmers",
+                  "description": "Clouds of microrobe-like swimmers gliding in a fluid, with wiggling motion, subtle collective behaviour, 20 distinct cell shapes and a colour-shifted palette.",
+                  "category": "Sources",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "numSwimmers",
+                        "type": "number",
+                        "value": 600,
+                        "min": 10,
+                        "max": 6000,
+                        "step": 10
+                      },
+                      {
+                        "name": "bodySize",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.25,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleStrength",
+                        "type": "number",
+                        "value": 1.2,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleFrequency",
+                        "type": "number",
+                        "value": 3,
+                        "min": 0.1,
+                        "max": 10,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "flowStrength",
+                        "type": "number",
+                        "value": 0.8,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "neighborRadius",
+                        "type": "number",
+                        "value": 0.25,
+                        "min": 0.05,
+                        "max": 0.8,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "separationWeight",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "alignmentWeight",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "cohesionWeight",
+                        "type": "number",
+                        "value": 0.3,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "drag",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "edgeSoftness",
+                        "type": "number",
+                        "value": 0.6,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "sizeVariation",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "colour",
+                        "type": "color",
+                        "value": "#aaffdd"
+                      }
+                    ],
+                    "category": "Sources",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": true,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": true
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "micro -swimmers",
+                    "name": "Micro Swimmers",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "numSwimmers",
+                        "type": "number",
+                        "value": 600,
+                        "min": 10,
+                        "max": 6000,
+                        "step": 10
+                      },
+                      {
+                        "name": "bodySize",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.25,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleStrength",
+                        "type": "number",
+                        "value": 1.2,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleFrequency",
+                        "type": "number",
+                        "value": 3,
+                        "min": 0.1,
+                        "max": 10,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "flowStrength",
+                        "type": "number",
+                        "value": 0.8,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "neighborRadius",
+                        "type": "number",
+                        "value": 0.25,
+                        "min": 0.05,
+                        "max": 0.8,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "separationWeight",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "alignmentWeight",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "cohesionWeight",
+                        "type": "number",
+                        "value": 0.3,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "drag",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "edgeSoftness",
+                        "type": "number",
+                        "value": 0.6,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "sizeVariation",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "colour",
+                        "type": "color",
+                        "value": "#aaffdd"
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "numSwimmers": {
+                    "value": 600
+                  },
+                  "bodySize": {
+                    "value": 0.02
+                  },
+                  "speed": {
+                    "value": 0.5
+                  },
+                  "wiggleStrength": {
+                    "value": 1.2
+                  },
+                  "wiggleFrequency": {
+                    "value": 3
+                  },
+                  "flowStrength": {
+                    "value": 0.8
+                  },
+                  "neighborRadius": {
+                    "value": 0.25
+                  },
+                  "separationWeight": {
+                    "value": 0.9
+                  },
+                  "alignmentWeight": {
+                    "value": 0.5
+                  },
+                  "cohesionWeight": {
+                    "value": 0.3
+                  },
+                  "drag": {
+                    "value": 0.15
+                  },
+                  "edgeSoftness": {
+                    "value": 0.6
+                  },
+                  "sizeVariation": {
+                    "value": 0.35
+                  },
+                  "colour": {
+                    "value": "#aaffdd"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "column-1764329621452-d5kp2nrix",
+            "name": "New Column (Copy)",
+            "layers": [
+              {
+                "id": "layer-1764329621452-5frmkfh2e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              },
+              {
+                "id": "layer-1764329621452-jyvz0duu8",
+                "name": "Layer 3",
+                "type": "media",
+                "columnId": "Layer 2",
+                "layerNum": 3,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "c-r-t -frame",
+                  "name": "CRT Frame",
+                  "description": "CRT-style curved screen with scanlines, vignette, and bloom.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "vignette",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "curvature",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 0.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "bloom",
+                        "type": "number",
+                        "value": 0.1,
+                        "min": 0,
+                        "max": 0.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanlineMix",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "c-r-t -frame",
+                    "name": "CRT Frame",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "vignette",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "curvature",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 0.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "bloom",
+                        "type": "number",
+                        "value": 0.1,
+                        "min": 0,
+                        "max": 0.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanlineMix",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "vignette": {
+                    "value": 0.35
+                  },
+                  "curvature": {
+                    "value": 0.15
+                  },
+                  "bloom": {
+                    "value": 0.1
+                  },
+                  "scanlineMix": {
+                    "value": 0.35
+                  }
+                }
+              },
+              {
+                "id": "layer-1764329621452-fzgcq6obs",
+                "name": "Layer 1",
+                "type": "media",
+                "columnId": "Layer 1",
+                "layerNum": 1,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "micro -swimmers",
+                  "name": "Micro Swimmers",
+                  "description": "Clouds of microrobe-like swimmers gliding in a fluid, with wiggling motion, subtle collective behaviour, 20 distinct cell shapes and a colour-shifted palette.",
+                  "category": "Sources",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "numSwimmers",
+                        "type": "number",
+                        "value": 600,
+                        "min": 10,
+                        "max": 6000,
+                        "step": 10
+                      },
+                      {
+                        "name": "bodySize",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.25,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleStrength",
+                        "type": "number",
+                        "value": 1.2,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleFrequency",
+                        "type": "number",
+                        "value": 3,
+                        "min": 0.1,
+                        "max": 10,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "flowStrength",
+                        "type": "number",
+                        "value": 0.8,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "neighborRadius",
+                        "type": "number",
+                        "value": 0.25,
+                        "min": 0.05,
+                        "max": 0.8,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "separationWeight",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "alignmentWeight",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "cohesionWeight",
+                        "type": "number",
+                        "value": 0.3,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "drag",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "edgeSoftness",
+                        "type": "number",
+                        "value": 0.6,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "sizeVariation",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "colour",
+                        "type": "color",
+                        "value": "#aaffdd"
+                      }
+                    ],
+                    "category": "Sources",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": true,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": true
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "micro -swimmers",
+                    "name": "Micro Swimmers",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "numSwimmers",
+                        "type": "number",
+                        "value": 600,
+                        "min": 10,
+                        "max": 6000,
+                        "step": 10
+                      },
+                      {
+                        "name": "bodySize",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.25,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleStrength",
+                        "type": "number",
+                        "value": 1.2,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleFrequency",
+                        "type": "number",
+                        "value": 3,
+                        "min": 0.1,
+                        "max": 10,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "flowStrength",
+                        "type": "number",
+                        "value": 0.8,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "neighborRadius",
+                        "type": "number",
+                        "value": 0.25,
+                        "min": 0.05,
+                        "max": 0.8,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "separationWeight",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "alignmentWeight",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "cohesionWeight",
+                        "type": "number",
+                        "value": 0.3,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "drag",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "edgeSoftness",
+                        "type": "number",
+                        "value": 0.6,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "sizeVariation",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "colour",
+                        "type": "color",
+                        "value": "#aaffdd"
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "numSwimmers": {
+                    "value": 600
+                  },
+                  "bodySize": {
+                    "value": 0.02
+                  },
+                  "speed": {
+                    "value": 0.5
+                  },
+                  "wiggleStrength": {
+                    "value": 1.2
+                  },
+                  "wiggleFrequency": {
+                    "value": 3
+                  },
+                  "flowStrength": {
+                    "value": 0.8
+                  },
+                  "neighborRadius": {
+                    "value": 0.25
+                  },
+                  "separationWeight": {
+                    "value": 0.9
+                  },
+                  "alignmentWeight": {
+                    "value": 0.5
+                  },
+                  "cohesionWeight": {
+                    "value": 0.3
+                  },
+                  "drag": {
+                    "value": 0.15
+                  },
+                  "edgeSoftness": {
+                    "value": 0.6
+                  },
+                  "sizeVariation": {
+                    "value": 0.35
+                  },
+                  "colour": {
+                    "value": "#aaffdd"
+                  }
+                }
+              },
+              {
+                "id": "layer-Layer 3-3-1764329643422",
+                "name": "Layer 2",
+                "type": "media",
+                "columnId": "Layer 3",
+                "layerNum": 2,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "datamosh -triangles with -horizontal -glitches",
+                  "name": "Datamosh Triangles with Horizontal Glitches",
+                  "description": "Triangular datamosh mosaic plus horizontal band glitches (shifts & chroma separation).",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "triangleSize",
+                        "type": "number",
+                        "value": 64,
+                        "min": 4,
+                        "max": 512,
+                        "step": 1,
+                        "description": "Size in pixels of the square cell that contains two triangles (triangles are halves of this cell)."
+                      },
+                      {
+                        "name": "offsetMax",
+                        "type": "number",
+                        "value": 10,
+                        "min": 0,
+                        "max": 200,
+                        "step": 1,
+                        "description": "Maximum pixel offset to sample the chosen triangle from."
+                      },
+                      {
+                        "name": "posterizeLevels",
+                        "type": "number",
+                        "value": 16,
+                        "min": 2,
+                        "max": 64,
+                        "step": 1,
+                        "description": "Posterization levels applied to glitched triangles."
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.02,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.005,
+                        "description": "Fraction of triangles that are glitched."
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 8,
+                        "step": 0.01,
+                        "description": "Speed at which the triangle glitch pattern changes."
+                      },
+                      {
+                        "name": "seed",
+                        "type": "number",
+                        "value": 0,
+                        "min": -1000,
+                        "max": 1000,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "bpm",
+                        "type": "number",
+                        "value": 120,
+                        "min": 30,
+                        "max": 240,
+                        "step": 1
+                      },
+                      {
+                        "name": "glitchAmount",
+                        "type": "number",
+                        "value": 80,
+                        "min": 0,
+                        "max": 1000,
+                        "step": 1,
+                        "description": "Maximum horizontal shift in pixels for glitch bands."
+                      },
+                      {
+                        "name": "bandHeight",
+                        "type": "number",
+                        "value": 6,
+                        "min": 1,
+                        "max": 512,
+                        "step": 1,
+                        "description": "Height in pixels of horizontal bands used for glitches."
+                      },
+                      {
+                        "name": "lineDensity",
+                        "type": "number",
+                        "value": 0.08,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.005,
+                        "description": "Fraction of horizontal bands that are glitched."
+                      },
+                      {
+                        "name": "lineSpeed",
+                        "type": "number",
+                        "value": 2,
+                        "min": 0,
+                        "max": 8,
+                        "step": 0.01,
+                        "description": "Speed at which horizontal glitch bands change."
+                      },
+                      {
+                        "name": "chromaSpread",
+                        "type": "number",
+                        "value": 4,
+                        "min": 0,
+                        "max": 64,
+                        "step": 1,
+                        "description": "Pixel offset used for chromatic separation on glitched bands."
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "datamosh -triangles with -horizontal -glitches",
+                    "name": "Datamosh Triangles with Horizontal Glitches",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "triangleSize",
+                        "type": "number",
+                        "value": 64,
+                        "min": 4,
+                        "max": 512,
+                        "step": 1,
+                        "description": "Size in pixels of the square cell that contains two triangles (triangles are halves of this cell)."
+                      },
+                      {
+                        "name": "offsetMax",
+                        "type": "number",
+                        "value": 10,
+                        "min": 0,
+                        "max": 200,
+                        "step": 1,
+                        "description": "Maximum pixel offset to sample the chosen triangle from."
+                      },
+                      {
+                        "name": "posterizeLevels",
+                        "type": "number",
+                        "value": 16,
+                        "min": 2,
+                        "max": 64,
+                        "step": 1,
+                        "description": "Posterization levels applied to glitched triangles."
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.02,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.005,
+                        "description": "Fraction of triangles that are glitched."
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 8,
+                        "step": 0.01,
+                        "description": "Speed at which the triangle glitch pattern changes."
+                      },
+                      {
+                        "name": "seed",
+                        "type": "number",
+                        "value": 0,
+                        "min": -1000,
+                        "max": 1000,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "bpm",
+                        "type": "number",
+                        "value": 120,
+                        "min": 30,
+                        "max": 240,
+                        "step": 1
+                      },
+                      {
+                        "name": "glitchAmount",
+                        "type": "number",
+                        "value": 80,
+                        "min": 0,
+                        "max": 1000,
+                        "step": 1,
+                        "description": "Maximum horizontal shift in pixels for glitch bands."
+                      },
+                      {
+                        "name": "bandHeight",
+                        "type": "number",
+                        "value": 6,
+                        "min": 1,
+                        "max": 512,
+                        "step": 1,
+                        "description": "Height in pixels of horizontal bands used for glitches."
+                      },
+                      {
+                        "name": "lineDensity",
+                        "type": "number",
+                        "value": 0.08,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.005,
+                        "description": "Fraction of horizontal bands that are glitched."
+                      },
+                      {
+                        "name": "lineSpeed",
+                        "type": "number",
+                        "value": 2,
+                        "min": 0,
+                        "max": 8,
+                        "step": 0.01,
+                        "description": "Speed at which horizontal glitch bands change."
+                      },
+                      {
+                        "name": "chromaSpread",
+                        "type": "number",
+                        "value": 4,
+                        "min": 0,
+                        "max": 64,
+                        "step": 1,
+                        "description": "Pixel offset used for chromatic separation on glitched bands."
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "triangleSize": {
+                    "value": 207
+                  },
+                  "offsetMax": {
+                    "value": 91
+                  },
+                  "posterizeLevels": {
+                    "value": 10
+                  },
+                  "density": {
+                    "value": 0.305
+                  },
+                  "animationSpeed": {
+                    "value": 6.68
+                  },
+                  "seed": {
+                    "value": -770.3
+                  },
+                  "bpm": {
+                    "value": 124
+                  },
+                  "glitchAmount": {
+                    "value": 499
+                  },
+                  "bandHeight": {
+                    "value": 38
+                  },
+                  "lineDensity": {
+                    "value": 0.835
+                  },
+                  "lineSpeed": {
+                    "value": 7.5200000000000005
+                  },
+                  "chromaSpread": {
+                    "value": 13
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "column-1764329662724-rcf0gihem",
+            "name": "New Column (Copy)",
+            "layers": [
+              {
+                "id": "layer-1764329662724-eqorzzzj2",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              },
+              {
+                "id": "layer-1764329662724-v7ez8066g",
+                "name": "Layer 3",
+                "type": "media",
+                "columnId": "Layer 2",
+                "layerNum": 3,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "c-r-t -frame",
+                  "name": "CRT Frame",
+                  "description": "CRT-style curved screen with scanlines, vignette, and bloom.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "vignette",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "curvature",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 0.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "bloom",
+                        "type": "number",
+                        "value": 0.1,
+                        "min": 0,
+                        "max": 0.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanlineMix",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "c-r-t -frame",
+                    "name": "CRT Frame",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "vignette",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "curvature",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 0.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "bloom",
+                        "type": "number",
+                        "value": 0.1,
+                        "min": 0,
+                        "max": 0.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanlineMix",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "layer-1764329662724-8rhb20p3i",
+                "name": "Layer 1",
+                "type": "media",
+                "columnId": "Layer 1",
+                "layerNum": 1,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "micro -swimmers",
+                  "name": "Micro Swimmers",
+                  "description": "Clouds of microrobe-like swimmers gliding in a fluid, with wiggling motion, subtle collective behaviour, 20 distinct cell shapes and a colour-shifted palette.",
+                  "category": "Sources",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "numSwimmers",
+                        "type": "number",
+                        "value": 600,
+                        "min": 10,
+                        "max": 6000,
+                        "step": 10
+                      },
+                      {
+                        "name": "bodySize",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.25,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleStrength",
+                        "type": "number",
+                        "value": 1.2,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleFrequency",
+                        "type": "number",
+                        "value": 3,
+                        "min": 0.1,
+                        "max": 10,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "flowStrength",
+                        "type": "number",
+                        "value": 0.8,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "neighborRadius",
+                        "type": "number",
+                        "value": 0.25,
+                        "min": 0.05,
+                        "max": 0.8,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "separationWeight",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "alignmentWeight",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "cohesionWeight",
+                        "type": "number",
+                        "value": 0.3,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "drag",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "edgeSoftness",
+                        "type": "number",
+                        "value": 0.6,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "sizeVariation",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "colour",
+                        "type": "color",
+                        "value": "#aaffdd"
+                      }
+                    ],
+                    "category": "Sources",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": true,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": true
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "micro -swimmers",
+                    "name": "Micro Swimmers",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "numSwimmers",
+                        "type": "number",
+                        "value": 600,
+                        "min": 10,
+                        "max": 6000,
+                        "step": 10
+                      },
+                      {
+                        "name": "bodySize",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.25,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "speed",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleStrength",
+                        "type": "number",
+                        "value": 1.2,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleFrequency",
+                        "type": "number",
+                        "value": 3,
+                        "min": 0.1,
+                        "max": 10,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "flowStrength",
+                        "type": "number",
+                        "value": 0.8,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "neighborRadius",
+                        "type": "number",
+                        "value": 0.25,
+                        "min": 0.05,
+                        "max": 0.8,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "separationWeight",
+                        "type": "number",
+                        "value": 0.9,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "alignmentWeight",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "cohesionWeight",
+                        "type": "number",
+                        "value": 0.3,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "drag",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "edgeSoftness",
+                        "type": "number",
+                        "value": 0.6,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "sizeVariation",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "colour",
+                        "type": "color",
+                        "value": "#aaffdd"
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "numSwimmers": {
+                    "value": 600
+                  },
+                  "bodySize": {
+                    "value": 0.02
+                  },
+                  "speed": {
+                    "value": 0.5
+                  },
+                  "wiggleStrength": {
+                    "value": 1.2
+                  },
+                  "wiggleFrequency": {
+                    "value": 3
+                  },
+                  "flowStrength": {
+                    "value": 0.8
+                  },
+                  "neighborRadius": {
+                    "value": 0.25
+                  },
+                  "separationWeight": {
+                    "value": 0.9
+                  },
+                  "alignmentWeight": {
+                    "value": 0.5
+                  },
+                  "cohesionWeight": {
+                    "value": 0.3
+                  },
+                  "drag": {
+                    "value": 0.15
+                  },
+                  "edgeSoftness": {
+                    "value": 0.6
+                  },
+                  "sizeVariation": {
+                    "value": 0.35
+                  },
+                  "colour": {
+                    "value": "#aaffdd"
+                  }
+                }
+              },
+              {
+                "id": "layer-Layer 3-3-1764329690423",
+                "name": "Layer 2",
+                "type": "media",
+                "columnId": "Layer 3",
+                "layerNum": 2,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "slice -rotate -grid",
+                  "name": "Slice Rotate Grid",
+                  "description": "Partition the image into a grid and rotate each slice independently (oscillate/continuous/alternating). Optional per-slice strobe and gap handling.",
+                  "category": "Video Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "countX",
+                        "type": "number",
+                        "value": 8,
+                        "min": 1,
+                        "max": 64,
+                        "step": 1,
+                        "description": "Slices across"
+                      },
+                      {
+                        "name": "countY",
+                        "type": "number",
+                        "value": 6,
+                        "min": 1,
+                        "max": 64,
+                        "step": 1,
+                        "description": "Slices down"
+                      },
+                      {
+                        "name": "rotationAmount",
+                        "type": "number",
+                        "value": 30,
+                        "min": 0,
+                        "max": 180,
+                        "step": 1,
+                        "description": "Rotation amplitude in degrees (peak for oscillation; scale for continuous)"
+                      },
+                      {
+                        "name": "rotationSpeed",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 8,
+                        "step": 0.01,
+                        "description": "Rotation speed in Hz"
+                      },
+                      {
+                        "name": "rotationMode",
+                        "type": "select",
+                        "value": "oscillate",
+                        "options": [
+                          {
+                            "value": "oscillate",
+                            "label": "Oscillate (sine)"
+                          },
+                          {
+                            "value": "continuous",
+                            "label": "Continuous spin"
+                          },
+                          {
+                            "value": "randomOsc",
+                            "label": "Random-phase oscillate"
+                          },
+                          {
+                            "value": "alternating",
+                            "label": "Alternating direction"
+                          },
+                          {
+                            "value": "syncStrobe",
+                            "label": "Synced to strobe"
+                          }
+                        ],
+                        "description": "How each slice rotates"
+                      },
+                      {
+                        "name": "sliceScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.5,
+                        "max": 2,
+                        "step": 0.01,
+                        "description": "Scale applied inside each slice before rotating (1 = no scale). >1 zooms in to hide corners."
+                      },
+                      {
+                        "name": "removeGaps",
+                        "type": "boolean",
+                        "value": true,
+                        "description": "Wrap slice UVs to avoid empty corners when rotation moves pixels outside; disables leaves those areas black"
+                      },
+                      {
+                        "name": "useStrobe",
+                        "type": "boolean",
+                        "value": true,
+                        "description": "Enable per-slice hard strobe"
+                      },
+                      {
+                        "name": "strobeSpeed",
+                        "type": "number",
+                        "value": 2,
+                        "min": 0,
+                        "max": 16,
+                        "step": 0.05,
+                        "description": "Per-slice strobe rate (Hz)"
+                      },
+                      {
+                        "name": "strobeDuty",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0.05,
+                        "max": 0.95,
+                        "step": 0.01,
+                        "description": "On fraction of strobe"
+                      },
+                      {
+                        "name": "bpm",
+                        "type": "number",
+                        "value": 120,
+                        "min": 30,
+                        "max": 300,
+                        "step": 1,
+                        "description": "Tempo for tempo-linked features"
+                      },
+                      {
+                        "name": "tempoLink",
+                        "type": "boolean",
+                        "value": false,
+                        "description": "Link strobe speed to BPM"
+                      },
+                      {
+                        "name": "seed",
+                        "type": "number",
+                        "value": 1337,
+                        "min": 0,
+                        "max": 100000,
+                        "step": 1,
+                        "description": "Random seed"
+                      }
+                    ],
+                    "category": "Video Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "slice -rotate -grid",
+                    "name": "Slice Rotate Grid",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "countX",
+                        "type": "number",
+                        "value": 8,
+                        "min": 1,
+                        "max": 64,
+                        "step": 1,
+                        "description": "Slices across"
+                      },
+                      {
+                        "name": "countY",
+                        "type": "number",
+                        "value": 6,
+                        "min": 1,
+                        "max": 64,
+                        "step": 1,
+                        "description": "Slices down"
+                      },
+                      {
+                        "name": "rotationAmount",
+                        "type": "number",
+                        "value": 30,
+                        "min": 0,
+                        "max": 180,
+                        "step": 1,
+                        "description": "Rotation amplitude in degrees (peak for oscillation; scale for continuous)"
+                      },
+                      {
+                        "name": "rotationSpeed",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 8,
+                        "step": 0.01,
+                        "description": "Rotation speed in Hz"
+                      },
+                      {
+                        "name": "rotationMode",
+                        "type": "select",
+                        "value": "oscillate",
+                        "options": [
+                          {
+                            "value": "oscillate",
+                            "label": "Oscillate (sine)"
+                          },
+                          {
+                            "value": "continuous",
+                            "label": "Continuous spin"
+                          },
+                          {
+                            "value": "randomOsc",
+                            "label": "Random-phase oscillate"
+                          },
+                          {
+                            "value": "alternating",
+                            "label": "Alternating direction"
+                          },
+                          {
+                            "value": "syncStrobe",
+                            "label": "Synced to strobe"
+                          }
+                        ],
+                        "description": "How each slice rotates"
+                      },
+                      {
+                        "name": "sliceScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.5,
+                        "max": 2,
+                        "step": 0.01,
+                        "description": "Scale applied inside each slice before rotating (1 = no scale). >1 zooms in to hide corners."
+                      },
+                      {
+                        "name": "removeGaps",
+                        "type": "boolean",
+                        "value": true,
+                        "description": "Wrap slice UVs to avoid empty corners when rotation moves pixels outside; disables leaves those areas black"
+                      },
+                      {
+                        "name": "useStrobe",
+                        "type": "boolean",
+                        "value": true,
+                        "description": "Enable per-slice hard strobe"
+                      },
+                      {
+                        "name": "strobeSpeed",
+                        "type": "number",
+                        "value": 2,
+                        "min": 0,
+                        "max": 16,
+                        "step": 0.05,
+                        "description": "Per-slice strobe rate (Hz)"
+                      },
+                      {
+                        "name": "strobeDuty",
+                        "type": "number",
+                        "value": 0.5,
+                        "min": 0.05,
+                        "max": 0.95,
+                        "step": 0.01,
+                        "description": "On fraction of strobe"
+                      },
+                      {
+                        "name": "bpm",
+                        "type": "number",
+                        "value": 120,
+                        "min": 30,
+                        "max": 300,
+                        "step": 1,
+                        "description": "Tempo for tempo-linked features"
+                      },
+                      {
+                        "name": "tempoLink",
+                        "type": "boolean",
+                        "value": false,
+                        "description": "Link strobe speed to BPM"
+                      },
+                      {
+                        "name": "seed",
+                        "type": "number",
+                        "value": 1337,
+                        "min": 0,
+                        "max": 100000,
+                        "step": 1,
+                        "description": "Random seed"
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "rings": {
+                    "value": 10
+                  },
+                  "slices": {
+                    "value": 21
+                  },
+                  "rotationAmount": {
+                    "value": 128
+                  },
+                  "rotationSpeed": {
+                    "value": 2.5
+                  },
+                  "pulseSpeed": {
+                    "value": 1.12
+                  },
+                  "pulseDuty": {
+                    "value": 0.78
+                  },
+                  "pulseSoftness": {
+                    "value": 0.33
+                  },
+                  "mirror": {
+                    "value": true
+                  },
+                  "circularMask": {
+                    "value": true
+                  },
+                  "bpmSync": {
+                    "value": true
+                  },
+                  "seed": {
+                    "value": 59040
+                  },
+                  "countX": {
+                    "value": 20
+                  },
+                  "countY": {
+                    "value": 14
+                  },
+                  "rotationMode": {
+                    "value": "syncStrobe"
+                  },
+                  "sliceScale": {
+                    "value": 1.69
+                  },
+                  "removeGaps": {
+                    "value": false
+                  },
+                  "useStrobe": {
+                    "value": false
+                  },
+                  "strobeSpeed": {
+                    "value": 2.0999999999999996
+                  },
+                  "strobeDuty": {
+                    "value": 0.43
+                  },
+                  "bpm": {
+                    "value": 196
+                  },
+                  "tempoLink": {
+                    "value": false
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "column-1764278090531-omtmgn6xv",
+            "name": "New Column (Copy)",
+            "layers": [
+              {
+                "id": "layer-1764278090531-jrgbytz3x",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "8ed64224-bd78-4b61-8d89-79270882ad4a",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "f5afb483-bf31-40c6-b222-c520ac3d29f0",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "4dd9db84-b779-4601-88d2-9436f190319c",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "9114ca67-bf08-411b-a9af-c56c1864ad86",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "e278f547-e0dc-4065-bef2-c184f6a8eaa9",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8f16b0d0-ec63-4595-adbb-f2b4ecd5aa60",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "e21b6fb5-787d-47b2-997e-e21e3aa2ba54",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "cf5998d5-9505-4b19-bd1e-42ac830011dd",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "72e4fba1-863d-4893-b288-d6df069d0728",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "eb73d5f7-3176-40bc-abcc-acf7192858f8",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "b876fc50-5f67-46aa-8dc5-d880efb8388e",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "5ec5f008-ae06-4628-b1c9-55a2ccb1ab3f",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "14dafa4e-2fa6-4fd9-89c0-3ec2357261af",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e0bdc830-3ab1-4efc-a83f-4127885dd5fc",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "a5e80ce7-82ef-40e5-aada-de15eb8a2112",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "07ca4993-9140-49c1-a9f8-da9bc39d2c9e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "3357e09b-37ad-43ce-ac34-d3ba96a3452f",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "17593137-9056-42b2-8844-e3877c0d40f7",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "693f66f2-5a5c-4432-8f7e-5f311915afa9",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "c19060ef-ed07-4837-89cd-71af6c98506f",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "7e85dba0-bf36-4081-8c73-55dcc6b7d148",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "57e7a8d4-e2db-4e60-8c26-e052a515d2ae",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "8682485b-b115-47c0-958a-8bf88d286e76",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "3f3e0230-5abb-4b80-a4c1-966a8d723783",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "8e9a20a6-6e6d-420c-a74f-a0a8de3513d0",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "b2c77832-7034-4407-91b5-7190d34cce0d",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "79db0457-3046-45f7-ba73-e35b496bff27",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "295ab32c-2b03-44cf-9f01-69885c577992",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "262134c0-d38f-46ab-b896-195a7f833ebd",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8cfa4df9-9af8-4d53-a600-f0a0daa3bbd4",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "6366ccea-fb65-429e-bb7e-a61f921e24ea",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "b38da40f-5847-4580-bfcc-662f3c17d0d7",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "57ddf571-e281-43d9-8c93-14e20322fb12",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e36bf0e8-38a9-476d-879f-67918ba4715f",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "7e4db425-2f58-4e74-8eeb-51329cc4fc9b",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4349973c-3c79-4408-af4b-3b991017dfc6",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "42660036-70f9-446a-afc7-272b4ac8e5d0",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "c5b35723-1de1-4c4f-8889-612e043bafbd",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "44cae9b8-5a84-4257-b617-8d5134efe79b",
+            "name": "Column 21",
+            "layers": []
+          },
+          {
+            "id": "28d85358-8ce2-4be9-80cf-c86f2ebf2daa",
+            "name": "Column 22",
+            "layers": []
+          },
+          {
+            "id": "db4e4664-3a75-45cf-a675-b25b330adde7",
+            "name": "Column 23",
+            "layers": []
+          },
+          {
+            "id": "227829d2-cfe1-4ec5-b137-bc275fa32bf2",
+            "name": "Column 24",
+            "layers": []
+          },
+          {
+            "id": "41900cc8-7f1b-4140-b2e6-a3f0c1fe5e5a",
+            "name": "Column 25",
+            "layers": []
+          },
+          {
+            "id": "c03cc821-f9b2-4950-8fe2-3d3b76d9a2a5",
+            "name": "Column 26",
+            "layers": []
+          },
+          {
+            "id": "3fb8eb56-362b-403b-9a81-7dbd714a555a",
+            "name": "Column 27",
+            "layers": []
+          },
+          {
+            "id": "aca3acf8-b25f-4d23-a81c-6fd26ae41958",
+            "name": "Column 28",
+            "layers": []
+          },
+          {
+            "id": "7041acd0-5162-47c1-8936-35b0ea2fdf21",
+            "name": "Column 29",
+            "layers": []
+          },
+          {
+            "id": "8da730d8-aa4d-4723-8638-9862be81c393",
+            "name": "Column 30",
+            "layers": []
+          }
+        ],
+        "globalEffects": [],
+        "numRows": 3,
+        "sequenceEnabled": false
+      }
+    ],
+    "currentSceneId": "d43bf993-d8c6-4b86-9ce7-e913c498dba2",
+    "timelineScenes": [
+      {
+        "id": "c65db434-f8ad-451b-a6b1-55a791b3e2fe",
+        "name": "1",
+        "columns": [
+          {
+            "id": "6855db15-eff7-4d9b-a0d9-b1ff7b5e436d",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "a9108269-deca-46be-93e0-b99dd9e1ce80",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "bd400741-bde5-4450-9fe9-631089325e53",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e22fd87e-9853-4c53-a104-4c5414060b13",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "1ab03592-ec2c-44ad-a002-b42371c12b60",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "6ab81e9d-86a0-4460-b0dc-0a95e3db155b",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "cbf03566-aba2-4468-8012-dccdf6988e1c",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4590810c-2154-4fc3-bb63-178718826be7",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "4f5c282f-9a71-4e89-9577-fd08810c1916",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4c245a87-ebb5-4fee-bbc8-ae515485acd1",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "17e2b639-3d9d-41e7-b338-b27c09c32bde",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8b0b9715-334b-4d1d-a069-8e57a8ab8d9e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "b14d7b95-045e-425d-a55f-0efdf241ecd3",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "0bb87072-e4dc-45b7-8b2a-67e6120fa028",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "99c048ab-bc6c-4402-b84a-82e7238f2a4d",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "cd475abe-258f-439d-8b76-866a4832e46c",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "dacd4ec3-1cf0-47c1-a7a2-ac8e03855ea3",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8c39068d-7a40-4f51-94b8-5cc6f7f8508e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "a42c0903-3854-4582-9710-450512be36c4",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8a9267de-1735-4587-b712-8938a66eb143",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "c994814d-7f49-4086-b025-36d825fa2273",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "a592a8e5-1db5-4407-87aa-27c54211b97e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "7396e026-710d-4c0f-9801-8f516cecf91d",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e3049b65-9782-4c4b-8a72-18f1c9e3b090",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "4e5bd4c2-af80-4564-9e01-8dc5b12edd8b",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "32afa082-df60-4ac5-8638-8aed76bb80eb",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "233f3233-aa8d-45b7-811f-11f388e33bc6",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "405ff032-d877-464d-85f1-2a9f979b8404",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "06a6e3b1-42c0-4eef-8be2-ed9f54bafd75",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "fb19df1b-d653-4769-9041-934498ff72e4",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "d61e6c97-cecb-47ce-943c-3778e2b04755",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e1c973a5-0ee9-452d-bfa7-2eb650df9147",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "ae58972b-0bc6-4c30-8c7a-a0c6d3bae963",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "260b2bc4-a23e-4270-948e-a53dbe29f993",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "e022de74-23d0-445c-a4f6-157dab08f7d6",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "2ca6e2b5-ca6e-475e-a1a1-c0dc489c8b6b",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "d5f597b2-5aab-485f-a3b9-aea5eade0503",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "f76d630c-9427-4cdf-b815-ff7bd06a6f55",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "7ea6ed44-b2a2-43ad-83cf-0fe8351a7c2d",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "6442931d-97b9-49d8-a1be-1aa5a83ec9dc",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "6e717716-ab41-49a1-a074-0d09a7730db9",
+            "name": "Column 21",
+            "layers": []
+          },
+          {
+            "id": "fb3c5a5e-6bbf-419d-856a-3ee47ff5f113",
+            "name": "Column 22",
+            "layers": []
+          },
+          {
+            "id": "062ce534-bc4e-4bde-9efa-d2de76904648",
+            "name": "Column 23",
+            "layers": []
+          },
+          {
+            "id": "3ea4cef2-f509-456d-b232-d95224e85896",
+            "name": "Column 24",
+            "layers": []
+          },
+          {
+            "id": "d606cb14-a51a-442b-8f29-dad639f468fc",
+            "name": "Column 25",
+            "layers": []
+          },
+          {
+            "id": "fcca5737-c10c-45d3-ba78-35addc54f831",
+            "name": "Column 26",
+            "layers": []
+          },
+          {
+            "id": "742672d5-cb5f-41c0-bcc3-714de088e3c0",
+            "name": "Column 27",
+            "layers": []
+          },
+          {
+            "id": "74518178-e064-46bb-bdff-e519822e52ce",
+            "name": "Column 28",
+            "layers": []
+          },
+          {
+            "id": "25b46d72-1bfc-4581-859c-bcde7f77891e",
+            "name": "Column 29",
+            "layers": []
+          },
+          {
+            "id": "1a7c6b6f-4062-42b0-88da-ed961ff60466",
+            "name": "Column 30",
+            "layers": []
+          }
+        ],
+        "globalEffects": [],
+        "numRows": 3,
+        "sequenceEnabled": false
+      }
+    ],
+    "currentTimelineSceneId": "c65db434-f8ad-451b-a6b1-55a791b3e2fe",
+    "playingColumnId": "697537af-99a3-44ba-97d0-f48b652a7f50",
+    "bpm": 120,
+    "sidebarVisible": true,
+    "midiMappings": [
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "driftScale"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "speed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 3,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "frequency"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 4,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "chroma"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 5,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "edgeThreshold"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 6,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "dissolve"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 7,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "decay"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 8,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "grain"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 9,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1763934917477",
+          "param": "seed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "speed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "ribbons"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 3,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "particlesPerRibbon"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 4,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "baseRadius"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 5,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "thickness"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 6,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1763934755225",
+          "param": "intensity"
+        }
+      }
+    ],
+    "selectedLayerId": "layer-Layer 3-3-1764329690423",
+    "previewMode": "composition",
+    "transitionType": "fade",
+    "transitionDuration": 500,
+    "compositionSettings": {
+      "width": 1080,
+      "height": 1920,
+      "aspectRatio": "1080:1920",
+      "backgroundColor": "#000000"
+    },
+    "assets": []
+  }
+}
