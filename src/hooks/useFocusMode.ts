@@ -179,14 +179,18 @@ export const useFocusMode = () => {
             const column = (scene.columns || []).find((c: any) => c.id === currentColumnId);
             if (column) {
               const layers = column.layers || [];
-              // Row is 1-based, array is 0-based
-              const targetLayer = layers[Math.max(0, Math.min(layers.length - 1, focusRow - 1))];
+              // Find layer by layerNum (focusRow is 1-based and corresponds to layerNum)
+              // Match by layerNum first, then fallback to name pattern, then fallback to array index
+              const targetLayer = layers.find((l: any) => l.layerNum === focusRow || l.name === `Layer ${focusRow}`) 
+                || layers[Math.max(0, Math.min(layers.length - 1, focusRow - 1))];
               if (targetLayer && typeof setSelectedLayer === 'function') {
                 setSelectedLayer(targetLayer.id);
               }
             }
           }
-        } catch {}
+        } catch (err) {
+          console.warn('[useFocusMode] Error focusing layer:', err);
+        }
         prevPlayingColumnIdRef.current = currentColumnId;
       } else if (!currentColumnId) {
         prevPlayingColumnIdRef.current = null;
