@@ -160,7 +160,9 @@ function initializeUserDocumentsFolders() {
     }
     
     // Define folders to create
-    const folders = ['bank', 'midi mapping', 'music', 'recordings', 'sets', 'video', 'ai-templates'];
+    // Note: 'midi mapping' and 'sets' will be created by copyDirectoryRecursive if files are found
+    // Only create folders that aren't copied from source
+    const folders = ['bank', 'music', 'recordings', 'video', 'ai-templates'];
     
     // Create each folder if it doesn't exist
     for (const folderName of folders) {
@@ -197,7 +199,11 @@ function initializeUserDocumentsFolders() {
     // Copy sets folder contents if available
     // Priority: user-documents/sets > other locations
     const setsSourcePaths = [
+      // Production: extraResources location (user-documents)
+      path.join(process.resourcesPath || '', 'user-documents', 'sets'),
+      // Production: asarUnpack location
       path.join(process.resourcesPath || '', 'app.asar.unpacked', 'user-documents', 'sets'),
+      // Development paths
       path.join(__dirname, '../user-documents', 'sets'),
       path.join(process.cwd(), 'user-documents', 'sets'),
       path.join(process.resourcesPath || '', 'app.asar.unpacked', 'sets'),
@@ -206,12 +212,21 @@ function initializeUserDocumentsFolders() {
     ];
     
     const setsDestPath = path.join(sonomikaDocsPath, 'sets');
+    let setsCopied = false;
+    
+    console.log('Looking for sets folder in source paths...');
+    console.log('process.resourcesPath:', process.resourcesPath);
     
     for (const sourcePath of setsSourcePaths) {
-      if (fs.existsSync(sourcePath)) {
+      const exists = fs.existsSync(sourcePath);
+      console.log('  Checking:', sourcePath, exists ? '✓ EXISTS' : '✗ NOT FOUND');
+      if (exists) {
         try {
+          const filesBefore = fs.existsSync(setsDestPath) ? fs.readdirSync(setsDestPath).length : 0;
           copyDirectoryRecursive(sourcePath, setsDestPath);
-          console.log('Copied sets folder from', sourcePath, 'to', setsDestPath);
+          const filesAfter = fs.existsSync(setsDestPath) ? fs.readdirSync(setsDestPath).length : 0;
+          console.log(`Copied sets folder from ${sourcePath} to ${setsDestPath} (${filesAfter - filesBefore} files)`);
+          setsCopied = true;
           break;
         } catch (e) {
           console.warn('Failed to copy sets folder from', sourcePath, ':', e);
@@ -219,16 +234,29 @@ function initializeUserDocumentsFolders() {
       }
     }
     
+    if (!setsCopied) {
+      console.warn('⚠️ Sets folder was not copied. Checked paths:', setsSourcePaths);
+    }
+    
     // Copy additional user-documents folders (midi mapping, music, recordings, video)
     // Note: sets is handled separately above with higher priority
     const userDocsSourcePaths = [
+      // Production: extraResources location (most likely)
+      path.join(process.resourcesPath || '', 'user-documents'),
+      // Production: asarUnpack location
       path.join(process.resourcesPath || '', 'app.asar.unpacked', 'user-documents'),
+      // Development paths
       path.join(__dirname, '../user-documents'),
       path.join(process.cwd(), 'user-documents'),
     ];
     
+    console.log('Looking for user-documents folder in source paths...');
+    
+    let userDocsCopied = false;
     for (const userDocsSource of userDocsSourcePaths) {
-      if (fs.existsSync(userDocsSource)) {
+      const exists = fs.existsSync(userDocsSource);
+      console.log('  Checking:', userDocsSource, exists ? '✓ EXISTS' : '✗ NOT FOUND');
+      if (exists) {
         try {
           // Copy each subfolder from user-documents to Documents/Sonomika
           // Exclude 'sets' as it's already handled above
@@ -237,15 +265,24 @@ function initializeUserDocumentsFolders() {
             const srcSubfolder = path.join(userDocsSource, subfolder);
             const destSubfolder = path.join(sonomikaDocsPath, subfolder);
             if (fs.existsSync(srcSubfolder)) {
+              const filesBefore = fs.existsSync(destSubfolder) ? fs.readdirSync(destSubfolder).length : 0;
               copyDirectoryRecursive(srcSubfolder, destSubfolder);
-              console.log('Copied', subfolder, 'folder from', srcSubfolder, 'to', destSubfolder);
+              const filesAfter = fs.existsSync(destSubfolder) ? fs.readdirSync(destSubfolder).length : 0;
+              console.log(`Copied ${subfolder} folder from ${srcSubfolder} to ${destSubfolder} (${filesAfter - filesBefore} files)`);
+            } else {
+              console.log(`  Source ${subfolder} folder does not exist:`, srcSubfolder);
             }
           }
+          userDocsCopied = true;
           break;
         } catch (e) {
           console.warn('Failed to copy user-documents folders from', userDocsSource, ':', e);
         }
       }
+    }
+    
+    if (!userDocsCopied) {
+      console.warn('⚠️ user-documents folders were not copied. Checked paths:', userDocsSourcePaths);
     }
     
     // Ensure ai-templates folder exists in Documents/Sonomika
@@ -325,6 +362,22 @@ function initializeUserDocumentsFolders() {
     if (templatesCopied === 0) {
       console.warn('⚠️ No AI template files were copied. Checked paths:', aiTemplatesSourcePaths);
       console.warn('   This might indicate the template files are not included in the build.');
+    }
+    
+    // Verify that important folders have content
+    const foldersToCheck = ['midi mapping', 'sets'];
+    for (const folderName of foldersToCheck) {
+      const folderPath = path.join(sonomikaDocsPath, folderName);
+      if (fs.existsSync(folderPath)) {
+        const files = fs.readdirSync(folderPath);
+        if (files.length === 0) {
+          console.warn(`⚠️ ${folderName} folder exists but is empty. Files may not have been copied from installer.`);
+        } else {
+          console.log(`✓ ${folderName} folder has ${files.length} file(s)`);
+        }
+      } else {
+        console.warn(`⚠️ ${folderName} folder was not created. Files may not have been found in installer.`);
+      }
     }
     
   } catch (e) {
