@@ -21,6 +21,7 @@ import { attachLFOEngineGlobalListeners } from './engine/LFOEngine';
 import { handleRedirectIfPresent } from './lib/dropbox';
 import { useToast } from './hooks/use-toast';
 import DebugOverlay from './components/DebugOverlay';
+import { buildPresetDataFromState } from './utils/presetSanitizer';
 
 // Effects are loaded dynamically - no hardcoded imports needed
 
@@ -230,7 +231,7 @@ function App() {
           }
         }
       }
-      // Always autoload @bank portable items so the tab is populated
+      // Restore last AI live-edit effect only; do not autoload bundled @bank items.
       (async () => {
         try {
           const { EffectDiscovery } = await import('./utils/EffectDiscovery');
@@ -251,37 +252,8 @@ function App() {
               }
             }
           } catch {}
-          // Gather from multiple glob roots to avoid missing files across build contexts
-          const maps: Array<Record<string, () => Promise<string>>> = [
-            (import.meta as any).glob('../bank/**/*.{js,mjs}', { as: 'raw', eager: false }),
-            (import.meta as any).glob('../../bank/**/*.{js,mjs}', { as: 'raw', eager: false }),
-            (import.meta as any).glob('../bank/effects/**/*.js', { as: 'raw', eager: false }),
-            (import.meta as any).glob('../bank/sources/**/*.js', { as: 'raw', eager: false }),
-          ];
-          const combined: Record<string, () => Promise<string>> = Object.assign({}, ...maps);
-          let loaded = 0;
-          // Optional mtime hash skip
-          const COUNT_KEY = 'vj-bank-count';
-          let prevCount = 0; try { prevCount = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10) || 0; } catch {}
-          for (const [p, loader] of Object.entries(combined)) {
-            try {
-              const code = await (loader as any)();
-              await discovery.loadUserEffectFromContent(code, p);
-              loaded += 1;
-            } catch (e) {
-              console.warn('Bank autoload item failed:', p, e);
-            }
-          }
-          if (loaded > 0) {
-            console.log(`Autoloaded ${loaded} @bank item(s)`);
-            try { window.dispatchEvent(new CustomEvent('vj-bank-updated')); } catch {}
-            try { localStorage.setItem(COUNT_KEY, String(loaded)); } catch {}
-          } else if (prevCount > 0) {
-            // No new items; still refresh list so UI stays in sync
-            try { window.dispatchEvent(new CustomEvent('vj-bank-updated')); } catch {}
-          }
         } catch (e) {
-          console.warn('Bank autoload failed', e);
+          console.warn('AI live-edit restore failed', e);
         }
       })();
     } catch {}
@@ -672,6 +644,7 @@ function App() {
           const existingPath = (useStore.getState() as any).currentPresetPath as string | null;
           if (existingPath && existingPath.trim()) {
             const state = useStore.getState() as any;
+            const presetData = buildPresetDataFromState(state);
             const key = state.currentPresetName || (String(existingPath).split(/[\\/]/).pop() || 'preset').replace(/\.(sonomika|json)$/i, '');
             const preset = {
               name: key,
@@ -679,22 +652,7 @@ function App() {
               timestamp: Date.now(),
               version: '1.0.0',
               description: `VJ Preset: ${key}`,
-              data: {
-                scenes: state.scenes,
-                currentSceneId: state.currentSceneId,
-                timelineScenes: state.timelineScenes,
-                currentTimelineSceneId: state.currentTimelineSceneId,
-                playingColumnId: state.playingColumnId,
-                bpm: state.bpm,
-                sidebarVisible: state.sidebarVisible,
-                midiMappings: state.midiMappings,
-                selectedLayerId: state.selectedLayerId,
-                previewMode: state.previewMode,
-                transitionType: state.transitionType,
-                transitionDuration: state.transitionDuration,
-                compositionSettings: state.compositionSettings,
-                assets: state.assets,
-              }
+              data: presetData
             };
             await (window as any).electron.saveFile(existingPath, JSON.stringify(preset, null, 2));
             return;
@@ -737,35 +695,21 @@ function App() {
       defaultPath: presetName,
       filters: [{ name: 'sonomika Set', extensions: ['sonomika', 'json'] }]
     });
-    if (!result.canceled && result.filePath) {
+      if (!result.canceled && result.filePath) {
       const { savePreset } = useStore.getState();
       const base = String(result.filePath).split(/[\\\/]/).pop() || presetName;
       const chosenName = base.replace(/\.(sonomika|json)$/i, '');
       const key = savePreset(chosenName);
       if (key) {
         const state = useStore.getState() as any;
+        const presetData = buildPresetDataFromState(state);
         const preset = {
           name: key,
           displayName: key,
           timestamp: Date.now(),
           version: '1.0.0',
           description: `VJ Preset: ${key}`,
-          data: {
-            scenes: state.scenes,
-            currentSceneId: state.currentSceneId,
-            timelineScenes: state.timelineScenes,
-            currentTimelineSceneId: state.currentTimelineSceneId,
-            playingColumnId: state.playingColumnId,
-            bpm: state.bpm,
-            sidebarVisible: state.sidebarVisible,
-            midiMappings: state.midiMappings,
-            selectedLayerId: state.selectedLayerId,
-            previewMode: state.previewMode,
-            transitionType: state.transitionType,
-            transitionDuration: state.transitionDuration,
-            compositionSettings: state.compositionSettings,
-            assets: state.assets,
-          }
+          data: presetData
         };
         await (window as any).electron.saveFile(result.filePath, JSON.stringify(preset, null, 2));
         try { (useStore.getState() as any).setCurrentPresetPath?.(result.filePath); } catch {}
@@ -861,26 +805,14 @@ function App() {
                 const key = savePreset(chosenName);
                 if (key) {
                   const state = useStore.getState() as any;
+                  const presetData = buildPresetDataFromState(state);
                   const preset = {
                     name: key,
                     displayName: key,
                     timestamp: Date.now(),
                     version: '1.0.0',
                     description: `VJ Preset: ${key}`,
-                    data: {
-                      scenes: state.scenes,
-                      currentSceneId: state.currentSceneId,
-                      playingColumnId: state.playingColumnId,
-                      bpm: state.bpm,
-                      sidebarVisible: state.sidebarVisible,
-                      midiMappings: state.midiMappings,
-                      selectedLayerId: state.selectedLayerId,
-                      previewMode: state.previewMode,
-                      transitionType: state.transitionType,
-                      transitionDuration: state.transitionDuration,
-                      compositionSettings: state.compositionSettings,
-                      assets: state.assets,
-                    }
+                    data: presetData
                   };
                   await (window as any).electron.saveFile(result.filePath, JSON.stringify(preset, null, 2));
 

@@ -3,7 +3,7 @@ import { useStore } from '../store/store';
 import { Button, Input, Label, Select, Switch } from './ui';
 import { MIDIManager } from '../midi/MIDIManager';
 import { MIDIMapping } from '../store/types';
-import { getEffect } from '../utils/effectRegistry';
+import { getEffectComponentSync } from '../utils/EffectLoader';
 
 // Build parameter options for the currently selected layer (numeric sliders only)
 const useLayerParamOptions = (selectedLayer: any) => {
@@ -12,9 +12,10 @@ const useLayerParamOptions = (selectedLayer: any) => {
     if (!selectedLayer) return options;
 
     const isEffect = selectedLayer?.type === 'effect' || selectedLayer?.asset?.isEffect;
-    const effectId: string | undefined = selectedLayer?.asset?.id || selectedLayer?.asset?.name || selectedLayer?.asset?.effectId;
+    const effectId: string | undefined =
+      selectedLayer?.asset?.id || selectedLayer?.asset?.name || selectedLayer?.asset?.effectId;
     if (isEffect && effectId) {
-      const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
+      const effectComponent = getEffectComponentSync(effectId);
       const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
       if (metadata?.parameters && Array.isArray(metadata.parameters)) {
         metadata.parameters

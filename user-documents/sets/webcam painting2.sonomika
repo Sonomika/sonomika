@@ -1,9 +1,9 @@
 {
-  "name": "webcam painting",
-  "displayName": "webcam painting",
-  "timestamp": 1764280471075,
+  "name": "webcam painting2",
+  "displayName": "webcam painting2",
+  "timestamp": 1764285764462,
   "version": "1.0.0",
-  "description": "VJ Preset: webcam painting",
+  "description": "VJ Preset: webcam painting2",
   "data": {
     "scenes": [
       {
@@ -27,7 +27,7 @@
                 "params": {}
               },
               {
-                "id": "layer-Layer 1-1-1764280160735",
+                "id": "layer-Layer 1-1-1764285751996",
                 "name": "Layer 1",
                 "type": "media",
                 "columnId": "Layer 1",
@@ -249,253 +249,7 @@
                       }
                     ]
                   }
-                ],
-                "params": {
-                  "deviceId": {
-                    "value": ""
-                  },
-                  "mirror": {
-                    "value": false
-                  },
-                  "fitMode": {
-                    "value": "cover"
-                  },
-                  "speed": {
-                    "value": 2
-                  },
-                  "requestKeyframe": {
-                    "value": true
-                  },
-                  "trailDecay": {
-                    "value": 0.81
-                  },
-                  "copies": {
-                    "value": 1
-                  },
-                  "echoRotate": {
-                    "value": 0.007
-                  },
-                  "echoScale": {
-                    "value": 0.946
-                  }
-                }
-              },
-              {
-                "id": "layer-Layer 2-2-1764280198194",
-                "name": "Layer 2",
-                "type": "media",
-                "columnId": "Layer 2",
-                "layerNum": 2,
-                "loopMode": "none",
-                "loopCount": 1,
-                "reverseEnabled": false,
-                "pingPongEnabled": false,
-                "blendMode": "add",
-                "opacity": 1,
-                "asset": {
-                  "type": "effect",
-                  "isEffect": true,
-                  "id": "chromatic-drift-edge-dissolve",
-                  "name": "Chromatic Drift & Edge Dissolve",
-                  "description": "A feedback-based flowing drift with chromatic separation and edge-aware dissolve creates drifting colour ribbons that break on scene edits.",
-                  "category": "Effects",
-                  "icon": "",
-                  "metadata": {
-                    "parameters": [
-                      {
-                        "name": "driftScale",
-                        "type": "number",
-                        "value": 0.5,
-                        "min": 0,
-                        "max": 3,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "speed",
-                        "type": "number",
-                        "value": 6,
-                        "min": 0,
-                        "max": 6,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "frequency",
-                        "type": "number",
-                        "value": 4.59,
-                        "min": 0.1,
-                        "max": 8,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "chroma",
-                        "type": "number",
-                        "value": 0,
-                        "min": 0,
-                        "max": 0.05,
-                        "step": 0.0005
-                      },
-                      {
-                        "name": "edgeThreshold",
-                        "type": "number",
-                        "value": 1,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.005
-                      },
-                      {
-                        "name": "dissolve",
-                        "type": "number",
-                        "value": 1,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "decay",
-                        "type": "number",
-                        "value": 0.21,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.005
-                      },
-                      {
-                        "name": "grain",
-                        "type": "number",
-                        "value": 0.059,
-                        "min": 0,
-                        "max": 0.2,
-                        "step": 0.001
-                      },
-                      {
-                        "name": "seed",
-                        "type": "number",
-                        "value": 96,
-                        "min": 0,
-                        "max": 1000,
-                        "step": 1
-                      }
-                    ],
-                    "category": "Effects",
-                    "type": "react-component",
-                    "folder": "user-effects",
-                    "isSource": false,
-                    "isUserEffect": true
-                  },
-                  "assetType": "effect",
-                  "isSource": false
-                },
-                "assetType": "effect",
-                "effects": [
-                  {
-                    "id": "chromatic-drift-edge-dissolve",
-                    "name": "Chromatic Drift & Edge Dissolve",
-                    "type": "effect",
-                    "parameters": [
-                      {
-                        "name": "driftScale",
-                        "type": "number",
-                        "value": 0.5,
-                        "min": 0,
-                        "max": 3,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "speed",
-                        "type": "number",
-                        "value": 6,
-                        "min": 0,
-                        "max": 6,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "frequency",
-                        "type": "number",
-                        "value": 4.59,
-                        "min": 0.1,
-                        "max": 8,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "chroma",
-                        "type": "number",
-                        "value": 0,
-                        "min": 0,
-                        "max": 0.05,
-                        "step": 0.0005
-                      },
-                      {
-                        "name": "edgeThreshold",
-                        "type": "number",
-                        "value": 1,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.005
-                      },
-                      {
-                        "name": "dissolve",
-                        "type": "number",
-                        "value": 1,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "decay",
-                        "type": "number",
-                        "value": 0.21,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.005
-                      },
-                      {
-                        "name": "grain",
-                        "type": "number",
-                        "value": 0.059,
-                        "min": 0,
-                        "max": 0.2,
-                        "step": 0.001
-                      },
-                      {
-                        "name": "seed",
-                        "type": "number",
-                        "value": 96,
-                        "min": 0,
-                        "max": 1000,
-                        "step": 1
-                      }
-                    ]
-                  }
-                ],
-                "params": {
-                  "driftScale": {
-                    "value": 1.02
-                  },
-                  "speed": {
-                    "value": 5.91
-                  },
-                  "frequency": {
-                    "value": 1.85
-                  },
-                  "chroma": {
-                    "value": 0
-                  },
-                  "edgeThreshold": {
-                    "value": 0.46
-                  },
-                  "dissolve": {
-                    "value": 1
-                  },
-                  "decay": {
-                    "value": 0.085
-                  },
-                  "grain": {
-                    "value": 0.025,
-                    "locked": false
-                  },
-                  "seed": {
-                    "value": 841
-                  }
-                }
+                ]
               }
             ]
           },
@@ -1513,9 +1267,9 @@
     "transitionType": "fade",
     "transitionDuration": 500,
     "compositionSettings": {
-      "width": 1080,
-      "height": 1920,
-      "aspectRatio": "1080:1920",
+      "width": 1920,
+      "height": 1080,
+      "aspectRatio": "1920:1080",
       "backgroundColor": "#000000"
     },
     "assets": []

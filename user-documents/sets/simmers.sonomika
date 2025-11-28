@@ -1,9 +1,9 @@
 {
-  "name": "webcam painting",
-  "displayName": "webcam painting",
-  "timestamp": 1764280471075,
+  "name": "simmers",
+  "displayName": "simmers",
+  "timestamp": 1764327914809,
   "version": "1.0.0",
-  "description": "VJ Preset: webcam painting",
+  "description": "VJ Preset: simmers",
   "data": {
     "scenes": [
       {
@@ -27,7 +27,7 @@
                 "params": {}
               },
               {
-                "id": "layer-Layer 1-1-1764280160735",
+                "id": "layer-Layer 1-1-1764326383415",
                 "name": "Layer 1",
                 "type": "media",
                 "columnId": "Layer 1",
@@ -41,103 +41,121 @@
                 "asset": {
                   "type": "effect",
                   "isEffect": true,
-                  "id": "webcam-echo-datamosh",
-                  "name": "Webcam Echo Datamosh",
-                  "description": "Live webcam with WebCodecs datamosh repetition + canvas feedback echoes (falls back to VideoTexture). Supports speed multiplier, keyframe request, echo decay, copies, rotation and slight scale per echo.",
+                  "id": "micro -swimmers",
+                  "name": "Micro Swimmers",
+                  "description": "Clouds of microrobe-like swimmers gliding in a fluid, with wiggling motion, subtle collective behaviour, 20 distinct cell shapes and a colour-shifted palette.",
                   "category": "Sources",
                   "icon": "",
                   "metadata": {
                     "parameters": [
                       {
-                        "name": "deviceId",
-                        "type": "select",
-                        "value": "",
-                        "description": "Camera device"
+                        "name": "numSwimmers",
+                        "type": "number",
+                        "value": 600,
+                        "min": 10,
+                        "max": 6000,
+                        "step": 10
                       },
                       {
-                        "name": "mirror",
-                        "type": "boolean",
-                        "value": false,
-                        "description": "Mirror horizontally"
-                      },
-                      {
-                        "name": "fitMode",
-                        "type": "select",
-                        "value": "tile",
-                        "description": "Video Size",
-                        "options": [
-                          {
-                            "value": "none",
-                            "label": "Original"
-                          },
-                          {
-                            "value": "contain",
-                            "label": "Fit"
-                          },
-                          {
-                            "value": "cover",
-                            "label": "Fill"
-                          },
-                          {
-                            "value": "stretch",
-                            "label": "Stretch"
-                          },
-                          {
-                            "value": "tile",
-                            "label": "Tile"
-                          }
-                        ]
+                        "name": "bodySize",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.25,
+                        "step": 0.01
                       },
                       {
                         "name": "speed",
                         "type": "number",
-                        "value": 2,
-                        "description": "Datamosh speed multiplier (repeats non-key frames)",
-                        "min": 1,
-                        "max": 10,
-                        "step": 1
+                        "value": 0.9,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
                       },
                       {
-                        "name": "requestKeyframe",
-                        "type": "boolean",
-                        "value": true,
-                        "description": "Set to true to request a keyframe on next encode"
-                      },
-                      {
-                        "name": "trailDecay",
+                        "name": "wiggleStrength",
                         "type": "number",
-                        "value": 0.81,
-                        "description": "Echo decay alpha per frame (0..1, lower = longer trail)",
-                        "min": 0.5,
-                        "max": 0.99,
+                        "value": 1.2,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleFrequency",
+                        "type": "number",
+                        "value": 3,
+                        "min": 0.1,
+                        "max": 10,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "flowStrength",
+                        "type": "number",
+                        "value": 0.8,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "neighborRadius",
+                        "type": "number",
+                        "value": 0.25,
+                        "min": 0.05,
+                        "max": 0.8,
                         "step": 0.01
                       },
                       {
-                        "name": "copies",
+                        "name": "separationWeight",
                         "type": "number",
-                        "value": 1,
-                        "description": "Number of echo layers drawn each frame",
-                        "min": 1,
-                        "max": 12,
-                        "step": 1
-                      },
-                      {
-                        "name": "echoRotate",
-                        "type": "number",
-                        "value": 0.007,
-                        "description": "Rotation per echo (radians)",
+                        "value": 0.9,
                         "min": 0,
-                        "max": 0.2,
-                        "step": 0.001
+                        "max": 3,
+                        "step": 0.05
                       },
                       {
-                        "name": "echoScale",
+                        "name": "alignmentWeight",
                         "type": "number",
-                        "value": 0.946,
-                        "description": "Scale multiplier per echo",
-                        "min": 0.9,
+                        "value": 0.5,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "cohesionWeight",
+                        "type": "number",
+                        "value": 0.3,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "drag",
+                        "type": "number",
+                        "value": 0.15,
+                        "min": 0,
                         "max": 1,
-                        "step": 0.0005
+                        "step": 0.01
+                      },
+                      {
+                        "name": "edgeSoftness",
+                        "type": "number",
+                        "value": 0.6,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "sizeVariation",
+                        "type": "number",
+                        "value": 0.35,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "colour",
+                        "type": "color",
+                        "value": "#aaffdd"
                       }
                     ],
                     "category": "Sources",
@@ -152,350 +170,122 @@
                 "assetType": "effect",
                 "effects": [
                   {
-                    "id": "webcam-echo-datamosh",
-                    "name": "Webcam Echo Datamosh",
+                    "id": "micro -swimmers",
+                    "name": "Micro Swimmers",
                     "type": "effect",
                     "parameters": [
                       {
-                        "name": "deviceId",
-                        "type": "select",
-                        "value": "",
-                        "description": "Camera device"
+                        "name": "numSwimmers",
+                        "type": "number",
+                        "value": 600,
+                        "min": 10,
+                        "max": 6000,
+                        "step": 10
                       },
                       {
-                        "name": "mirror",
-                        "type": "boolean",
-                        "value": false,
-                        "description": "Mirror horizontally"
-                      },
-                      {
-                        "name": "fitMode",
-                        "type": "select",
-                        "value": "tile",
-                        "description": "Video Size",
-                        "options": [
-                          {
-                            "value": "none",
-                            "label": "Original"
-                          },
-                          {
-                            "value": "contain",
-                            "label": "Fit"
-                          },
-                          {
-                            "value": "cover",
-                            "label": "Fill"
-                          },
-                          {
-                            "value": "stretch",
-                            "label": "Stretch"
-                          },
-                          {
-                            "value": "tile",
-                            "label": "Tile"
-                          }
-                        ]
+                        "name": "bodySize",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.25,
+                        "step": 0.01
                       },
                       {
                         "name": "speed",
                         "type": "number",
-                        "value": 2,
-                        "description": "Datamosh speed multiplier (repeats non-key frames)",
-                        "min": 1,
+                        "value": 0.9,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleStrength",
+                        "type": "number",
+                        "value": 1.2,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "wiggleFrequency",
+                        "type": "number",
+                        "value": 3,
+                        "min": 0.1,
                         "max": 10,
-                        "step": 1
+                        "step": 0.1
                       },
                       {
-                        "name": "requestKeyframe",
-                        "type": "boolean",
-                        "value": true,
-                        "description": "Set to true to request a keyframe on next encode"
-                      },
-                      {
-                        "name": "trailDecay",
+                        "name": "flowStrength",
                         "type": "number",
-                        "value": 0.81,
-                        "description": "Echo decay alpha per frame (0..1, lower = longer trail)",
-                        "min": 0.5,
-                        "max": 0.99,
+                        "value": 0.8,
+                        "min": 0,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "neighborRadius",
+                        "type": "number",
+                        "value": 0.25,
+                        "min": 0.05,
+                        "max": 0.8,
                         "step": 0.01
                       },
                       {
-                        "name": "copies",
+                        "name": "separationWeight",
                         "type": "number",
-                        "value": 1,
-                        "description": "Number of echo layers drawn each frame",
-                        "min": 1,
-                        "max": 12,
-                        "step": 1
-                      },
-                      {
-                        "name": "echoRotate",
-                        "type": "number",
-                        "value": 0.007,
-                        "description": "Rotation per echo (radians)",
+                        "value": 0.9,
                         "min": 0,
-                        "max": 0.2,
-                        "step": 0.001
+                        "max": 3,
+                        "step": 0.05
                       },
                       {
-                        "name": "echoScale",
-                        "type": "number",
-                        "value": 0.946,
-                        "description": "Scale multiplier per echo",
-                        "min": 0.9,
-                        "max": 1,
-                        "step": 0.0005
-                      }
-                    ]
-                  }
-                ],
-                "params": {
-                  "deviceId": {
-                    "value": ""
-                  },
-                  "mirror": {
-                    "value": false
-                  },
-                  "fitMode": {
-                    "value": "cover"
-                  },
-                  "speed": {
-                    "value": 2
-                  },
-                  "requestKeyframe": {
-                    "value": true
-                  },
-                  "trailDecay": {
-                    "value": 0.81
-                  },
-                  "copies": {
-                    "value": 1
-                  },
-                  "echoRotate": {
-                    "value": 0.007
-                  },
-                  "echoScale": {
-                    "value": 0.946
-                  }
-                }
-              },
-              {
-                "id": "layer-Layer 2-2-1764280198194",
-                "name": "Layer 2",
-                "type": "media",
-                "columnId": "Layer 2",
-                "layerNum": 2,
-                "loopMode": "none",
-                "loopCount": 1,
-                "reverseEnabled": false,
-                "pingPongEnabled": false,
-                "blendMode": "add",
-                "opacity": 1,
-                "asset": {
-                  "type": "effect",
-                  "isEffect": true,
-                  "id": "chromatic-drift-edge-dissolve",
-                  "name": "Chromatic Drift & Edge Dissolve",
-                  "description": "A feedback-based flowing drift with chromatic separation and edge-aware dissolve creates drifting colour ribbons that break on scene edits.",
-                  "category": "Effects",
-                  "icon": "",
-                  "metadata": {
-                    "parameters": [
-                      {
-                        "name": "driftScale",
+                        "name": "alignmentWeight",
                         "type": "number",
                         "value": 0.5,
                         "min": 0,
                         "max": 3,
-                        "step": 0.01
+                        "step": 0.05
                       },
                       {
-                        "name": "speed",
+                        "name": "cohesionWeight",
                         "type": "number",
-                        "value": 6,
-                        "min": 0,
-                        "max": 6,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "frequency",
-                        "type": "number",
-                        "value": 4.59,
-                        "min": 0.1,
-                        "max": 8,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "chroma",
-                        "type": "number",
-                        "value": 0,
-                        "min": 0,
-                        "max": 0.05,
-                        "step": 0.0005
-                      },
-                      {
-                        "name": "edgeThreshold",
-                        "type": "number",
-                        "value": 1,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.005
-                      },
-                      {
-                        "name": "dissolve",
-                        "type": "number",
-                        "value": 1,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "decay",
-                        "type": "number",
-                        "value": 0.21,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.005
-                      },
-                      {
-                        "name": "grain",
-                        "type": "number",
-                        "value": 0.059,
-                        "min": 0,
-                        "max": 0.2,
-                        "step": 0.001
-                      },
-                      {
-                        "name": "seed",
-                        "type": "number",
-                        "value": 96,
-                        "min": 0,
-                        "max": 1000,
-                        "step": 1
-                      }
-                    ],
-                    "category": "Effects",
-                    "type": "react-component",
-                    "folder": "user-effects",
-                    "isSource": false,
-                    "isUserEffect": true
-                  },
-                  "assetType": "effect",
-                  "isSource": false
-                },
-                "assetType": "effect",
-                "effects": [
-                  {
-                    "id": "chromatic-drift-edge-dissolve",
-                    "name": "Chromatic Drift & Edge Dissolve",
-                    "type": "effect",
-                    "parameters": [
-                      {
-                        "name": "driftScale",
-                        "type": "number",
-                        "value": 0.5,
+                        "value": 0.3,
                         "min": 0,
                         "max": 3,
-                        "step": 0.01
+                        "step": 0.05
                       },
                       {
-                        "name": "speed",
+                        "name": "drag",
                         "type": "number",
-                        "value": 6,
-                        "min": 0,
-                        "max": 6,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "frequency",
-                        "type": "number",
-                        "value": 4.59,
-                        "min": 0.1,
-                        "max": 8,
-                        "step": 0.01
-                      },
-                      {
-                        "name": "chroma",
-                        "type": "number",
-                        "value": 0,
-                        "min": 0,
-                        "max": 0.05,
-                        "step": 0.0005
-                      },
-                      {
-                        "name": "edgeThreshold",
-                        "type": "number",
-                        "value": 1,
-                        "min": 0,
-                        "max": 1,
-                        "step": 0.005
-                      },
-                      {
-                        "name": "dissolve",
-                        "type": "number",
-                        "value": 1,
+                        "value": 0.15,
                         "min": 0,
                         "max": 1,
                         "step": 0.01
                       },
                       {
-                        "name": "decay",
+                        "name": "edgeSoftness",
                         "type": "number",
-                        "value": 0.21,
+                        "value": 0.6,
                         "min": 0,
                         "max": 1,
-                        "step": 0.005
+                        "step": 0.01
                       },
                       {
-                        "name": "grain",
+                        "name": "sizeVariation",
                         "type": "number",
-                        "value": 0.059,
+                        "value": 0.35,
                         "min": 0,
-                        "max": 0.2,
-                        "step": 0.001
+                        "max": 1,
+                        "step": 0.05
                       },
                       {
-                        "name": "seed",
-                        "type": "number",
-                        "value": 96,
-                        "min": 0,
-                        "max": 1000,
-                        "step": 1
+                        "name": "colour",
+                        "type": "color",
+                        "value": "#aaffdd"
                       }
                     ]
                   }
-                ],
-                "params": {
-                  "driftScale": {
-                    "value": 1.02
-                  },
-                  "speed": {
-                    "value": 5.91
-                  },
-                  "frequency": {
-                    "value": 1.85
-                  },
-                  "chroma": {
-                    "value": 0
-                  },
-                  "edgeThreshold": {
-                    "value": 0.46
-                  },
-                  "dissolve": {
-                    "value": 1
-                  },
-                  "decay": {
-                    "value": 0.085
-                  },
-                  "grain": {
-                    "value": 0.025,
-                    "locked": false
-                  },
-                  "seed": {
-                    "value": 841
-                  }
-                }
+                ]
               }
             ]
           },
@@ -1508,7 +1298,7 @@
         }
       }
     ],
-    "selectedLayerId": "layer-Layer 2-2-1764280198194",
+    "selectedLayerId": "layer-Layer 1-1-1764326512071",
     "previewMode": "composition",
     "transitionType": "fade",
     "transitionDuration": 500,

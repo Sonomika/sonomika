@@ -153,51 +153,13 @@ export class EffectDiscovery {
       fileKey: string;
     }> = [];
 
+    // In the current app, effects are defined by the user in an external folder,
+    // and are loaded into `userEffects` via Electron bridges. The lightweight
+    // listing should therefore only surface those user effects and should not
+    // scan bundled bank paths.
     const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+    void isElectron; // reserved for future differentiation if needed
 
-    try {
-      // Build map of effect modules without importing them
-      // IMPORTANT: avoid literal `import.meta.glob(...)` so Vite's web scan doesn't try to resolve it
-      const globFn = (import.meta as any).glob as undefined | ((p: string, opts?: any) => Record<string, () => Promise<any>>);
-      if (!globFn) throw new Error('glob not available');
-      const effectModules: Record<string, () => Promise<any>> = globFn('../bank/**/*.{tsx,jsx,ts,js}', { eager: false });
-      for (const [modulePath, importFn] of Object.entries(effectModules)) {
-        // Normalize key to be relative to effects folder
-        const normalized = modulePath.replace('../bank/', '');
-        const folder = this.getFolderCategory(normalized);
-        const baseFileName = normalized.split('/').pop() || normalized;
-        const id = this.generateEffectId(baseFileName);
-        const name = this.generateEffectName(baseFileName);
-        const category = folder === 'sources' ? 'Sources' : 'Effects';
-        const isSource = folder === 'sources';
-
-        // Remember how to import on-demand later
-        this.browserEffectImports.set(`${normalized}`, importFn as any);
-
-        results.push({
-          id,
-          name,
-          description: `${name} effect`,
-          category,
-          icon: '',
-          author: 'VJ System',
-          version: '1.0.0',
-          metadata: {
-            parameters: [],
-            category,
-            type: 'react-component',
-            folder,
-            isSource,
-            isUserEffect: false,
-          },
-          fileKey: normalized,
-        });
-      }
-    } catch (error) {
-      console.warn('Lightweight effect listing failed:', error);
-    }
-
-    // Add user effects to the results
     const userEffects = Array.from(this.userEffects.values());
     for (const userEffect of userEffects) {
       results.push({
@@ -244,6 +206,9 @@ export class EffectDiscovery {
       return this.listAvailableEffectsLightweight();
     }
 
+    // In the "user folder only" model, we surface ONLY effects that have been
+    // loaded via loadUserEffectsFromDirectory / loadUserEffectFromContent.
+    // Internal/bundled bank effects are intentionally excluded.
     const results: Array<{
       id: string;
       name: string;
@@ -256,42 +221,6 @@ export class EffectDiscovery {
       fileKey: string;
     }> = [];
 
-    try {
-      const files = await this.getEffectFiles();
-      for (const fileKey of files) {
-        const normalized = fileKey.replace(/\\/g, '/');
-        const folder = this.getFolderCategory(normalized);
-        const baseFileName = normalized.split('/').pop() || normalized;
-        const id = this.generateEffectId(baseFileName);
-        const name = this.generateEffectName(baseFileName);
-        const category = folder === 'sources' ? 'Sources' : 'Effects';
-        const isSource = folder === 'sources';
-
-        results.push({
-          id,
-          name,
-          description: `${name} effect`,
-          category,
-          icon: '',
-          author: 'VJ System',
-          version: '1.0.0',
-          metadata: {
-            parameters: [],
-            category,
-            type: 'react-component',
-            folder,
-            isSource,
-            isUserEffect: false,
-          },
-          fileKey: normalized,
-        });
-      }
-    } catch (error) {
-      console.warn('Filesystem effect listing failed, falling back to browser listing:', error);
-      return this.listAvailableEffectsLightweight();
-    }
-
-    // Add user effects to the results
     const userEffects = Array.from(this.userEffects.values());
     for (const userEffect of userEffects) {
       results.push({
@@ -306,11 +235,10 @@ export class EffectDiscovery {
           parameters: userEffect.metadata.parameters || [],
           category: userEffect.category,
           type: 'react-component',
-          folder: 'user-effects',
+          folder: userEffect.metadata.folder || 'user-effects',
           isSource: userEffect.metadata.isSource || false,
-          isUserEffect: true,
+          isUserEffect: userEffect.metadata.isUserEffect !== false,
         },
-        // Preserve original source path when available so other tools (AI editor) can load raw text
         fileKey: (userEffect as any)?.metadata?.sourcePath || `user-${userEffect.id}`,
       });
     }
@@ -751,7 +679,18 @@ export class EffectDiscovery {
             const effect = await this.loadUserEffectFromContent(code, absPath);
             if (effect) {
               const userEffectId = `user-${effect.id}`;
-              const userEffect = { ...effect, id: userEffectId, name: `${effect.name} (User)`, author: effect.author || 'User', metadata: { ...effect.metadata, folder: 'user-effects', isUserEffect: true, sourcePath: (effect as any)?.metadata?.sourcePath || absPath } } as any;
+              // Do NOT mutate the display name; keep the original effect name
+              const userEffect = {
+                ...effect,
+                id: userEffectId,
+                author: effect.author || 'User',
+                metadata: {
+                  ...effect.metadata,
+                  folder: 'user-effects',
+                  isUserEffect: true,
+                  sourcePath: (effect as any)?.metadata?.sourcePath || absPath,
+                },
+              } as any;
               this.userEffects.set(userEffectId, userEffect);
               effects.push(userEffect);
               console.log(`✅ Loaded user effect: ${userEffectId} (${userEffect.name})`);
@@ -775,7 +714,18 @@ export class EffectDiscovery {
             const effect = await this.loadUserEffectFromPath(filePath, directoryPath);
             if (effect) {
               const userEffectId = `user-${effect.id}`;
-              const userEffect = { ...effect, id: userEffectId, name: `${effect.name} (User)`, author: effect.author || 'User', metadata: { ...effect.metadata, folder: 'user-effects', isUserEffect: true, sourcePath: filePath } } as any;
+              // Preserve the original effect name without adding a suffix
+              const userEffect = {
+                ...effect,
+                id: userEffectId,
+                author: effect.author || 'User',
+                metadata: {
+                  ...effect.metadata,
+                  folder: 'user-effects',
+                  isUserEffect: true,
+                  sourcePath: filePath,
+                },
+              } as any;
               this.userEffects.set(userEffectId, userEffect);
               effects.push(userEffect);
               console.log(`✅ Loaded user effect: ${userEffectId} (${userEffect.name})`);
@@ -1037,13 +987,20 @@ export class EffectDiscovery {
 
     const baseFileName = sourceName.replace(/[^a-zA-Z0-9_.\/-]/g, '');
     const idBase = baseFileName.replace(/\.(js|mjs)$/i, '') || 'user-effect';
-    const id = this.generateEffectId(`${idBase}.tsx`); // reuse normalization
+    const fileSlug = this.generateEffectId(`${idBase}.tsx`); // reuse normalization
     const name = metadata?.name || this.generateEffectName(idBase);
     const category = metadata?.category || (metadata?.isSource ? 'Sources' : 'Effects');
     const description = metadata?.description || `${name} (user effect)`;
     const icon = metadata?.icon || '';
 
-    const effectId = `user-${id}`;
+    // Canonical ID for presets: name-based slug so sets are portable across machines.
+    const nameSlug = this.generateEffectId(`${name}.tsx`);
+    const canonicalId = nameSlug || `user-${fileSlug || 'effect'}`;
+
+    // Backwards-compatible legacy ID derived from file name (old behavior)
+    const legacyId = `user-${fileSlug}`;
+
+    const effectId = canonicalId;
     // Attach metadata to component so UI/EffectChain can read params directly
     try { (component as any).metadata = metadata; } catch {}
 
@@ -1051,6 +1008,9 @@ export class EffectDiscovery {
     try {
       const { registerEffect } = await import('./effectRegistry');
       registerEffect(effectId, component as any);
+      if (legacyId && legacyId !== effectId) {
+        registerEffect(legacyId, component as any);
+      }
     } catch {}
 
     const effect: ReactSelfContainedEffect = {

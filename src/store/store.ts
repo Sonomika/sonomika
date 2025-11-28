@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { ActionLogger } from '../utils/ActionLogger';
 import { AppState, Scene, Column, Layer, MIDIMapping, Asset, CompositionSettings, TransitionType } from './types';
+import { buildPresetDataFromState, sanitizePresetDataOnLoad } from '../utils/presetSanitizer';
 
 // Helper: convert hex color (e.g., #00bcd4) to HSL components for CSS variables
 const hexToHslComponents = (hex: string): { h: number; s: number; l: number } => {
@@ -965,18 +966,10 @@ export const useStore = createWithEqualityFn<AppState & {
         try {
           const state = get();
           const defaultName = presetName || `preset-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`;
-          
-          // Filter out large assets to prevent storage quota issues
-          const filteredAssets = state.assets.map(asset => {
-            const { base64Data, ...assetWithoutBase64 } = asset;
-            // Only include base64Data for small files (under 500KB)
-            if (asset.size < 500 * 1024 && base64Data) {
-              return { ...assetWithoutBase64, base64Data };
-            }
-            // For larger files, just include the metadata
-            return assetWithoutBase64;
-          });
-          
+
+          // Build a sanitized, shareable data payload
+          const presetData = buildPresetDataFromState(state);
+
           let finalName = defaultName;
 
           const preset = {
@@ -985,20 +978,7 @@ export const useStore = createWithEqualityFn<AppState & {
             timestamp: Date.now(),
             version: '1.0.0',
             description: `VJ Preset: ${defaultName}`,
-            data: {
-              scenes: state.scenes,
-              currentSceneId: state.currentSceneId,
-              playingColumnId: state.playingColumnId,
-              bpm: state.bpm,
-              sidebarVisible: state.sidebarVisible,
-              midiMappings: state.midiMappings,
-              selectedLayerId: state.selectedLayerId,
-              previewMode: state.previewMode,
-              transitionType: state.transitionType,
-              transitionDuration: state.transitionDuration,
-              compositionSettings: state.compositionSettings,
-              assets: filteredAssets,
-            }
+            data: presetData
           };
           
           // Web: Save to database (Supabase). Electron: name only; file save handled in App.
@@ -1093,18 +1073,20 @@ export const useStore = createWithEqualityFn<AppState & {
 
           if (dataSize > maxSize) {
             console.warn('⚠️ Preset data is too large for localStorage:', Math.round(dataSize / 1024), 'KB');
-            const cleanedData = {
+            const rawData = {
               ...preset.data,
               assets: preset.data?.assets?.filter((asset: any) => {
                 return !(asset?.base64Data && asset.size > 1024 * 1024);
               }) || []
             };
+            const cleanedData = sanitizePresetDataOnLoad(rawData);
             try { localStorage.removeItem('vj-app-storage'); } catch (clearError) { console.warn('Failed to clear localStorage:', clearError); }
             set({ ...cleanedData, currentPresetName: presetName } as any);
             return true;
           }
 
-          set({ ...preset.data, currentPresetName: presetName } as any);
+          const cleanedData = sanitizePresetDataOnLoad(preset.data || {});
+          set({ ...cleanedData, currentPresetName: presetName } as any);
           return true;
         } catch (e) {
           console.error('Failed to load preset from content:', e);
@@ -1150,8 +1132,9 @@ export const useStore = createWithEqualityFn<AppState & {
           if (error) throw error;
           const preset = data?.content;
           if (!preset?.data) return false;
-          // Apply data to store
-          set({ ...preset.data, currentPresetName: (data as any)?.name || name } as any);
+          // Apply sanitized data to store
+          const cleanedData = sanitizePresetDataOnLoad(preset.data || {});
+          set({ ...cleanedData, currentPresetName: (data as any)?.name || name } as any);
           return true;
         } catch (e) {
           console.error('Failed to load cloud preset:', e);

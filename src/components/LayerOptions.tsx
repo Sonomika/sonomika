@@ -2,7 +2,6 @@ import React, { useRef, useState } from 'react';
 import { Select, Input } from './ui';
 import { LOOP_MODES, type LoopMode } from '../constants/video';
 import type { Layer } from '../types/layer';
-import { getEffect } from '../utils/effectRegistry';
 import { ParamRow, ButtonGroup, Slider } from './ui';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
 import { useStore } from '../store/store';
@@ -10,6 +9,7 @@ import { useLFOStore } from '../store/lfoStore';
 import { useVideoOptionsStore } from '../store/videoOptionsStore';
 import { DiceIcon } from './ui';
 import { LockClosedIcon, LockOpen1Icon } from '@radix-ui/react-icons';
+import { getEffectComponentSync } from '../utils/EffectLoader';
 
 interface LayerOptionsProps {
   selectedLayer: Layer | null;
@@ -96,36 +96,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   }, [randSmoothing]);
 
   // Check if the layer has an effect
-  const hasEffect = selectedLayer?.type === 'effect' || (selectedLayer as any)?.asset?.type === 'effect' || (selectedLayer as any)?.asset?.isEffect;
-  const effectId: string | undefined = (selectedLayer as any)?.asset?.id || (selectedLayer as any)?.asset?.name;
-  
-  // Try multiple ways to find the effect component
-  let effectComponent = null;
-  if (hasEffect) {
-    // Include bankVersion so lookups re-run when discovery finishes
-    void bankVersion;
-    effectComponent = effectId ? getEffect(effectId) : null;
-    if (!effectComponent && effectId) {
-      const variations = [
-        effectId,
-        effectId.replace(/-/g, ''),
-        effectId.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, ''),
-        effectId.toLowerCase(),
-        effectId.toUpperCase(),
-        effectId.replace(/Effect$/, ''),
-        effectId + 'Effect',
-      ];
-      for (const variation of variations) {
-        effectComponent = getEffect(variation);
-        if (effectComponent) {
-          console.log(`✅ Found effect using variation: ${variation}`);
-          break;
-        }
-      }
-    }
-  }
-  
-  const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
+  const hasEffect =
+    selectedLayer?.type === 'effect' ||
+    (selectedLayer as any)?.asset?.type === 'effect' ||
+    (selectedLayer as any)?.asset?.isEffect;
+  const effectId: string | undefined =
+    (selectedLayer as any)?.asset?.id || (selectedLayer as any)?.asset?.name;
+
+  // Resolve the effect component using the same resolver as the renderer
+  const effectComponent = hasEffect && effectId ? getEffectComponentSync(effectId) : null;
+  const effectMetadata = effectComponent ? ((effectComponent as any).metadata || null) : null;
 
   // Build a lookup of live modulated values for the current layer
   const liveModulatedByParam: Record<string, number> = React.useMemo(() => {
