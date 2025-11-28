@@ -104,8 +104,46 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     (selectedLayer as any)?.asset?.id || (selectedLayer as any)?.asset?.name;
 
   // Resolve the effect component using the same resolver as the renderer
-  const effectComponent = hasEffect && effectId ? getEffectComponentSync(effectId) : null;
-  const effectMetadata = effectComponent ? ((effectComponent as any).metadata || null) : null;
+  // Re-compute when bankVersion changes (effects finish loading after refresh)
+  const effectComponent = React.useMemo(() => {
+    return hasEffect && effectId ? getEffectComponentSync(effectId) : null;
+  }, [hasEffect, effectId, bankVersion]);
+  const effectMetadata = React.useMemo(() => {
+    return effectComponent ? ((effectComponent as any).metadata || null) : null;
+  }, [effectComponent]);
+
+  // Fallback: If effect not found but should exist, periodically re-check
+  // This handles cases where effects finish loading after component mounts
+  React.useEffect(() => {
+    if (!hasEffect || !effectId || effectComponent) return;
+    
+    // Retry a few times with increasing delays
+    let retryCount = 0;
+    const maxRetries = 5;
+    const retryDelays = [100, 200, 500, 1000, 2000];
+    let timeoutId: number | null = null;
+    
+    const retryCheck = () => {
+      if (retryCount >= maxRetries) return;
+      timeoutId = window.setTimeout(() => {
+        const found = getEffectComponentSync(effectId);
+        if (found) {
+          // Effect found! Trigger re-computation by updating bankVersion
+          setBankVersion((v) => v + 1);
+        } else {
+          retryCount++;
+          retryCheck();
+        }
+      }, retryDelays[retryCount] || 2000);
+    };
+    
+    retryCheck();
+    return () => {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [hasEffect, effectId, effectComponent]);
 
   // Build a lookup of live modulated values for the current layer
   const liveModulatedByParam: Record<string, number> = React.useMemo(() => {
