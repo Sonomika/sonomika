@@ -14,6 +14,8 @@
     "build:installer:mac": "npm run build && electron-builder --mac",
     "build:installer:mac:dmg": "npm run build && electron-builder --mac dmg",
     "build:installer:mac:zip": "npm run build && electron-builder --mac zip",
+    "build:installer:mac:standalone": "npm run build && electron-builder --mac zip",
+    "build:installer:mac:dir": "npm run build && electron-builder --mac dir",
     "dev": "vite",
     "dev:web": "vite --config vite.web.config.ts",
     "build:web": "vite build --config vite.web.config.ts",
