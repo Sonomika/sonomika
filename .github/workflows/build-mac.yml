@@ -1,0 +1,112 @@
+name: Build macOS Installer
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup code signing (if certificates provided)
+        id: setup-signing
+        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          # Create variables file with certificates
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$APPLE_KEYCHAIN_PASSWORD
+          
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          
+          # Import certificate
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 -k $KEYCHAIN_PATH -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          
+          # Allow codesign to access the keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          
+          # Set as default keychain for codesign
+          security default-keychain -s $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          
+          # Find and set identity
+          echo "Available code signing identities:"
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+          
+          # Store keychain path for later steps
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+          echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build TypeScript
+        run: npm run build:electron
+      
+      - name: Build Vite bundle
+        run: npm run build
+      
+      - name: Build macOS installers (DMG and ZIP for x64 and arm64)
+        env:
+          # Enable code signing if certificate is provided, otherwise disable
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.APPLE_CERTIFICATE != '' && 'true' || 'false' }}
+          KEYCHAIN_PATH: ${{ env.KEYCHAIN_PATH }}
+          KEYCHAIN_PASSWORD: ${{ env.KEYCHAIN_PASSWORD }}
+          # Electron Builder will auto-discover certificates if CSC_IDENTITY_AUTO_DISCOVERY is true
+        run: |
+          if [ "$CSC_IDENTITY_AUTO_DISCOVERY" = "true" ]; then
+            echo "🔐 Building with code signing enabled"
+            # Ensure keychain is unlocked
+            if [ -n "$KEYCHAIN_PATH" ]; then
+              security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            fi
+          else
+            echo "⚠️  Building without code signing (unsigned builds may show security warnings)"
+            echo "   To enable signing, add APPLE_CERTIFICATE secrets (see docs/MACOS_CODE_SIGNING.md)"
+          fi
+          npm run build:installer:mac
+      
+      - name: Clean up keychain (if created)
+        if: always() && env.KEYCHAIN_PATH != ''
+        env:
+          KEYCHAIN_PATH: ${{ env.KEYCHAIN_PATH }}
+        run: |
+          # Restore default keychain if we changed it
+          security default-keychain -s login.keychain || true
+          # Delete temporary keychain
+          security delete-keychain "$KEYCHAIN_PATH" || true
+          rm -f $RUNNER_TEMP/certificate.p12 || true
+      
+      - name: List release artifacts
+        run: ls -lh release/
+      
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installers
+          path: release/*
+          retention-days: 30
+          if-no-files-found: error
+
