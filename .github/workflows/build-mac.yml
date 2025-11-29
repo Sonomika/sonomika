@@ -25,12 +25,17 @@ jobs:
       
       - name: Setup code signing (if certificates provided)
         id: setup-signing
-        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
         run: |
+          # Check if certificate is provided
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No certificate provided, skipping code signing setup"
+            exit 0
+          fi
+          
           # Create variables file with certificates
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           KEYCHAIN_PASSWORD=$APPLE_KEYCHAIN_PASSWORD
@@ -58,6 +63,7 @@ jobs:
           # Store keychain path for later steps
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
           echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
+          echo "HAS_CERTIFICATE=true" >> $GITHUB_ENV
       
       - name: Install dependencies
         run: npm ci
@@ -70,14 +76,14 @@ jobs:
       
       - name: Build macOS installers (DMG and ZIP for x64 and arm64)
         env:
-          # Enable code signing if certificate is provided, otherwise disable
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.APPLE_CERTIFICATE != '' && 'true' || 'false' }}
           KEYCHAIN_PATH: ${{ env.KEYCHAIN_PATH }}
           KEYCHAIN_PASSWORD: ${{ env.KEYCHAIN_PASSWORD }}
-          # Electron Builder will auto-discover certificates if CSC_IDENTITY_AUTO_DISCOVERY is true
+          HAS_CERTIFICATE: ${{ env.HAS_CERTIFICATE }}
         run: |
-          if [ "$CSC_IDENTITY_AUTO_DISCOVERY" = "true" ]; then
+          # Enable code signing if certificate is provided
+          if [ "$HAS_CERTIFICATE" = "true" ]; then
             echo "🔐 Building with code signing enabled"
+            export CSC_IDENTITY_AUTO_DISCOVERY=true
             # Ensure keychain is unlocked
             if [ -n "$KEYCHAIN_PATH" ]; then
               security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -85,6 +91,7 @@ jobs:
           else
             echo "⚠️  Building without code signing (unsigned builds may show security warnings)"
             echo "   To enable signing, add APPLE_CERTIFICATE secrets (see docs/MACOS_CODE_SIGNING.md)"
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
           fi
           npm run build:installer:mac
       
