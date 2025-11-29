@@ -100,6 +100,7 @@
     "appId": "com.sonomika.app",
     "productName": "Sonomika",
     "copyright": "Copyright © 2024",
+    "publish": null,
     "afterPack": "scripts/afterPack.js",
     "directories": {
       "output": "release",
@@ -223,8 +224,10 @@
         }
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "hardenedRuntime": true,
+      "gatekeeperAssess": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "dmg": {
       "title": "${productName} ${version}",
