@@ -8,6 +8,10 @@ Sonomika is a free real time visual performance tool for live shows, streaming a
 
 ![Sonomika Effects](./screenshots/Sonomika2.png)
 
+## Download
+
+**[Download for Windows (x64)](https://github.com/Sonomika/sonomika/releases/latest/download/Sonomika-1.0.0-x64.exe)**
+
 ## About
 
 This beta release is built for Windows. It should compile on macOS, but this is unverified. Help with macOS builds is welcome.
