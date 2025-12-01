@@ -2,11 +2,7 @@
 
 **VJ software with an ability to make AI effects and sources. Built with web technology and packaged with Electron**
 
-![Sonomika Interface](./screenshots/Sonomika1.png)
-
 Sonomika is a free real time visual performance tool for live shows, streaming and installations. It is designed for VJs, DJs and visual artists.
-
-![Sonomika Effects](./screenshots/Sonomika2.png)
 
 ## About
 
