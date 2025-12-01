@@ -4,10 +4,6 @@
 
 Sonomika is a free real time visual performance tool for live shows, streaming and installations. It is designed for VJs, DJs and visual artists.
 
-![Sonomika Interface](screenshots/Sonomika1.jpg)
-
-![Sonomika Effects](screenshots/Sonomika2.jpg)
-
 ## About
 
 This beta release is built for Windows. It should compile on macOS, but this is unverified. Help with macOS builds is welcome.
