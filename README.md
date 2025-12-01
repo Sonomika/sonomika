@@ -1,16 +1,12 @@
 # Sonomika
 
-**AI powered VJ software built with web technology and packaged with Electron**
+**VJ software with an ability to make AI effects and sources. Built with web technology and packaged with Electron**
 
 ![Sonomika Interface](./screenshots/Sonomika1.png)
 
 Sonomika is a free real time visual performance tool for live shows, streaming and installations. It is designed for VJs, DJs and visual artists.
 
 ![Sonomika Effects](./screenshots/Sonomika2.png)
-
-## Download
-
-**[Download for Windows (x64)](https://github.com/Sonomika/sonomika/releases/latest/download/Sonomika-1.0.0-x64.exe)**
 
 ## About
 
