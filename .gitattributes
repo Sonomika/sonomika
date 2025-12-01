@@ -1,0 +1,17 @@
+# Mark image files as binary to prevent line ending conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.webp binary
+
+# Mark other binary files
+*.pdf binary
+*.zip binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
