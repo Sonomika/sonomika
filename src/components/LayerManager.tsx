@@ -200,6 +200,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const beatPulseTimeoutRef = React.useRef<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewHeaderRef = useRef<HTMLDivElement | null>(null);
+  const prevShowTimelineRef = useRef<boolean>(Boolean(showTimeline));
 
   // Sync local column-mode playing state with global transport
   useEffect(() => {
@@ -235,7 +236,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // When switching scenes in column mode, update preview and auto-play the first column with clips
   useEffect(() => {
     try {
+      const cameFromTimeline = Boolean(prevShowTimelineRef.current) && !showTimeline;
+      prevShowTimelineRef.current = Boolean(showTimeline);
+
       if (showTimeline) return; // only for column mode
+      // If the user is stopped, do NOT auto-resume when switching from timeline back to columns
+      if (cameFromTimeline && !isGlobalPlaying) return;
       const sc = scenes.find((s: any) => s.id === currentSceneId);
       if (!sc) return;
       // Find a sensible column to play: current playing one if it exists in the new scene, otherwise first with clips
@@ -1704,7 +1710,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     <button
                       className={`tw-inline-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded ${transportState === 'stop' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-neutral-200 tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
                       onClick={() => {
-                        try { document.dispatchEvent(new CustomEvent('globalStop', { detail: { source: 'toolbar' } })); } catch {}
+                        try { globalStop({ source: 'toolbar', force: true } as any); } catch {}
                       }}
                       title="Stop - Stop all videos"
                     >

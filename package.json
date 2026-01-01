@@ -1,6 +1,6 @@
 {
   "name": "sonomika",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A VJ application built with Electron and p5.js",
   "main": "out/electron/main.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "build:watch": "tsc --watch",
     "build:electron": "tsc -p tsconfig.electron.json",
-    "build:installer": "npm run build && node scripts/embed-icon.js && electron-builder",
+    "build:installer": "npm run build && electron-builder && node scripts/embed-icon.js",
     "build:installer:win": "npm run build && electron-builder --win",
     "build:installer:win:portable": "npm run build && electron-builder --win portable",
     "dev": "vite",
@@ -176,11 +176,8 @@
       "icon": "icon.ico",
       "requestedExecutionLevel": "asInvoker",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "signAndEditExecutable": true,
-      "verifyUpdateCodeSignature": true,
-      "signingHashAlgorithms": ["sha256"],
-      "certificateFile": "${env.CSC_LINK}",
-      "certificatePassword": "${env.CSC_KEY_PASSWORD}"
+      "signAndEditExecutable": false,
+      "verifyUpdateCodeSignature": false
     },
     "nsis": {
       "oneClick": false,
@@ -189,7 +186,7 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Sonomika",
       "deleteAppDataOnUninstall": false,
-      "license": "LICENSE.rtf",
+      "license": "LICENSE.txt",
       "warningsAsErrors": false,
       "perMachine": true
     },

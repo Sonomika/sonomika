@@ -208,7 +208,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent>
+      <DialogContent className="tw-max-h-[90vh] tw-overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
@@ -468,6 +468,33 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                 Loading templates... (Check console for errors if this persists)
               </div>
             )}
+
+            <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
+
+            {/* AI effect cache clear control */}
+            <div className="tw-flex tw-items-center tw-justify-between">
+              <div className="tw-text-xs tw-text-neutral-400 tw-pr-4">
+                Clear unsaved AI-generated effects from the Library.
+              </div>
+              <Button
+                variant="outline"
+                className="tw-text-xs"
+                onClick={async () => {
+                  try {
+                    localStorage.removeItem('vj-ai-last-code');
+                    localStorage.setItem('vj-ai-restore-enabled', '0');
+                  } catch {}
+                  try {
+                    const { EffectDiscovery } = await import('../utils/EffectDiscovery');
+                    const discovery = EffectDiscovery.getInstance();
+                    await discovery.clearAIGeneratedEffects();
+                  } catch {}
+                  toast({ description: 'Cleared unsaved AI-generated effects from the Library.' });
+                }}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
 
           {(typeof window === 'undefined' || !(window as any).electron) && (
@@ -503,6 +530,16 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                 try { (useStore.getState() as any).setDebugMode?.(next); } catch {}
               }}
             />
+          </div>
+
+          {/* Version display */}
+          <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">Version</div>
+              <div className="tw-text-xs tw-text-neutral-400">Application version number</div>
+            </div>
+            <div className="tw-text-xs tw-text-neutral-400">1.0.1</div>
           </div>
         </div>
       </DialogContent>

@@ -1240,7 +1240,6 @@ export const useStore = createWithEqualityFn<AppState & {
            currentTimelineSceneId: state.currentTimelineSceneId,
            currentPresetName: (state as any).currentPresetName,
           currentPresetPath: (state as any).currentPresetPath,
-           playingColumnId: state.playingColumnId,
            bpm: state.bpm,
            sidebarVisible: state.sidebarVisible,
            // Force timeline off in persisted state
@@ -1273,6 +1272,12 @@ export const useStore = createWithEqualityFn<AppState & {
          };
        },
              onRehydrateStorage: () => (state) => {
+        // Always start in a stopped state after refresh/reload.
+        // Transport state (e.g. playingColumnId) should not auto-resume on rehydrate.
+        try {
+          state?.globalStop?.({ force: true, source: 'rehydrate' });
+        } catch {}
+
         // Respect persisted showTimeline; no override on rehydrate
         // console.log('🔄 Store rehydrated successfully!');
         // console.log('📊 Rehydrated data summary:');

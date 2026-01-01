@@ -93,6 +93,10 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
 function App() {
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
   const recordingAudioStreamRef = useRef<MediaStream | null>(null);
+  const recordingCopyTimerRef = useRef<any>(null);
+  const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const recordingCanvasCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const recordingVideoTrackRef = useRef<any>(null);
   const [compositionSettingsOpen, setCompositionSettingsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showUIDemo, setShowUIDemo] = useState(false);
@@ -979,6 +983,36 @@ function App() {
         if (isRecording && recorderRef.current) { 
           try { 
             console.log('Stopping recording...');
+            
+            // Clear the copy timer immediately to stop drawing new frames
+            try {
+              if (recordingCopyTimerRef.current) {
+                clearInterval(recordingCopyTimerRef.current);
+                recordingCopyTimerRef.current = null;
+              }
+            } catch (e) {
+              console.warn('Error clearing copy timer:', e);
+            }
+            
+            // Clear the record canvas to black before stopping to avoid last frame issue
+            try {
+              const rctx = recordingCanvasCtxRef.current;
+              const recordCanvas = recordingCanvasRef.current;
+              const videoTrack = recordingVideoTrackRef.current;
+              if (rctx && recordCanvas) {
+                rctx.fillStyle = '#000000';
+                rctx.fillRect(0, 0, recordCanvas.width, recordCanvas.height);
+                // Force a frame update to ensure black frame is captured
+                if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+                  videoTrack.requestFrame();
+                }
+                // Small delay to ensure black frame is processed before stopping
+                await new Promise(resolve => setTimeout(resolve, 50));
+              }
+            } catch (e) {
+              console.warn('Error clearing record canvas:', e);
+            }
+            
             recorderRef.current.stop(); 
             // Update state immediately when stop is pressed
             setIsRecording(false);
@@ -1051,19 +1085,36 @@ function App() {
         // Since we are manually drawing to it, let's use auto stream from the canvas updates
         const videoStream: MediaStream = (recordCanvas as any).captureStream(fps);
         const videoTrack: any = (videoStream && videoStream.getVideoTracks && videoStream.getVideoTracks()[0]) || null;
+        recordingVideoTrackRef.current = videoTrack;
+        
+        // Store refs for cleanup
+        recordingCanvasRef.current = recordCanvas;
+        recordingCanvasCtxRef.current = rctx;
         
         // Copy frames from the preview canvas into the record canvas
         const copyIntervalMs = Math.max(16, Math.round(1000 / (fps || 60)));
-        let copyTimer: any = null;
         
         const startCopy = () => {
-          try { if (copyTimer) clearInterval(copyTimer); } catch {}
+          try { if (recordingCopyTimerRef.current) clearInterval(recordingCopyTimerRef.current); } catch {}
           
           const drawFrame = () => {
               try {
                   // Ensure source is valid
-                  if (canvas.width > 0 && canvas.height > 0) {
-                      rctx.drawImage(canvas, 0, 0, targetW, targetH);
+                  if (canvas.width > 0 && canvas.height > 0 && rctx) {
+                      // Important: the source WebGL canvas often has transparent pixels (clearAlpha(0)).
+                      // If we just drawImage onto an opaque 2D canvas without clearing/filling first,
+                      // transparent regions will preserve the previous frame -> "trails" in recordings.
+                      const bg = (useStore.getState() as any)?.compositionSettings?.backgroundColor || '#000000';
+                      try {
+                        rctx.save();
+                        rctx.globalCompositeOperation = 'source-over';
+                        rctx.globalAlpha = 1;
+                        rctx.fillStyle = bg;
+                        rctx.fillRect(0, 0, targetW, targetH);
+                        rctx.drawImage(canvas, 0, 0, targetW, targetH);
+                      } finally {
+                        try { rctx.restore(); } catch {}
+                      }
                       // Force frame update for stream
                       if (videoTrack && typeof videoTrack.requestFrame === 'function') {
                           videoTrack.requestFrame();
@@ -1077,7 +1128,7 @@ function App() {
           // Draw immediately
           drawFrame();
           
-          copyTimer = setInterval(drawFrame, copyIntervalMs);
+          recordingCopyTimerRef.current = setInterval(drawFrame, copyIntervalMs);
         };
         startCopy();
         
@@ -1341,8 +1392,36 @@ function App() {
             }
             audioStream.getTracks().forEach(track => track.stop());
           }
-          try { if (copyTimer) clearInterval(copyTimer); } catch {}
-          try { document.body.removeChild(recordCanvas); } catch {}
+          
+          // Clean up copy timer
+          try {
+            if (recordingCopyTimerRef.current) {
+              clearInterval(recordingCopyTimerRef.current);
+              recordingCopyTimerRef.current = null;
+            }
+          } catch (e) {
+            console.warn('[Recording] Error clearing copy timer in onstop:', e);
+          }
+          
+          // Clean up record canvas
+          try {
+            const recordCanvas = recordingCanvasRef.current;
+            if (recordCanvas) {
+              // Clear canvas to black before removal
+              const rctx = recordingCanvasCtxRef.current;
+              if (rctx) {
+                rctx.fillStyle = '#000000';
+                rctx.fillRect(0, 0, recordCanvas.width, recordCanvas.height);
+              }
+              document.body.removeChild(recordCanvas);
+              recordingCanvasRef.current = null;
+              recordingCanvasCtxRef.current = null;
+              recordingVideoTrackRef.current = null;
+            }
+          } catch (e) {
+            console.warn('[Recording] Error removing record canvas:', e);
+          }
+          
           setIsRecording(false);
           recorderRef.current = null;
           console.log('Recording cleanup completed');

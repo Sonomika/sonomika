@@ -49,6 +49,14 @@ export const getAllRegisteredEffects = (): string[] => {
   return Array.from(registry.keys());
 };
 
+export const unregisterEffect = (id: string) => {
+  const removed = registry.delete(id);
+  if (DEBUG_EFFECTS) {
+    // console.log(`🔧 Unregistering effect: ${id} - removed: ${removed}`);
+  }
+  return removed;
+};
+
 export const clearRegistry = () => {
   registry.clear();
   if (DEBUG_EFFECTS) {

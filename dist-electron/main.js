@@ -479,14 +479,66 @@ function createWindow() {
       if (!mainWindow) return;
       if (remaining.length === 0) {
         console.warn("All dev server attempts failed; showing inline error page");
-        const message = encodeURIComponent(`<!DOCTYPE html><html><body style="font-family: sans-serif; background: #141414; color: #f5f5f5; padding: 32px;">
-          <h1>Dev Server Not Available</h1>
-          <p>Could not connect to the Vite dev server on port ${port}.</p>
-          <p>Make sure it is running with:</p>
-          <pre style="background:#1f1f1f; padding:16px; border-radius:8px;">npm run dev
+        const safeCandidates = candidates.filter(Boolean);
+        const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: http: https:; script-src 'unsafe-inline' data: http: https:; style-src 'unsafe-inline' data: http: https:;" />
+    <title>Dev Server Not Available</title>
+    <style>
+      body { font-family: sans-serif; background: #141414; color: #f5f5f5; padding: 32px; }
+      pre { background:#1f1f1f; padding:16px; border-radius:8px; overflow:auto; }
+      .muted { color: #aaaaaa; }
+      button { background:#1f1f1f; color:#f5f5f5; border: 1px solid #262626; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+      button:hover { background:#262626; }
+      code { color: #f5f5f5; }
+    </style>
+  </head>
+  <body>
+    <h1>Dev Server Not Available</h1>
+    <p>Could not connect to the Vite dev server on port ${port}.</p>
+    <p class="muted">This window will keep retrying automatically.</p>
+    <p>Make sure it is running with:</p>
+    <pre>cd "${process.cwd()}"
 npm run dev:electron</pre>
-        </body></html>`);
-        mainWindow.loadURL(`data:text/html,${message}`);
+    <div style="margin-top: 16px;">
+      <button id="retryBtn" type="button">Retry now</button>
+      <span id="status" class="muted" style="margin-left: 12px;"></span>
+    </div>
+    <script>
+      (function () {
+        const candidates = ${JSON.stringify(safeCandidates)};
+        const statusEl = document.getElementById('status');
+        const setStatus = (t) => { try { statusEl.textContent = t; } catch {} };
+
+        async function tryLoad() {
+          for (const url of candidates) {
+            try {
+              setStatus('Trying ' + url + ' ...');
+              // Use no-cors HEAD/GET fallback; we only care if it responds at all
+              const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+              if (res && (res.ok || res.status === 304)) {
+                setStatus('Connected. Loading...');
+                window.location.href = url;
+                return;
+              }
+            } catch (e) {
+              // ignore and continue
+            }
+          }
+          setStatus('Still waiting for dev server...');
+        }
+
+        document.getElementById('retryBtn')?.addEventListener('click', () => { tryLoad(); });
+        // Initial + periodic retries
+        tryLoad();
+        setInterval(tryLoad, 1500);
+      })();
+    <\/script>
+  </body>
+</html>`;
+        mainWindow.loadURL(`data:text/html,${encodeURIComponent(html)}`);
         return;
       }
       const url = remaining[0];

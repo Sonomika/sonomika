@@ -773,6 +773,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
             camera={{ position: [0, 0, 2], fov: 75 }}
             className="tw-w-full tw-h-full"
             dpr={[1, Math.min(1.5, (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1)]}
+            frameloop={isPlaying ? 'always' : 'demand'}
             gl={{ preserveDrawingBuffer: true, powerPreference: 'high-performance', antialias: false }}
             onCreated={({ gl }) => {
               gl.autoClear = false; // Do not auto-clear between frames

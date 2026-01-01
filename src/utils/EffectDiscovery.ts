@@ -871,6 +871,71 @@ export class EffectDiscovery {
   }
 
   /**
+   * Clear only AI-generated user effects (those created via the AI editor).
+   * This does NOT touch disk files; it only clears the in-memory registry so
+   * they disappear from the Library / Bank UI and won't be restored on reload
+   * if the corresponding localStorage cache is cleared.
+   */
+  async clearAIGeneratedEffects(): Promise<void> {
+    const candidates: string[] = [];
+
+    // Heuristic: AI-generated effects typically have a sourcePath or id/name
+    // that references AI helper filenames such as `ai-live-edit.js` or
+    // `ai-generated-*.js`, or include "ai" + "generated" in their name.
+    this.userEffects.forEach((effect, id) => {
+      try {
+        const meta = effect.metadata || {};
+        const src = String((meta as any).sourcePath || '');
+        const name = String(effect.name || '');
+        const loweredId = String(id || '').toLowerCase();
+        const loweredSrc = src.toLowerCase();
+        const loweredName = name.toLowerCase();
+
+        const looksLikeAiSource =
+          loweredSrc.includes('ai-live-edit.js') ||
+          loweredSrc.includes('ai-generated-') ||
+          (loweredSrc.includes('ai') && loweredSrc.includes('generated'));
+
+        const looksLikeAiName =
+          loweredName.includes('ai') && loweredName.includes('generated');
+
+        const looksLikeAiId =
+          loweredId.includes('ai-live-edit') ||
+          (loweredId.includes('ai') && loweredId.includes('generated'));
+
+        if (looksLikeAiSource || looksLikeAiName || looksLikeAiId) {
+          candidates.push(id);
+        }
+      } catch {
+        // If anything goes wrong, leave the effect alone.
+      }
+    });
+
+    if (candidates.length === 0) {
+      return;
+    }
+
+    // Attempt to unregister from the synchronous registry where available.
+    try {
+      const { unregisterEffect } = await import('./effectRegistry');
+      for (const id of candidates) {
+        try {
+          unregisterEffect(id);
+        } catch {
+          // Best-effort only; keep going for the rest.
+        }
+      }
+    } catch {
+      // Registry not available in this environment; safe to ignore.
+    }
+
+    // Finally remove from the in-memory userEffects map.
+    for (const id of candidates) {
+      this.userEffects.delete(id);
+    }
+  }
+
+  /**
    * Clear user effects
    */
   clearUserEffects(): void {

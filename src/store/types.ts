@@ -143,6 +143,8 @@ export interface AppState {
   timelineScenes: Scene[];
   currentTimelineSceneId: string;
   playingColumnId: string | null; // Track which column is currently playing
+  // UI selection (separate from transport). This should NOT auto-start playback.
+  selectedColumnId?: string | null;
   isGlobalPlaying: boolean; // Track global play/pause state
   // Global toggle for Sequence (audio-triggered markers) across all scenes
   sequenceEnabledGlobal?: boolean;

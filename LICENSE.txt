@@ -4,7 +4,7 @@ This software may generate flashing or strobing visual effects. These may trigge
 
 SONOMICA SUSTAINABLE-USE LICENCE
 
-Copyright © Sonomica
+Copyright (c) Sonomica
 
 All rights reserved.
 

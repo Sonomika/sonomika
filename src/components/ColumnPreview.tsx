@@ -1215,6 +1215,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 camera={{ position: [0, 0, 1], fov: 90 }}
                className="tw-w-full tw-h-full tw-block tw-bg-transparent"
                 dpr={1}
+                frameloop={isPlaying ? 'always' : 'demand'}
                 gl={{ 
                   alpha: true,
                   preserveDrawingBuffer: true,
