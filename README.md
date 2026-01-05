@@ -23,6 +23,10 @@ This beta release is built for Windows. It should compile on macOS, but this is 
 - **WebM video recording**
 - **Live code editing** and custom AI templates
 
+## Installer
+
+The app installer can be downloaded for free from Gumroad. Link in bio.
+
 ## Contributing
 
 Report issues if you find any. Donations are appreciated.
@@ -31,4 +35,3 @@ Report issues if you find any. Donations are appreciated.
 
 See the installation licence. Includes a strobe warning for those sensitive to flashing visuals.
 
-Packaged installer can be downloaded for free from GUMROAD
