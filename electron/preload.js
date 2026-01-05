@@ -94,6 +94,9 @@ try {
         getResourcesPath: () => {
             return electron_1.ipcRenderer.invoke('get-resources-path');
         },
+        getAppVersion: () => {
+            return electron_1.ipcRenderer.invoke('get-app-version');
+        },
         // Record menu events from main process (native app menu)
         onRecordStart: (handler) => {
             try {

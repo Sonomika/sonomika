@@ -18,6 +18,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   const [debugMode, setDebugMode] = useState<boolean>(() => {
     try { return !!JSON.parse(localStorage.getItem('vj-debug-enabled') || 'false'); } catch { return false; }
   });
+  const [appVersion, setAppVersion] = useState<string>('');
   const [user, setUser] = useState<any>(null);
   // OpenAI settings removed
   const { toast } = useToast();
@@ -64,6 +65,30 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     
     initializeDefaultFxDir();
   }, []);
+
+  // Load app version when Settings opens (Electron only)
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    const loadVersion = async () => {
+      try {
+        if (typeof window !== 'undefined' && window.electron?.getAppVersion) {
+          const v = await window.electron.getAppVersion();
+          if (!cancelled) setAppVersion(String(v || ''));
+        } else {
+          if (!cancelled) setAppVersion('');
+        }
+      } catch {
+        if (!cancelled) setAppVersion('');
+      }
+    };
+
+    loadVersion();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   // AI Provider template settings
   const [templates, setTemplates] = useState<AITemplate[]>([]);
@@ -539,7 +564,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
               <div className="tw-text-sm tw-text-neutral-200">Version</div>
               <div className="tw-text-xs tw-text-neutral-400">Application version number</div>
             </div>
-            <div className="tw-text-xs tw-text-neutral-400">1.0.1</div>
+            <div className="tw-text-xs tw-text-neutral-400">{appVersion || '—'}</div>
           </div>
         </div>
       </DialogContent>

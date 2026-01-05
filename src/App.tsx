@@ -44,6 +44,7 @@ declare global {
         onRecordStart?: (handler: () => void) => void;
         onRecordSettings?: (handler: () => void) => void;
         getScreenSizes?: () => Promise<Array<{width: number, height: number}>>;
+        getAppVersion?: () => Promise<string>;
     };
     electronAPI?: {
       getScreenSizes?: () => Promise<Array<{width: number, height: number}>>;

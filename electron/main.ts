@@ -1387,6 +1387,15 @@ app.whenReady().then(() => {
     return app.getAppPath();
   });
 
+  ipcMain.handle('get-app-version', async () => {
+    try {
+      return app.getVersion();
+    } catch (e) {
+      console.error('Failed to get app version:', e);
+      return 'unknown';
+    }
+  });
+
   ipcMain.handle('get-resources-path', async () => {
     return process.resourcesPath || app.getAppPath();
   });

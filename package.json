@@ -1,6 +1,6 @@
 {
   "name": "sonomika",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A VJ application built with Electron and p5.js",
   "main": "out/electron/main.js",
   "scripts": {
@@ -8,9 +8,9 @@
     "build": "tsc && vite build",
     "build:watch": "tsc --watch",
     "build:electron": "tsc -p tsconfig.electron.json",
-    "build:installer": "npm run build && electron-builder && node scripts/embed-icon.js",
-    "build:installer:win": "npm run build && electron-builder --win",
-    "build:installer:win:portable": "npm run build && electron-builder --win portable",
+    "build:installer": "npm run build:electron && npm run build && electron-builder && node scripts/embed-icon.js",
+    "build:installer:win": "npm run build:electron && npm run build && electron-builder --win",
+    "build:installer:win:portable": "npm run build:electron && npm run build && electron-builder --win portable",
     "dev": "vite",
     "dev:web": "vite --config vite.web.config.ts",
     "build:web": "vite build --config vite.web.config.ts",
