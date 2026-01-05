@@ -30,3 +30,5 @@ Report issues if you find any. Donations are appreciated.
 ## License
 
 See the installation licence. Includes a strobe warning for those sensitive to flashing visuals.
+
+Packaged installer can be downloaded for free from GUMROAD
