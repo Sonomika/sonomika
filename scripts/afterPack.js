@@ -17,10 +17,33 @@ export default async function afterPack(context) {
   const projectDir = path.join(__dirname, '..');
   const iconPath = path.join(projectDir, 'build', 'icon.ico');
   const exePath = path.join(appOutDir, 'Sonomika.exe');
+  const resourcesDir = path.join(appOutDir, 'resources');
 
   console.log('Embedding icon into executable after packaging...');
   console.log('Icon path:', iconPath);
   console.log('Executable path:', exePath);
+
+  // Include Spout native addon in packaged app (Windows only)
+  // We load this at runtime from `process.resourcesPath` (not from inside asar).
+  try {
+    const candidates = [
+      { from: path.join(projectDir, 'electron-spout.node'), to: path.join(resourcesDir, 'electron-spout.node') },
+      { from: path.join(projectDir, 'electron_spout.node'), to: path.join(resourcesDir, 'electron_spout.node') },
+    ];
+    for (const c of candidates) {
+      try {
+        if (fs.existsSync(c.from)) {
+          if (!fs.existsSync(resourcesDir)) fs.mkdirSync(resourcesDir, { recursive: true });
+          fs.copyFileSync(c.from, c.to);
+          console.log('[afterPack] Copied Spout addon:', path.basename(c.from), '->', c.to);
+        }
+      } catch (e) {
+        console.warn('[afterPack] Failed to copy Spout addon:', c.from, e);
+      }
+    }
+  } catch (e) {
+    console.warn('[afterPack] Spout addon copy step failed:', e);
+  }
 
   if (!fs.existsSync(iconPath)) {
     console.error('Icon file not found:', iconPath);
