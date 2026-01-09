@@ -207,8 +207,8 @@ function App() {
           await spoutRef.current?.stop();
           return;
         }
-        // Force restart so sender name/FPS changes apply and errors surface immediately.
-        await spoutRef.current?.stop();
+        // Start without forcing a stop/start cycle. The main process will reuse the existing sender
+        // when the name is unchanged, avoiding duplicate "Output_1" senders on refresh/reload.
         const res = await spoutRef.current?.start();
         if (!cancelled && res && !res.success) {
           const err = res.error || 'Spout failed to start.';
@@ -224,8 +224,37 @@ function App() {
     return () => {
       cancelled = true;
     };
-    // Re-start if sender name or FPS changes.
-  }, [spoutEnabled, spoutSenderName, spoutMaxFps]);
+    // Note: FPS is read live from the store inside SpoutStreamManager; no need to restart.
+  }, [spoutEnabled]);
+
+  // If the sender name changes while Spout is enabled, restart with a small delay to avoid
+  // Spout temporarily keeping the old sender name alive (which causes "name_1" duplicates).
+  useEffect(() => {
+    let cancelled = false;
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+    if (!isElectron) return;
+    if (!spoutEnabled) return;
+
+    (async () => {
+      try {
+        await spoutRef.current?.stop();
+        // Give Spout a moment to unregister the old sender name before re-creating.
+        await new Promise((r) => setTimeout(r, 150));
+        if (cancelled) return;
+        const res = await spoutRef.current?.start();
+        if (!cancelled && res && !res.success) {
+          const err = res.error || 'Spout failed to start.';
+          console.warn('Spout rename restart failed:', err);
+          toast({ description: `Spout failed: ${err}` });
+          try { (useStore.getState() as any).setSpoutEnabled?.(false); } catch {}
+        }
+      } catch {}
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [spoutSenderName, spoutEnabled]);
 
   useEffect(() => {
     // Mark Electron environment for CSS targeting (e.g., scrollbar styling)

@@ -1,4 +1,575 @@
-"use strict";const n=require("electron"),u=require("fs"),i=require("path");class V{constructor(){this.sender=null,this.senderName=null,this.lastFrameAtMs=0}start(a){if(process.platform!=="win32")return{ok:!1,error:"Spout output is only supported on Windows."};const t=String(a||"").trim()||"Sonomika Output";if(this.sender&&this.senderName===t)return{ok:!0};this.sender&&this.stop();const o=this.tryLoadAddon();if(!o)return{ok:!1,error:"Spout addon not found. Build/copy `electron_spout.node` and ensure it is unpacked (not inside asar)."};try{return this.sender=new o.SpoutOutput(t),this.senderName=t,this.lastFrameAtMs=0,{ok:!0}}catch(e){return this.sender=null,this.senderName=null,{ok:!1,error:`Failed to create Spout sender: ${String(e)}`}}}stop(){try{const a=this.sender;a&&typeof a.release=="function"&&a.release(),a&&typeof a.dispose=="function"&&a.dispose()}catch{}this.sender=null,this.senderName=null}isRunning(){return!!this.sender}pushDataUrlFrame(a,t){const o=this.sender;if(!o)return;const e=Math.max(1,Number(t?.maxFps??60)||60),r=Date.now(),d=1e3/e;if(!(r-this.lastFrameAtMs<d))try{const f=n.nativeImage.createFromDataURL(String(a||""));if(f.isEmpty())return;o.updateFrame(Buffer.from(f.toBitmap()),f.getSize()),this.lastFrameAtMs=r}catch{}}tryLoadAddon(){const a=[()=>require("electron_spout.node"),()=>require("electron-spout.node"),()=>require(i.join(process.cwd(),"electron_spout.node")),()=>require(i.join(process.cwd(),"electron-spout.node")),()=>require(i.join(process.cwd(),"native","electron_spout.node")),()=>require(i.join(process.cwd(),"native","electron-spout.node")),()=>require(i.join(process.resourcesPath||"","electron_spout.node")),()=>require(i.join(process.resourcesPath||"","electron-spout.node")),()=>require(i.join(process.resourcesPath||"","app.asar.unpacked","electron_spout.node")),()=>require(i.join(process.resourcesPath||"","app.asar.unpacked","electron-spout.node")),()=>require(i.join(process.resourcesPath||"","app.asar.unpacked","native","electron_spout.node")),()=>require(i.join(process.resourcesPath||"","app.asar.unpacked","native","electron-spout.node"))];for(const t of a)try{const o=t();if(o&&o.SpoutOutput)return o}catch{}return null}}const q=process.env.VJ_DEBUG_LOGS!=="true",U=console.log,H=console.warn;if(q){const c=()=>{};console.log=(...a)=>{const t=a.join(" ");(t.includes("ICON")||t.includes("APP PATHS")||t.includes("RESOLVED")||t.includes("NO ICON")||t.includes("process.cwd")||t.includes("__dirname")||t.includes("Checking icon")||t.includes("✓")||t.includes("✗")||t.includes("Creating window")||t.includes("Icon loaded")||t.includes("user model")||t.includes("taskbar"))&&U(...a)},console.warn=(...a)=>{const t=a.join(" ");(t.includes("ICON")||t.includes("APP PATHS"))&&H(...a)},console.info=c}process.env.ELECTRON_DISABLE_SECURITY_WARNINGS="true";const J=n.app.requestSingleInstanceLock();J?n.app.on("second-instance",()=>{const c=n.BrowserWindow.getAllWindows();c.length>0&&(c[0].isMinimized()&&c[0].restore(),c[0].focus())}):(console.log("Another instance is already running, quitting..."),n.app.quit());let s=null,l=null,j=null,D=null,_=null,F=null;const k=new Map;let b={};const E=new V;function R(){console.log("=== ICON RESOLUTION DEBUG ==="),console.log("process.cwd():",process.cwd()),console.log("__dirname:",__dirname),console.log("process.resourcesPath:",process.resourcesPath),console.log("app.getAppPath():",n.app.getAppPath()),console.log("app.getPath(exe):",n.app.getPath("exe"));const c=[...process.platform==="win32"?[i.join(process.resourcesPath||"","icons","icon.ico"),i.join(__dirname,"../icons/icon.ico"),i.join(__dirname,"../../public/icons/icon.ico"),i.join(__dirname,"../public/icons/icon.ico"),i.join(process.cwd(),"public","icons","icon.ico"),i.join(process.resourcesPath||"","icons","sonomika_icon_2.ico"),i.join(__dirname,"../icons/sonomika_icon_2.ico")]:[],i.join(process.resourcesPath||"","icons","icon.png"),i.join(__dirname,"../icons/icon.png"),i.join(__dirname,"../../public/icons/icon.png"),i.join(__dirname,"../public/icons/icon.png"),i.join(process.cwd(),"public","icons","icon.png"),i.join(process.resourcesPath||"","icons","sonomika_icon_2.png"),i.join(__dirname,"../icons/sonomika_icon_2.png")];console.log("Checking icon candidates:");for(const a of c){const t=u.existsSync(a);if(console.log(`  ${t?"✓":"✗"} ${a}`),t){try{const o=u.statSync(a);console.log(`    Size: ${o.size} bytes, Modified: ${o.mtime}`)}catch{console.log("    (Could not stat file)")}return console.log("=== RESOLVED ICON PATH ==="),a}}console.log("=== NO ICON FOUND ===")}function $(){const c=n.app.getPath("userData");return i.join(c,"auth_store.json")}function K(){try{const c=$();if(u.existsSync(c)){const a=u.readFileSync(c,"utf8"),t=JSON.parse(a);b=Object.fromEntries(Object.entries(t).map(([o,e])=>[o,Buffer.from(e,"base64")]))}}catch(c){console.warn("Failed to load encrypted auth store, starting empty:",c),b={}}}function z(){try{const c=$(),a=i.dirname(c);u.existsSync(a)||u.mkdirSync(a,{recursive:!0});const t=Object.fromEntries(Object.entries(b).map(([o,e])=>[o,e.toString("base64")]));u.writeFileSync(c,JSON.stringify(t),"utf8")}catch(c){console.warn("Failed to persist encrypted auth store:",c)}}function G(){try{const c=n.app.getPath("documents"),a=i.join(c,"Sonomika");u.existsSync(a)||(u.mkdirSync(a,{recursive:!0}),console.log("Created Sonomika folder in Documents:",a));const t=["bank","music","recordings","video","ai-templates"];for(const p of t){const g=i.join(a,p);u.existsSync(g)||(u.mkdirSync(g,{recursive:!0}),console.log("Created folder:",g))}const o=[i.join(process.resourcesPath||"","app.asar.unpacked","bank"),i.join(__dirname,"../bank"),i.join(process.cwd(),"bank")],e=i.join(a,"bank");let r=!1;for(const p of o)if(u.existsSync(p)&&!r)try{O(p,e),console.log("Copied bank folder from",p,"to",e),r=!0}catch(g){console.warn("Failed to copy bank folder from",p,":",g)}const d=[i.join(process.resourcesPath||"","user-documents","sets"),i.join(process.resourcesPath||"","app.asar.unpacked","user-documents","sets"),i.join(__dirname,"../user-documents","sets"),i.join(process.cwd(),"user-documents","sets"),i.join(process.resourcesPath||"","app.asar.unpacked","sets"),i.join(__dirname,"../sets"),i.join(process.cwd(),"sets")],f=i.join(a,"sets");let h=!1;console.log("Looking for sets folder in source paths..."),console.log("process.resourcesPath:",process.resourcesPath);for(const p of d){const g=u.existsSync(p);if(console.log("  Checking:",p,g?"✓ EXISTS":"✗ NOT FOUND"),g)try{const m=u.existsSync(f)?u.readdirSync(f).length:0;O(p,f);const M=u.existsSync(f)?u.readdirSync(f).length:0;console.log(`Copied sets folder from ${p} to ${f} (${M-m} files)`),h=!0;break}catch(m){console.warn("Failed to copy sets folder from",p,":",m)}}h||console.warn("⚠️ Sets folder was not copied. Checked paths:",d);const y=[i.join(process.resourcesPath||"","user-documents"),i.join(process.resourcesPath||"","app.asar.unpacked","user-documents"),i.join(__dirname,"../user-documents"),i.join(process.cwd(),"user-documents")];console.log("Looking for user-documents folder in source paths...");let v=!1;for(const p of y){const g=u.existsSync(p);if(console.log("  Checking:",p,g?"✓ EXISTS":"✗ NOT FOUND"),g)try{const m=["midi mapping","music","recordings","video"];for(const M of m){const C=i.join(p,M),A=i.join(a,M);if(u.existsSync(C)){const W=u.existsSync(A)?u.readdirSync(A).length:0;O(C,A);const L=u.existsSync(A)?u.readdirSync(A).length:0;console.log(`Copied ${M} folder from ${C} to ${A} (${L-W} files)`)}else console.log(`  Source ${M} folder does not exist:`,C)}v=!0;break}catch(m){console.warn("Failed to copy user-documents folders from",p,":",m)}}v||console.warn("⚠️ user-documents folders were not copied. Checked paths:",y);const w=i.join(a,"ai-templates");u.existsSync(w)||u.mkdirSync(w,{recursive:!0});const I=n.app.getAppPath(),P=[i.join(process.resourcesPath||"","src","ai-templates"),i.join(process.resourcesPath||"","app.asar.unpacked","src","ai-templates"),i.join(__dirname,"../src/ai-templates"),i.join(__dirname,"../../src/ai-templates"),i.join(I,"src/ai-templates"),i.join(process.cwd(),"src/ai-templates")];let S=0;const B=(u.existsSync(w)?u.readdirSync(w).filter(p=>p.endsWith(".js")):[]).length===0;B&&console.log("AI templates folder is empty, will copy template files...");for(const p of P)if(u.existsSync(p))try{console.log("Checking AI templates source path:",p);const g=u.readdirSync(p,{withFileTypes:!0});console.log(`Found ${g.length} entries in ${p}`);for(const m of g)if(m.isFile()&&m.name.endsWith(".js")){const M=i.join(p,m.name),C=i.join(w,m.name);!u.existsSync(C)||B?(u.copyFileSync(M,C),console.log("Copied AI template file:",m.name,"to",C),S++):console.log("Skipped AI template file (already exists):",m.name)}if(S>0){console.log(`Successfully copied ${S} AI template file(s) from ${p}`);break}}catch(g){console.warn("Failed to copy AI templates from",p,":",g)}else console.log("AI templates source path does not exist:",p);S===0&&(console.warn("⚠️ No AI template files were copied. Checked paths:",P),console.warn("   This might indicate the template files are not included in the build."));const T=["midi mapping","sets"];for(const p of T){const g=i.join(a,p);if(u.existsSync(g)){const m=u.readdirSync(g);m.length===0?console.warn(`⚠️ ${p} folder exists but is empty. Files may not have been copied from installer.`):console.log(`✓ ${p} folder has ${m.length} file(s)`)}else console.warn(`⚠️ ${p} folder was not created. Files may not have been found in installer.`)}}catch(c){console.error("Failed to initialize user Documents folders:",c)}}function O(c,a){u.existsSync(a)||u.mkdirSync(a,{recursive:!0});const t=u.readdirSync(c,{withFileTypes:!0});for(const o of t){const e=i.join(c,o.name),r=i.join(a,o.name);o.isDirectory()?O(e,r):u.existsSync(r)||u.copyFileSync(e,r)}}function N(){const c=R();console.log("Creating window with icon path:",c);let a;if(c)try{a=n.nativeImage.createFromPath(c),a&&!a.isEmpty()?console.log("Icon loaded successfully, size:",a.getSize()):console.warn("Icon file found but failed to load or is empty")}catch(e){console.error("Error loading icon:",e)}s=new n.BrowserWindow({width:1200,height:800,frame:!1,titleBarStyle:"hidden",icon:a,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:i.join(__dirname,"preload.js"),backgroundThrottling:!1},show:!1});const t=i.join(__dirname,"preload.js");if(console.log("Preload script path:",t),console.log("Preload script exists:",require("fs").existsSync(t)),require("fs").existsSync(t)){const e=require("fs").readFileSync(t,"utf8");console.log("Preload script first 200 chars:",e.substring(0,200))}s.webContents.session.webRequest.onHeadersReceived((e,r)=>{console.log("Setting CSP headers for URL:",e.url);const d={...e.responseHeaders,"Content-Security-Policy":[]};console.log("CSP headers disabled for development"),r({responseHeaders:d})}),s.once("ready-to-show",()=>{if(s.show(),s.webContents.setBackgroundThrottling(!1),process.platform==="win32"&&a)try{s.setIcon(a),console.log("Forced icon update on window after show")}catch(e){console.error("Error forcing icon update:",e)}});try{s.webContents.setWindowOpenHandler(e=>e.frameName==="output-canvas"?{action:"allow",overrideBrowserWindowOptions:{title:"Output",frame:!1,titleBarStyle:"hidden",autoHideMenuBar:!0,backgroundColor:"#000000",fullscreenable:!0,resizable:!0,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,backgroundThrottling:!1}}}:{action:"allow"}),s.webContents.on("did-create-window",(e,r)=>{try{if(r?.frameName==="output-canvas"){D=e;try{e.removeMenu()}catch{}try{e.setMenuBarVisibility(!1)}catch{}try{e.webContents.setBackgroundThrottling(!1)}catch{}try{_&&isFinite(_)&&_>0&&e.setAspectRatio(_)}catch{}try{e.on("closed",()=>{D=null})}catch{}}}catch{}})}catch{}if(s.on("maximize",()=>{try{s?.webContents.send("window-state",{maximized:!0})}catch{}}),s.on("unmaximize",()=>{try{s?.webContents.send("window-state",{maximized:!1})}catch{}}),process.env.NODE_ENV==="development"||!n.app.isPackaged){console.log("Running in development mode");const e=process.env.VITE_DEV_SERVER_URL||process.env.ELECTRON_RENDERER_URL,r=Number(process.env.VITE_DEV_SERVER_PORT||5173),d=[],f=y=>{y&&(d.includes(y)||d.push(y))};f(e),f(`http://localhost:${r}`),f(`http://127.0.0.1:${r}`);const h=(y,v=0)=>{if(!s)return;if(y.length===0){console.warn("All dev server attempts failed; showing inline error page");const S=d.filter(Boolean),x=`<!DOCTYPE html>
+"use strict";
+const electron = require("electron");
+const fs = require("fs");
+const path = require("path");
+class SpoutSender {
+  constructor() {
+    this.sender = null;
+    this.senderName = null;
+    this.lastFrameAtMs = 0;
+  }
+  start(senderName) {
+    if (process.platform !== "win32") {
+      return { ok: false, error: "Spout output is only supported on Windows." };
+    }
+    const safeName = String(senderName || "").trim() || "Sonomika Output";
+    if (this.sender && this.senderName === safeName) return { ok: true };
+    if (this.sender) this.stop();
+    const addon = this.tryLoadAddon();
+    if (!addon) {
+      return {
+        ok: false,
+        error: "Spout addon not found. Build/copy `electron_spout.node` and ensure it is unpacked (not inside asar)."
+      };
+    }
+    try {
+      this.sender = new addon.SpoutOutput(safeName);
+      this.senderName = safeName;
+      this.lastFrameAtMs = 0;
+      return { ok: true };
+    } catch (e) {
+      this.sender = null;
+      this.senderName = null;
+      return { ok: false, error: `Failed to create Spout sender: ${String(e)}` };
+    }
+  }
+  stop() {
+    try {
+      const s = this.sender;
+      if (s && typeof s.close === "function") s.close();
+      if (s && typeof s.release === "function") s.release();
+      if (s && typeof s.dispose === "function") s.dispose();
+    } catch {
+    }
+    this.sender = null;
+    this.senderName = null;
+  }
+  isRunning() {
+    return !!this.sender;
+  }
+  pushDataUrlFrame(dataUrl, opts) {
+    const sender = this.sender;
+    if (!sender) return;
+    const maxFps = Math.max(1, Number(opts?.maxFps ?? 60) || 60);
+    const now = Date.now();
+    const interval = 1e3 / maxFps;
+    if (now - this.lastFrameAtMs < interval) return;
+    try {
+      const img = electron.nativeImage.createFromDataURL(String(dataUrl || ""));
+      if (img.isEmpty()) return;
+      sender.updateFrame(Buffer.from(img.toBitmap()), img.getSize());
+      this.lastFrameAtMs = now;
+    } catch {
+    }
+  }
+  tryLoadAddon() {
+    const attempts = [
+      // 1) If required from CWD / node_modules-style.
+      () => require("electron_spout.node"),
+      () => require("electron-spout.node"),
+      // 2) Common dev locations (project root).
+      () => require(path.join(process.cwd(), "electron_spout.node")),
+      () => require(path.join(process.cwd(), "electron-spout.node")),
+      () => require(path.join(process.cwd(), "native", "electron_spout.node")),
+      () => require(path.join(process.cwd(), "native", "electron-spout.node")),
+      // 3) Production: resources path unpacked (recommended for .node).
+      () => require(path.join(process.resourcesPath || "", "electron_spout.node")),
+      () => require(path.join(process.resourcesPath || "", "electron-spout.node")),
+      () => require(path.join(process.resourcesPath || "", "app.asar.unpacked", "electron_spout.node")),
+      () => require(path.join(process.resourcesPath || "", "app.asar.unpacked", "electron-spout.node")),
+      () => require(path.join(process.resourcesPath || "", "app.asar.unpacked", "native", "electron_spout.node")),
+      () => require(path.join(process.resourcesPath || "", "app.asar.unpacked", "native", "electron-spout.node"))
+    ];
+    for (const load of attempts) {
+      try {
+        const mod = load();
+        if (mod && mod.SpoutOutput) return mod;
+      } catch {
+      }
+    }
+    return null;
+  }
+}
+const shouldMuteConsole = process.env.VJ_DEBUG_LOGS !== "true";
+const originalLog = console.log;
+const originalWarn = console.warn;
+if (shouldMuteConsole) {
+  const noop = () => {
+  };
+  console.log = (...args) => {
+    const message = args.join(" ");
+    if (message.includes("ICON") || message.includes("APP PATHS") || message.includes("RESOLVED") || message.includes("NO ICON") || message.includes("process.cwd") || message.includes("__dirname") || message.includes("Checking icon") || message.includes("✓") || message.includes("✗") || message.includes("Creating window") || message.includes("Icon loaded") || message.includes("user model") || message.includes("taskbar")) {
+      originalLog(...args);
+    }
+  };
+  console.warn = (...args) => {
+    const message = args.join(" ");
+    if (message.includes("ICON") || message.includes("APP PATHS")) {
+      originalWarn(...args);
+    }
+  };
+  console.info = noop;
+}
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
+const gotTheLock = electron.app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.log("Another instance is already running, quitting...");
+  electron.app.quit();
+} else {
+  electron.app.on("second-instance", () => {
+    const windows = electron.BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      if (windows[0].isMinimized()) windows[0].restore();
+      windows[0].focus();
+    }
+  });
+}
+let mainWindow = null;
+let mirrorWindow = null;
+let mirrorPowerSaveBlockId = null;
+let outputWindow = null;
+let outputAspectRatio = null;
+let mirrorAspectRatio = null;
+const advancedMirrorWindows = /* @__PURE__ */ new Map();
+let encryptedAuthStore = {};
+const spoutSender = new SpoutSender();
+function resolveAppIconPath() {
+  console.log("=== ICON RESOLUTION DEBUG ===");
+  console.log("process.cwd():", process.cwd());
+  console.log("__dirname:", __dirname);
+  console.log("process.resourcesPath:", process.resourcesPath);
+  console.log("app.getAppPath():", electron.app.getAppPath());
+  console.log("app.getPath(exe):", electron.app.getPath("exe"));
+  const candidates = [
+    // On Windows, prefer ICO files first (better for window/taskbar icons)
+    ...process.platform === "win32" ? [
+      path.join(process.resourcesPath || "", "icons", "icon.ico"),
+      path.join(__dirname, "../icons/icon.ico"),
+      path.join(__dirname, "../../public/icons/icon.ico"),
+      path.join(__dirname, "../public/icons/icon.ico"),
+      path.join(process.cwd(), "public", "icons", "icon.ico"),
+      // Fallback to old name for backwards compatibility
+      path.join(process.resourcesPath || "", "icons", "sonomika_icon_2.ico"),
+      path.join(__dirname, "../icons/sonomika_icon_2.ico")
+    ] : [],
+    // Then check PNG files (fallback or for non-Windows)
+    path.join(process.resourcesPath || "", "icons", "icon.png"),
+    path.join(__dirname, "../icons/icon.png"),
+    path.join(__dirname, "../../public/icons/icon.png"),
+    path.join(__dirname, "../public/icons/icon.png"),
+    path.join(process.cwd(), "public", "icons", "icon.png"),
+    // Fallback to old name for backwards compatibility
+    path.join(process.resourcesPath || "", "icons", "sonomika_icon_2.png"),
+    path.join(__dirname, "../icons/sonomika_icon_2.png")
+  ];
+  console.log("Checking icon candidates:");
+  for (const p of candidates) {
+    const exists = fs.existsSync(p);
+    console.log(`  ${exists ? "✓" : "✗"} ${p}`);
+    if (exists) {
+      try {
+        const stats = fs.statSync(p);
+        console.log(`    Size: ${stats.size} bytes, Modified: ${stats.mtime}`);
+      } catch (e) {
+        console.log(`    (Could not stat file)`);
+      }
+      console.log("=== RESOLVED ICON PATH ===");
+      return p;
+    }
+  }
+  console.log("=== NO ICON FOUND ===");
+  return void 0;
+}
+function getAuthStoreFilePath() {
+  const userData = electron.app.getPath("userData");
+  return path.join(userData, "auth_store.json");
+}
+function loadEncryptedAuthStoreFromDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    if (fs.existsSync(fp)) {
+      const raw = fs.readFileSync(fp, "utf8");
+      const json = JSON.parse(raw);
+      encryptedAuthStore = Object.fromEntries(
+        Object.entries(json).map(([k, base64]) => [k, Buffer.from(base64, "base64")])
+      );
+    }
+  } catch (e) {
+    console.warn("Failed to load encrypted auth store, starting empty:", e);
+    encryptedAuthStore = {};
+  }
+}
+function persistEncryptedAuthStoreToDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    const dir = path.dirname(fp);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const json = Object.fromEntries(
+      Object.entries(encryptedAuthStore).map(([k, buf]) => [k, buf.toString("base64")])
+    );
+    fs.writeFileSync(fp, JSON.stringify(json), "utf8");
+  } catch (e) {
+    console.warn("Failed to persist encrypted auth store:", e);
+  }
+}
+function initializeUserDocumentsFolders() {
+  try {
+    const documentsPath = electron.app.getPath("documents");
+    const sonomikaDocsPath = path.join(documentsPath, "Sonomika");
+    if (!fs.existsSync(sonomikaDocsPath)) {
+      fs.mkdirSync(sonomikaDocsPath, { recursive: true });
+      console.log("Created Sonomika folder in Documents:", sonomikaDocsPath);
+    }
+    const folders = ["bank", "music", "recordings", "video", "ai-templates"];
+    for (const folderName of folders) {
+      const folderPath = path.join(sonomikaDocsPath, folderName);
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+        console.log("Created folder:", folderPath);
+      }
+    }
+    const bankSourcePaths = [
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "bank"),
+      path.join(__dirname, "../bank"),
+      path.join(process.cwd(), "bank")
+    ];
+    const bankDestPath = path.join(sonomikaDocsPath, "bank");
+    let bankCopied = false;
+    for (const sourcePath of bankSourcePaths) {
+      if (fs.existsSync(sourcePath) && !bankCopied) {
+        try {
+          copyDirectoryRecursive(sourcePath, bankDestPath);
+          console.log("Copied bank folder from", sourcePath, "to", bankDestPath);
+          bankCopied = true;
+        } catch (e) {
+          console.warn("Failed to copy bank folder from", sourcePath, ":", e);
+        }
+      }
+    }
+    const setsSourcePaths = [
+      // Production: extraResources location (user-documents)
+      path.join(process.resourcesPath || "", "user-documents", "sets"),
+      // Production: asarUnpack location
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "user-documents", "sets"),
+      // Development paths
+      path.join(__dirname, "../user-documents", "sets"),
+      path.join(process.cwd(), "user-documents", "sets"),
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "sets"),
+      path.join(__dirname, "../sets"),
+      path.join(process.cwd(), "sets")
+    ];
+    const setsDestPath = path.join(sonomikaDocsPath, "sets");
+    let setsCopied = false;
+    console.log("Looking for sets folder in source paths...");
+    console.log("process.resourcesPath:", process.resourcesPath);
+    for (const sourcePath of setsSourcePaths) {
+      const exists = fs.existsSync(sourcePath);
+      console.log("  Checking:", sourcePath, exists ? "✓ EXISTS" : "✗ NOT FOUND");
+      if (exists) {
+        try {
+          const filesBefore = fs.existsSync(setsDestPath) ? fs.readdirSync(setsDestPath).length : 0;
+          copyDirectoryRecursive(sourcePath, setsDestPath);
+          const filesAfter = fs.existsSync(setsDestPath) ? fs.readdirSync(setsDestPath).length : 0;
+          console.log(`Copied sets folder from ${sourcePath} to ${setsDestPath} (${filesAfter - filesBefore} files)`);
+          setsCopied = true;
+          break;
+        } catch (e) {
+          console.warn("Failed to copy sets folder from", sourcePath, ":", e);
+        }
+      }
+    }
+    if (!setsCopied) {
+      console.warn("⚠️ Sets folder was not copied. Checked paths:", setsSourcePaths);
+    }
+    const userDocsSourcePaths = [
+      // Production: extraResources location (most likely)
+      path.join(process.resourcesPath || "", "user-documents"),
+      // Production: asarUnpack location
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "user-documents"),
+      // Development paths
+      path.join(__dirname, "../user-documents"),
+      path.join(process.cwd(), "user-documents")
+    ];
+    console.log("Looking for user-documents folder in source paths...");
+    let userDocsCopied = false;
+    for (const userDocsSource of userDocsSourcePaths) {
+      const exists = fs.existsSync(userDocsSource);
+      console.log("  Checking:", userDocsSource, exists ? "✓ EXISTS" : "✗ NOT FOUND");
+      if (exists) {
+        try {
+          const subfolders = ["midi mapping", "music", "recordings", "video"];
+          for (const subfolder of subfolders) {
+            const srcSubfolder = path.join(userDocsSource, subfolder);
+            const destSubfolder = path.join(sonomikaDocsPath, subfolder);
+            if (fs.existsSync(srcSubfolder)) {
+              const filesBefore = fs.existsSync(destSubfolder) ? fs.readdirSync(destSubfolder).length : 0;
+              copyDirectoryRecursive(srcSubfolder, destSubfolder);
+              const filesAfter = fs.existsSync(destSubfolder) ? fs.readdirSync(destSubfolder).length : 0;
+              console.log(`Copied ${subfolder} folder from ${srcSubfolder} to ${destSubfolder} (${filesAfter - filesBefore} files)`);
+            } else {
+              console.log(`  Source ${subfolder} folder does not exist:`, srcSubfolder);
+            }
+          }
+          userDocsCopied = true;
+          break;
+        } catch (e) {
+          console.warn("Failed to copy user-documents folders from", userDocsSource, ":", e);
+        }
+      }
+    }
+    if (!userDocsCopied) {
+      console.warn("⚠️ user-documents folders were not copied. Checked paths:", userDocsSourcePaths);
+    }
+    const aiTemplatesDestPath = path.join(sonomikaDocsPath, "ai-templates");
+    if (!fs.existsSync(aiTemplatesDestPath)) {
+      fs.mkdirSync(aiTemplatesDestPath, { recursive: true });
+    }
+    const appPath = electron.app.getAppPath();
+    const aiTemplatesSourcePaths = [
+      // Production: extraResources location (most likely)
+      path.join(process.resourcesPath || "", "src", "ai-templates"),
+      // Production: asarUnpack location
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "src", "ai-templates"),
+      // Development: relative to compiled main.js
+      path.join(__dirname, "../src/ai-templates"),
+      path.join(__dirname, "../../src/ai-templates"),
+      // Development: relative to app path
+      path.join(appPath, "src/ai-templates"),
+      // Development: current working directory
+      path.join(process.cwd(), "src/ai-templates")
+    ];
+    let templatesCopied = 0;
+    const destEntries = fs.existsSync(aiTemplatesDestPath) ? fs.readdirSync(aiTemplatesDestPath).filter((f) => f.endsWith(".js")) : [];
+    const isDestEmpty = destEntries.length === 0;
+    if (isDestEmpty) {
+      console.log("AI templates folder is empty, will copy template files...");
+    }
+    for (const sourcePath of aiTemplatesSourcePaths) {
+      if (fs.existsSync(sourcePath)) {
+        try {
+          console.log("Checking AI templates source path:", sourcePath);
+          const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
+          console.log(`Found ${entries.length} entries in ${sourcePath}`);
+          for (const entry of entries) {
+            if (entry.isFile() && entry.name.endsWith(".js")) {
+              const srcFile = path.join(sourcePath, entry.name);
+              const destFile = path.join(aiTemplatesDestPath, entry.name);
+              if (!fs.existsSync(destFile) || isDestEmpty) {
+                fs.copyFileSync(srcFile, destFile);
+                console.log("Copied AI template file:", entry.name, "to", destFile);
+                templatesCopied++;
+              } else {
+                console.log("Skipped AI template file (already exists):", entry.name);
+              }
+            }
+          }
+          if (templatesCopied > 0) {
+            console.log(`Successfully copied ${templatesCopied} AI template file(s) from ${sourcePath}`);
+            break;
+          }
+        } catch (e) {
+          console.warn("Failed to copy AI templates from", sourcePath, ":", e);
+        }
+      } else {
+        console.log("AI templates source path does not exist:", sourcePath);
+      }
+    }
+    if (templatesCopied === 0) {
+      console.warn("⚠️ No AI template files were copied. Checked paths:", aiTemplatesSourcePaths);
+      console.warn("   This might indicate the template files are not included in the build.");
+    }
+    const foldersToCheck = ["midi mapping", "sets"];
+    for (const folderName of foldersToCheck) {
+      const folderPath = path.join(sonomikaDocsPath, folderName);
+      if (fs.existsSync(folderPath)) {
+        const files = fs.readdirSync(folderPath);
+        if (files.length === 0) {
+          console.warn(`⚠️ ${folderName} folder exists but is empty. Files may not have been copied from installer.`);
+        } else {
+          console.log(`✓ ${folderName} folder has ${files.length} file(s)`);
+        }
+      } else {
+        console.warn(`⚠️ ${folderName} folder was not created. Files may not have been found in installer.`);
+      }
+    }
+  } catch (e) {
+    console.error("Failed to initialize user Documents folders:", e);
+  }
+}
+function copyDirectoryRecursive(src, dest) {
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectoryRecursive(srcPath, destPath);
+    } else {
+      if (!fs.existsSync(destPath)) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+}
+function createWindow() {
+  const appIconPath = resolveAppIconPath();
+  console.log("Creating window with icon path:", appIconPath);
+  let appIcon = void 0;
+  if (appIconPath) {
+    try {
+      appIcon = electron.nativeImage.createFromPath(appIconPath);
+      if (appIcon && !appIcon.isEmpty()) {
+        console.log("Icon loaded successfully, size:", appIcon.getSize());
+      } else {
+        console.warn("Icon file found but failed to load or is empty");
+      }
+    } catch (e) {
+      console.error("Error loading icon:", e);
+    }
+  }
+  mainWindow = new electron.BrowserWindow({
+    width: 1200,
+    height: 800,
+    frame: false,
+    // Remove default window frame
+    titleBarStyle: "hidden",
+    icon: appIcon,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, "preload.js"),
+      backgroundThrottling: false
+    },
+    show: false
+    // Don't show until ready
+  });
+  const preloadPath = path.join(__dirname, "preload.js");
+  console.log("Preload script path:", preloadPath);
+  console.log("Preload script exists:", require("fs").existsSync(preloadPath));
+  if (require("fs").existsSync(preloadPath)) {
+    const preloadContent = require("fs").readFileSync(preloadPath, "utf8");
+    console.log("Preload script first 200 chars:", preloadContent.substring(0, 200));
+  }
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    console.log("Setting CSP headers for URL:", details.url);
+    const responseHeaders = {
+      ...details.responseHeaders,
+      "Content-Security-Policy": []
+    };
+    console.log("CSP headers disabled for development");
+    callback({
+      responseHeaders
+    });
+  });
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
+    mainWindow.webContents.setBackgroundThrottling(false);
+    if (process.platform === "win32" && appIcon) {
+      try {
+        mainWindow.setIcon(appIcon);
+        console.log("Forced icon update on window after show");
+      } catch (e) {
+        console.error("Error forcing icon update:", e);
+      }
+    }
+  });
+  try {
+    mainWindow.webContents.setWindowOpenHandler((details) => {
+      const isOutput = details.frameName === "output-canvas";
+      if (isOutput) {
+        return {
+          action: "allow",
+          overrideBrowserWindowOptions: {
+            title: "Output",
+            frame: false,
+            titleBarStyle: "hidden",
+            autoHideMenuBar: true,
+            backgroundColor: "#000000",
+            fullscreenable: true,
+            resizable: true,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true,
+              sandbox: false,
+              backgroundThrottling: false
+            }
+          }
+        };
+      }
+      return { action: "allow" };
+    });
+    mainWindow.webContents.on("did-create-window", (childWindow, details) => {
+      try {
+        if (details?.frameName === "output-canvas") {
+          outputWindow = childWindow;
+          try {
+            childWindow.removeMenu();
+          } catch {
+          }
+          try {
+            childWindow.setMenuBarVisibility(false);
+          } catch {
+          }
+          try {
+            childWindow.webContents.setBackgroundThrottling(false);
+          } catch {
+          }
+          try {
+            if (outputAspectRatio && isFinite(outputAspectRatio) && outputAspectRatio > 0) {
+              childWindow.setAspectRatio(outputAspectRatio);
+            }
+          } catch {
+          }
+          try {
+            childWindow.on("closed", () => {
+              outputWindow = null;
+            });
+          } catch {
+          }
+        }
+      } catch {
+      }
+    });
+  } catch {
+  }
+  mainWindow.on("maximize", () => {
+    try {
+      mainWindow?.webContents.send("window-state", { maximized: true });
+    } catch {
+    }
+  });
+  mainWindow.on("unmaximize", () => {
+    try {
+      mainWindow?.webContents.send("window-state", { maximized: false });
+    } catch {
+    }
+  });
+  const isDev = process.env.NODE_ENV === "development" || !electron.app.isPackaged;
+  if (isDev) {
+    console.log("Running in development mode");
+    const preferredUrl = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL;
+    const port = Number(process.env.VITE_DEV_SERVER_PORT || 5173);
+    const candidates = [];
+    const appendCandidate = (url) => {
+      if (!url) return;
+      if (!candidates.includes(url)) {
+        candidates.push(url);
+      }
+    };
+    appendCandidate(preferredUrl);
+    appendCandidate(`http://localhost:${port}`);
+    appendCandidate(`http://127.0.0.1:${port}`);
+    const loadSequentially = (remaining, attempt = 0) => {
+      if (!mainWindow) return;
+      if (remaining.length === 0) {
+        console.warn("All dev server attempts failed; showing inline error page");
+        const safeCandidates = candidates.filter(Boolean);
+        const html = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -15,7 +586,7 @@
   </head>
   <body>
     <h1>Dev Server Not Available</h1>
-    <p>Could not connect to the Vite dev server on port ${r}.</p>
+    <p>Could not connect to the Vite dev server on port ${port}.</p>
     <p class="muted">This window will keep retrying automatically.</p>
     <p>Make sure it is running with:</p>
     <pre>cd "${process.cwd()}"
@@ -26,7 +597,7 @@ npm run dev:electron</pre>
     </div>
     <script>
       (function () {
-        const candidates = ${JSON.stringify(S)};
+        const candidates = ${JSON.stringify(safeCandidates)};
         const statusEl = document.getElementById('status');
         const setStatus = (t) => { try { statusEl.textContent = t; } catch {} };
 
@@ -55,7 +626,133 @@ npm run dev:electron</pre>
       })();
     <\/script>
   </body>
-</html>`;s.loadURL(`data:text/html,${encodeURIComponent(x)}`);return}const w=y[0],I=y.slice(1),P=v+1;console.log(`Trying dev server URL: ${w} (attempt ${P})`),s.loadURL(w).then(()=>{console.log(`Electron loaded renderer from ${w}`),s?.webContents.openDevTools({mode:"detach"})}).catch(S=>{console.warn(`Failed to load ${w}: ${S?.message||S}`);const x=Math.min(5e3,1e3*Math.pow(2,v));console.log(`Retrying with next candidate in ${x}ms`),setTimeout(()=>h(I,P),x)})};setTimeout(()=>h(d),1200)}else{console.log("Running in production mode");const e=n.app.getAppPath(),r=[i.join(e,"dist/index.html"),i.join(__dirname,"../dist/index.html"),i.join(__dirname,"../web/index.html")],d=r.find(f=>{try{return u.existsSync(f)}catch{return!1}});d?(console.log("Loading production file:",d),s.loadFile(d)):(console.error("No production index.html found at",r),console.error("App path:",e),console.error("__dirname:",__dirname),s.loadURL("data:text/html,<html><body><h1>VJ App</h1><p>Missing build.</p></body></html>"))}s.webContents.on("did-finish-load",()=>{console.log("Window loaded successfully")});try{s.webContents.on("render-process-gone",(e,r)=>{console.error("[electron] render-process-gone",r)}),s.webContents.on("unresponsive",()=>{console.error("[electron] webContents became unresponsive")}),s.webContents.on("media-started-playing",()=>{console.log("[electron] media-started-playing")}),s.webContents.on("media-paused",()=>{console.log("[electron] media-paused")})}catch{}s.webContents.on("did-fail-load",(e,r,d)=>{console.error("Failed to load:",r,d)}),s.on("closed",()=>{s=null})}function Y(){if(l&&!l.isDestroyed()){l.focus();return}const c=R();console.log("Creating mirror window with icon path:",c);let a;if(c)try{a=n.nativeImage.createFromPath(c),a&&!a.isEmpty()?console.log("Mirror window icon loaded successfully, size:",a.getSize()):console.warn("Mirror window icon file found but failed to load or is empty")}catch(o){console.error("Error loading mirror window icon:",o)}l=new n.BrowserWindow({width:1920,height:1080,title:"sonomika",icon:a,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:i.join(__dirname,"mirror-preload.js"),backgroundThrottling:!1},show:!1,resizable:!0,maximizable:!0,fullscreen:!1,kiosk:!1,alwaysOnTop:!0,skipTaskbar:!1,focusable:!0,movable:!0,frame:!1,titleBarStyle:"hidden",transparent:!1,fullscreenable:!0,autoHideMenuBar:!0,minWidth:480,minHeight:270}),l.loadURL(`data:text/html,${encodeURIComponent(`
+</html>`;
+        mainWindow.loadURL(`data:text/html,${encodeURIComponent(html)}`);
+        return;
+      }
+      const url = remaining[0];
+      const remainingNext = remaining.slice(1);
+      const nextAttempt = attempt + 1;
+      console.log(`Trying dev server URL: ${url} (attempt ${nextAttempt})`);
+      mainWindow.loadURL(url).then(() => {
+        console.log(`Electron loaded renderer from ${url}`);
+        mainWindow?.webContents.openDevTools({ mode: "detach" });
+      }).catch((error) => {
+        console.warn(`Failed to load ${url}: ${error?.message || error}`);
+        const backoff = Math.min(5e3, 1e3 * Math.pow(2, attempt));
+        console.log(`Retrying with next candidate in ${backoff}ms`);
+        setTimeout(() => loadSequentially(remainingNext, nextAttempt), backoff);
+      });
+    };
+    setTimeout(() => loadSequentially(candidates), 1200);
+  } else {
+    console.log("Running in production mode");
+    const appPath = electron.app.getAppPath();
+    const prodCandidates = [
+      path.join(appPath, "dist/index.html"),
+      path.join(__dirname, "../dist/index.html"),
+      path.join(__dirname, "../web/index.html")
+    ];
+    const found = prodCandidates.find((p) => {
+      try {
+        return fs.existsSync(p);
+      } catch {
+        return false;
+      }
+    });
+    if (found) {
+      console.log("Loading production file:", found);
+      mainWindow.loadFile(found);
+    } else {
+      console.error("No production index.html found at", prodCandidates);
+      console.error("App path:", appPath);
+      console.error("__dirname:", __dirname);
+      mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Missing build.</p></body></html>`);
+    }
+  }
+  mainWindow.webContents.on("did-finish-load", () => {
+    console.log("Window loaded successfully");
+  });
+  try {
+    mainWindow.webContents.on("render-process-gone", (_e, details) => {
+      console.error("[electron] render-process-gone", details);
+    });
+    mainWindow.webContents.on("unresponsive", () => {
+      console.error("[electron] webContents became unresponsive");
+    });
+    mainWindow.webContents.on("media-started-playing", () => {
+      console.log("[electron] media-started-playing");
+    });
+    mainWindow.webContents.on("media-paused", () => {
+      console.log("[electron] media-paused");
+    });
+  } catch {
+  }
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
+    console.error("Failed to load:", errorCode, errorDescription);
+  });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+}
+function createMirrorWindow() {
+  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+    mirrorWindow.focus();
+    return;
+  }
+  const appIconPath = resolveAppIconPath();
+  console.log("Creating mirror window with icon path:", appIconPath);
+  let appIcon = void 0;
+  if (appIconPath) {
+    try {
+      appIcon = electron.nativeImage.createFromPath(appIconPath);
+      if (appIcon && !appIcon.isEmpty()) {
+        console.log("Mirror window icon loaded successfully, size:", appIcon.getSize());
+      } else {
+        console.warn("Mirror window icon file found but failed to load or is empty");
+      }
+    } catch (e) {
+      console.error("Error loading mirror window icon:", e);
+    }
+  }
+  mirrorWindow = new electron.BrowserWindow({
+    width: 1920,
+    // Start with standard HD size; will be resized to canvas dimensions
+    height: 1080,
+    // Start with standard HD size; will be resized to canvas dimensions
+    title: "sonomika",
+    icon: appIcon,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, "mirror-preload.js"),
+      backgroundThrottling: false
+    },
+    show: false,
+    resizable: true,
+    // Allow resizing
+    maximizable: true,
+    // Allow maximizing
+    fullscreen: false,
+    kiosk: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    focusable: true,
+    movable: true,
+    frame: false,
+    // Keep borderless but add custom controls
+    titleBarStyle: "hidden",
+    transparent: false,
+    fullscreenable: true,
+    autoHideMenuBar: true,
+    minWidth: 480,
+    // Minimum size
+    minHeight: 270
+  });
+  const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -183,11 +880,111 @@ npm run dev:electron</pre>
       <\/script>
     </body>
     </html>
-  `)}`),l.once("ready-to-show",()=>{l.show(),l.center();try{l.setAspectRatio(F||1920/1080)}catch{}try{j==null&&(j=n.powerSaveBlocker.start("prevent-display-sleep")),l.webContents.setBackgroundThrottling(!1)}catch{}}),l.webContents.on("before-input-event",(o,e)=>{e.key==="Escape"&&l.close()}),l.on("closed",()=>{try{j!=null&&n.powerSaveBlocker.stop(j)}catch{}j=null,console.log("Mirror window closed, notifying main app"),s&&!s.isDestroyed()&&s.webContents.send("mirror-window-closed"),l=null})}function Q(){l&&!l.isDestroyed()&&(l.close(),l=null)}function X(c,a){const t=k.get(c);if(t&&!t.isDestroyed()){try{t.focus()}catch{}return t}const o=i.join(__dirname,"mirror-preload.js"),e=i.join(__dirname,"preload.js"),r=u.existsSync(o)?o:e,d=R(),f=d?n.nativeImage.createFromPath(d):void 0,h=new n.BrowserWindow({width:a?.width??960,height:a?.height??540,x:a?.x,y:a?.y,title:a?.title??`VJ Mirror Slice: ${c}`,icon:f,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:r},show:!1,resizable:!0,maximizable:!0,fullscreen:!1,kiosk:!1,alwaysOnTop:!0,skipTaskbar:!1,focusable:!0,movable:!0,frame:!1,titleBarStyle:"hidden",transparent:!1,thickFrame:!1,hasShadow:!1,backgroundColor:"#000000",fullscreenable:!0,autoHideMenuBar:!0,minWidth:320,minHeight:180});try{h.setMenuBarVisibility(!1)}catch{}try{h.removeMenu()}catch{}const y=`
+  `;
+  mirrorWindow.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
+  mirrorWindow.once("ready-to-show", () => {
+    mirrorWindow.show();
+    mirrorWindow.center();
+    try {
+      mirrorWindow.setAspectRatio(mirrorAspectRatio || 1920 / 1080);
+    } catch {
+    }
+    try {
+      if (mirrorPowerSaveBlockId == null) {
+        mirrorPowerSaveBlockId = electron.powerSaveBlocker.start("prevent-display-sleep");
+      }
+      mirrorWindow.webContents.setBackgroundThrottling(false);
+    } catch {
+    }
+  });
+  mirrorWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.key === "Escape") {
+      mirrorWindow.close();
+    }
+  });
+  mirrorWindow.on("closed", () => {
+    try {
+      if (mirrorPowerSaveBlockId != null) {
+        electron.powerSaveBlocker.stop(mirrorPowerSaveBlockId);
+      }
+    } catch {
+    }
+    mirrorPowerSaveBlockId = null;
+    console.log("Mirror window closed, notifying main app");
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("mirror-window-closed");
+    }
+    mirrorWindow = null;
+  });
+}
+function closeMirrorWindow() {
+  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+    mirrorWindow.close();
+    mirrorWindow = null;
+  }
+}
+function createAdvancedMirrorWindow(id, opts) {
+  const existing = advancedMirrorWindows.get(id);
+  if (existing && !existing.isDestroyed()) {
+    try {
+      existing.focus();
+    } catch {
+    }
+    return existing;
+  }
+  const mirrorPreload = path.join(__dirname, "mirror-preload.js");
+  const fallbackPreload = path.join(__dirname, "preload.js");
+  const preloadPath = fs.existsSync(mirrorPreload) ? mirrorPreload : fallbackPreload;
+  const appIconPath = resolveAppIconPath();
+  const appIcon = appIconPath ? electron.nativeImage.createFromPath(appIconPath) : void 0;
+  const win = new electron.BrowserWindow({
+    width: opts?.width ?? 960,
+    height: opts?.height ?? 540,
+    x: opts?.x,
+    y: opts?.y,
+    title: opts?.title ?? `VJ Mirror Slice: ${id}`,
+    icon: appIcon,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: preloadPath
+    },
+    show: false,
+    resizable: true,
+    maximizable: true,
+    fullscreen: false,
+    kiosk: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    focusable: true,
+    movable: true,
+    frame: false,
+    titleBarStyle: "hidden",
+    transparent: false,
+    thickFrame: false,
+    hasShadow: false,
+    backgroundColor: "#000000",
+    fullscreenable: true,
+    autoHideMenuBar: true,
+    minWidth: 320,
+    minHeight: 180
+  });
+  try {
+    win.setMenuBarVisibility(false);
+  } catch {
+  }
+  try {
+    win.removeMenu();
+  } catch {
+  }
+  const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${a?.title??`VJ Mirror Slice: ${c}`}</title>
+      <title>${opts?.title ?? `VJ Mirror Slice: ${id}`}</title>
       <style>
         body {
           margin: 0;
@@ -220,33 +1017,954 @@ npm run dev:electron</pre>
       <img id="mirror-image" style="display: none;" onload="this.classList.add('loaded');">
       <script>
         function toggleFullscreen() {
-          try { window.advancedMirror && window.advancedMirror.toggleSliceFullscreen && window.advancedMirror.toggleSliceFullscreen('${c}'); } catch {}
+          try { window.advancedMirror && window.advancedMirror.toggleSliceFullscreen && window.advancedMirror.toggleSliceFullscreen('${id}'); } catch {}
         }
       <\/script>
     </body>
     </html>
-  `;h.loadURL(`data:text/html,${encodeURIComponent(y)}`);try{h.show(),h.center()}catch{}return h.once("ready-to-show",()=>{try{h.isVisible()||(h.show(),h.center())}catch{}}),h.on("closed",()=>{k.delete(c)}),h.webContents.on("before-input-event",(v,w)=>{w.key==="Escape"&&h.close()}),k.set(c,h),h}function Z(){const c=[{label:"VJ App",submenu:[{label:"About VJ App",role:"about"},{type:"separator"},{label:"Quit",accelerator:"CmdOrCtrl+Q",click:()=>{n.app.quit()}}]},{label:"External",submenu:[{label:"Mirror Window",accelerator:"CmdOrCtrl+M",click:()=>{s&&s.webContents.send("toggle-mirror")}},{label:"Advanced Mirror",accelerator:"CmdOrCtrl+Shift+M",click:()=>{s&&s.webContents.send("toggle-advanced-mirror")}},{type:"separator"},{label:"Spout Output",click:()=>{try{s?.webContents.send("spout:toggle")}catch{}}}]},{label:"Record",submenu:[{label:"Record",accelerator:"CmdOrCtrl+Shift+R",click:()=>{s&&s.webContents.send("record:start")}},{label:"Record Settings",click:()=>{s&&s.webContents.send("record:settings")}}]},{label:"View",submenu:[{label:"Toggle Mirror Window",accelerator:"CmdOrCtrl+M",click:()=>{s&&s.webContents.send("toggle-mirror")}},{type:"separator"},{label:"Reload",accelerator:"CmdOrCtrl+R",click:()=>{s&&s.reload()}}]},{label:"Developer",submenu:[{label:"Toggle Debug Overlay",accelerator:"CmdOrCtrl+Shift+D",click:()=>{try{s?.webContents.send("debug:toggleOverlay")}catch{}}},{label:"Show Debug Panel",accelerator:"CmdOrCtrl+Alt+D",click:()=>{try{s?.webContents.send("debug:openPanel")}catch{}}},{type:"separator"},{label:"Toggle Developer Tools",accelerator:"F12",click:()=>{s&&s.webContents.toggleDevTools()}}]},{label:"Window",submenu:[{label:"Minimize",accelerator:"CmdOrCtrl+M",role:"minimize"},{label:"Close",accelerator:"CmdOrCtrl+W",role:"close"}]}],a=n.Menu.buildFromTemplate(c);n.Menu.setApplicationMenu(a)}n.app.whenReady().then(()=>{if(console.log("Electron app is ready"),console.log("=== APP PATHS DEBUG ==="),console.log("app.getAppPath():",n.app.getPath("appData")),console.log("app.getPath(exe):",n.app.getPath("exe")),console.log("process.execPath:",process.execPath),console.log("process.resourcesPath:",process.resourcesPath),process.platform==="win32")try{n.app.setAppUserModelId("com.sonomika.app"),console.log("Set app user model ID for Windows taskbar icon")}catch(t){console.error("Error setting app user model ID:",t)}try{n.app.commandLine.appendSwitch("autoplay-policy","no-user-gesture-required")}catch{}try{const t=R();console.log("Icon path resolved at app.whenReady():",t),process.platform==="darwin"&&t&&n.app.dock&&typeof n.app.dock.setIcon=="function"&&n.app.dock.setIcon(n.nativeImage.createFromPath(t))}catch(t){console.error("Error setting dock icon:",t)}n.app.commandLine.appendSwitch("disable-background-timer-throttling"),n.app.commandLine.appendSwitch("disable-renderer-backgrounding"),n.app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");try{const t=n.app.commandLine.getSwitchValue("disable-features"),o="CalculateNativeWinOcclusion";t&&t.length>0?t.split(",").includes(o)||n.app.commandLine.appendSwitch("disable-features",`${t},${o}`):n.app.commandLine.appendSwitch("disable-features",o)}catch{}Z(),K(),G(),n.protocol.registerFileProtocol("local-file",(t,o)=>{const e=t.url.replace("local-file://","");console.log("Loading local file:",e),console.log("Request URL:",t.url),console.log("File path resolved:",e),o(e)}),n.ipcMain.handle("show-open-dialog",async(t,o)=>await n.dialog.showOpenDialog(s,o)),n.ipcMain.handle("show-save-dialog",async(t,o)=>{console.log("Show save dialog called with options:",o);const e=await n.dialog.showSaveDialog(s,o);return console.log("Save dialog result:",e),e}),n.ipcMain.handle("save-file",async(t,o,e)=>{try{return await u.promises.writeFile(o,e,"utf8"),!0}catch(r){return console.error("Failed to save file:",r),!1}}),n.ipcMain.handle("save-binary-file",async(t,o,e)=>{try{return console.log("Saving binary file to:",o,"Size:",e.length,"bytes"),await u.promises.writeFile(o,Buffer.from(e)),console.log("Binary file saved successfully"),!0}catch(r){return console.error("Failed to save binary file:",r),!1}});let c=null,a=null;n.ipcMain.handle("offline-render:start",async(t,o)=>{try{const e=i.join(n.app.getPath("userData"),"offline-renders"),r=i.join(e,`${Date.now()}_${(o?.name||"movie").replace(/[^a-z0-9_-]/ig,"_")}`);return await u.promises.mkdir(r,{recursive:!0}),c={dir:r,name:String(o?.name||"movie"),fps:Number(o?.fps)||0,index:0,width:Number(o?.width)||1920,height:Number(o?.height)||1080,quality:o?.quality||"medium"},a=null,console.log("[offline] start",{dir:r,fps:c.fps||"preview",quality:c.quality,size:`${c.width}x${c.height}`}),{success:!0,dir:r}}catch(e){return console.error("[offline] start error",e),{success:!1,error:String(e)}}}),n.ipcMain.handle("offline-render:frame",async(t,o)=>{if(!c)return{success:!1,error:"No session"};try{const e=c,r=i.join(e.dir,`frame_${String(e.index).padStart(6,"0")}.png`),d=String(o?.dataUrl||"").replace(/^data:image\/png;base64,/,"");return await u.promises.writeFile(r,Buffer.from(d,"base64")),e.index+=1,e.index%60===0&&console.log("[offline] saved frames:",e.index),{success:!0,index:e.index}}catch(e){return console.error("[offline] frame error",e),{success:!1,error:String(e)}}}),n.ipcMain.handle("offline-render:finish",async(t,o)=>{if(!c)return{success:!1,error:"No session"};c=null;try{return{success:!1,error:"Offline rendering is disabled. Please use WebM recording via MediaRecorder instead."}}catch(e){return console.error("[offline] finish error",e),{success:!1,error:String(e)}}}),n.ipcMain.handle("get-system-audio-stream",async()=>{try{const{desktopCapturer:t}=require("electron"),o=await t.getSources({types:["screen"],thumbnailSize:{width:1,height:1}});if(o.length===0)throw new Error("No screen sources available");return{success:!0,sourceId:(o.find(r=>r.name==="Entire Screen")||o[0]).id}}catch(t){return console.error("Failed to get system audio stream:",t),{success:!1,error:String(t)}}}),n.ipcMain.handle("get-documents-folder",async()=>{try{const t=n.app.getPath("documents");return{success:!0,path:i.join(t,"Sonomika")}}catch(t){return console.error("Failed to get Documents folder:",t),{success:!1,error:String(t)}}}),n.ipcMain.handle("get-app-path",async()=>n.app.getAppPath()),n.ipcMain.handle("get-app-version",async()=>{try{return n.app.getVersion()}catch(t){return console.error("Failed to get app version:",t),"unknown"}}),n.ipcMain.handle("get-resources-path",async()=>process.resourcesPath||n.app.getAppPath()),n.ipcMain.handle("spout:start",async(t,o)=>{try{const e=String(o?.senderName||"Sonomika Output"),r=E.start(e);return r.ok?(console.log("[spout] started sender:",e),{success:!0}):(console.warn("[spout] start failed:",r.error),{success:!1,error:r.error})}catch(e){return console.warn("[spout] start exception:",e),{success:!1,error:String(e)}}}),n.ipcMain.handle("spout:stop",async()=>{try{return E.stop(),console.log("[spout] stopped"),{success:!0}}catch(t){return console.warn("[spout] stop exception:",t),{success:!1,error:String(t)}}}),n.ipcMain.on("spout:frame",(t,o)=>{try{if(!E.isRunning())return;E.pushDataUrlFrame(String(o?.dataUrl||""),{maxFps:o?.maxFps})}catch{}}),n.ipcMain.handle("read-file-text",async(t,o)=>{try{return await u.promises.readFile(o,"utf8")}catch(e){return console.error("Failed to read file:",e),null}}),n.ipcMain.handle("read-local-file-base64",async(t,o)=>{try{return(await u.promises.readFile(o)).toString("base64")}catch(e){throw console.error("Failed to read local file:",o,e),e}}),n.ipcMain.handle("read-audio-bytes",async(t,o)=>{try{const{fileURLToPath:e}=require("url"),r=typeof o=="string"&&o.startsWith("file:")?e(o):o,d=await u.promises.readFile(r);return d.buffer.slice(d.byteOffset,d.byteOffset+d.byteLength)}catch(e){return console.error("read-audio-bytes failed for",o,e),new ArrayBuffer(0)}}),n.ipcMain.handle("authStorage:isEncryptionAvailable",()=>{try{return n.safeStorage.isEncryptionAvailable()}catch{return!1}}),n.ipcMain.on("authStorage:isEncryptionAvailableSync",t=>{try{t.returnValue=n.safeStorage.isEncryptionAvailable()}catch{t.returnValue=!1}}),n.ipcMain.handle("authStorage:save",async(t,o,e)=>{try{return o?e==null||e===""?(delete b[o],z(),!0):(n.safeStorage.isEncryptionAvailable()?b[o]=n.safeStorage.encryptString(e):b[o]=Buffer.from(e,"utf8"),z(),!0):!1}catch(r){return console.error("Failed to save auth blob:",r),!1}}),n.ipcMain.on("authStorage:saveSync",(t,o,e)=>{try{if(!o){t.returnValue=!1;return}if(e==null||e===""){delete b[o],z(),t.returnValue=!0;return}n.safeStorage.isEncryptionAvailable()?b[o]=n.safeStorage.encryptString(e):b[o]=Buffer.from(e,"utf8"),z(),t.returnValue=!0}catch(r){console.error("Failed to save auth blob (sync):",r),t.returnValue=!1}}),n.ipcMain.handle("authStorage:load",async(t,o)=>{try{if(!o)return null;const e=b[o];return e?n.safeStorage.isEncryptionAvailable()?n.safeStorage.decryptString(e):e.toString("utf8"):null}catch(e){return console.error("Failed to load auth blob:",e),null}}),n.ipcMain.on("authStorage:loadSync",(t,o)=>{try{if(!o){t.returnValue=null;return}const e=b[o];if(!e){t.returnValue=null;return}n.safeStorage.isEncryptionAvailable()?t.returnValue=n.safeStorage.decryptString(e):t.returnValue=e.toString("utf8")}catch(e){console.error("Failed to load auth blob (sync):",e),t.returnValue=null}}),n.ipcMain.handle("authStorage:remove",async(t,o)=>{try{return o?(delete b[o],z(),!0):!1}catch(e){return console.error("Failed to remove auth blob:",e),!1}}),n.ipcMain.on("authStorage:removeSync",(t,o)=>{try{if(!o){t.returnValue=!1;return}delete b[o],z(),t.returnValue=!0}catch(e){console.error("Failed to remove auth blob (sync):",e),t.returnValue=!1}}),n.ipcMain.handle("authStorage:loadAll",async()=>{try{const t={};for(const[o,e]of Object.entries(b))try{n.safeStorage.isEncryptionAvailable()?t[o]=n.safeStorage.decryptString(e):t[o]=e.toString("utf8")}catch{}return t}catch(t){return console.error("Failed to loadAll auth blobs:",t),{}}}),n.ipcMain.handle("get-screen-sizes",async()=>{try{const{screen:t}=require("electron"),o=t.getAllDisplays();console.log("Electron main: Detected displays:",o.length),o.forEach((r,d)=>{console.log(`Display ${d+1}:`,{width:r.bounds.width,height:r.bounds.height,x:r.bounds.x,y:r.bounds.y,scaleFactor:r.scaleFactor,rotation:r.rotation,label:r.label})});const e=o.map(r=>({width:r.bounds.width,height:r.bounds.height}));return console.log("Electron main: Returning screen sizes:",e),e}catch(t){return console.error("Failed to get screen sizes:",t),[]}}),n.ipcMain.on("toggle-app-fullscreen",()=>{if(s&&!s.isDestroyed()){const{screen:t}=require("electron");if(s.isKiosk()||s.isFullScreen())s.setKiosk(!1),s.setFullScreen(!1),s.setBounds({width:1200,height:800}),s.center();else{const o=s.getBounds(),e=t.getDisplayMatching(o);s.setBounds({x:e.bounds.x,y:e.bounds.y,width:e.bounds.width,height:e.bounds.height}),s.setMenuBarVisibility(!1),s.setFullScreenable(!0),s.setAlwaysOnTop(!0),s.setKiosk(!0),s.setFullScreen(!0)}}}),n.ipcMain.on("window-minimize",()=>{console.log("Main: window-minimize IPC received"),s?(console.log("Main: calling mainWindow.minimize()"),s.minimize()):console.log("Main: mainWindow is null")}),n.ipcMain.on("window-maximize",()=>{if(console.log("Main: window-maximize IPC received"),s)if(s.isMaximized()){console.log("Main: calling mainWindow.unmaximize()"),s.unmaximize();try{s.webContents.send("window-state",{maximized:!1})}catch{}}else{console.log("Main: calling mainWindow.maximize()"),s.maximize();try{s.webContents.send("window-state",{maximized:!0})}catch{}}else console.log("Main: mainWindow is null")}),n.ipcMain.on("window-close",()=>{console.log("Main: window-close IPC received"),s?(console.log("Main: calling mainWindow.close()"),s.close()):console.log("Main: mainWindow is null")}),n.ipcMain.on("toggle-mirror",()=>{s&&s.webContents.send("toggle-mirror")}),n.ipcMain.on("open-mirror-window",()=>{Y()}),n.ipcMain.on("close-mirror-window",()=>{Q()}),n.ipcMain.on("set-mirror-bg",(t,o)=>{if(l&&!l.isDestroyed()){const e=typeof o=="string"?o.replace(/'/g,"\\'"):"#000000";l.webContents.executeJavaScript(`document.body.style.background='${e}'`)}}),n.ipcMain.on("canvas-data",(t,o)=>{l&&!l.isDestroyed()&&l.webContents.send("update-canvas",o)}),n.ipcMain.on("sendCanvasData",(t,o)=>{if(l&&!l.isDestroyed())try{const e=(typeof o=="string"?o:"").replace(/'/g,"\\'");l.webContents.executeJavaScript(`
+  `;
+  win.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
+  try {
+    win.show();
+    win.center();
+  } catch {
+  }
+  win.once("ready-to-show", () => {
+    try {
+      if (!win.isVisible()) {
+        win.show();
+        win.center();
+      }
+    } catch {
+    }
+  });
+  win.on("closed", () => {
+    advancedMirrorWindows.delete(id);
+  });
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.key === "Escape") {
+      win.close();
+    }
+  });
+  advancedMirrorWindows.set(id, win);
+  return win;
+}
+function createCustomMenu() {
+  const template = [
+    {
+      label: "VJ App",
+      submenu: [
+        {
+          label: "About VJ App",
+          role: "about"
+        },
+        { type: "separator" },
+        {
+          label: "Quit",
+          accelerator: "CmdOrCtrl+Q",
+          click: () => {
+            electron.app.quit();
+          }
+        }
+      ]
+    },
+    {
+      label: "External",
+      submenu: [
+        {
+          label: "Mirror Window",
+          accelerator: "CmdOrCtrl+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-mirror");
+            }
+          }
+        },
+        {
+          label: "Advanced Mirror",
+          accelerator: "CmdOrCtrl+Shift+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-advanced-mirror");
+            }
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Spout Output",
+          click: () => {
+            try {
+              mainWindow?.webContents.send("spout:toggle");
+            } catch {
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Record",
+      submenu: [
+        {
+          label: "Record",
+          accelerator: "CmdOrCtrl+Shift+R",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("record:start");
+            }
+          }
+        },
+        {
+          label: "Record Settings",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("record:settings");
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "View",
+      submenu: [
+        {
+          label: "Toggle Mirror Window",
+          accelerator: "CmdOrCtrl+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-mirror");
+            }
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Reload",
+          accelerator: "CmdOrCtrl+R",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.reload();
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Developer",
+      submenu: [
+        {
+          label: "Toggle Debug Overlay",
+          accelerator: "CmdOrCtrl+Shift+D",
+          click: () => {
+            try {
+              mainWindow?.webContents.send("debug:toggleOverlay");
+            } catch {
+            }
+          }
+        },
+        {
+          label: "Show Debug Panel",
+          accelerator: "CmdOrCtrl+Alt+D",
+          click: () => {
+            try {
+              mainWindow?.webContents.send("debug:openPanel");
+            } catch {
+            }
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Toggle Developer Tools",
+          accelerator: "F12",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.toggleDevTools();
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Window",
+      submenu: [
+        {
+          label: "Minimize",
+          accelerator: "CmdOrCtrl+M",
+          role: "minimize"
+        },
+        {
+          label: "Close",
+          accelerator: "CmdOrCtrl+W",
+          role: "close"
+        }
+      ]
+    }
+  ];
+  const menu = electron.Menu.buildFromTemplate(template);
+  electron.Menu.setApplicationMenu(menu);
+}
+electron.app.whenReady().then(() => {
+  console.log("Electron app is ready");
+  console.log("=== APP PATHS DEBUG ===");
+  console.log("app.getAppPath():", electron.app.getPath("appData"));
+  console.log("app.getPath(exe):", electron.app.getPath("exe"));
+  console.log("process.execPath:", process.execPath);
+  console.log("process.resourcesPath:", process.resourcesPath);
+  if (process.platform === "win32") {
+    try {
+      electron.app.setAppUserModelId("com.sonomika.app");
+      console.log("Set app user model ID for Windows taskbar icon");
+    } catch (e) {
+      console.error("Error setting app user model ID:", e);
+    }
+  }
+  try {
+    electron.app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+  } catch {
+  }
+  try {
+    const iconPath = resolveAppIconPath();
+    console.log("Icon path resolved at app.whenReady():", iconPath);
+    if (process.platform === "darwin" && iconPath && electron.app.dock && typeof electron.app.dock.setIcon === "function") {
+      electron.app.dock.setIcon(electron.nativeImage.createFromPath(iconPath));
+    }
+  } catch (e) {
+    console.error("Error setting dock icon:", e);
+  }
+  electron.app.commandLine.appendSwitch("disable-background-timer-throttling");
+  electron.app.commandLine.appendSwitch("disable-renderer-backgrounding");
+  electron.app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+  try {
+    const existing = electron.app.commandLine.getSwitchValue("disable-features");
+    const extra = "CalculateNativeWinOcclusion";
+    if (existing && existing.length > 0) {
+      if (!existing.split(",").includes(extra)) {
+        electron.app.commandLine.appendSwitch("disable-features", `${existing},${extra}`);
+      }
+    } else {
+      electron.app.commandLine.appendSwitch("disable-features", extra);
+    }
+  } catch {
+  }
+  createCustomMenu();
+  loadEncryptedAuthStoreFromDisk();
+  initializeUserDocumentsFolders();
+  electron.protocol.registerFileProtocol("local-file", (request, callback) => {
+    const filePath = request.url.replace("local-file://", "");
+    console.log("Loading local file:", filePath);
+    console.log("Request URL:", request.url);
+    console.log("File path resolved:", filePath);
+    callback(filePath);
+  });
+  electron.ipcMain.handle("show-open-dialog", async (event, options) => {
+    const result = await electron.dialog.showOpenDialog(mainWindow, options);
+    return result;
+  });
+  electron.ipcMain.handle("show-save-dialog", async (event, options) => {
+    console.log("Show save dialog called with options:", options);
+    const result = await electron.dialog.showSaveDialog(mainWindow, options);
+    console.log("Save dialog result:", result);
+    return result;
+  });
+  electron.ipcMain.handle("save-file", async (event, filePath, content) => {
+    try {
+      await fs.promises.writeFile(filePath, content, "utf8");
+      return true;
+    } catch (e) {
+      console.error("Failed to save file:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.handle("save-binary-file", async (event, filePath, data) => {
+    try {
+      console.log("Saving binary file to:", filePath, "Size:", data.length, "bytes");
+      await fs.promises.writeFile(filePath, Buffer.from(data));
+      console.log("Binary file saved successfully");
+      return true;
+    } catch (e) {
+      console.error("Failed to save binary file:", e);
+      return false;
+    }
+  });
+  let offlineSession = null;
+  let offlineAudioPath = null;
+  electron.ipcMain.handle("offline-render:start", async (_e, opts) => {
+    try {
+      const base = path.join(electron.app.getPath("userData"), "offline-renders");
+      const dir = path.join(base, `${Date.now()}_${(opts?.name || "movie").replace(/[^a-z0-9_-]/ig, "_")}`);
+      await fs.promises.mkdir(dir, { recursive: true });
+      offlineSession = { dir, name: String(opts?.name || "movie"), fps: Number(opts?.fps) || 0, index: 0, width: Number(opts?.width) || 1920, height: Number(opts?.height) || 1080, quality: opts?.quality || "medium" };
+      offlineAudioPath = null;
+      console.log("[offline] start", { dir, fps: offlineSession.fps || "preview", quality: offlineSession.quality, size: `${offlineSession.width}x${offlineSession.height}` });
+      return { success: true, dir };
+    } catch (e) {
+      console.error("[offline] start error", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("offline-render:frame", async (_e, payload) => {
+    if (!offlineSession) return { success: false, error: "No session" };
+    try {
+      const p = offlineSession;
+      const file = path.join(p.dir, `frame_${String(p.index).padStart(6, "0")}.png`);
+      const base64 = String(payload?.dataUrl || "").replace(/^data:image\/png;base64,/, "");
+      await fs.promises.writeFile(file, Buffer.from(base64, "base64"));
+      p.index += 1;
+      if (p.index % 60 === 0) {
+        console.log("[offline] saved frames:", p.index);
+      }
+      return { success: true, index: p.index };
+    } catch (e) {
+      console.error("[offline] frame error", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("offline-render:finish", async (_e, payload) => {
+    if (!offlineSession) return { success: false, error: "No session" };
+    offlineSession = null;
+    try {
+      return { success: false, error: "Offline rendering is disabled. Please use WebM recording via MediaRecorder instead." };
+    } catch (e) {
+      console.error("[offline] finish error", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("get-system-audio-stream", async () => {
+    try {
+      const { desktopCapturer } = require("electron");
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: { width: 1, height: 1 }
+      });
+      if (sources.length === 0) {
+        throw new Error("No screen sources available");
+      }
+      const primarySource = sources.find((source) => source.name === "Entire Screen") || sources[0];
+      return {
+        success: true,
+        sourceId: primarySource.id
+      };
+    } catch (e) {
+      console.error("Failed to get system audio stream:", e);
+      return {
+        success: false,
+        error: String(e)
+      };
+    }
+  });
+  electron.ipcMain.handle("get-documents-folder", async () => {
+    try {
+      const documentsPath = electron.app.getPath("documents");
+      const sonomikaDocsPath = path.join(documentsPath, "Sonomika");
+      return { success: true, path: sonomikaDocsPath };
+    } catch (e) {
+      console.error("Failed to get Documents folder:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("get-app-path", async () => {
+    return electron.app.getAppPath();
+  });
+  electron.ipcMain.handle("get-app-version", async () => {
+    try {
+      return electron.app.getVersion();
+    } catch (e) {
+      console.error("Failed to get app version:", e);
+      return "unknown";
+    }
+  });
+  electron.ipcMain.handle("get-resources-path", async () => {
+    return process.resourcesPath || electron.app.getAppPath();
+  });
+  electron.ipcMain.handle("spout:start", async (_e, payload) => {
+    try {
+      const name = String(payload?.senderName || "Sonomika Output");
+      const res = spoutSender.start(name);
+      if (!res.ok) {
+        console.warn("[spout] start failed:", res.error);
+        return { success: false, error: res.error };
+      }
+      console.log("[spout] started sender:", name);
+      return { success: true };
+    } catch (e) {
+      console.warn("[spout] start exception:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("spout:stop", async () => {
+    try {
+      spoutSender.stop();
+      try {
+        setTimeout(() => {
+          try {
+            spoutSender.stop();
+          } catch {
+          }
+        }, 200);
+      } catch {
+      }
+      console.log("[spout] stopped");
+      return { success: true };
+    } catch (e) {
+      console.warn("[spout] stop exception:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.on("spout:frame", (_e, payload) => {
+    try {
+      if (!spoutSender.isRunning()) return;
+      spoutSender.pushDataUrlFrame(String(payload?.dataUrl || ""), { maxFps: payload?.maxFps });
+    } catch {
+    }
+  });
+  electron.ipcMain.handle("read-file-text", async (event, filePath) => {
+    try {
+      const data = await fs.promises.readFile(filePath, "utf8");
+      return data;
+    } catch (e) {
+      console.error("Failed to read file:", e);
+      return null;
+    }
+  });
+  electron.ipcMain.handle("read-local-file-base64", async (event, filePath) => {
+    try {
+      const data = await fs.promises.readFile(filePath);
+      return data.toString("base64");
+    } catch (err) {
+      console.error("Failed to read local file:", filePath, err);
+      throw err;
+    }
+  });
+  electron.ipcMain.handle("read-audio-bytes", async (_e, urlOrPath) => {
+    try {
+      const { fileURLToPath } = require("url");
+      const asPath = typeof urlOrPath === "string" && urlOrPath.startsWith("file:") ? fileURLToPath(urlOrPath) : urlOrPath;
+      const buf = await fs.promises.readFile(asPath);
+      return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    } catch (err) {
+      console.error("read-audio-bytes failed for", urlOrPath, err);
+      return new ArrayBuffer(0);
+    }
+  });
+  electron.ipcMain.handle("authStorage:isEncryptionAvailable", () => {
+    try {
+      return electron.safeStorage.isEncryptionAvailable();
+    } catch {
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:isEncryptionAvailableSync", (event) => {
+    try {
+      event.returnValue = electron.safeStorage.isEncryptionAvailable();
+    } catch {
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:save", async (event, key, plainText) => {
+    try {
+      if (!key) return false;
+      if (plainText === void 0 || plainText === null || plainText === "") {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        return true;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = electron.safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, "utf8");
+      }
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error("Failed to save auth blob:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:saveSync", (event, key, plainText) => {
+    try {
+      if (!key) {
+        event.returnValue = false;
+        return;
+      }
+      if (plainText === void 0 || plainText === null || plainText === "") {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        event.returnValue = true;
+        return;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = electron.safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, "utf8");
+      }
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error("Failed to save auth blob (sync):", e);
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:load", async (event, key) => {
+    try {
+      if (!key) return null;
+      const buf = encryptedAuthStore[key];
+      if (!buf) return null;
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        return electron.safeStorage.decryptString(buf);
+      }
+      return buf.toString("utf8");
+    } catch (e) {
+      console.error("Failed to load auth blob:", e);
+      return null;
+    }
+  });
+  electron.ipcMain.on("authStorage:loadSync", (event, key) => {
+    try {
+      if (!key) {
+        event.returnValue = null;
+        return;
+      }
+      const buf = encryptedAuthStore[key];
+      if (!buf) {
+        event.returnValue = null;
+        return;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        event.returnValue = electron.safeStorage.decryptString(buf);
+      } else {
+        event.returnValue = buf.toString("utf8");
+      }
+    } catch (e) {
+      console.error("Failed to load auth blob (sync):", e);
+      event.returnValue = null;
+    }
+  });
+  electron.ipcMain.handle("authStorage:remove", async (event, key) => {
+    try {
+      if (!key) return false;
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error("Failed to remove auth blob:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:removeSync", (event, key) => {
+    try {
+      if (!key) {
+        event.returnValue = false;
+        return;
+      }
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error("Failed to remove auth blob (sync):", e);
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:loadAll", async () => {
+    try {
+      const result = {};
+      for (const [k, v] of Object.entries(encryptedAuthStore)) {
+        try {
+          if (electron.safeStorage.isEncryptionAvailable()) {
+            result[k] = electron.safeStorage.decryptString(v);
+          } else {
+            result[k] = v.toString("utf8");
+          }
+        } catch {
+        }
+      }
+      return result;
+    } catch (e) {
+      console.error("Failed to loadAll auth blobs:", e);
+      return {};
+    }
+  });
+  electron.ipcMain.handle("get-screen-sizes", async () => {
+    try {
+      const { screen } = require("electron");
+      const displays = screen.getAllDisplays();
+      console.log("Electron main: Detected displays:", displays.length);
+      displays.forEach((display, index) => {
+        console.log(`Display ${index + 1}:`, {
+          width: display.bounds.width,
+          height: display.bounds.height,
+          x: display.bounds.x,
+          y: display.bounds.y,
+          scaleFactor: display.scaleFactor,
+          rotation: display.rotation,
+          label: display.label
+        });
+      });
+      const result = displays.map((display) => ({
+        width: display.bounds.width,
+        height: display.bounds.height
+      }));
+      console.log("Electron main: Returning screen sizes:", result);
+      return result;
+    } catch (e) {
+      console.error("Failed to get screen sizes:", e);
+      return [];
+    }
+  });
+  electron.ipcMain.on("toggle-app-fullscreen", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const { screen } = require("electron");
+      if (mainWindow.isKiosk() || mainWindow.isFullScreen()) {
+        mainWindow.setKiosk(false);
+        mainWindow.setFullScreen(false);
+        mainWindow.setBounds({ width: 1200, height: 800 });
+        mainWindow.center();
+      } else {
+        const bounds = mainWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mainWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mainWindow.setMenuBarVisibility(false);
+        mainWindow.setFullScreenable(true);
+        mainWindow.setAlwaysOnTop(true);
+        mainWindow.setKiosk(true);
+        mainWindow.setFullScreen(true);
+      }
+    }
+  });
+  electron.ipcMain.on("window-minimize", () => {
+    console.log("Main: window-minimize IPC received");
+    if (mainWindow) {
+      console.log("Main: calling mainWindow.minimize()");
+      mainWindow.minimize();
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("window-maximize", () => {
+    console.log("Main: window-maximize IPC received");
+    if (mainWindow) {
+      if (mainWindow.isMaximized()) {
+        console.log("Main: calling mainWindow.unmaximize()");
+        mainWindow.unmaximize();
+        try {
+          mainWindow.webContents.send("window-state", { maximized: false });
+        } catch {
+        }
+      } else {
+        console.log("Main: calling mainWindow.maximize()");
+        mainWindow.maximize();
+        try {
+          mainWindow.webContents.send("window-state", { maximized: true });
+        } catch {
+        }
+      }
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("window-close", () => {
+    console.log("Main: window-close IPC received");
+    if (mainWindow) {
+      console.log("Main: calling mainWindow.close()");
+      mainWindow.close();
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("toggle-mirror", () => {
+    if (mainWindow) {
+      mainWindow.webContents.send("toggle-mirror");
+    }
+  });
+  electron.ipcMain.on("open-mirror-window", () => {
+    createMirrorWindow();
+  });
+  electron.ipcMain.on("close-mirror-window", () => {
+    closeMirrorWindow();
+  });
+  electron.ipcMain.on("set-mirror-bg", (event, color) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const safe = typeof color === "string" ? color.replace(/'/g, "\\'") : "#000000";
+      mirrorWindow.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+    }
+  });
+  electron.ipcMain.on("canvas-data", (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      mirrorWindow.webContents.send("update-canvas", dataUrl);
+    }
+  });
+  electron.ipcMain.on("sendCanvasData", (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      try {
+        const escaped = (typeof dataUrl === "string" ? dataUrl : "").replace(/'/g, "\\'");
+        mirrorWindow.webContents.executeJavaScript(`
           (function(){
             try {
               var noStream = document.getElementById('no-stream');
               var img = document.getElementById('mirror-image');
               if (noStream) noStream.style.display = 'none';
               if (img) {
-                if (img.src !== '${e}') {
-                  img.src = '${e}';
+                if (img.src !== '${escaped}') {
+                  img.src = '${escaped}';
                   img.style.display = 'block';
                 }
               }
             } catch(e) {}
           })();
-        `)}catch{}}),n.ipcMain.on("toggle-fullscreen",()=>{if(l&&!l.isDestroyed()){const{screen:t}=require("electron");if(l.isKiosk()||l.isFullScreen()){l.setKiosk(!1),l.setFullScreen(!1);try{l.setVisibleOnAllWorkspaces(!1)}catch{}try{l.setAlwaysOnTop(!0)}catch{}l.setBounds({x:void 0,y:void 0,width:1920,height:1080});try{l.center()}catch{}try{l.focus()}catch{}}else{const o=l.getBounds(),e=t.getDisplayMatching(o);l.setBounds({x:e.bounds.x,y:e.bounds.y,width:e.bounds.width,height:e.bounds.height});try{l.setMenuBarVisibility(!1)}catch{}try{l.setFullScreenable(!0)}catch{}try{process.platform==="darwin"?l.setAlwaysOnTop(!0,"screen-saver"):l.setAlwaysOnTop(!0)}catch{}try{l.setVisibleOnAllWorkspaces(!0,{visibleOnFullScreen:!0})}catch{}try{l.moveTop?.()}catch{}try{l.show()}catch{}try{l.focus()}catch{}l.setKiosk(!0),l.setFullScreen(!0);try{l.moveTop?.()}catch{}try{l.focus()}catch{}}}}),n.ipcMain.on("resize-mirror-window",(t,o,e)=>{if(l&&!l.isDestroyed()){try{let r=Math.max(1,Number(o)||1),d=Math.max(1,Number(e)||1);const{screen:f}=require("electron"),y=f.getPrimaryDisplay().workArea,v=Math.floor(y.width*.9),w=Math.floor(y.height*.9),I=r/d;if(r>v||d>w){const P=v/r,S=w/d,x=Math.min(P,S);r=Math.floor(r*x),d=Math.floor(d*x)}r=Math.max(480,r),d=Math.max(270,d),F&&isFinite(F)&&F>0&&(d=Math.max(1,Math.round(r/F))),console.log("Resizing mirror window to:",r,"x",d,"(aspect locked:",!!F,")"),l.setSize(r,d)}catch{}l.center()}}),n.ipcMain.on("set-mirror-aspect",(t,o,e)=>{try{const r=Math.max(1,Number(o)||1),d=Math.max(1,Number(e)||1),f=r/d;if(F=f,_=f,l&&!l.isDestroyed())try{l.setAspectRatio(f)}catch{}if(D&&!D.isDestroyed())try{D.setAspectRatio(f)}catch{}}catch{}}),n.ipcMain.on("advanced-mirror:open",(t,o)=>{try{if(console.log("[main] advanced-mirror:open",Array.isArray(o)?o.map(e=>e?.id):o),Array.isArray(o))for(const e of o)console.log("[main] createAdvancedMirrorWindow",e?.id),X(String(e.id),e)}catch(e){console.warn("advanced-mirror:open error",e)}}),n.ipcMain.on("advanced-mirror:closeAll",()=>{try{k.forEach((t,o)=>{try{t.isDestroyed()||t.close()}catch{}k.delete(o)})}catch(t){console.warn("advanced-mirror:closeAll error",t)}}),n.ipcMain.on("advanced-mirror:sendSliceData",(t,o,e)=>{const r=k.get(String(o));if(r&&!r.isDestroyed()){const d=(typeof e=="string"?e:"").replace(/'/g,"\\'");r.webContents.executeJavaScript(`
+        `);
+      } catch {
+      }
+    }
+  });
+  electron.ipcMain.on("toggle-fullscreen", () => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const { screen } = require("electron");
+      if (mirrorWindow.isKiosk() || mirrorWindow.isFullScreen()) {
+        mirrorWindow.setKiosk(false);
+        mirrorWindow.setFullScreen(false);
+        try {
+          mirrorWindow.setVisibleOnAllWorkspaces(false);
+        } catch {
+        }
+        try {
+          mirrorWindow.setAlwaysOnTop(true);
+        } catch {
+        }
+        mirrorWindow.setBounds({
+          x: void 0,
+          y: void 0,
+          width: 1920,
+          // Will be updated by renderer
+          height: 1080
+          // Will be updated by renderer
+        });
+        try {
+          mirrorWindow.center();
+        } catch {
+        }
+        try {
+          mirrorWindow.focus();
+        } catch {
+        }
+      } else {
+        const bounds = mirrorWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mirrorWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        try {
+          mirrorWindow.setMenuBarVisibility(false);
+        } catch {
+        }
+        try {
+          mirrorWindow.setFullScreenable(true);
+        } catch {
+        }
+        try {
+          if (process.platform === "darwin") {
+            mirrorWindow.setAlwaysOnTop(true, "screen-saver");
+          } else {
+            mirrorWindow.setAlwaysOnTop(true);
+          }
+        } catch {
+        }
+        try {
+          mirrorWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+        } catch {
+        }
+        try {
+          mirrorWindow.moveTop?.();
+        } catch {
+        }
+        try {
+          mirrorWindow.show();
+        } catch {
+        }
+        try {
+          mirrorWindow.focus();
+        } catch {
+        }
+        mirrorWindow.setKiosk(true);
+        mirrorWindow.setFullScreen(true);
+        try {
+          mirrorWindow.moveTop?.();
+        } catch {
+        }
+        try {
+          mirrorWindow.focus();
+        } catch {
+        }
+      }
+    }
+  });
+  electron.ipcMain.on("resize-mirror-window", (event, width, height) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      try {
+        let targetW = Math.max(1, Number(width) || 1);
+        let targetH = Math.max(1, Number(height) || 1);
+        const { screen } = require("electron");
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const workArea = primaryDisplay.workArea;
+        const maxW = Math.floor(workArea.width * 0.9);
+        const maxH = Math.floor(workArea.height * 0.9);
+        const aspectRatio = targetW / targetH;
+        if (targetW > maxW || targetH > maxH) {
+          const scaleW = maxW / targetW;
+          const scaleH = maxH / targetH;
+          const scale = Math.min(scaleW, scaleH);
+          targetW = Math.floor(targetW * scale);
+          targetH = Math.floor(targetH * scale);
+        }
+        targetW = Math.max(480, targetW);
+        targetH = Math.max(270, targetH);
+        if (mirrorAspectRatio && isFinite(mirrorAspectRatio) && mirrorAspectRatio > 0) {
+          targetH = Math.max(1, Math.round(targetW / mirrorAspectRatio));
+        }
+        console.log("Resizing mirror window to:", targetW, "x", targetH, "(aspect locked:", !!mirrorAspectRatio, ")");
+        mirrorWindow.setSize(targetW, targetH);
+      } catch {
+      }
+      mirrorWindow.center();
+    }
+  });
+  electron.ipcMain.on("set-mirror-aspect", (event, width, height) => {
+    try {
+      const w = Math.max(1, Number(width) || 1);
+      const h = Math.max(1, Number(height) || 1);
+      const ratio = w / h;
+      mirrorAspectRatio = ratio;
+      outputAspectRatio = ratio;
+      if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+        try {
+          mirrorWindow.setAspectRatio(ratio);
+        } catch {
+        }
+      }
+      if (outputWindow && !outputWindow.isDestroyed()) {
+        try {
+          outputWindow.setAspectRatio(ratio);
+        } catch {
+        }
+      }
+    } catch {
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:open", (event, slices) => {
+    try {
+      console.log("[main] advanced-mirror:open", Array.isArray(slices) ? slices.map((s) => s?.id) : slices);
+      if (Array.isArray(slices)) {
+        for (const s of slices) {
+          console.log("[main] createAdvancedMirrorWindow", s?.id);
+          createAdvancedMirrorWindow(String(s.id), s);
+        }
+      }
+    } catch (e) {
+      console.warn("advanced-mirror:open error", e);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:closeAll", () => {
+    try {
+      advancedMirrorWindows.forEach((win, id) => {
+        try {
+          if (!win.isDestroyed()) win.close();
+        } catch {
+        }
+        advancedMirrorWindows.delete(id);
+      });
+    } catch (e) {
+      console.warn("advanced-mirror:closeAll error", e);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:sendSliceData", (event, id, dataUrl) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const escaped = (typeof dataUrl === "string" ? dataUrl : "").replace(/'/g, "\\'");
+      win.webContents.executeJavaScript(`
         (function() {
           const mirrorImage = document.getElementById('mirror-image');
           if (mirrorImage) {
-            if (mirrorImage.src !== '${d}') {
-              mirrorImage.src = '${d}';
+            if (mirrorImage.src !== '${escaped}') {
+              mirrorImage.src = '${escaped}';
               mirrorImage.style.display = 'block';
             }
           }
         })();
-      `)}}),n.ipcMain.on("advanced-mirror:setBg",(t,o,e)=>{const r=k.get(String(o));if(r&&!r.isDestroyed()){const d=typeof e=="string"?e.replace(/'/g,"\\'"):"#000000";r.webContents.executeJavaScript(`document.body.style.background='${d}'`)}}),n.ipcMain.on("advanced-mirror:resize",(t,o,e,r)=>{const d=k.get(String(o));if(d&&!d.isDestroyed())try{d.setSize(e,r),d.center()}catch{}}),n.ipcMain.on("advanced-mirror:toggleFullscreen",(t,o)=>{const e=k.get(String(o));if(e&&!e.isDestroyed()){const{screen:r}=require("electron");if(e.isKiosk()||e.isFullScreen())try{e.setKiosk(!1),e.setFullScreen(!1),e.setBounds({width:960,height:540}),e.center()}catch{}else try{const d=e.getBounds(),f=r.getDisplayMatching(d);e.setBounds({x:f.bounds.x,y:f.bounds.y,width:f.bounds.width,height:f.bounds.height}),e.setMenuBarVisibility(!1),e.setFullScreenable(!0),e.setAlwaysOnTop(!0),e.setKiosk(!0),e.setFullScreen(!0)}catch{}}}),N(),n.app.on("activate",()=>{n.BrowserWindow.getAllWindows().length===0&&N()})});n.app.on("window-all-closed",()=>{process.platform!=="darwin"&&n.app.quit()});process.on("uncaughtException",c=>{console.error("Uncaught Exception:",c)});process.on("unhandledRejection",(c,a)=>{console.error("Unhandled Rejection at:",a,"reason:",c)});
+      `);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:setBg", (event, id, color) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const safe = typeof color === "string" ? color.replace(/'/g, "\\'") : "#000000";
+      win.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:resize", (event, id, width, height) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      try {
+        win.setSize(width, height);
+        win.center();
+      } catch {
+      }
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:toggleFullscreen", (event, id) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const { screen } = require("electron");
+      if (win.isKiosk() || win.isFullScreen()) {
+        try {
+          win.setKiosk(false);
+          win.setFullScreen(false);
+          win.setBounds({ width: 960, height: 540 });
+          win.center();
+        } catch {
+        }
+      } else {
+        try {
+          const bounds = win.getBounds();
+          const display = screen.getDisplayMatching(bounds);
+          win.setBounds({ x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height });
+          win.setMenuBarVisibility(false);
+          win.setFullScreenable(true);
+          win.setAlwaysOnTop(true);
+          win.setKiosk(true);
+          win.setFullScreen(true);
+        } catch {
+        }
+      }
+    }
+  });
+  createWindow();
+  electron.app.on("activate", () => {
+    if (electron.BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+try {
+  electron.app.on("before-quit", () => {
+    try {
+      spoutSender.stop();
+    } catch {
+    }
+  });
+} catch {
+}
+electron.app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    electron.app.quit();
+  }
+});
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});

@@ -5,6 +5,7 @@ type SpoutAddon = {
   SpoutOutput: new (name: string) => {
     updateTexture?: (texture: any) => void;
     updateFrame: (bgra: Buffer, size: { width: number; height: number }) => void;
+    close?: () => void;
     release?: () => void;
     dispose?: () => void;
   };
@@ -54,6 +55,7 @@ export class SpoutSender {
   stop(): void {
     try {
       const s: any = this.sender as any;
+      if (s && typeof s.close === 'function') s.close();
       if (s && typeof s.release === 'function') s.release();
       if (s && typeof s.dispose === 'function') s.dispose();
     } catch {}

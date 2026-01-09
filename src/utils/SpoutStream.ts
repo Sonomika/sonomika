@@ -14,43 +14,57 @@ export class SpoutStreamManager {
   private tmpCtx: CanvasRenderingContext2D | null = null;
   private lastAt = 0;
   private lastDataUrl = '';
+  private op: Promise<any> = Promise.resolve();
+  private lastStopAtMs = 0;
 
   constructor(canvasGetter: () => HTMLCanvasElement | null) {
     this.canvasGetter = canvasGetter;
   }
 
   async start(): Promise<{ success: boolean; error?: string }> {
-    if (this.running) return { success: true };
-    const electronAny: ElectronSpoutApi | undefined = (window as any)?.electron;
-    if (!electronAny?.startSpout || !electronAny?.sendSpoutFrame) {
-      return { success: false, error: 'Spout API not available (Electron only).' };
-    }
+    return (this.op = this.op.then(async () => {
+      if (this.running) return { success: true };
+      const electronAny: ElectronSpoutApi | undefined = (window as any)?.electron;
+      if (!electronAny?.startSpout || !electronAny?.sendSpoutFrame) {
+        return { success: false, error: 'Spout API not available (Electron only).' };
+      }
 
-    const st: any = useStore.getState();
-    const senderName = String(st?.spoutSenderName || 'Sonomika Output');
-    const res = await electronAny.startSpout(senderName);
-    if (!res?.success) return { success: false, error: res?.error || 'Failed to start Spout.' };
+      // Cooldown: avoid re-registering immediately after stop, which can cause Spout to append "_1".
+      const sinceStop = Date.now() - (this.lastStopAtMs || 0);
+      if (sinceStop >= 0 && sinceStop < 800) {
+        await new Promise((r) => setTimeout(r, 800 - sinceStop));
+      }
 
-    this.running = true;
-    this.lastAt = 0;
-    this.lastDataUrl = '';
-    this.ensureTempCanvas();
-    this.loop();
-    return { success: true };
+      const st: any = useStore.getState();
+      const senderName = String(st?.spoutSenderName || 'Sonomika Output');
+      const res = await electronAny.startSpout(senderName);
+      if (!res?.success) return { success: false, error: res?.error || 'Failed to start Spout.' };
+
+      this.running = true;
+      this.lastAt = 0;
+      this.lastDataUrl = '';
+      this.ensureTempCanvas();
+      this.loop();
+      return { success: true };
+    }));
   }
 
   async stop(): Promise<void> {
-    this.running = false;
-    if (this.animationId != null) {
-      try { cancelAnimationFrame(this.animationId); } catch {}
-      this.animationId = null;
-    }
-    this.lastAt = 0;
-    this.lastDataUrl = '';
-    try {
-      const electronAny: ElectronSpoutApi | undefined = (window as any)?.electron;
-      await electronAny?.stopSpout?.();
-    } catch {}
+    this.op = this.op.then(async () => {
+      this.running = false;
+      if (this.animationId != null) {
+        try { cancelAnimationFrame(this.animationId); } catch {}
+        this.animationId = null;
+      }
+      this.lastAt = 0;
+      this.lastDataUrl = '';
+      this.lastStopAtMs = Date.now();
+      try {
+        const electronAny: ElectronSpoutApi | undefined = (window as any)?.electron;
+        await electronAny?.stopSpout?.();
+      } catch {}
+    });
+    await this.op;
   }
 
   isRunning(): boolean {

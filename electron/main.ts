@@ -1432,6 +1432,9 @@ app.whenReady().then(() => {
   ipcMain.handle('spout:stop', async () => {
     try {
       spoutSender.stop();
+      // Some receivers cache the sender list briefly; a second stop shortly after
+      // helps ensure the native addon releases all handles before enumeration.
+      try { setTimeout(() => { try { spoutSender.stop(); } catch {} }, 200); } catch {}
       console.log('[spout] stopped');
       return { success: true };
     } catch (e) {
@@ -1969,6 +1972,13 @@ app.whenReady().then(() => {
     }
   });
 });
+
+// Ensure Spout sender is released on app shutdown so no "ghost" senders remain.
+try {
+  app.on('before-quit', () => {
+    try { spoutSender.stop(); } catch {}
+  });
+} catch {}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
