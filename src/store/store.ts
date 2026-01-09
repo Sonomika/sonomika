@@ -701,6 +701,7 @@ export const useStore = createWithEqualityFn<AppState & {
                playColumn: (columnId: string) => {
          try {
            try { console.log('[Store] playColumn', columnId); } catch {}
+           const wasGlobalPlaying = Boolean((get() as any).isGlobalPlaying);
            // Get the current scene and column to access video layers
            const state = get();
            const currentScene = state.scenes.find(scene => scene.id === state.currentSceneId);
@@ -733,7 +734,16 @@ export const useStore = createWithEqualityFn<AppState & {
            }));
            
            // Always set as playing column (don't toggle off)
-           set({ playingColumnId: columnId });
+           set({ playingColumnId: columnId, isGlobalPlaying: true } as any);
+
+           // Keep transport UI/shortcuts in sync when playback is started from a column click/trigger
+           if (!wasGlobalPlaying) {
+             try {
+               document.dispatchEvent(new CustomEvent('globalPlay', {
+                 detail: { type: 'globalPlay', source: 'columnPlay' }
+               }));
+             } catch {}
+           }
          } catch (error) {
            console.warn('Failed to play column:', error);
          }
@@ -741,11 +751,21 @@ export const useStore = createWithEqualityFn<AppState & {
        
        stopColumn: () => {
          try {
-           set({ playingColumnId: null });
+           const wasGlobalPlaying = Boolean((get() as any).isGlobalPlaying);
+           set({ playingColumnId: null, isGlobalPlaying: false } as any);
            // Dispatch column stop event
            document.dispatchEvent(new CustomEvent('columnStop', {
              detail: { type: 'columnStop' }
            }));
+
+           // Keep transport UI in sync when column playback stops without using toolbar controls
+           if (wasGlobalPlaying) {
+             try {
+               document.dispatchEvent(new CustomEvent('globalPause', {
+                 detail: { type: 'globalPause', source: 'stopColumn' }
+               }));
+             } catch {}
+           }
          } catch (error) {
            console.warn('Failed to stop column:', error);
          }

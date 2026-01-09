@@ -47,8 +47,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   
   const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline } = useStore() as any;
 
-  // Track transport state to style Play/Pause/Stop buttons with accent for the active control
-  const [transportState, setTransportState] = useState<'play' | 'pause' | 'stop'>(isGlobalPlaying ? 'play' : 'pause');
+  // Track transport state to style Play/Pause/Stop buttons with accent for the active control.
+  // Derive from store so refresh/rehydrate reliably shows Stop when fully stopped.
+  const derivedTransportState: 'play' | 'pause' | 'stop' = isGlobalPlaying
+    ? 'play'
+    : (playingColumnId ? 'pause' : 'stop');
+  const [transportState, setTransportState] = useState<'play' | 'pause' | 'stop'>(derivedTransportState);
+  useEffect(() => {
+    if (!showTimeline) setTransportState(derivedTransportState);
+  }, [derivedTransportState, showTimeline]);
   useEffect(() => {
     const onPlay = () => setTransportState('play');
     const onPause = () => setTransportState('pause');
@@ -233,7 +240,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     return showTimeline ? currentTimelineSceneId : currentSceneId;
   };
 
-  // When switching scenes in column mode, update preview and auto-play the first column with clips
+  // When switching scenes in column mode, update preview.
+  // Only auto-play when the global transport is in Play; on refresh/reload we should start stopped.
   useEffect(() => {
     try {
       const cameFromTimeline = Boolean(prevShowTimelineRef.current) && !showTimeline;
@@ -259,6 +267,29 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         setPreviewContent({ type: 'scene', sceneId: sc.id, isEmpty: true } as any);
         setIsPlaying(false);
         try { stopColumn(); } catch {}
+        try { (useStore as any).getState?.().clearActiveLayerOverrides?.(); } catch {}
+        return;
+      }
+
+      // If transport is stopped, do NOT auto-start playback (important for refresh/reload).
+      // Still update the preview to a sensible column.
+      if (!isGlobalPlaying) {
+        try {
+          const column = sc?.columns?.find((c: any) => c?.id === targetColumnId) || null;
+          const layersWithContent = (column?.layers || []).filter((l: any) => !!l?.asset);
+          setPreviewContent({
+            type: 'column',
+            columnId: targetColumnId,
+            column,
+            layers: layersWithContent,
+            isEmpty: layersWithContent.length === 0
+          });
+        } catch {}
+        setIsPlaying(false);
+        // Stop any lingering playback marker if present
+        if (playingColumnId) {
+          try { stopColumn(); } catch {}
+        }
         try { (useStore as any).getState?.().clearActiveLayerOverrides?.(); } catch {}
         return;
       }
