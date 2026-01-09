@@ -13,6 +13,7 @@ import { useStore } from './store/store';
 import { effectCache } from './utils/EffectCache';
 import { CanvasStreamManager } from './utils/CanvasStream';
 import { AdvancedMirrorStreamManager } from './utils/AdvancedMirrorStream';
+import { SpoutStreamManager } from './utils/SpoutStream';
 import './index.css';
 import { MIDIManager } from './midi/MIDIManager';
 import { MIDIProcessor } from './utils/MIDIProcessor';
@@ -45,6 +46,9 @@ declare global {
         onRecordSettings?: (handler: () => void) => void;
         getScreenSizes?: () => Promise<Array<{width: number, height: number}>>;
         getAppVersion?: () => Promise<string>;
+      startSpout?: (senderName?: string) => Promise<{ success: boolean; error?: string }>;
+      stopSpout?: () => Promise<{ success: boolean; error?: string }>;
+      sendSpoutFrame?: (dataUrl: string, maxFps?: number) => void;
     };
     electronAPI?: {
       getScreenSizes?: () => Promise<Array<{width: number, height: number}>>;
@@ -114,8 +118,9 @@ function App() {
   const [showDebugOverlay, setShowDebugOverlay] = useState(false);
   const streamManagerRef = useRef<CanvasStreamManager | null>(null);
   const advStreamRef = useRef<AdvancedMirrorStreamManager | null>(null);
+  const spoutRef = useRef<SpoutStreamManager | null>(null);
   const usingDummyCanvas = useRef<boolean>(false);
-  const { savePreset, loadPreset, accessibilityEnabled, accentColor, midiMappings, neutralContrast, fontColor } = useStore() as any;
+  const { savePreset, loadPreset, accessibilityEnabled, accentColor, midiMappings, neutralContrast, fontColor, spoutEnabled, spoutSenderName, spoutMaxFps } = useStore() as any;
   const lastSaveRef = useRef<number>(0);
   
   // Modal states
@@ -184,6 +189,43 @@ function App() {
     // Fallback
     return document.querySelector('canvas') as HTMLCanvasElement;
   };
+
+  // Spout output: stream composition frames to a Spout sender (Windows/Electron only)
+  useEffect(() => {
+    let cancelled = false;
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+    if (!isElectron) return;
+
+    // Lazily create manager once.
+    if (!spoutRef.current) {
+      spoutRef.current = new SpoutStreamManager(() => findMainCanvas());
+    }
+
+    (async () => {
+      try {
+        if (!spoutEnabled) {
+          await spoutRef.current?.stop();
+          return;
+        }
+        // Force restart so sender name/FPS changes apply and errors surface immediately.
+        await spoutRef.current?.stop();
+        const res = await spoutRef.current?.start();
+        if (!cancelled && res && !res.success) {
+          const err = res.error || 'Spout failed to start.';
+          console.warn('Spout start failed:', err);
+          toast({ description: `Spout failed: ${err}` });
+          try { (useStore.getState() as any).setSpoutEnabled?.(false); } catch {}
+        }
+      } catch (e) {
+        console.warn('Spout toggle failed:', e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Re-start if sender name or FPS changes.
+  }, [spoutEnabled, spoutSenderName, spoutMaxFps]);
 
   useEffect(() => {
     // Mark Electron environment for CSS targeting (e.g., scrollbar styling)
@@ -332,6 +374,8 @@ function App() {
     try { (window as any).electron?.onDebugToggleOverlay?.(() => setShowDebugOverlay((v) => !v)); } catch {}
     try { (window as any).electron?.onDebugOpenPanel?.(() => setDebugMode(true)); } catch {}
   }, []);
+
+  // Native (Electron menu) Spout events are optional; UI uses CustomTitleBar.
 
   // Renderer hotkey: Ctrl/Cmd+Shift+D toggles overlay
   useEffect(() => {
@@ -1459,6 +1503,12 @@ function App() {
         onClose={handleWindowClose}
         onMirror={handleMirrorToggle}
         onMirrorFullscreen={handleMirrorFullscreen}
+        onSpoutToggle={() => {
+          try {
+            const st: any = useStore.getState();
+            st?.setSpoutEnabled?.(!st?.spoutEnabled);
+          } catch {}
+        }}
         onToggleAppFullscreen={handleToggleAppFullscreen}
         onNewPreset={handleNewPreset}
         onSavePreset={handleSavePreset}

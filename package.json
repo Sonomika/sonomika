@@ -125,7 +125,8 @@
       "**/bank/**/*",
       "**/src/ai-templates/**/*",
       "**/user-documents/**/*",
-      "**/dist/fonts/**/*"
+      "**/dist/fonts/**/*",
+      "**/*.node"
     ],
     "extraResources": [
       {

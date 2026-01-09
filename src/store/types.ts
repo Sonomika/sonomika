@@ -189,6 +189,10 @@ export interface AppState {
   mirrorQuality?: 'low' | 'medium' | 'high';
   // Whether single mirror keeps preview in app (skip direct-output)
   mirrorKeepPreview?: boolean;
+  // Spout output (Windows-only in Electron)
+  spoutEnabled?: boolean;
+  spoutSenderName?: string;
+  spoutMaxFps?: number;
   // Global default fit mode for video sources
   defaultVideoFitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
   // Per-layer active cell overrides (Resolume-style): map layerNum -> columnId

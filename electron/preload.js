@@ -127,6 +127,19 @@ try {
             catch (e) {
                 console.warn('Preload: onRecordSettings registration failed', e);
             }
+        },
+        // Spout output (Windows-only; requires native addon)
+        startSpout: (senderName) => {
+            return electron_1.ipcRenderer.invoke('spout:start', { senderName: senderName });
+        },
+        stopSpout: () => {
+            return electron_1.ipcRenderer.invoke('spout:stop');
+        },
+        sendSpoutFrame: (dataUrl, maxFps) => {
+            try {
+                electron_1.ipcRenderer.send('spout:frame', { dataUrl: dataUrl, maxFps: maxFps });
+            }
+            catch (_a) { }
         }
     });
 

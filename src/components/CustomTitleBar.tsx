@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Popover, PopoverTrigger, PopoverContent, Dialog, DialogContent, DialogClose, Button } from './ui';
 import { useStore } from '../store/store';
-import { EnterFullScreenIcon, MinusIcon, SquareIcon, Cross2Icon, HamburgerMenuIcon, ChevronRightIcon } from '@radix-ui/react-icons';
+import { EnterFullScreenIcon, MinusIcon, SquareIcon, Cross2Icon, HamburgerMenuIcon, ChevronRightIcon, CheckIcon } from '@radix-ui/react-icons';
 
 interface CustomTitleBarProps {
   onMinimize?: () => void;
   onMaximize?: () => void;
   onClose?: () => void;
   onMirror?: () => void;
+  onSpoutToggle?: () => void;
   onToggleAppFullscreen?: () => void;
   onNewPreset?: () => void;
   onSavePreset?: () => void;
@@ -38,6 +39,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   onMaximize,
   onClose,
   onMirror,
+  onSpoutToggle,
   onToggleAppFullscreen,
   onNewPreset,
   onSavePreset,
@@ -79,7 +81,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const helpMenuRef = useRef<HTMLDivElement>(null);
   // API docs removed
-  const { currentPresetName, showTimeline } = (useStore() as any) || {};
+  const { currentPresetName, showTimeline, spoutEnabled } = (useStore() as any) || {};
 
   // Detect Electron vs Web
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
@@ -297,6 +299,20 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                     >
                       Mirror (No preview)
                     </button>
+                    {isElectron && (
+                      <>
+                        <div className="tw-border-t tw-border-neutral-800 tw-my-0" />
+                        <button
+                          className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                          onClick={(e) => { e.stopPropagation(); onSpoutToggle?.(); setExternalMenuOpen(false); }}
+                        >
+                          <span className="tw-inline-flex tw-items-center tw-gap-2">
+                            Spout Output
+                            {spoutEnabled ? <CheckIcon className="tw-w-3.5 tw-h-3.5 tw-text-neutral-300" /> : null}
+                          </span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </PopoverContent>
               )}
@@ -406,6 +422,17 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                 <div className="tw-ml-2 tw-space-y-1">
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { try { (useStore.getState() as any).setMirrorKeepPreview?.(true); } catch {} onMirror?.(); setMobileMenuOpen(false); }}>Mirror</button>
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { try { (useStore.getState() as any).setMirrorKeepPreview?.(false); } catch {} onMirror?.(); setMobileMenuOpen(false); }}>Mirror (No preview)</button>
+                  {isElectron && (
+                    <>
+                      <div className="tw-border-t tw-border-neutral-800 tw-my-0" />
+                      <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onSpoutToggle?.(); setMobileMenuOpen(false); }}>
+                        <span className="tw-inline-flex tw-items-center tw-gap-2">
+                          Spout Output
+                          {spoutEnabled ? <CheckIcon className="tw-w-3.5 tw-h-3.5 tw-text-neutral-300" /> : null}
+                        </span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 

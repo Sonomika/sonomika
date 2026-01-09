@@ -73,3 +73,10 @@ deploy/app-files/user-documents/sets/debug-test-preset.vjpreset
 # Documentation and workflows
 .github/
 docs/
+
+# Native build/toolchain folders (local-only)
+native/
+
+# Native Node addons (keep only the shipped Spout addon)
+*.node
+!electron_spout.node

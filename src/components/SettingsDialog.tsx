@@ -14,7 +14,7 @@ interface SettingsDialogProps {
 }
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
-  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast, fontColor, setFontColor } = useStore() as any;
+  const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast, fontColor, setFontColor, spoutEnabled, spoutSenderName, setSpoutSenderName, spoutMaxFps, setSpoutMaxFps } = useStore() as any;
   const [debugMode, setDebugMode] = useState<boolean>(() => {
     try { return !!JSON.parse(localStorage.getItem('vj-debug-enabled') || 'false'); } catch { return false; }
   });
@@ -354,6 +354,37 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
               />
             </div>
           </div>
+
+          {(typeof window !== 'undefined' && (window as any).electron) && (
+            <>
+              <div>
+                <div className="tw-text-sm tw-text-neutral-200">Spout Output</div>
+              </div>
+
+              <div className="tw-space-y-2">
+                <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+                  <div className="tw-text-xs tw-text-neutral-400">Sender name</div>
+                  <Input
+                    value={String(spoutSenderName || '')}
+                    onChange={(e) => setSpoutSenderName(e.target.value)}
+                    placeholder="Sonomika Output"
+                    className="tw-w-56"
+                  />
+                </div>
+                <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+                  <div className="tw-text-xs tw-text-neutral-400">Max FPS</div>
+                  <Input
+                    type="number"
+                    value={String(Number(spoutMaxFps ?? 60))}
+                    onChange={(e) => setSpoutMaxFps(parseInt(e.target.value || '60', 10))}
+                    className="tw-w-56"
+                  />
+                </div>
+              </div>
+
+              <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
+            </>
+          )}
 
           {/* Keep Preview toggle removed - now controlled via External menu (Mirror / Mirror (No preview)) */}
           

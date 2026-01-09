@@ -136,6 +136,9 @@ const initialState: AppState = {
   defaultVideoRenderScale: 0.5,
   mirrorQuality: 'medium',
   mirrorKeepPreview: true,
+  spoutEnabled: false,
+  spoutSenderName: 'Sonomika Output',
+  spoutMaxFps: 60,
   // Track last saved/loaded preset file path (Electron)
   currentPresetPath: null as any,
 };
@@ -243,6 +246,9 @@ export const useStore = createWithEqualityFn<AppState & {
   setDefaultVideoRenderScale: (scale: number) => void;
   setMirrorQuality: (q: 'low' | 'medium' | 'high') => void;
   setMirrorKeepPreview: (v: boolean) => void;
+  setSpoutEnabled: (v: boolean) => void;
+  setSpoutSenderName: (name: string) => void;
+  setSpoutMaxFps: (fps: number) => void;
   setShowSystemEffectsTab: (v: boolean) => void;
 }>()(
   persist(
@@ -308,6 +314,9 @@ export const useStore = createWithEqualityFn<AppState & {
       setDefaultVideoRenderScale: (scale: number) => set({ defaultVideoRenderScale: Math.max(0.1, Math.min(1, Number(scale) || 1)) }),
       setMirrorQuality: (q) => set({ mirrorQuality: (q === 'low' || q === 'medium' || q === 'high') ? q : 'medium' }),
       setMirrorKeepPreview: (v: boolean) => set({ mirrorKeepPreview: Boolean(v) }),
+      setSpoutEnabled: (v: boolean) => set({ spoutEnabled: Boolean(v) } as any),
+      setSpoutSenderName: (name: string) => set({ spoutSenderName: String(name || '').trim().slice(0, 64) || 'Sonomika Output' } as any),
+      setSpoutMaxFps: (fps: number) => set({ spoutMaxFps: Math.max(1, Math.min(120, Math.floor(Number(fps) || 60))) } as any),
       setShowSystemEffectsTab: (v: boolean) => set({ showSystemEffectsTab: Boolean(v) }),
 
       addScene: () => set((state) => {
@@ -1268,6 +1277,9 @@ export const useStore = createWithEqualityFn<AppState & {
            recordSettings: state.recordSettings,
            mirrorQuality: (state as any).mirrorQuality,
            mirrorKeepPreview: (state as any).mirrorKeepPreview,
+         spoutEnabled: (state as any).spoutEnabled,
+         spoutSenderName: (state as any).spoutSenderName,
+         spoutMaxFps: (state as any).spoutMaxFps,
             showSystemEffectsTab: state.showSystemEffectsTab,
          };
        },

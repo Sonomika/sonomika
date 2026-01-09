@@ -1,6 +1,7 @@
 import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog, powerSaveBlocker, nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { SpoutSender } from './spout/SpoutSender';
 
 const shouldMuteConsole = process.env.VJ_DEBUG_LOGS !== 'true';
 
@@ -61,6 +62,7 @@ let mirrorAspectRatio: number | null = null;
 // Advanced mirror windows keyed by slice id
 const advancedMirrorWindows: Map<string, BrowserWindow> = new Map();
 let encryptedAuthStore: Record<string, Buffer> = {};
+const spoutSender = new SpoutSender();
 
 // Resolve an application icon path that works in dev and production
 function resolveAppIconPath(): string | undefined {
@@ -1092,6 +1094,16 @@ function createCustomMenu() {
               mainWindow.webContents.send('toggle-advanced-mirror');
             }
           }
+        },
+        { type: 'separator' },
+        {
+          label: 'Spout Output',
+          click: () => {
+            try {
+              // Renderer owns state; this is an optional shortcut.
+              mainWindow?.webContents.send('spout:toggle');
+            } catch {}
+          }
         }
       ]
     },
@@ -1398,6 +1410,41 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-resources-path', async () => {
     return process.resourcesPath || app.getAppPath();
+  });
+
+  // Spout output (Windows-only; requires native addon)
+  ipcMain.handle('spout:start', async (_e, payload: { senderName?: string }) => {
+    try {
+      const name = String(payload?.senderName || 'Sonomika Output');
+      const res = spoutSender.start(name);
+      if (!res.ok) {
+        console.warn('[spout] start failed:', res.error);
+        return { success: false, error: res.error };
+      }
+      console.log('[spout] started sender:', name);
+      return { success: true };
+    } catch (e) {
+      console.warn('[spout] start exception:', e);
+      return { success: false, error: String(e) };
+    }
+  });
+
+  ipcMain.handle('spout:stop', async () => {
+    try {
+      spoutSender.stop();
+      console.log('[spout] stopped');
+      return { success: true };
+    } catch (e) {
+      console.warn('[spout] stop exception:', e);
+      return { success: false, error: String(e) };
+    }
+  });
+
+  ipcMain.on('spout:frame', (_e, payload: { dataUrl?: string; maxFps?: number }) => {
+    try {
+      if (!spoutSender.isRunning()) return;
+      spoutSender.pushDataUrlFrame(String(payload?.dataUrl || ''), { maxFps: payload?.maxFps });
+    } catch {}
   });
 
   ipcMain.handle('read-file-text', async (event, filePath: string) => {
