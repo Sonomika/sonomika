@@ -2,7 +2,7 @@
 const electron = require("electron");
 const fs = require("fs");
 const path = require("path");
-class SpoutSender {
+const _SpoutSender = class _SpoutSender {
   constructor() {
     this.sender = null;
     this.senderName = null;
@@ -12,7 +12,7 @@ class SpoutSender {
     if (process.platform !== "win32") {
       return { ok: false, error: "Spout output is only supported on Windows." };
     }
-    const safeName = String(senderName || "").trim() || "Sonomika Output";
+    const safeName = _SpoutSender.DEFAULT_SENDER_NAME;
     if (this.sender && this.senderName === safeName) return { ok: true };
     if (this.sender) this.stop();
     const addon = this.tryLoadAddon();
@@ -50,7 +50,7 @@ class SpoutSender {
   pushDataUrlFrame(dataUrl, opts) {
     const sender = this.sender;
     if (!sender) return;
-    const maxFps = Math.max(1, Number(opts?.maxFps ?? 60) || 60);
+    const maxFps = _SpoutSender.DEFAULT_MAX_FPS;
     const now = Date.now();
     const interval = 1e3 / maxFps;
     if (now - this.lastFrameAtMs < interval) return;
@@ -89,7 +89,10 @@ class SpoutSender {
     }
     return null;
   }
-}
+};
+_SpoutSender.DEFAULT_SENDER_NAME = "Sonomika Output";
+_SpoutSender.DEFAULT_MAX_FPS = 60;
+let SpoutSender = _SpoutSender;
 const shouldMuteConsole = process.env.VJ_DEBUG_LOGS !== "true";
 const originalLog = console.log;
 const originalWarn = console.warn;
@@ -133,6 +136,8 @@ let mirrorAspectRatio = null;
 const advancedMirrorWindows = /* @__PURE__ */ new Map();
 let encryptedAuthStore = {};
 const spoutSender = new SpoutSender();
+const SPOUT_SENDER_NAME = "Sonomika Output";
+const SPOUT_MAX_FPS = 60;
 function resolveAppIconPath() {
   console.log("=== ICON RESOLUTION DEBUG ===");
   console.log("process.cwd():", process.cwd());
@@ -1376,13 +1381,12 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.handle("spout:start", async (_e, payload) => {
     try {
-      const name = String(payload?.senderName || "Sonomika Output");
-      const res = spoutSender.start(name);
+      const res = spoutSender.start(SPOUT_SENDER_NAME);
       if (!res.ok) {
         console.warn("[spout] start failed:", res.error);
         return { success: false, error: res.error };
       }
-      console.log("[spout] started sender:", name);
+      console.log("[spout] started sender:", SPOUT_SENDER_NAME);
       return { success: true };
     } catch (e) {
       console.warn("[spout] start exception:", e);
@@ -1411,7 +1415,7 @@ electron.app.whenReady().then(() => {
   electron.ipcMain.on("spout:frame", (_e, payload) => {
     try {
       if (!spoutSender.isRunning()) return;
-      spoutSender.pushDataUrlFrame(String(payload?.dataUrl || ""), { maxFps: payload?.maxFps });
+      spoutSender.pushDataUrlFrame(String(payload?.dataUrl || ""), { maxFps: SPOUT_MAX_FPS });
     } catch {
     }
   });

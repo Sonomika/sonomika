@@ -19,13 +19,17 @@ export class SpoutSender {
   private sender: null | InstanceType<SpoutAddon['SpoutOutput']> = null;
   private senderName: string | null = null;
   private lastFrameAtMs = 0;
+  private static readonly DEFAULT_SENDER_NAME = 'Sonomika Output';
+  private static readonly DEFAULT_MAX_FPS = 60;
 
   start(senderName: string): SpoutStartResult {
     if (process.platform !== 'win32') {
       return { ok: false, error: 'Spout output is only supported on Windows.' };
     }
 
-    const safeName = String(senderName || '').trim() || 'Sonomika Output';
+    // Spout output settings are fixed.
+    // Keep the parameter for API compatibility but ignore it.
+    const safeName = SpoutSender.DEFAULT_SENDER_NAME;
 
     // Restart if sender name changes.
     if (this.sender && this.senderName === safeName) return { ok: true };
@@ -71,7 +75,9 @@ export class SpoutSender {
     const sender = this.sender;
     if (!sender) return;
 
-    const maxFps = Math.max(1, Number(opts?.maxFps ?? 60) || 60);
+    // Spout output settings are fixed.
+    // Keep opts for API compatibility but ignore it.
+    const maxFps = SpoutSender.DEFAULT_MAX_FPS;
     const now = Date.now();
     const interval = 1000 / maxFps;
     if (now - this.lastFrameAtMs < interval) return;

@@ -63,6 +63,8 @@ let mirrorAspectRatio: number | null = null;
 const advancedMirrorWindows: Map<string, BrowserWindow> = new Map();
 let encryptedAuthStore: Record<string, Buffer> = {};
 const spoutSender = new SpoutSender();
+const SPOUT_SENDER_NAME = 'Sonomika Output';
+const SPOUT_MAX_FPS = 60;
 
 // Resolve an application icon path that works in dev and production
 function resolveAppIconPath(): string | undefined {
@@ -1415,13 +1417,12 @@ app.whenReady().then(() => {
   // Spout output (Windows-only; requires native addon)
   ipcMain.handle('spout:start', async (_e, payload: { senderName?: string }) => {
     try {
-      const name = String(payload?.senderName || 'Sonomika Output');
-      const res = spoutSender.start(name);
+      const res = spoutSender.start(SPOUT_SENDER_NAME);
       if (!res.ok) {
         console.warn('[spout] start failed:', res.error);
         return { success: false, error: res.error };
       }
-      console.log('[spout] started sender:', name);
+      console.log('[spout] started sender:', SPOUT_SENDER_NAME);
       return { success: true };
     } catch (e) {
       console.warn('[spout] start exception:', e);
@@ -1446,7 +1447,7 @@ app.whenReady().then(() => {
   ipcMain.on('spout:frame', (_e, payload: { dataUrl?: string; maxFps?: number }) => {
     try {
       if (!spoutSender.isRunning()) return;
-      spoutSender.pushDataUrlFrame(String(payload?.dataUrl || ''), { maxFps: payload?.maxFps });
+      spoutSender.pushDataUrlFrame(String(payload?.dataUrl || ''), { maxFps: SPOUT_MAX_FPS });
     } catch {}
   });
 

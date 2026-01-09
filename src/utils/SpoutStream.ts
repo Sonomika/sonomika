@@ -6,6 +6,9 @@ type ElectronSpoutApi = {
   sendSpoutFrame?: (dataUrl: string, maxFps?: number) => void;
 };
 
+const SPOUT_SENDER_NAME = 'Sonomika Output';
+const SPOUT_MAX_FPS = 60;
+
 export class SpoutStreamManager {
   private animationId: number | null = null;
   private running = false;
@@ -35,9 +38,7 @@ export class SpoutStreamManager {
         await new Promise((r) => setTimeout(r, 800 - sinceStop));
       }
 
-      const st: any = useStore.getState();
-      const senderName = String(st?.spoutSenderName || 'Sonomika Output');
-      const res = await electronAny.startSpout(senderName);
+      const res = await electronAny.startSpout(SPOUT_SENDER_NAME);
       if (!res?.success) return { success: false, error: res?.error || 'Failed to start Spout.' };
 
       this.running = true;
@@ -92,7 +93,7 @@ export class SpoutStreamManager {
       if (!electronAny?.sendSpoutFrame) return;
 
       const st: any = useStore.getState();
-      const maxFps = Math.max(1, Math.min(120, Number(st?.spoutMaxFps ?? 60) || 60));
+      const maxFps = SPOUT_MAX_FPS;
       const now = performance.now();
       const interval = 1000 / maxFps;
       if (now - this.lastAt < interval) return;
