@@ -274,6 +274,11 @@ export class MIDIProcessor {
     this.lastColumnTriggerAt = now;
     try {
       const state = useStore.getState() as any;
+      // If the user previously clicked a specific cell, we may have per-row overrides active.
+      // Column-level triggers should behave like the column header Play button: play the full column.
+      if (typeof state.clearActiveLayerOverrides === 'function') {
+        try { state.clearActiveLayerOverrides(); } catch {}
+      }
       if (typeof state.playColumn === 'function') state.playColumn(columnId);
     } finally {
       // Release lock after debounce window
