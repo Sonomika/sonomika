@@ -2032,8 +2032,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     setIsPlaying(true);
     isPlayingRef.current = true;
     try { (window as any).__vj_timeline_is_playing__ = true; } catch {}
-    // Notify transport UI (TimelineControls) that playback started
-    try { document.dispatchEvent(new Event('globalPlay')); } catch {}
+    // Notify timeline listeners that playback started (timeline mode only)
+    // IMPORTANT: do not emit global transport events here; those are for column mode.
 
     // RAF accumulator
     lastTsRef.current = null;
@@ -2103,8 +2103,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       (window as any).__vj_timeline_is_playing__ = false;
       (window as any).__vj_timeline_active_layers__ = [];
     } catch {}
-    // Notify transport UI (TimelineControls) that playback stopped/paused
-    try { document.dispatchEvent(new Event('globalPause')); } catch {}
+    // Notify timeline listeners that playback stopped (timeline mode only)
     // Pause all audio elements when stopping
     try {
       audioElementsRef.current.forEach((audio) => {

@@ -22,6 +22,7 @@ This beta release is built for Windows. It should compile on macOS, but this is 
 - **Generative sequencing**
 - **WebM video recording**
 - **Live code editing** and custom AI templates
+- **Spout Support**
 
 ## Installer
 

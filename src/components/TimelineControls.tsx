@@ -9,25 +9,16 @@ const TimelineControls: React.FC = () => {
   const [isPlaying, setIsPlaying] = React.useState(false);
   React.useEffect(() => {
     const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
     const onStop = () => setIsPlaying(false);
-    document.addEventListener('globalPlay', onPlay as any);
-    document.addEventListener('globalPause', onPause as any);
-    document.addEventListener('globalStop', onStop as any);
+    document.addEventListener('timelinePlay', onPlay as any);
+    document.addEventListener('timelineStop', onStop as any);
     return () => {
-      document.removeEventListener('globalPlay', onPlay as any);
-      document.removeEventListener('globalPause', onPause as any);
-      document.removeEventListener('globalStop', onStop as any);
+      document.removeEventListener('timelinePlay', onPlay as any);
+      document.removeEventListener('timelineStop', onStop as any);
     };
   }, []);
   const dispatchCommand = (type: string) => {
     try { document.dispatchEvent(new CustomEvent('timelineCommand', { detail: { type } })); } catch {}
-    if (type === 'stop') {
-      // Also emit stop events consumed by timeline/video reset logic
-      try { document.dispatchEvent(new CustomEvent('globalStop', { detail: { source: 'timelineControls' } })); } catch {}
-      try { document.dispatchEvent(new Event('timelineStop')); } catch {}
-      try { document.dispatchEvent(new CustomEvent('videoStop', { detail: { type: 'videoStop', allColumns: true, source: 'timelineControls' } })); } catch {}
-    }
   };
 
   return (

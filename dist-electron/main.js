@@ -1370,6 +1370,29 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.handle("get-app-version", async () => {
     try {
+      const tryReadPkgVersion = (pkgPath) => {
+        try {
+          if (!pkgPath || !fs.existsSync(pkgPath)) return "";
+          const raw = fs.readFileSync(pkgPath, "utf8");
+          const parsed = JSON.parse(raw);
+          const v = parsed?.version;
+          return typeof v === "string" ? v.trim() : "";
+        } catch {
+          return "";
+        }
+      };
+      const candidates = [
+        path.join(electron.app.getAppPath(), "package.json"),
+        path.join(process.cwd(), "package.json"),
+        // When running from `out/electron/main.js`
+        path.resolve(__dirname, "..", "..", "package.json"),
+        // When running from `dist-electron/main.js`
+        path.resolve(__dirname, "..", "package.json")
+      ];
+      for (const pkgPath of candidates) {
+        const v = tryReadPkgVersion(pkgPath);
+        if (v) return v;
+      }
       return electron.app.getVersion();
     } catch (e) {
       console.error("Failed to get app version:", e);
