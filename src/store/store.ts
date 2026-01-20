@@ -94,6 +94,12 @@ const createDefaultScenes = (): Scene[] => {
   }];
 };
 
+const createClearedSceneWithId = (id: string, name: string): Scene => ({
+  ...createEmptyScene(),
+  id,
+  name,
+});
+
 const initialState: AppState = {
   scenes: createDefaultScenes(),
   currentSceneId: '',
@@ -337,12 +343,33 @@ export const useStore = createWithEqualityFn<AppState & {
         });
       },
 
-      removeScene: (sceneId: string) => set((state) => ({
-        scenes: state.scenes.filter(scene => scene.id !== sceneId),
-        currentSceneId: state.currentSceneId === sceneId 
-          ? state.scenes[0].id 
-          : state.currentSceneId,
-      })),
+      removeScene: (sceneId: string) => set((state) => {
+        const srcIndex = state.scenes.findIndex((s) => s.id === sceneId);
+        if (srcIndex < 0) return {} as any;
+
+        // If this is the only scene, "delete" should clear it but keep slot 1.
+        if (state.scenes.length <= 1) {
+          const existing = state.scenes[0];
+          if (!existing) return {} as any;
+          const keptId = existing.id;
+          return {
+            scenes: [createClearedSceneWithId(keptId, '1')],
+            currentSceneId: keptId,
+          } as any;
+        }
+
+        const nextScenes = state.scenes.filter((s) => s.id !== sceneId);
+        const nextIndex = Math.min(srcIndex, Math.max(0, nextScenes.length - 1));
+        const nextCurrentId =
+          state.currentSceneId === sceneId
+            ? (nextScenes[nextIndex]?.id || nextScenes[0]?.id || state.currentSceneId)
+            : state.currentSceneId;
+
+        return {
+          scenes: nextScenes,
+          currentSceneId: nextCurrentId,
+        } as any;
+      }),
 
       duplicateScene: (sceneId: string) => set((state) => {
         const srcIndex = state.scenes.findIndex(s => s.id === sceneId);
@@ -436,12 +463,33 @@ export const useStore = createWithEqualityFn<AppState & {
         });
       },
 
-      removeTimelineScene: (sceneId: string) => set((state) => ({
-        timelineScenes: state.timelineScenes.filter(scene => scene.id !== sceneId),
-        currentTimelineSceneId: state.currentTimelineSceneId === sceneId 
-          ? state.timelineScenes[0].id 
-          : state.currentTimelineSceneId,
-      })),
+      removeTimelineScene: (sceneId: string) => set((state) => {
+        const srcIndex = state.timelineScenes.findIndex((s) => s.id === sceneId);
+        if (srcIndex < 0) return {} as any;
+
+        // If this is the only timeline scene, "delete" should clear it but keep slot 1.
+        if (state.timelineScenes.length <= 1) {
+          const existing = state.timelineScenes[0];
+          if (!existing) return {} as any;
+          const keptId = existing.id;
+          return {
+            timelineScenes: [createClearedSceneWithId(keptId, '1')],
+            currentTimelineSceneId: keptId,
+          } as any;
+        }
+
+        const nextTimelineScenes = state.timelineScenes.filter((s) => s.id !== sceneId);
+        const nextIndex = Math.min(srcIndex, Math.max(0, nextTimelineScenes.length - 1));
+        const nextCurrentId =
+          state.currentTimelineSceneId === sceneId
+            ? (nextTimelineScenes[nextIndex]?.id || nextTimelineScenes[0]?.id || state.currentTimelineSceneId)
+            : state.currentTimelineSceneId;
+
+        return {
+          timelineScenes: nextTimelineScenes,
+          currentTimelineSceneId: nextCurrentId,
+        } as any;
+      }),
 
       duplicateTimelineScene: (sceneId: string) => set((state) => {
         const srcIndex = state.timelineScenes.findIndex(s => s.id === sceneId);
