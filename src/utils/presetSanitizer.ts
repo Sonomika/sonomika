@@ -259,6 +259,33 @@ export function sanitizePresetDataOnLoad(data: any): any {
   next.timelineScenes = sanitizeScenes(next.timelineScenes || []);
   next.assets = sanitizeAssetsForPreset(next.assets || []);
 
+  // Migration: old sets may have persisted blob: URLs (not valid across restarts).
+  // If an asset has a real filePath, rebuild the persistent local-file:// URL.
+  try {
+    const fixLayerAsset = (layer: any) => {
+      if (!layer?.asset) return;
+      const a: any = layer.asset;
+      const p = typeof a.path === 'string' ? a.path : '';
+      const fp = typeof a.filePath === 'string' ? a.filePath : '';
+      if (p.startsWith('blob:') && fp) {
+        a.path = `local-file://${fp}`;
+      }
+      // Drop stale blobURL field on load; it will be regenerated when needed
+      if (typeof a.blobURL === 'string' && a.blobURL.startsWith('blob:')) {
+        delete a.blobURL;
+      }
+    };
+    const fixScenes = (scenes: any[]) => {
+      for (const scene of scenes || []) {
+        for (const col of scene?.columns || []) {
+          for (const layer of col?.layers || []) fixLayerAsset(layer);
+        }
+      }
+    };
+    fixScenes(next.scenes || []);
+    fixScenes(next.timelineScenes || []);
+  } catch {}
+
   return next;
 }
 

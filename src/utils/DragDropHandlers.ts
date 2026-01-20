@@ -2,6 +2,48 @@ import { createLayer, createColumn, getDefaultEffectParams } from './LayerManage
 import { useStore } from '../store/store';
 import { ActionLogger } from './ActionLogger';
 
+const sanitizeFileNameForWindows = (name: string): string => {
+  try {
+    const base = String(name || '').trim() || 'file';
+    // Windows invalid filename characters: <>:"/\|?*
+    return base.replace(/[<>:"/\\|?*]+/g, '_').replace(/\s+/g, ' ').trim();
+  } catch {
+    return 'file';
+  }
+};
+
+const ensureUniquePath = (dir: string, name: string): string => {
+  // Best-effort uniqueness without fs access: prefix timestamp+random
+  const safe = sanitizeFileNameForWindows(name);
+  const stamp = `${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+  return `${dir}\\${stamp}_${safe}`;
+};
+
+/**
+ * If Electron doesn't expose the absolute source path for a dropped file,
+ * copy it into Documents/Sonomika/video so the set can be reopened later.
+ */
+const persistDroppedFileIfNeeded = async (file: File): Promise<string | null> => {
+  try {
+    const electronAny: any = (window as any)?.electron;
+    if (!electronAny?.getDocumentsFolder || !electronAny?.saveBinaryFile) return null;
+
+    const docsRes = await electronAny.getDocumentsFolder();
+    const docsPath = docsRes && docsRes.success ? String(docsRes.path || '') : '';
+    if (!docsPath) return null;
+
+    // Main process initializer creates this folder; we write directly into it.
+    const videoDir = `${docsPath}\\video`;
+    const destPath = ensureUniquePath(videoDir, file.name);
+
+    const buf = await file.arrayBuffer();
+    const ok = await electronAny.saveBinaryFile(destPath, new Uint8Array(buf));
+    return ok ? destPath : null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Handle drop event for assets
  */
@@ -280,12 +322,24 @@ const handleSystemFileDrop = (
     }
     
     // Create asset object for the file
+    const electronAbsPath =
+      (file as any)?.path ||
+      (typeof (file as any)?.webkitRelativePath === 'string' && (file as any).webkitRelativePath) ||
+      '';
+
+    // Create a blob URL for immediate use (not persistent across app restarts)
+    const blobURL = URL.createObjectURL(file);
+
     const asset = {
       id: `system-file-${Date.now()}-${index}`,
       name: file.name,
       type: assetType,
-      filePath: (file as any).path || file.name, // Try to get system path
-      path: URL.createObjectURL(file), // Create blob URL for immediate use
+      // Persist absolute path when available (Electron)
+      filePath: electronAbsPath || undefined,
+      // Use local-file scheme so it can be rehydrated on reopen
+      path: electronAbsPath ? `local-file://${electronAbsPath}` : blobURL,
+      // Keep a blob URL for immediate playback/thumbnail; not persisted
+      blobURL,
       date: Date.now(),
       size: file.size,
       isSystemFile: true,
@@ -302,7 +356,31 @@ const handleSystemFileDrop = (
       (layer as any).fitMode = 'cover';
     }
     
-    // console.log('🟢 Layer updated with system file:', layer);
+    // If we couldn't get an absolute path, try copying into Documents/Sonomika/video
+    if (!electronAbsPath) {
+      (async () => {
+        const persistedPath = await persistDroppedFileIfNeeded(file);
+        if (!persistedPath) return;
+
+        try {
+          const st: any = useStore.getState();
+          const liveSceneId = st.currentSceneId || currentSceneId;
+          const liveScenes = st.scenes || scenes;
+          const liveScene = (liveScenes || []).find((s: any) => s.id === liveSceneId);
+          if (!liveScene) return;
+          const liveCol = (liveScene.columns || []).find((c: any) => c.id === columnId);
+          if (!liveCol) return;
+          const liveLayer = (liveCol.layers || []).find((l: any) =>
+            l.layerNum === targetLayerNum || l.name === `Layer ${targetLayerNum}`
+          );
+          if (!liveLayer || !liveLayer.asset) return;
+
+          liveLayer.asset.filePath = persistedPath;
+          liveLayer.asset.path = `local-file://${persistedPath}`;
+          updateScene(liveSceneId, { columns: liveScene.columns });
+        } catch {}
+      })();
+    }
   });
   
   // Update the scene

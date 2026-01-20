@@ -1209,7 +1209,13 @@ export const useStore = createWithEqualityFn<AppState & {
                  const a = nextLayer.asset as any;
                  // Drop heavy non-serializable refs
                  if (a.originalFile) delete a.originalFile;
+                 // Drop ephemeral blob URLs (they don't survive refresh/restart)
+                 if (a.blobURL) delete a.blobURL;
                  if (a.base64Data && a.size > 500 * 1024) delete a.base64Data;
+                 // If path is a stale blob but we have a persistent file path, normalize it now
+                 if (typeof a.path === 'string' && a.path.startsWith('blob:') && typeof a.filePath === 'string' && a.filePath) {
+                   a.path = `local-file://${a.filePath}`;
+                 }
                }
                return nextLayer;
              })
@@ -1226,7 +1232,13 @@ export const useStore = createWithEqualityFn<AppState & {
                  const a = nextLayer.asset as any;
                  // Drop heavy non-serializable refs
                  if (a.originalFile) delete a.originalFile;
+                 // Drop ephemeral blob URLs (they don't survive refresh/restart)
+                 if (a.blobURL) delete a.blobURL;
                  if (a.base64Data && a.size > 500 * 1024) delete a.base64Data;
+                 // If path is a stale blob but we have a persistent file path, normalize it now
+                 if (typeof a.path === 'string' && a.path.startsWith('blob:') && typeof a.filePath === 'string' && a.filePath) {
+                   a.path = `local-file://${a.filePath}`;
+                 }
                }
                return nextLayer;
              })
@@ -1260,6 +1272,15 @@ export const useStore = createWithEqualityFn<AppState & {
                persistedAsset.videoPath = asset.filePath;
              }
              
+             // Never persist ephemeral blob URLs as the primary path when we have filePath
+             if (typeof persistedAsset.path === 'string' && persistedAsset.path.startsWith('blob:') && persistedAsset.filePath) {
+               persistedAsset.path = `local-file://${persistedAsset.filePath}`;
+             }
+             // Also ensure we never persist blobURL helper fields
+             if ((asset as any).blobURL) {
+               // intentionally omitted from persistedAsset
+             }
+
              return persistedAsset;
            }),
            // Persist all critical application state (sanitized)
@@ -1308,6 +1329,37 @@ export const useStore = createWithEqualityFn<AppState & {
         // Transport state (e.g. playingColumnId) should not auto-resume on rehydrate.
         try {
           state?.globalStop?.({ force: true, source: 'rehydrate' });
+        } catch {}
+
+        // Strip stale blob URLs and normalize media paths after rehydrate.
+        // This prevents net::ERR_FILE_NOT_FOUND when a blob URL from a previous session was persisted.
+        try {
+          const fixLayerAsset = (layer: any) => {
+            const a: any = layer?.asset;
+            if (!a) return;
+            if (a.blobURL) delete a.blobURL;
+            if (typeof a.path === 'string' && a.path.startsWith('blob:') && typeof a.filePath === 'string' && a.filePath) {
+              a.path = `local-file://${a.filePath}`;
+            }
+          };
+          const fixScenes = (scenes: any[]) => {
+            for (const scene of scenes || []) {
+              for (const col of scene?.columns || []) {
+                for (const layer of col?.layers || []) fixLayerAsset(layer);
+              }
+            }
+          };
+          fixScenes((state as any)?.scenes || []);
+          fixScenes((state as any)?.timelineScenes || []);
+          // Assets list: normalize too
+          const assetsAny = (state as any)?.assets || [];
+          for (const a of assetsAny) {
+            if (!a) continue;
+            if ((a as any).blobURL) delete (a as any).blobURL;
+            if (typeof a.path === 'string' && a.path.startsWith('blob:') && typeof a.filePath === 'string' && a.filePath) {
+              a.path = `local-file://${a.filePath}`;
+            }
+          }
         } catch {}
 
         // Respect persisted showTimeline; no override on rehydrate

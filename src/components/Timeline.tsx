@@ -8,6 +8,7 @@ import MoveableTimelineClip from './MoveableTimelineClip';
 import SimpleTimelineClip from './SimpleTimelineClip';
 import { audioContextManager } from '../utils/AudioContextManager';
 import { videoAssetManager } from '../utils/VideoAssetManager';
+import { importSystemFileAsPersistentAsset, isSupportedVideoFile } from '../utils/SystemFileAsset';
 // EffectLoader import removed - using dynamic loading instead
 
 const toFileURL = (absPath: string) => {
@@ -329,6 +330,25 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       if (savedData) {
         const parsedData = JSON.parse(savedData);
         let tracksData: TimelineTrack[] = parsedData;
+
+        // Migrate away from stale blob URLs (they don't survive refresh/restart)
+        try {
+          tracksData = (tracksData || []).map((t) => ({
+            ...t,
+            clips: (t.clips || []).map((c: any) => {
+              const nextClip: any = { ...c };
+              const a: any = nextClip.asset ? { ...nextClip.asset } : null;
+              if (a) {
+                if (a.blobURL) delete a.blobURL;
+                if (typeof a.path === 'string' && a.path.startsWith('blob:') && typeof a.filePath === 'string' && a.filePath) {
+                  a.path = `local-file://${a.filePath}`;
+                }
+                nextClip.asset = a;
+              }
+              return nextClip;
+            }),
+          }));
+        } catch {}
         // Ensure an audio track exists when loading old saves
         if (!tracksData.some((t: any) => t.type === 'audio')) {
           tracksData = [
@@ -395,7 +415,23 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   // Save timeline data to localStorage for current scene
   const saveTimelineData = (tracksData: TimelineTrack[]) => {
     try {
-      localStorage.setItem(`timeline-tracks-${currentTimelineSceneId}`, JSON.stringify(tracksData));
+      // Avoid persisting ephemeral blob URLs; keep only durable paths (local-file:// + filePath)
+      const sanitized = (tracksData || []).map((t) => ({
+        ...t,
+        clips: (t.clips || []).map((c: any) => {
+          const nextClip: any = { ...c };
+          const a: any = nextClip.asset ? { ...nextClip.asset } : null;
+          if (a) {
+            if (a.blobURL) delete a.blobURL;
+            if (typeof a.path === 'string' && a.path.startsWith('blob:') && typeof a.filePath === 'string' && a.filePath) {
+              a.path = `local-file://${a.filePath}`;
+            }
+            nextClip.asset = a;
+          }
+          return nextClip;
+        }),
+      }));
+      localStorage.setItem(`timeline-tracks-${currentTimelineSceneId}`, JSON.stringify(sanitized));
       console.log(`Saved timeline data for scene ${currentTimelineSceneId} to localStorage:`, tracksData);
     } catch (error) {
       console.error('Error saving timeline data:', error);
@@ -1235,6 +1271,58 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     // Remove visual feedback
     const target = e.currentTarget as HTMLElement;
     target.classList.remove('drag-over');
+
+    // System file drop (Explorer) → create video clips on allowed tracks
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const destTrack = tracks.find((t) => t.id === trackId);
+      if (!destTrack) return;
+      if (!isAssetAllowedOnTrack(destTrack.type, 'video')) {
+        console.warn('Timeline: system video drops are not allowed on this track type:', destTrack.type);
+        return;
+      }
+
+      const dropped = Array.from(e.dataTransfer.files).filter(isSupportedVideoFile);
+      if (dropped.length === 0) return;
+
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const dropX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      const dropTime = (dropX / rect.width) * duration;
+      const dropTimeClamped = Math.max(0, Math.min(duration - 0.1, dropTime));
+
+      (async () => {
+        const newClips: TimelineClip[] = [];
+        let cursor = dropTimeClamped;
+
+        for (const f of dropped) {
+          const asset = await importSystemFileAsPersistentAsset(f);
+          if (!asset) continue;
+
+          // Default duration if unknown; user can trim later
+          const clipDuration = 5;
+          const baseClips = destTrack.clips.concat(newClips);
+          const start = timelineSnapEnabled
+            ? clampStartToNeighbors(baseClips, cursor, clipDuration)
+            : findFirstAvailableStart(baseClips, cursor, clipDuration);
+
+          newClips.push({
+            id: crypto.randomUUID(),
+            startTime: start,
+            duration: clipDuration,
+            asset,
+            type: 'video',
+            name: asset.name || 'Video',
+            params: {},
+          });
+
+          cursor = start + clipDuration;
+        }
+
+        if (newClips.length === 0) return;
+        updateTracks((prev) => prev.map((t) => (t.id === trackId ? { ...t, clips: [...t.clips, ...newClips] } : t)));
+      })();
+
+      return;
+    }
     
     const assetData = e.dataTransfer.getData('application/json');
     console.log('Asset data from drop:', assetData);

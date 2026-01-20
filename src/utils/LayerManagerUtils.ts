@@ -6,23 +6,74 @@ import { v4 as uuidv4 } from 'uuid';
 export const getAssetPath = (asset: any, useForPlayback: boolean = false): string => {
   if (!asset) return '';
   // console.log('getAssetPath called with asset:', asset, 'useForPlayback:', useForPlayback);
+
+  const toFileUrl = (inputPath: string): string => {
+    try {
+      if (!inputPath) return '';
+
+      // If caller passed a file URL already, normalize Windows variants like file://C:\...
+      if (/^file:\/\//i.test(inputPath)) {
+        const rest = inputPath.replace(/^file:\/\//i, '');
+        // file://C:\path\to -> file:///C:/path/to
+        if (/^[A-Za-z]:\\/.test(rest)) {
+          return `file:///${rest.replace(/\\/g, '/').replace(/^([A-Za-z]):\//, '$1:/')}`;
+        }
+        // file:///C:\path\to -> file:///C:/path/to
+        if (/^\/[A-Za-z]:\\/.test(rest)) {
+          return `file://${rest.replace(/\\/g, '/').replace(/^\/([A-Za-z]):\//, '/$1:/')}`;
+        }
+        // UNC: file://server/share/path (leave as-is)
+        return inputPath;
+      }
+
+      // Windows drive path: C:\path\to -> file:///C:/path/to
+      if (/^[A-Za-z]:\\/.test(inputPath)) {
+        return `file:///${inputPath.replace(/\\/g, '/').replace(/^([A-Za-z]):\//, '$1:/')}`;
+      }
+
+      // Windows UNC path: \\server\share\path -> file://server/share/path
+      if (/^\\\\/.test(inputPath)) {
+        const unc = inputPath.replace(/^\\\\/, '').replace(/\\/g, '/');
+        return `file://${unc}`;
+      }
+
+      // POSIX absolute path: /Users/... -> file:///Users/...
+      if (inputPath.startsWith('/')) {
+        return `file://${inputPath}`;
+      }
+
+      // Fallback: treat as URL-ish already
+      return inputPath;
+    } catch {
+      return inputPath || '';
+    }
+  };
   
   // For video playback, prioritize file paths over blob URLs
   if (useForPlayback && asset.type === 'video') {
+    // If we have a blob URL (common for drag & drop), prefer it for immediate playback.
+    if (asset.path && typeof asset.path === 'string' && asset.path.startsWith('blob:')) {
+      return asset.path;
+    }
     if (asset.filePath) {
-      const filePath = `file://${asset.filePath}`;
+      const filePath = toFileUrl(String(asset.filePath));
       // console.log('Using file path for video playback:', filePath);
       return filePath;
     }
     if (asset.path && asset.path.startsWith('file://')) {
       // console.log('Using existing file URL for video playback:', asset.path);
-      return asset.path;
+      return toFileUrl(String(asset.path));
     }
     if (asset.path && asset.path.startsWith('local-file://')) {
       const filePath = asset.path.replace('local-file://', '');
-      const standardPath = `file://${filePath}`;
+      const standardPath = toFileUrl(String(filePath));
       // console.log('Converting local-file to file for video playback:', standardPath);
       return standardPath;
+    }
+    // Last-resort: if a blobURL field exists, use it only when no persistent path exists.
+    // Note: blob URLs do not survive refresh/restart, so we never prefer them over file paths.
+    if (asset.blobURL && typeof asset.blobURL === 'string' && asset.blobURL.startsWith('blob:')) {
+      return asset.blobURL;
     }
   }
   
@@ -33,19 +84,19 @@ export const getAssetPath = (asset: any, useForPlayback: boolean = false): strin
   }
   
   if (asset.filePath) {
-    const filePath = `file://${asset.filePath}`;
+    const filePath = toFileUrl(String(asset.filePath));
     // console.log('Using file protocol:', filePath);
     return filePath;
   }
   
   if (asset.path && asset.path.startsWith('file://')) {
     // console.log('Using existing file URL:', asset.path);
-    return asset.path;
+    return toFileUrl(String(asset.path));
   }
   
   if (asset.path && asset.path.startsWith('local-file://')) {
     const filePath = asset.path.replace('local-file://', '');
-    const standardPath = `file://${filePath}`;
+    const standardPath = toFileUrl(String(filePath));
     // console.log('Converting local-file to file:', standardPath);
     return standardPath;
   }
