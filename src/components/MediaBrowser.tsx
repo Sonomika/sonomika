@@ -343,8 +343,13 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
       effect: item
     } as any;
 
+    try {
+      e.dataTransfer.effectAllowed = 'copy';
+      // Some Chromium/Electron builds are picky about custom MIME types; include text/plain too.
+      e.dataTransfer.setData('text/plain', JSON.stringify(payload));
+    } catch {}
     e.dataTransfer.setData('application/json', JSON.stringify(payload));
-    console.log(`🔧 Dragging ${itemType} as effect:`, payload);
+    console.log(`Dragging ${itemType} as effect:`, payload);
   };
 
   const handleFileDrag = (e: React.DragEvent, fileEntry: { name: string; path: string }) => {
@@ -358,8 +363,12 @@ export const MediaBrowser: React.FC<MediaBrowserProps> = ({ onClose }) => {
       date: Date.now(),
       size: undefined,
     };
+    try {
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('text/plain', JSON.stringify(asset));
+    } catch {}
     e.dataTransfer.setData('application/json', JSON.stringify(asset));
-    console.log('🔧 Dragging file asset:', asset);
+    console.log('Dragging file asset:', asset);
   };
 
   const navigateUp = () => {

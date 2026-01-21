@@ -437,6 +437,7 @@ export const handleLayerReorderDragOver = (
   setDragOverLayer: (value: string | null) => void
 ) => {
   e.preventDefault();
+  try { e.dataTransfer.dropEffect = 'move'; } catch {}
   if (draggedLayer) {
     const targetCellId = `${targetColumnId}-${targetLayerNum}`;
     setDragOverLayer(targetCellId);

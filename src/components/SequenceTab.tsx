@@ -4,6 +4,7 @@ import CustomWaveform, { CustomWaveformRef } from './CustomWaveform';
 import { Button, ScrollArea, Select, Input, Label, Switch } from './ui';
 import { ActionLogger } from '../utils/ActionLogger';
 import { TrashIcon, PlayIcon, PauseIcon, StopIcon, GearIcon, ZoomInIcon, ZoomOutIcon, ReloadIcon } from '@radix-ui/react-icons';
+import { importSystemFileAsPersistentAsset, isSupportedAudioFile } from '../utils/SystemFileAsset';
 
 interface TriggerConfig {
   id: string;
@@ -1064,11 +1065,13 @@ const SequenceTab: React.FC = () => {
         <div 
           className="tw-w-full tw-h-full tw-rounded-lg"
           onDragOver={(e) => {
-            // Only show visual feedback for JSON payloads from Files tab
             const hasJson = e.dataTransfer.types.includes('application/json');
-            if (!hasJson) {
-              return;
-            }
+            // On many platforms, DataTransfer.files is empty during dragover for security reasons.
+            // Use the presence of the generic "Files" drag type to allow the drop cursor.
+            const types = Array.from(e.dataTransfer.types || []);
+            const hasFilesType = types.includes('Files');
+            // Accept JSON payloads (Files tab) OR system file drops (Explorer)
+            if (!hasJson && !hasFilesType) return;
             e.preventDefault();
             try { e.dataTransfer.dropEffect = 'copy'; } catch {}
             e.currentTarget.classList.add('tw-border-blue-400', 'tw-bg-blue-50/10');
@@ -1081,7 +1084,23 @@ const SequenceTab: React.FC = () => {
             e.preventDefault();
             e.currentTarget.classList.remove('tw-border-blue-400', 'tw-bg-blue-50/10');
             
-            // Only accept JSON asset payloads from Files tab
+            // 1) System file drops (Explorer)
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+              const files = Array.from(e.dataTransfer.files).filter(isSupportedAudioFile);
+              if (files.length > 0) {
+                (async () => {
+                  const asset = await importSystemFileAsPersistentAsset(files[0]);
+                  if (!asset) return;
+                  const absPath = asset.filePath || (typeof asset.path === 'string' && asset.path.startsWith('local-file://') ? asset.path.replace('local-file://', '') : '');
+                  if (absPath) {
+                    addAudioFromPath(asset.name || 'audio', absPath);
+                  }
+                })();
+                return;
+              }
+            }
+
+            // 2) JSON asset payloads from Files tab
             const json = e.dataTransfer.getData('application/json');
             if (json) {
               try {
@@ -1089,7 +1108,7 @@ const SequenceTab: React.FC = () => {
                 const type = (asset?.type || '').toLowerCase();
                 const name = asset?.name || 'audio';
                 const pathLike: string | undefined = asset?.filePath || asset?.path || asset?.id;
-                const isAudio = type === 'audio' || (/\.(mp3|wav|aiff|flac|ogg)$/i).test(String(name || pathLike || ''));
+                const isAudio = type === 'audio' || (/\.(mp3|wav|aiff|aif|flac|ogg|oga|m4a|aac|opus|wma|caf)$/i).test(String(name || pathLike || ''));
                 if (isAudio && pathLike) {
                   // Strip scheme if present
                   const absPath = pathLike.startsWith('local-file://') ? pathLike.replace('local-file://', '') : pathLike;
@@ -1199,7 +1218,7 @@ const SequenceTab: React.FC = () => {
                 Drag audio files from the Files tab
               </div>
               <div className="tw-text-xs tw-mt-2 tw-text-neutral-500">
-                Supports MP3, WAV, OGG, FLAC
+                Supports MP3, WAV, OGG, FLAC, M4A, AAC, OPUS, WMA
               </div>
             </div>
           )}

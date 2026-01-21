@@ -328,11 +328,17 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
                   draggable
                   onDragStart={(ev) => {
-                    ev.dataTransfer.setData('application/json', JSON.stringify({
+                    const payload = {
                       type: 'effect', isEffect: true, id: e.id, name: e.name,
                       description: e.description, category: e.category, icon: e.icon,
                       metadata: e.metadata, assetType: 'effect', isSource: e.metadata?.isSource || false,
-                    }));
+                    };
+                    try {
+                      ev.dataTransfer.effectAllowed = 'copy';
+                      // Some Chromium/Electron builds are picky about custom MIME types; include text/plain too.
+                      ev.dataTransfer.setData('text/plain', JSON.stringify(payload));
+                    } catch {}
+                    ev.dataTransfer.setData('application/json', JSON.stringify(payload));
                   }}
                   title={`${e.name}: ${e.description} (Author: ${e.author})`}
                 >
@@ -389,11 +395,16 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
                   draggable
                   onDragStart={(ev) => {
-                    ev.dataTransfer.setData('application/json', JSON.stringify({
+                    const payload = {
                       type: 'effect', isEffect: true, id: e.id, name: e.name,
                       description: e.description, category: e.category, icon: e.icon,
                       metadata: e.metadata, assetType: 'effect', isSource: e.metadata?.isSource || false,
-                    }));
+                    };
+                    try {
+                      ev.dataTransfer.effectAllowed = 'copy';
+                      ev.dataTransfer.setData('text/plain', JSON.stringify(payload));
+                    } catch {}
+                    ev.dataTransfer.setData('application/json', JSON.stringify(payload));
                   }}
                   title={`${e.name}: ${e.description}`}
                 >
@@ -445,11 +456,16 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                   className="tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-p-2 tw-cursor-pointer hover:tw-bg-neutral-800 tw-text-left"
                   draggable
                   onDragStart={(ev) => {
-                    ev.dataTransfer.setData('application/json', JSON.stringify({
+                    const payload = {
                       type: 'effect', isEffect: true, id: e.id, name: e.name,
                       description: e.description, category: e.category, icon: e.icon,
                       metadata: e.metadata, assetType: 'effect', isSource: e.metadata?.isSource || false,
-                    }));
+                    };
+                    try {
+                      ev.dataTransfer.effectAllowed = 'copy';
+                      ev.dataTransfer.setData('text/plain', JSON.stringify(payload));
+                    } catch {}
+                    ev.dataTransfer.setData('application/json', JSON.stringify(payload));
                   }}
                   title={`${e.name}: ${e.description}`}
                 >

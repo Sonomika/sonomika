@@ -8,7 +8,7 @@ import MoveableTimelineClip from './MoveableTimelineClip';
 import SimpleTimelineClip from './SimpleTimelineClip';
 import { audioContextManager } from '../utils/AudioContextManager';
 import { videoAssetManager } from '../utils/VideoAssetManager';
-import { importSystemFileAsPersistentAsset, isSupportedVideoFile } from '../utils/SystemFileAsset';
+import { importSystemFileAsPersistentAsset, isSupportedAudioFile, isSupportedVideoFile } from '../utils/SystemFileAsset';
 // EffectLoader import removed - using dynamic loading instead
 
 const toFileURL = (absPath: string) => {
@@ -801,6 +801,72 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   });
   
   const timelineRef = useRef<HTMLDivElement>(null);
+  // Auto-scroll timeline viewport while dragging near edges (both axes).
+  const dragAutoScrollRafRef = useRef<number | null>(null);
+  const dragAutoScrollVxRef = useRef<number>(0);
+  const dragAutoScrollVyRef = useRef<number>(0);
+
+  const stopTimelineDragAutoScroll = () => {
+    dragAutoScrollVxRef.current = 0;
+    dragAutoScrollVyRef.current = 0;
+    if (dragAutoScrollRafRef.current != null) {
+      cancelAnimationFrame(dragAutoScrollRafRef.current);
+      dragAutoScrollRafRef.current = null;
+    }
+  };
+
+  const tickTimelineDragAutoScroll = () => {
+    const el = timelineRef.current;
+    const vx = dragAutoScrollVxRef.current;
+    const vy = dragAutoScrollVyRef.current;
+    if (!el || (vx === 0 && vy === 0)) {
+      stopTimelineDragAutoScroll();
+      return;
+    }
+    try {
+      if (vx) el.scrollLeft += vx;
+      if (vy) el.scrollTop += vy;
+    } catch {}
+    dragAutoScrollRafRef.current = requestAnimationFrame(tickTimelineDragAutoScroll);
+  };
+
+  const updateTimelineDragAutoScrollFromPointer = (clientX: number, clientY: number) => {
+    const el = timelineRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const edge = 56;
+    const maxSpeed = 18; // px per frame at ~60fps
+
+    let vx = 0;
+    let vy = 0;
+
+    // Horizontal
+    if (clientX < rect.left + edge) {
+      const t = Math.max(0, Math.min(1, (rect.left + edge - clientX) / edge));
+      vx = -maxSpeed * t;
+    } else if (clientX > rect.right - edge) {
+      const t = Math.max(0, Math.min(1, (clientX - (rect.right - edge)) / edge));
+      vx = maxSpeed * t;
+    }
+
+    // Vertical
+    if (clientY < rect.top + edge) {
+      const t = Math.max(0, Math.min(1, (rect.top + edge - clientY) / edge));
+      vy = -maxSpeed * t;
+    } else if (clientY > rect.bottom - edge) {
+      const t = Math.max(0, Math.min(1, (clientY - (rect.bottom - edge)) / edge));
+      vy = maxSpeed * t;
+    }
+
+    dragAutoScrollVxRef.current = vx;
+    dragAutoScrollVyRef.current = vy;
+    if ((vx !== 0 || vy !== 0) && dragAutoScrollRafRef.current == null) {
+      dragAutoScrollRafRef.current = requestAnimationFrame(tickTimelineDragAutoScroll);
+    }
+    if (vx === 0 && vy === 0 && dragAutoScrollRafRef.current != null) {
+      stopTimelineDragAutoScroll();
+    }
+  };
 
   // Display order: reverse non-audio tracks to match column view (top is highest layer), keep audio at bottom
   const displayTracks = useMemo(() => {
@@ -853,6 +919,41 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       return p;
     } catch {
       return String(asset?.path || '');
+    }
+  };
+
+  const getAudioDurationSec = async (asset: any): Promise<number | null> => {
+    try {
+      const src = getAudioSrc(asset);
+      if (!src) return null;
+
+      return await new Promise<number | null>((resolve) => {
+        const audio = new Audio();
+        let done = false;
+        const finish = (val: number | null) => {
+          if (done) return;
+          done = true;
+          try { audio.src = ''; } catch {}
+          resolve(val);
+        };
+
+        const onLoaded = () => {
+          const d = Number(audio.duration);
+          if (Number.isFinite(d) && d > 0) finish(d);
+          else finish(null);
+        };
+        const onError = () => finish(null);
+
+        try { audio.preload = 'metadata'; } catch {}
+        try { audio.addEventListener('loadedmetadata', onLoaded as any, { once: true }); } catch { audio.addEventListener('loadedmetadata', onLoaded as any); }
+        try { audio.addEventListener('error', onError as any, { once: true }); } catch { audio.addEventListener('error', onError as any); }
+        try { audio.src = src; } catch { finish(null); return; }
+
+        // Safety timeout: metadata should be quick, but don't hang the UI
+        window.setTimeout(() => finish(null), 3000);
+      });
+    } catch {
+      return null;
     }
   };
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -1019,6 +1120,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     e.preventDefault();
     // Move if dragging a timeline clip, otherwise copy for assets
     e.dataTransfer.dropEffect = draggingClip ? 'move' : 'copy';
+
+    // Auto-scroll the timeline viewport when hovering near edges during a drag.
+    updateTimelineDragAutoScrollFromPointer(e.clientX, e.clientY);
     
     // Add visual feedback
     const target = e.currentTarget as HTMLElement;
@@ -1065,6 +1169,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     // Remove visual feedback
     const target = e.currentTarget as HTMLElement;
     target.classList.remove('drag-over');
+    stopTimelineDragAutoScroll();
   };
 
   // Lasso selection mouse handlers
@@ -1265,6 +1370,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   const handleDrop = (e: React.DragEvent, trackId: string, _time: number) => {
     e.preventDefault();
+    stopTimelineDragAutoScroll();
     
     console.log('Drop event triggered on track:', trackId);
     
@@ -1272,16 +1378,18 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     const target = e.currentTarget as HTMLElement;
     target.classList.remove('drag-over');
 
-    // System file drop (Explorer) → create video clips on allowed tracks
+    // System file drop (Explorer) → create media clips on allowed tracks
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const destTrack = tracks.find((t) => t.id === trackId);
       if (!destTrack) return;
-      if (!isAssetAllowedOnTrack(destTrack.type, 'video')) {
-        console.warn('Timeline: system video drops are not allowed on this track type:', destTrack.type);
+
+      const wantType: 'video' | 'audio' = destTrack.type === 'audio' ? 'audio' : 'video';
+      if (!isAssetAllowedOnTrack(destTrack.type, wantType)) {
+        console.warn('Timeline: system drops are not allowed on this track type:', destTrack.type, 'asset:', wantType);
         return;
       }
 
-      const dropped = Array.from(e.dataTransfer.files).filter(isSupportedVideoFile);
+      const dropped = Array.from(e.dataTransfer.files).filter(wantType === 'audio' ? isSupportedAudioFile : isSupportedVideoFile);
       if (dropped.length === 0) return;
 
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -1296,9 +1404,17 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         for (const f of dropped) {
           const asset = await importSystemFileAsPersistentAsset(f);
           if (!asset) continue;
+          if (asset.type !== wantType) continue;
 
-          // Default duration if unknown; user can trim later
-          const clipDuration = 5;
+          // Duration: for audio, use full track length (metadata). For video, keep default.
+          let clipDuration = wantType === 'audio' ? 10 : 5;
+          if (wantType === 'audio') {
+            const measured = await getAudioDurationSec(asset);
+            if (measured && Number.isFinite(measured) && measured > 0.05) {
+              // Keep 3-decimal precision to avoid floating noise in layout
+              clipDuration = Number(measured.toFixed(3));
+            }
+          }
           const baseClips = destTrack.clips.concat(newClips);
           const start = timelineSnapEnabled
             ? clampStartToNeighbors(baseClips, cursor, clipDuration)
@@ -1309,8 +1425,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             startTime: start,
             duration: clipDuration,
             asset,
-            type: 'video',
-            name: asset.name || 'Video',
+            type: wantType,
+            name: asset.name || (wantType === 'audio' ? 'Audio' : 'Video'),
             params: {},
           });
 

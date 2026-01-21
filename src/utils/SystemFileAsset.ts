@@ -30,9 +30,15 @@ const getTypeFromFile = (file: File): SystemImportedAsset['type'] => {
   const n = (file?.name || '').toLowerCase();
   const t = (file?.type || '').toLowerCase();
   const hasExt = (ext: string) => n.endsWith(ext);
-  const isVideo = t.startsWith('video/') || ['.mp4', '.mov', '.webm', '.m4v', '.avi', '.mkv'].some(hasExt);
+  const isVideo = t.startsWith('video/') || [
+    '.mp4', '.mov', '.webm', '.m4v', '.avi', '.mkv',
+    '.wmv', '.mpg', '.mpeg', '.m2v', '.ts', '.mts', '.m2ts'
+  ].some(hasExt);
   const isImage = t.startsWith('image/') || ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'].some(hasExt);
-  const isAudio = t.startsWith('audio/') || ['.mp3', '.wav', '.aiff', '.flac', '.ogg'].some(hasExt);
+  const isAudio = t.startsWith('audio/') || [
+    '.mp3', '.wav', '.aiff', '.aif', '.flac', '.ogg', '.oga',
+    '.m4a', '.aac', '.opus', '.wma', '.caf'
+  ].some(hasExt);
   if (isVideo) return 'video';
   if (isImage) return 'image';
   if (isAudio) return 'audio';
@@ -47,10 +53,18 @@ export const isSupportedVideoFile = (file: File): boolean => {
   }
 };
 
+export const isSupportedAudioFile = (file: File): boolean => {
+  try {
+    return getTypeFromFile(file) === 'audio';
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Build an asset from an OS-dropped file in a way that survives refresh/restart:
  * - Prefer Electron absolute path when available (file.path)
- * - Otherwise copy into Documents/Sonomika/video using Electron IPC, then persist that path.
+ * - Otherwise copy into Documents/Sonomika/{video|music} using Electron IPC, then persist that path.
  * - Always attach a blob URL for immediate preview/playback (but callers should not persist it).
  */
 export async function importSystemFileAsPersistentAsset(file: File): Promise<SystemImportedAsset | null> {
@@ -63,14 +77,15 @@ export async function importSystemFileAsPersistentAsset(file: File): Promise<Sys
     let absPath: string = String(fileAny?.path || '').trim();
 
     if (!absPath) {
-      // Copy into Documents/Sonomika/video
+      // Copy into Documents/Sonomika/{video|music} so it can be reopened later
       const electronAny: any = (window as any)?.electron;
       if (electronAny?.getDocumentsFolder && electronAny?.saveBinaryFile) {
         const docsRes = await electronAny.getDocumentsFolder();
         const docsPath = docsRes && docsRes.success ? String(docsRes.path || '') : '';
         if (docsPath) {
-          const videoDir = `${docsPath}\\video`;
-          const destPath = ensureUniqueWindowsPath(videoDir, file.name);
+          const subdir = type === 'audio' ? 'music' : 'video';
+          const targetDir = `${docsPath}\\${subdir}`;
+          const destPath = ensureUniqueWindowsPath(targetDir, file.name);
           const buf = await file.arrayBuffer();
           const ok = await electronAny.saveBinaryFile(destPath, new Uint8Array(buf));
           if (ok) absPath = destPath;

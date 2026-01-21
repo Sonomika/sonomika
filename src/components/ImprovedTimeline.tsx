@@ -167,6 +167,70 @@ export const ImprovedTimeline: React.FC<TimelineProps> = ({ onClose: _onClose, o
   });
   
   const timelineRef = useRef<HTMLDivElement>(null);
+  // Auto-scroll timeline viewport while dragging near edges (both axes).
+  const dragAutoScrollRafRef = useRef<number | null>(null);
+  const dragAutoScrollVxRef = useRef<number>(0);
+  const dragAutoScrollVyRef = useRef<number>(0);
+
+  const stopTimelineDragAutoScroll = () => {
+    dragAutoScrollVxRef.current = 0;
+    dragAutoScrollVyRef.current = 0;
+    if (dragAutoScrollRafRef.current != null) {
+      cancelAnimationFrame(dragAutoScrollRafRef.current);
+      dragAutoScrollRafRef.current = null;
+    }
+  };
+
+  const tickTimelineDragAutoScroll = () => {
+    const el = timelineRef.current;
+    const vx = dragAutoScrollVxRef.current;
+    const vy = dragAutoScrollVyRef.current;
+    if (!el || (vx === 0 && vy === 0)) {
+      stopTimelineDragAutoScroll();
+      return;
+    }
+    try {
+      if (vx) el.scrollLeft += vx;
+      if (vy) el.scrollTop += vy;
+    } catch {}
+    dragAutoScrollRafRef.current = requestAnimationFrame(tickTimelineDragAutoScroll);
+  };
+
+  const updateTimelineDragAutoScrollFromPointer = (clientX: number, clientY: number) => {
+    const el = timelineRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const edge = 56;
+    const maxSpeed = 18; // px per frame at ~60fps
+
+    let vx = 0;
+    let vy = 0;
+
+    if (clientX < rect.left + edge) {
+      const t = Math.max(0, Math.min(1, (rect.left + edge - clientX) / edge));
+      vx = -maxSpeed * t;
+    } else if (clientX > rect.right - edge) {
+      const t = Math.max(0, Math.min(1, (clientX - (rect.right - edge)) / edge));
+      vx = maxSpeed * t;
+    }
+
+    if (clientY < rect.top + edge) {
+      const t = Math.max(0, Math.min(1, (rect.top + edge - clientY) / edge));
+      vy = -maxSpeed * t;
+    } else if (clientY > rect.bottom - edge) {
+      const t = Math.max(0, Math.min(1, (clientY - (rect.bottom - edge)) / edge));
+      vy = maxSpeed * t;
+    }
+
+    dragAutoScrollVxRef.current = vx;
+    dragAutoScrollVyRef.current = vy;
+    if ((vx !== 0 || vy !== 0) && dragAutoScrollRafRef.current == null) {
+      dragAutoScrollRafRef.current = requestAnimationFrame(tickTimelineDragAutoScroll);
+    }
+    if (vx === 0 && vy === 0 && dragAutoScrollRafRef.current != null) {
+      stopTimelineDragAutoScroll();
+    }
+  };
 
   // Display order: reverse non-audio tracks to match column view (top is highest layer), keep audio at bottom
   const displayTracks = useMemo(() => {
@@ -321,6 +385,7 @@ export const ImprovedTimeline: React.FC<TimelineProps> = ({ onClose: _onClose, o
     e.dataTransfer.dropEffect = draggingClip ? 'move' : 'copy';
     const target = e.currentTarget as HTMLElement;
     target.classList.add('drag-over');
+    updateTimelineDragAutoScrollFromPointer(e.clientX, e.clientY);
   };
 
   // Ensure an audio lane exists in current state (one-time on mount)
@@ -341,6 +406,7 @@ export const ImprovedTimeline: React.FC<TimelineProps> = ({ onClose: _onClose, o
   const handleDragLeave = (e: React.DragEvent) => {
     const target = e.currentTarget as HTMLElement;
     target.classList.remove('drag-over');
+    stopTimelineDragAutoScroll();
   };
 
   // Lasso selection mouse handlers
@@ -467,6 +533,7 @@ export const ImprovedTimeline: React.FC<TimelineProps> = ({ onClose: _onClose, o
   // Handle drop from media library
   const handleDrop = (e: React.DragEvent, trackId: string, _time: number) => {
     e.preventDefault();
+    stopTimelineDragAutoScroll();
     
     const target = e.currentTarget as HTMLElement;
     target.classList.remove('drag-over');

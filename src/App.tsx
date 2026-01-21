@@ -141,6 +141,69 @@ function App() {
   });
 
   const { toast } = useToast();
+
+  // Auto-scroll the main app container while dragging near top/bottom edges.
+  // This makes it possible to drag items from the library to targets that are off-screen.
+  const appScrollRef = useRef<HTMLDivElement | null>(null);
+  const dragScrollRafRef = useRef<number | null>(null);
+  const dragScrollVelocityRef = useRef<number>(0);
+
+  const stopDragAutoScroll = () => {
+    dragScrollVelocityRef.current = 0;
+    if (dragScrollRafRef.current != null) {
+      cancelAnimationFrame(dragScrollRafRef.current);
+      dragScrollRafRef.current = null;
+    }
+  };
+
+  const tickDragAutoScroll = () => {
+    const el = appScrollRef.current;
+    const v = dragScrollVelocityRef.current;
+    if (!el || v === 0) {
+      stopDragAutoScroll();
+      return;
+    }
+    try {
+      el.scrollTop += v;
+    } catch {}
+    dragScrollRafRef.current = requestAnimationFrame(tickDragAutoScroll);
+  };
+
+  const updateDragAutoScrollFromPointer = (clientY: number) => {
+    const el = appScrollRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const edge = 64;
+    const maxSpeed = 22; // px per frame at 60fps
+    let v = 0;
+
+    if (clientY < rect.top + edge) {
+      const t = Math.max(0, Math.min(1, (rect.top + edge - clientY) / edge));
+      v = -maxSpeed * t;
+    } else if (clientY > rect.bottom - edge) {
+      const t = Math.max(0, Math.min(1, (clientY - (rect.bottom - edge)) / edge));
+      v = maxSpeed * t;
+    }
+
+    dragScrollVelocityRef.current = v;
+    if (v !== 0 && dragScrollRafRef.current == null) {
+      dragScrollRafRef.current = requestAnimationFrame(tickDragAutoScroll);
+    }
+    if (v === 0 && dragScrollRafRef.current != null) {
+      stopDragAutoScroll();
+    }
+  };
+
+  useEffect(() => {
+    // Stop scrolling when the drag ends/drops anywhere.
+    const stop = () => stopDragAutoScroll();
+    window.addEventListener('dragend', stop);
+    window.addEventListener('drop', stop);
+    return () => {
+      window.removeEventListener('dragend', stop);
+      window.removeEventListener('drop', stop);
+    };
+  }, []);
   const { recordSettings, setRecordSettings } = useStore() as any;
   const { showTimeline, setShowTimeline } = useStore() as any;
 
@@ -1564,7 +1627,13 @@ function App() {
       
       <div className="tw-bg-black tw-text-white tw-min-h-screen lg:tw-h-screen tw-flex tw-flex-col tw-pt-8 hdr-900-pt-16">
 
-        <div className="vj-app-content tw-flex-1 tw-pt-0 hdr-900-pt-0 tw-overflow-y-auto lg:tw-min-h-0 lg:tw-overflow-y-auto">
+        <div
+          ref={appScrollRef}
+          className="vj-app-content tw-flex-1 tw-pt-0 hdr-900-pt-0 tw-overflow-y-auto lg:tw-min-h-0 lg:tw-overflow-y-auto"
+          onDragOverCapture={(e) => updateDragAutoScrollFromPointer(e.clientY)}
+          onDragLeaveCapture={() => stopDragAutoScroll()}
+          onDropCapture={() => stopDragAutoScroll()}
+        >
           {showUIDemo ? (
             <UIDemo onClose={() => setShowUIDemo(false)} />
           ) : (

@@ -271,6 +271,23 @@ export const handleDragOver = (e: React.DragEvent, cellId: string, setDragOverCe
   }
   
   // Handle regular asset drags
+  // Explicitly set dropEffect so Electron/Chromium shows an allowed cursor (otherwise users see "no entry").
+  try {
+    const raw = e.dataTransfer.getData('application/json');
+    if (raw) {
+      const data = JSON.parse(raw);
+      const t = String(data?.type || '');
+      if (t === 'layer-reorder' || t === 'layer-asset') {
+        e.dataTransfer.dropEffect = 'move';
+      } else {
+        e.dataTransfer.dropEffect = 'copy';
+      }
+    } else {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  } catch {
+    try { e.dataTransfer.dropEffect = 'copy'; } catch {}
+  }
   setDragOverCell(cellId);
 };
 
