@@ -197,6 +197,8 @@ export interface AppState {
   defaultVideoFitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
   // Per-layer active cell overrides (Resolume-style): map layerNum -> columnId
   activeLayerOverrides?: Record<number, string>;
+  // Track last saved/loaded preset name (web + Electron)
+  currentPresetName?: string | null;
   // Track last saved/loaded preset file path (Electron)
   currentPresetPath?: string | null;
 } 

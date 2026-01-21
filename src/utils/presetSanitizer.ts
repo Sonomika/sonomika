@@ -4,6 +4,33 @@
 
 type AnyState = any;
 
+function sanitizeTimelineTrackAsset(asset: any): any {
+  if (!asset || typeof asset !== 'object') return asset;
+  const next: any = { ...asset };
+  if (next.blobURL) delete next.blobURL;
+  try {
+    const p = typeof next.path === 'string' ? next.path : '';
+    const fp = typeof next.filePath === 'string' ? next.filePath : '';
+    if (p.startsWith('blob:') && fp) {
+      next.path = `local-file://${fp}`;
+    }
+  } catch {}
+  return next;
+}
+
+function sanitizeTimelineTracks(tracks: any): any[] {
+  if (!Array.isArray(tracks)) return [];
+  return tracks.map((t: any) => ({
+    ...t,
+    clips: Array.isArray(t?.clips)
+      ? t.clips.map((c: any) => ({
+          ...c,
+          asset: c?.asset ? sanitizeTimelineTrackAsset(c.asset) : c?.asset,
+        }))
+      : [],
+  }));
+}
+
 /**
  * Generate a stable, shareable effect id from a filename.
  * Mirrors EffectDiscovery.generateEffectId but in a standalone helper.
@@ -227,11 +254,34 @@ export function buildPresetDataFromState(state: AnyState): any {
   const timelineScenes = sanitizeScenes(state.timelineScenes || []);
   const assets = sanitizeAssetsForPreset(state.assets || []);
 
+  // Timeline clips/tracks are persisted outside zustand (Timeline.tsx uses localStorage).
+  // Capture them into the preset so reopening a set restores its original timeline state.
+  let timelineTracksBySceneId: Record<string, any[]> | undefined;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage && Array.isArray(state.timelineScenes)) {
+      const out: Record<string, any[]> = {};
+      for (const scene of state.timelineScenes || []) {
+        const id = scene?.id ? String(scene.id) : '';
+        if (!id) continue;
+        const raw = localStorage.getItem(`timeline-tracks-${id}`);
+        if (!raw) continue;
+        try {
+          const parsed = JSON.parse(raw);
+          out[id] = sanitizeTimelineTracks(parsed);
+        } catch {
+          // ignore malformed entries
+        }
+      }
+      if (Object.keys(out).length > 0) timelineTracksBySceneId = out;
+    }
+  } catch {}
+
   return {
     scenes,
     currentSceneId: state.currentSceneId,
     timelineScenes,
     currentTimelineSceneId: state.currentTimelineSceneId,
+    timelineTracksBySceneId,
     playingColumnId: state.playingColumnId,
     bpm: state.bpm,
     sidebarVisible: state.sidebarVisible,
@@ -258,6 +308,16 @@ export function sanitizePresetDataOnLoad(data: any): any {
   next.scenes = sanitizeScenes(next.scenes || []);
   next.timelineScenes = sanitizeScenes(next.timelineScenes || []);
   next.assets = sanitizeAssetsForPreset(next.assets || []);
+  try {
+    if (next.timelineTracksBySceneId && typeof next.timelineTracksBySceneId === 'object') {
+      const src = next.timelineTracksBySceneId as Record<string, any>;
+      const out: Record<string, any[]> = {};
+      for (const [sceneId, tracks] of Object.entries(src)) {
+        out[String(sceneId)] = sanitizeTimelineTracks(tracks);
+      }
+      next.timelineTracksBySceneId = out;
+    }
+  } catch {}
 
   // Migration: old sets may have persisted blob: URLs (not valid across restarts).
   // If an asset has a real filePath, rebuild the persistent local-file:// URL.

@@ -146,6 +146,7 @@ const initialState: AppState = {
   spoutSenderName: 'Sonomika Output',
   spoutMaxFps: 60,
   // Track last saved/loaded preset file path (Electron)
+  currentPresetName: null as any,
   currentPresetPath: null as any,
 };
 
@@ -915,11 +916,27 @@ export const useStore = createWithEqualityFn<AppState & {
         try {
           // Clear localStorage
           localStorage.removeItem('vj-app-storage');
+          // Clear timeline localStorage (Timeline.tsx persists tracks separately)
+          try {
+            const keys: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k) keys.push(k);
+            }
+            keys.forEach((k) => {
+              if (k.startsWith('timeline-tracks-')) {
+                try { localStorage.removeItem(k); } catch {}
+              }
+            });
+            try { localStorage.removeItem('vj-timeline-selected-clips'); } catch {}
+          } catch {}
           
           // Reset to initial state
           set({
             ...initialState,
             currentSceneId: initialState.scenes[0].id,
+            currentPresetName: null as any,
+            currentPresetPath: null as any,
           });
           
           // console.log('✅ Reset to default state completed');
@@ -1157,12 +1174,38 @@ export const useStore = createWithEqualityFn<AppState & {
               }) || []
             };
             const cleanedData = sanitizePresetDataOnLoad(rawData);
+            // Apply/clear timeline tracks stored outside zustand so Timeline reflects the loaded set
+            try {
+              const byId = (cleanedData as any)?.timelineTracksBySceneId as Record<string, any[]> | undefined;
+              const scenes = Array.isArray((cleanedData as any)?.timelineScenes) ? (cleanedData as any).timelineScenes : [];
+              for (const sc of scenes) {
+                const id = sc?.id ? String(sc.id) : '';
+                if (!id) continue;
+                const k = `timeline-tracks-${id}`;
+                if (byId && byId[id]) localStorage.setItem(k, JSON.stringify(byId[id]));
+                else localStorage.removeItem(k);
+              }
+              try { localStorage.removeItem('vj-timeline-selected-clips'); } catch {}
+            } catch {}
             try { localStorage.removeItem('vj-app-storage'); } catch (clearError) { console.warn('Failed to clear localStorage:', clearError); }
             set({ ...cleanedData, currentPresetName: presetName } as any);
             return true;
           }
 
           const cleanedData = sanitizePresetDataOnLoad(preset.data || {});
+          // Apply/clear timeline tracks stored outside zustand so Timeline reflects the loaded set
+          try {
+            const byId = (cleanedData as any)?.timelineTracksBySceneId as Record<string, any[]> | undefined;
+            const scenes = Array.isArray((cleanedData as any)?.timelineScenes) ? (cleanedData as any).timelineScenes : [];
+            for (const sc of scenes) {
+              const id = sc?.id ? String(sc.id) : '';
+              if (!id) continue;
+              const k = `timeline-tracks-${id}`;
+              if (byId && byId[id]) localStorage.setItem(k, JSON.stringify(byId[id]));
+              else localStorage.removeItem(k);
+            }
+            try { localStorage.removeItem('vj-timeline-selected-clips'); } catch {}
+          } catch {}
           set({ ...cleanedData, currentPresetName: presetName } as any);
           return true;
         } catch (e) {
@@ -1211,6 +1254,19 @@ export const useStore = createWithEqualityFn<AppState & {
           if (!preset?.data) return false;
           // Apply sanitized data to store
           const cleanedData = sanitizePresetDataOnLoad(preset.data || {});
+          // Apply/clear timeline tracks stored outside zustand so Timeline reflects the loaded set
+          try {
+            const byId = (cleanedData as any)?.timelineTracksBySceneId as Record<string, any[]> | undefined;
+            const scenes = Array.isArray((cleanedData as any)?.timelineScenes) ? (cleanedData as any).timelineScenes : [];
+            for (const sc of scenes) {
+              const id = sc?.id ? String(sc.id) : '';
+              if (!id) continue;
+              const k = `timeline-tracks-${id}`;
+              if (byId && byId[id]) localStorage.setItem(k, JSON.stringify(byId[id]));
+              else localStorage.removeItem(k);
+            }
+            try { localStorage.removeItem('vj-timeline-selected-clips'); } catch {}
+          } catch {}
           set({ ...cleanedData, currentPresetName: (data as any)?.name || name } as any);
           return true;
         } catch (e) {

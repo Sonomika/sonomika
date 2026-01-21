@@ -843,15 +843,19 @@ function App() {
             filters: [{ name: 'sonomika Set', extensions: ['sonomika', 'json'] }]
           });
           if (!result.canceled && result.filePaths && result.filePaths[0]) {
-            const content = await (window as any).electron.readFileText(result.filePaths[0]);
+            const loadedPath = String(result.filePaths[0]);
+            const content = await (window as any).electron.readFileText(loadedPath);
             if (content) {
               const { loadPresetFromContent } = useStore.getState() as any;
               if (typeof loadPresetFromContent === 'function') {
-                await loadPresetFromContent(content, String(result.filePaths[0]).split(/[\\\/]/).pop());
+                await loadPresetFromContent(content, String(loadedPath).split(/[\\\/]/).pop());
+                // Critical: bind future "Save Set" to the file the user actually opened
+                try { (useStore.getState() as any).setCurrentPresetPath?.(loadedPath); } catch {}
               } else {
                 const blob = new Blob([content], { type: 'application/json' });
-                const file = new File([blob], result.filePaths[0]);
+                const file = new File([blob], loadedPath);
                 await loadPreset(file);
+                try { (useStore.getState() as any).setCurrentPresetPath?.(loadedPath); } catch {}
               }
             }
           }
@@ -1646,7 +1650,18 @@ function App() {
         isOpen={modalConfig.isOpen}
         onClose={handleModalClose}
         onConfirm={handleModalConfirm}
-        onSecondary={modalConfig.type === 'new' ? () => { try { const { resetToDefault } = useStore.getState(); resetToDefault(); window.location.reload(); } catch (e) { console.error('Failed to discard and create new set:', e); } } : undefined}
+        onSecondary={modalConfig.type === 'new' ? () => {
+          try {
+            // Explicitly clear preset identity so nothing can be written back to a previous file.
+            try { (useStore.getState() as any).setCurrentPresetPath?.(null); } catch {}
+            try { (useStore.getState() as any).setCurrentPresetName?.(null); } catch {}
+            const { resetToDefault } = useStore.getState();
+            resetToDefault();
+            window.location.reload();
+          } catch (e) {
+            console.error('Failed to discard and create new set:', e);
+          }
+        } : undefined}
         title={modalConfig.title}
         message={modalConfig.message}
         placeholder={modalConfig.placeholder}
