@@ -21,6 +21,7 @@ import { KeyboardInputManager } from './utils/KeyboardInputManager';
 import { attachLFOEngineGlobalListeners } from './engine/LFOEngine';
 import { handleRedirectIfPresent } from './lib/dropbox';
 import { useToast } from './hooks/use-toast';
+import { useGlobalDragAutoScroll } from './hooks/useGlobalDragAutoScroll';
 import DebugOverlay from './components/DebugOverlay';
 import { buildPresetDataFromState } from './utils/presetSanitizer';
 
@@ -96,6 +97,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
 }
 
 function App() {
+  // Global drag auto-scroll: lets users drag from long menus/lists to timeline/columns on small screens.
+  useGlobalDragAutoScroll();
+
   const [isMirrorOpen, setIsMirrorOpen] = useState(false);
   const recordingAudioStreamRef = useRef<MediaStream | null>(null);
   const recordingCopyTimerRef = useRef<any>(null);
