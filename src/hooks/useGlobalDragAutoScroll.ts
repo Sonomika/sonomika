@@ -23,7 +23,9 @@ const isScrollable = (el: HTMLElement, axis: Axis): boolean => {
       : el.scrollWidth > el.clientWidth + 1;
 
     if (!hasOverflow) return false;
-    return isKnownViewport || (canScrollByStyle && overflow !== 'clip' && overflow !== 'visible');
+    // `canScrollByStyle` already implies overflow is not "visible"/"clip" (and TS correctly
+    // narrows it), so additional comparisons cause TS2367 on newer TS DOM typings.
+    return isKnownViewport || canScrollByStyle;
   } catch {
     return false;
   }

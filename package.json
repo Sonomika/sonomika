@@ -1,6 +1,6 @@
 {
   "name": "sonomika",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A VJ application built with Electron and p5.js",
   "main": "out/electron/main.js",
   "scripts": {
