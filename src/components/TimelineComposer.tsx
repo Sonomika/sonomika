@@ -7,6 +7,94 @@ import { getEffectComponentSync } from '../utils/EffectLoader';
 import { videoAssetManager } from '../utils/VideoAssetManager';
 import EffectLoader from './EffectLoader';
 import { debounce } from '../utils/debounce';
+import { LOOP_MODES } from '../constants/video';
+import { useVideoOptionsStore } from '../store/videoOptionsStore';
+
+// Deterministic PRNG for timeline "Random" playback (stable per loop)
+const hashStringToUint32 = (s: string): number => {
+  let h = 2166136261 >>> 0; // FNV-1a
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+};
+const mulberry32 = (seed: number) => {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const mapTimelineTimeToVideoTime = (relSec: number, durationSec: number, mode: string, seedKey: string, randomBpm?: number): number => {
+  const d = Number(durationSec || 0);
+  const t = Math.max(0, Number(relSec || 0));
+  if (!(d > 0)) return t;
+  const eps = 0.001;
+  const safeD = Math.max(eps * 2, d);
+  const m = String(mode || LOOP_MODES.LOOP);
+  if (m === LOOP_MODES.NONE) return Math.min(t, Math.max(0, safeD - eps));
+
+  if (m === LOOP_MODES.LOOP) return (t % safeD);
+
+  if (m === LOOP_MODES.REVERSE) {
+    const wrapped = (t % safeD);
+    return Math.max(0, safeD - wrapped);
+  }
+
+  if (m === LOOP_MODES.PING_PONG) {
+    const span = safeD * 2;
+    const x = t % span;
+    return x <= safeD ? x : (span - x);
+  }
+
+  if (m === LOOP_MODES.RANDOM) {
+    const bpm = clampBpm(Number(randomBpm || 120));
+    const beatIdx = Math.floor((t * bpm) / 60);
+    const rng = mulberry32(hashStringToUint32(`${seedKey}:beat:${beatIdx}`));
+    return eps + rng() * Math.max(0, safeD - eps * 2);
+  }
+
+  return (t % safeD);
+};
+
+const getTimelineClipLoopMode = (clip: any): string => {
+  try {
+    const clipId = String(clip?.id || '');
+    if (!clipId) return LOOP_MODES.LOOP;
+    const layerId = `timeline-layer-${clipId}`;
+    const st: any = (useVideoOptionsStore as any).getState?.();
+    const opts = st?.getVideoOptionsForLayer ? st.getVideoOptionsForLayer(layerId, true) : null;
+    const m = String(opts?.loopMode || '');
+    return m || LOOP_MODES.LOOP;
+  } catch {
+    return LOOP_MODES.LOOP;
+  }
+};
+
+const getTimelineClipRandomBpm = (clip: any, fallbackBpm: number): number => {
+  try {
+    const clipId = String(clip?.id || '');
+    if (!clipId) return fallbackBpm;
+    const layerId = `timeline-layer-${clipId}`;
+    const st: any = (useVideoOptionsStore as any).getState?.();
+    const opts = st?.getVideoOptionsForLayer ? st.getVideoOptionsForLayer(layerId, true) : null;
+    const v = Number(opts?.randomBpm);
+    return Number.isFinite(v) && v > 0 ? v : fallbackBpm;
+  } catch {
+    return fallbackBpm;
+  }
+};
+
+const clampBpm = (v: number): number => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 120;
+  return Math.max(1, Math.min(500, Math.floor(n)));
+};
 
 // When there are no active clips, explicitly clear the canvas so the last frame
 // cannot "stick" (R3F renderer has autoClear=false for anti-flash behavior).
@@ -373,11 +461,12 @@ const TimelineScene: React.FC<{
   activeClips: any[];
   isPlaying: boolean;
   currentTime: number;
+  bpm?: number;
   globalEffects?: any[];
   compositionWidth?: number;
   compositionHeight?: number;
   onFirstFrameReady?: () => void;
-}> = ({ activeClips, isPlaying, currentTime, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady }) => {
+}> = ({ activeClips, isPlaying, currentTime, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady }) => {
   const { camera } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -503,11 +592,15 @@ const TimelineScene: React.FC<{
       const activeClip = activeClips.find(clip => clip.asset && clip.asset.id === assetId);
       
       if (isPlaying && activeClip) {
-        const targetTime = activeClip.relativeTime || 0;
+        const rawRel = Number(activeClip.relativeTime || 0);
+        const mode = getTimelineClipLoopMode(activeClip);
+        const rbpm = getTimelineClipRandomBpm(activeClip, clampBpm(Number(bpm || 120)));
+        const targetTime = mapTimelineTimeToVideoTime(rawRel, Number(video.duration || 0), mode, String((activeClip as any)?.id || assetId), rbpm);
         const currentBeforeSync = typeof video.currentTime === 'number' ? video.currentTime : 0;
         
         // Sync video to correct time position to prevent positioning flashes
-        if (Math.abs(currentBeforeSync - targetTime) > 0.15) {
+        const syncThreshold = mode === LOOP_MODES.RANDOM ? 0.03 : 0.15;
+        if (Math.abs(currentBeforeSync - targetTime) > syncThreshold) {
           console.log(`Syncing video ${assetId} to time:`, targetTime);
           video.currentTime = targetTime;
           const rewoundToStart = currentBeforeSync - targetTime > 0.4 && targetTime < 0.1;
@@ -536,7 +629,7 @@ const TimelineScene: React.FC<{
         }
       }
     });
-  }, [isPlaying, assets.videos, activeClips, currentTime]);
+  }, [isPlaying, assets.videos, activeClips, currentTime, bpm]);
 
   // On stop in timeline mode, reset all timeline videos to start
   useEffect(() => {
@@ -582,13 +675,17 @@ const TimelineScene: React.FC<{
         if (!activeClip) {
           return;
         }
-        const targetTime = Math.max(0, activeClip.relativeTime || 0);
-        if (Math.abs((video.currentTime || 0) - targetTime) > 0.05) {
+        const rawRel = Math.max(0, Number(activeClip.relativeTime || 0));
+        const mode = getTimelineClipLoopMode(activeClip);
+        const rbpm = getTimelineClipRandomBpm(activeClip, clampBpm(Number(bpm || 120)));
+        const targetTime = mapTimelineTimeToVideoTime(rawRel, Number(video.duration || 0), mode, String((activeClip as any)?.id || assetId), rbpm);
+        const th = mode === LOOP_MODES.RANDOM ? 0.03 : 0.05;
+        if (Math.abs((video.currentTime || 0) - targetTime) > th) {
           try { video.currentTime = targetTime; } catch {}
         }
       });
     } catch {}
-  }, [currentTime, activeClips, assets.videos]);
+  }, [currentTime, activeClips, assets.videos, bpm]);
 
   // Additional video sync check during playback to prevent drift - optimized to reduce overhead
   useEffect(() => {
@@ -600,11 +697,15 @@ const TimelineScene: React.FC<{
         const activeClip = activeClips.find(clip => clip.asset && clip.asset.id === assetId);
         
         if (activeClip) {
-          const targetTime = activeClip.relativeTime || 0;
+          const rawRel = Number(activeClip.relativeTime || 0);
+          const mode = getTimelineClipLoopMode(activeClip);
+          const rbpm = getTimelineClipRandomBpm(activeClip, clampBpm(Number(bpm || 120)));
+          const targetTime = mapTimelineTimeToVideoTime(rawRel, Number(video.duration || 0), mode, String((activeClip as any)?.id || assetId), rbpm);
           const drift = Math.abs(video.currentTime - targetTime);
           
           // Only sync if drift is significant (>300ms) - increased threshold for better performance
-          if (drift > 0.3) {
+          const driftThreshold = mode === LOOP_MODES.RANDOM ? 0.05 : 0.3;
+          if (drift > driftThreshold) {
             video.currentTime = targetTime;
             try { if (video.paused) void video.play(); } catch {}
           }
@@ -613,7 +714,7 @@ const TimelineScene: React.FC<{
     }, 500); // Check every 500ms instead of 200ms for better performance
 
     return () => clearInterval(syncInterval);
-  }, [isPlaying, assets.videos, activeAssetKeys]); // Use memoized asset keys
+  }, [isPlaying, assets.videos, activeAssetKeys, bpm]); // Use memoized asset keys
 
   // Set up camera
   useEffect(() => {
@@ -1060,6 +1161,7 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
   currentTime,
   width,
   height,
+  bpm = 120,
   globalEffects = [],
   tracks = []
 }) => {
@@ -1157,6 +1259,7 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
             activeClips={activeClips}
             isPlaying={isPlaying}
             currentTime={currentTime}
+            bpm={bpm}
             globalEffects={globalEffects}
             compositionWidth={width}
             compositionHeight={height}

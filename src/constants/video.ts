@@ -12,6 +12,7 @@ export const LOOP_MODES = {
   LOOP: 'loop', 
   REVERSE: 'reverse',
   PING_PONG: 'ping-pong',
+  RANDOM: 'random',
 } as const;
 
 export type LoopMode = typeof LOOP_MODES[keyof typeof LOOP_MODES];

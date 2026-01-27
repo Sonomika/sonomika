@@ -4,11 +4,12 @@ import * as THREE from 'three';
 import { useEffectComponent } from '../utils/EffectLoader';
 import { useStore } from '../store/store';
 import { WorkerFrameRenderer } from '../utils/WorkerFrameRenderer';
-import { FRAME_BUFFER_CONFIG, VIDEO_PIPELINE_CONFIG } from '../constants/video';
+import { FRAME_BUFFER_CONFIG, LOOP_MODES, VIDEO_PIPELINE_CONFIG } from '../constants/video';
 import { WorkerVideoPipeline } from '../utils/WorkerVideoPipeline';
 import { WorkerCanvasDrawer } from '../utils/WorkerCanvasDrawer';
 import { demuxWithMediaSource } from '../utils/Demuxers';
 import { EffectErrorBoundary } from './EffectErrorBoundary';
+import { VideoLoopManager } from '../utils/VideoLoopManager';
 
 interface CanvasRendererProps {
   assets: Array<{
@@ -195,6 +196,7 @@ const VideoTexture: React.FC<{
   const [previousTexture, setPreviousTexture] = useState<THREE.VideoTexture | null>(null);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   const frameReadyRef = useRef<boolean>(false);
+  const lastTimeRef = useRef<number>(-1);
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -274,9 +276,12 @@ const VideoTexture: React.FC<{
 
   // Fallback: mark texture as updated on the next frame when RVFC signaled
   useFrame(() => {
-    if (texture && frameReadyRef.current) {
+    const t = Number(video?.currentTime || 0);
+    const timeChanged = lastTimeRef.current < 0 || Math.abs(t - lastTimeRef.current) > 0.0005;
+    if (texture && (frameReadyRef.current || timeChanged)) {
       texture.needsUpdate = true;
       frameReadyRef.current = false;
+      lastTimeRef.current = t;
     }
     
     // Also update previous texture during transition to keep it smooth
@@ -424,12 +429,36 @@ const CanvasScene: React.FC<{
   
   // Memoize stable params to prevent object recreation on every render
   const stableParamsCacheRef = useRef<Map<string, any>>(new Map());
+
+  // Fast lookup: assetId -> video layer settings
+  const videoLayerByAssetId = useMemo(() => {
+    const m = new Map<string, any>();
+    try {
+      assets.forEach((a) => {
+        if (a.type === 'video') {
+          m.set(String((a as any).asset?.id), (a as any).layer);
+        }
+      });
+    } catch {}
+    return m;
+  }, [assets]);
   
   // Keep video textures updated
   useFrame((state) => {
     // Update all video textures to ensure they're current
     if (!isPlaying) return;
-    loadedAssets.videos.forEach((video) => {
+    loadedAssets.videos.forEach((video, assetId) => {
+      // Apply playback mode controls (loop / ping-pong / reverse / random)
+      try {
+        const layerForAsset = videoLayerByAssetId.get(String(assetId));
+        if (layerForAsset && video) {
+          const effectiveLayer = (layerForAsset && layerForAsset.loopMode)
+            ? layerForAsset
+            : { ...layerForAsset, loopMode: LOOP_MODES.LOOP };
+          VideoLoopManager.handleLoopMode(video, effectiveLayer as any, String(effectiveLayer.id || assetId));
+        }
+      } catch {}
+
       if (video && video.readyState >= 2) {
         // Video is ready, ensure texture updates
         const videoTextures = assets
@@ -508,7 +537,8 @@ const CanvasScene: React.FC<{
             const video = document.createElement('video');
             video.src = getAssetPath(asset, true); // Use file path for video playback
             video.muted = true;
-            video.loop = true;
+            // We manage looping manually to support ping-pong/reverse/random
+            video.loop = false;
             video.autoplay = true;
             video.playsInline = true;
             video.style.backgroundColor = backgroundColor || '#000000';
@@ -532,6 +562,17 @@ const CanvasScene: React.FC<{
 
     loadAssets();
   }, [mediaAssetsKey]);
+
+  // Cleanup loop controllers for unmounted video layers
+  useEffect(() => {
+    const loopIds = assets
+      .filter(a => a.type === 'video')
+      .map(a => String((a as any)?.layer?.id || (a as any)?.asset?.id || ''))
+      .filter(Boolean);
+    return () => {
+      try { loopIds.forEach((id) => VideoLoopManager.cleanup(id)); } catch {}
+    };
+  }, [assets]);
 
   // Prune cached textures when videos change
   useEffect(() => {

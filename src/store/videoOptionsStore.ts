@@ -3,7 +3,9 @@ import { persist } from 'zustand/middleware';
 
 export interface VideoLayerOptions {
   fitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile';
-  loopMode?: 'none' | 'loop' | 'reverse' | 'ping-pong';
+  loopMode?: 'none' | 'loop' | 'reverse' | 'ping-pong' | 'random';
+  // For Random playback: BPM used to determine jump interval (defaults to app BPM)
+  randomBpm?: number;
   loopCount?: number;
   reverseEnabled?: boolean;
   pingPongEnabled?: boolean;
@@ -34,6 +36,7 @@ interface VideoOptionsStore {
 const DEFAULT_VIDEO_OPTIONS: VideoLayerOptions = {
   fitMode: 'cover',
   loopMode: 'none',
+  randomBpm: undefined,
   loopCount: 1,
   reverseEnabled: false,
   pingPongEnabled: false,

@@ -31,7 +31,7 @@ const RandomIcon: React.FC<{ className?: string }> = ({ className }) => {
 };
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
-  const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip } = useStore() as any;
+  const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip, bpm } = useStore() as any;
   // Bank discovery is async; when effects finish loading we need to re-run lookups
   // so that effect metadata (name/parameters) is available even before the user
   // clicks a cell or opens dev tools after an Electron refresh.
@@ -72,6 +72,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   // Update local state when selectedLayer changes
   const [loopMode, setLoopMode] = useState<LoopMode>(
     videoOptions?.loopMode || LOOP_MODES.NONE
+  );
+  const [randomBpm, setRandomBpm] = useState<number>(
+    Math.max(1, Math.min(500, Math.floor(Number(videoOptions?.randomBpm ?? bpm ?? 120))))
   );
   const [loopCount, setLoopCount] = useState(
     videoOptions?.loopCount || 1
@@ -357,6 +360,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       
       setLoopMode(options.loopMode || LOOP_MODES.NONE);
       setLoopCount(options.loopCount || 1);
+      setRandomBpm(Math.max(1, Math.min(500, Math.floor(Number(options.randomBpm ?? bpm ?? 120)))));
       // Blend mode and opacity no longer controlled via UI
       
       if (hasEffect && effectMetadata?.parameters) {
@@ -416,8 +420,11 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const handleLoopModeChange = (mode: LoopMode) => {
     setLoopMode(mode);
     if (selectedLayer) {
+      const defaultRandBpm = Math.max(1, Math.min(500, Math.floor(Number(videoOptions?.randomBpm ?? bpm ?? 120))));
+      if (mode === LOOP_MODES.RANDOM) setRandomBpm(defaultRandBpm);
       setVideoOptionsForLayerMode(selectedLayer.id, {
         loopMode: mode,
+        ...(mode === LOOP_MODES.RANDOM ? { randomBpm: defaultRandBpm } : {}),
         loopCount: mode === LOOP_MODES.NONE ? 1 : loopCount,
         reverseEnabled: mode === LOOP_MODES.REVERSE,
         pingPongEnabled: mode === LOOP_MODES.PING_PONG
@@ -426,6 +433,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       // Also update the layer data in the main store for immediate rendering
       onUpdateLayer(selectedLayer.id, {
         loopMode: mode,
+        ...(mode === LOOP_MODES.RANDOM ? { randomBpm: defaultRandBpm } : {}),
         loopCount: mode === LOOP_MODES.NONE ? 1 : loopCount,
         reverseEnabled: mode === LOOP_MODES.REVERSE,
         pingPongEnabled: mode === LOOP_MODES.PING_PONG
@@ -444,6 +452,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         setSelectedTimelineClip({ ...prev, data: nextData });
       }
     } catch {}
+  };
+
+  const handleRandomBpmChange = (value: number) => {
+    if (!selectedLayer) return;
+    const clamped = Math.max(1, Math.min(500, Math.floor(Number(value) || 120)));
+    setRandomBpm(clamped);
+    setVideoOptionsForLayerMode(selectedLayer.id, { randomBpm: clamped }, showTimeline);
+    onUpdateLayer(selectedLayer.id, { randomBpm: clamped } as any);
   };
 
   const handleLoopCountChange = (count: number) => {
@@ -980,6 +996,57 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                     size="small"
                   />
                 </div>
+
+                {/* Playback mode (Loop / Random) */}
+                <div className="tw-col-span-2">
+                  <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Playback</label>
+                  <ButtonGroup
+                    options={[
+                      { value: LOOP_MODES.LOOP, label: 'Loop' },
+                      { value: LOOP_MODES.RANDOM, label: 'Random' },
+                    ]}
+                    value={(loopMode === LOOP_MODES.RANDOM ? LOOP_MODES.RANDOM : LOOP_MODES.LOOP) as any}
+                    onChange={(v) => handleLoopModeChange(v as LoopMode)}
+                    columns={2}
+                    size="small"
+                  />
+                </div>
+
+                {/* Random BPM (only when Random is selected) */}
+                {loopMode === LOOP_MODES.RANDOM && (
+                  <div className="tw-col-span-2">
+                    <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Random BPM</label>
+                    <div className="tw-flex tw-items-center tw-gap-2">
+                      <div className="tw-flex-1 tw-min-w-0">
+                        <ParamRow
+                          label="Random BPM"
+                          value={Number(randomBpm)}
+                          min={30}
+                          max={500}
+                          step={1}
+                          buttonsAfter
+                          showLabel={false}
+                          onChange={(value) => handleRandomBpmChange(Number(value))}
+                          onIncrement={() => handleRandomBpmChange(Number(randomBpm) + 1)}
+                          onDecrement={() => handleRandomBpmChange(Number(randomBpm) - 1)}
+                        />
+                      </div>
+                      <input
+                        type="number"
+                        step={1}
+                        min={30}
+                        max={500}
+                        value={String(Math.floor(Number(randomBpm) || 120))}
+                        onChange={(e) => handleRandomBpmChange(parseFloat(e.target.value))}
+                        className="tw-w-[72px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                      />
+                    </div>
+                    <div className="tw-mt-1 tw-text-xs tw-text-neutral-400">
+                      Default: {Number(bpm || 120)}
+                    </div>
+                  </div>
+                )}
+
                 {/* Render Resolution / Scale as numeric value (0.1 .. 1.0) */}
                 <div className="tw-col-span-2 sm:tw-col-span-1">
                   <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Render Resolution</label>

@@ -9,6 +9,9 @@ import { useEffectComponent, getEffectComponentSync } from '../utils/EffectLoade
 import EffectChain, { ChainItem } from './EffectChain';
 import { debounce } from '../utils/debounce';
 import { EffectErrorBoundary } from './EffectErrorBoundary';
+import { VideoLoopManager } from '../utils/VideoLoopManager';
+import { LOOP_MODES } from '../constants/video';
+import { useVideoOptionsStore } from '../store/videoOptionsStore';
 
 // Drives rendering while the document is hidden (minimized) to avoid rAF throttling
 const HiddenRenderDriver: React.FC = () => {
@@ -92,6 +95,7 @@ const VideoTexture: React.FC<{
   const liveAlphaRef = useRef(1);
   const fallbackReadyRef = useRef(false);
   const lastTimeRef = useRef(0);
+  const lastTimeUpdateRef = useRef<number>(-1);
   const loopGuardUntilRef = useRef(0);
   const frameReadyRef = useRef<boolean>(false);
   
@@ -304,6 +308,8 @@ const VideoTexture: React.FC<{
     const canvas = offscreenCanvasRef.current;
     const hasFallback = !!(fallbackTexture && canvas && canvas.width > 0 && canvas.height > 0);
     const guardActive = performance.now() < loopGuardUntilRef.current;
+    const t = Number(video?.currentTime || 0);
+    const timeChanged = lastTimeUpdateRef.current < 0 || Math.abs(t - lastTimeUpdateRef.current) > 0.0005;
 
     let liveAlpha = 1;
     let fallbackAlpha = 0;
@@ -324,12 +330,14 @@ const VideoTexture: React.FC<{
     }
 
     if (texture && ready) {
-      if (frameReadyRef.current) {
+      if (frameReadyRef.current || timeChanged) {
         texture.needsUpdate = true;
         frameReadyRef.current = false;
+        lastTimeUpdateRef.current = t;
       }
-      // If rVFC isn't available, do occasional updates inline
-      if (!(video as any).requestVideoFrameCallback && canvas && fallbackTexture) {
+      // Keep fallback in sync for seek-based playback (ping-pong / reverse stepping),
+      // because rVFC won't fire while the video is paused.
+      if (canvas && fallbackTexture && timeChanged) {
         try {
           const ctx = canvas.getContext('2d');
           if (ctx) {
@@ -461,11 +469,12 @@ const EffectLayer: React.FC<{
 const ColumnScene: React.FC<{
   column: any;
   isPlaying: boolean;
+  bpm: number;
   globalEffects?: any[];
   compositionWidth?: number;
   compositionHeight?: number;
   onFirstFrameReady?: () => void;
-}> = ({ column, isPlaying, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady }) => {
+}> = ({ column, isPlaying, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady }) => {
   const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -603,6 +612,8 @@ const ColumnScene: React.FC<{
               console.log('✅ Using cached video for asset:', asset.name);
               // Ensure cached video has the layer ID attribute
               video.setAttribute('data-layer-id', layer.id);
+              // Keep legacy default looping; advanced modes are handled by VideoLoopManager
+              try { video.loop = true; } catch {}
               newVideos.set(asset.id, video);
             } else {
               console.log('Loading new video with path:', getAssetPath(asset, true), 'for asset:', asset.name);
@@ -713,6 +724,35 @@ const ColumnScene: React.FC<{
     }
     prevIsPlayingRef.current = isPlaying;
   }, [isPlaying, assets.videos, column.layers, column?.id]);
+
+  // Apply per-layer playback modes (Random / Ping Pong / Reverse)
+  useFrame(() => {
+    if (!isPlaying) return;
+    try {
+      const st: any = (useVideoOptionsStore as any).getState?.();
+      const getOpts = st?.getVideoOptionsForLayer;
+      column.layers.forEach((layer: any) => {
+        if (!layer?.asset || layer.asset.type !== 'video') return;
+        const v = assets.videos.get(layer.asset.id);
+        if (!v || v.readyState < 2) return;
+
+        const opts = getOpts ? getOpts(String(layer.id), false) : null;
+        const mode = String(opts?.loopMode || '');
+
+        // Preserve legacy behavior unless a non-native mode is selected
+        if (mode === LOOP_MODES.RANDOM || mode === LOOP_MODES.PING_PONG || mode === LOOP_MODES.REVERSE) {
+          try { v.loop = false; } catch {}
+          const rbpm = Number(opts?.randomBpm ?? bpm);
+          VideoLoopManager.handleLoopMode(v, { ...(layer || {}), loopMode: mode, randomBpm: rbpm } as any, String(layer.id));
+        } else {
+          // Default/Forward: keep native looping (existing behavior)
+          try { v.loop = true; } catch {}
+          // Also ensure any previous reverse stepping is stopped
+          try { VideoLoopManager.cleanup(String(layer.id)); } catch {}
+        }
+      });
+    } catch {}
+  });
 
   // In timeline mode, ensure Stop truly returns videos to frame 0
   useEffect(() => {
@@ -1388,6 +1428,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 key={`scene-${width}x${height}-${column?.id || 'col'}-${overridesKey || 'base'}`}
                 column={column} 
                 isPlaying={isPlaying} 
+                bpm={bpm}
                 globalEffects={globalEffects}
                 compositionWidth={width}
                 compositionHeight={height}

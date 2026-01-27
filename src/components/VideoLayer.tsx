@@ -3,6 +3,7 @@ import { useStore } from '../store/store';
 import { LOOP_MODES } from '../constants/video';
 import type { VideoLayer as VideoLayerType } from '../types/layer';
 import { getTemporaryLink } from '../lib/dropbox';
+import { VideoLoopManager } from '../utils/VideoLoopManager';
 
 interface VideoLayerProps {
 	layer: VideoLayerType;
@@ -98,6 +99,21 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 					video.currentTime = 0;
 					try { const p = video.play(); if (p && (p as any).catch) (p as any).catch(() => {}); } catch {}
 					break;
+				case LOOP_MODES.RANDOM: {
+					try {
+						const d = Number(video.duration || 0);
+						if (d > 0) {
+							const t = Math.random() * Math.max(0, d - 0.1);
+							video.currentTime = t;
+						} else {
+							video.currentTime = 0;
+						}
+					} catch {
+						video.currentTime = 0;
+					}
+					try { const p = video.play(); if (p && (p as any).catch) (p as any).catch(() => {}); } catch {}
+					break;
+				}
 				default:
 					setIsPlaying(false);
 					break;
@@ -307,11 +323,26 @@ export const VideoLayer: React.FC<VideoLayerProps> = ({ layer, width, height, on
 		const video = videoRef.current;
 		if (!video) return;
 
+		let rafId: number | null = null;
 		const renderLoop = () => {
+			// Apply playback modes (loop / ping-pong / reverse / random)
+			try {
+				if (!video.paused && video.readyState >= 2 && layer.loopMode && layer.loopMode !== LOOP_MODES.NONE) {
+					VideoLoopManager.handleLoopMode(video, layer as any, String(layer.id));
+				}
+			} catch {}
 			renderVideo();
-			requestAnimationFrame(renderLoop);
+			rafId = requestAnimationFrame(renderLoop);
 		};
 		renderLoop();
+
+		return () => {
+			if (rafId != null) {
+				try { cancelAnimationFrame(rafId); } catch {}
+				rafId = null;
+			}
+			try { VideoLoopManager.cleanup(String(layer.id)); } catch {}
+		};
 	}, [layer, width, height]);
 
 	// File input selection not used in current UI; drag-and-drop handles import
