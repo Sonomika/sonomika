@@ -7,6 +7,24 @@ import { getEffectComponentSync } from '../utils/EffectLoader';
 import { videoAssetManager } from '../utils/VideoAssetManager';
 import EffectLoader from './EffectLoader';
 import { debounce } from '../utils/debounce';
+
+// When there are no active clips, explicitly clear the canvas so the last frame
+// cannot "stick" (R3F renderer has autoClear=false for anti-flash behavior).
+const ClearOnNoActiveClips: React.FC<{ hasActiveClips: boolean }> = ({ hasActiveClips }) => {
+  const { gl } = useThree();
+  const lastHadClipsRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const lastHad = lastHadClipsRef.current;
+    // Clear when we transition to "no active clips", and also on initial empty mount.
+    if (!hasActiveClips && (!lastHad || lastHad)) {
+      try { (gl as any).clear?.(true, true, true); } catch {}
+    }
+    lastHadClipsRef.current = hasActiveClips;
+  }, [hasActiveClips, gl]);
+
+  return null;
+};
 // Drives rendering while the document is hidden (minimized) to avoid rAF throttling
 const HiddenRenderDriver: React.FC = () => {
   const { gl, scene, camera } = useThree();
@@ -731,6 +749,25 @@ const TimelineScene: React.FC<{
       
       {/* Render all clips using chain-based stacking with global effects appended */}
       {useMemo(() => {
+        // If there are no active clips at this time, we should render black (not the last chain).
+        // This prevents the output from "freezing" on the last rendered frame when clips are deleted
+        // or when the playhead enters a gap.
+        if (!activeClips || activeClips.length === 0) {
+          try {
+            (window as any).__vj_timeline_is_playing__ = Boolean(isPlaying);
+            (window as any).__vj_timeline_active_layers__ = [];
+          } catch {}
+          try {
+            const lastChainRef = (TimelineScene as any).__lastChainRef;
+            const lastChainKeyRef = (TimelineScene as any).__lastChainKeyRef;
+            const lastStructureKeyRef = (TimelineScene as any).__lastStructureKeyRef;
+            if (lastChainRef) lastChainRef.current = null;
+            if (lastChainKeyRef) lastChainKeyRef.current = '';
+            if (lastStructureKeyRef) lastStructureKeyRef.current = '';
+          } catch {}
+          return [];
+        }
+
         const chains: ChainItem[][] = [];
         let currentChain: ChainItem[] = [];
 
@@ -977,7 +1014,9 @@ const TimelineScene: React.FC<{
         }
 
         // Safety: if no base video was rendered at all this frame, draw the last stable video chain
-        if (!renderedBaseThisFrame && lastChainRef.current) {
+        // Only do this safety fallback when there are active clips but a base didn't render
+        // (e.g. incoming not ready). Never do it for gaps / zero active clips.
+        if (activeClips.length > 0 && !renderedBaseThisFrame && lastChainRef.current) {
           const chainWithGlobals = lastChainRef.current as ChainItem[];
           elements.push(
             <EffectChain
@@ -1107,6 +1146,7 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
         }}
       >
         <HiddenRenderDriver />
+        <ClearOnNoActiveClips hasActiveClips={Array.isArray(activeClips) && activeClips.length > 0} />
         <Suspense fallback={
           <mesh>
             <boxGeometry args={[1, 1, 1]} />

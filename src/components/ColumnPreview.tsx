@@ -37,6 +37,30 @@ const HiddenRenderDriver: React.FC = () => {
   return null;
 };
 
+// When a column becomes empty (all layer assets removed), explicitly clear the WebGL
+// output so the previous frame cannot remain visible (frameloop="demand" + preserveDrawingBuffer).
+const ClearOnEmptyColumn: React.FC<{ isEmpty: boolean; clearTo?: string }> = ({ isEmpty, clearTo = '#000000' }) => {
+  const gl = useThree((s) => s.gl);
+  const invalidate = useThree((s) => s.invalidate);
+  const lastEmptyRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (!isEmpty) {
+      lastEmptyRef.current = false;
+      return;
+    }
+    if (lastEmptyRef.current) return;
+    lastEmptyRef.current = true;
+
+    try { (gl as any).setClearAlpha?.(1); } catch {}
+    try { (gl as any).setClearColor?.(clearTo, 1); } catch {}
+    try { (gl as any).clear?.(true, true, true); } catch {}
+    try { invalidate(); } catch {}
+  }, [isEmpty, clearTo, gl, invalidate]);
+
+  return null;
+};
+
 interface ColumnPreviewProps {
   column: any;
   width: number;
@@ -1153,6 +1177,14 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [maskVisible, setMaskVisible] = useState<boolean>(true);
+  const hasAnyLayerAsset = useMemo(() => {
+    try {
+      const layers = (column as any)?.layers;
+      return Array.isArray(layers) && layers.some((l: any) => Boolean(l?.asset));
+    } catch {
+      return false;
+    }
+  }, [column]);
   
   // Re-arm mask whenever the column changes so background never shows during switch
   useEffect(() => {
@@ -1351,6 +1383,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               }}
             >
               <HiddenRenderDriver />
+              <ClearOnEmptyColumn isEmpty={!hasAnyLayerAsset} clearTo={'#000000'} />
               <ColumnScene 
                 key={`scene-${width}x${height}-${column?.id || 'col'}-${overridesKey || 'base'}`}
                 column={column} 
