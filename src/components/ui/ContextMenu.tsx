@@ -8,8 +8,8 @@ type ContentProps = React.PropsWithChildren<{ className?: string; style?: React.
 export const ContextMenuContent: React.FC<ContentProps> = ({ children, className = '', style }) => (
   <ContextMenuPrimitive.Portal>
     <ContextMenuPrimitive.Content
-      className={`tw-min-w-[160px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-800 tw-bg-neutral-900 tw-text-neutral-100 tw-shadow-lg ${className}`}
-      style={style}
+      className={`tw-min-w-[160px] tw-overflow-hidden tw-rounded-md tw-border tw-border-neutral-700 tw-text-neutral-100 tw-shadow-lg tw-z-[10000] ${className}`}
+      style={{ backgroundColor: '#141414', ...style }}
     >
       {children}
     </ContextMenuPrimitive.Content>

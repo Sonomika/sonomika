@@ -22,7 +22,8 @@ export const handleSceneRename = (
 
   const dialogContent = document.createElement('div');
   dialogContent.style.cssText = `
-    background: var(--surface);
+    background: #141414;
+    border: 1px solid #262626;
     border-radius: 8px;
     padding: 1.5rem;
     min-width: 300px;
@@ -33,7 +34,7 @@ export const handleSceneRename = (
   title.textContent = 'Rename Scene';
   title.style.cssText = `
     margin: 0 0 1rem 0;
-    color: var(--on-surface);
+    color: #d6d6d6;
     font-size: 1.125rem;
   `;
 
@@ -43,10 +44,10 @@ export const handleSceneRename = (
   input.style.cssText = `
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid var(--outline);
+    border: 1px solid #262626;
     border-radius: 4px;
-    background: var(--surface);
-    color: var(--on-surface);
+    background: #1f1f1f;
+    color: #d6d6d6;
     font-size: 0.875rem;
     margin-bottom: 1rem;
   `;
@@ -62,10 +63,10 @@ export const handleSceneRename = (
   cancelBtn.textContent = 'Cancel';
   cancelBtn.style.cssText = `
     padding: 0.5rem 1rem;
-    border: 1px solid var(--outline);
+    border: 1px solid #262626;
     border-radius: 4px;
     background: transparent;
-    color: var(--on-surface);
+    color: #d6d6d6;
     cursor: pointer;
     font-size: 0.875rem;
   `;
@@ -74,10 +75,10 @@ export const handleSceneRename = (
   confirmBtn.textContent = 'Rename';
   confirmBtn.style.cssText = `
     padding: 0.5rem 1rem;
-    border: none;
+    border: 1px solid #262626;
     border-radius: 4px;
-    background: var(--primary);
-    color: var(--on-primary);
+    background: #1f1f1f;
+    color: #d6d6d6;
     cursor: pointer;
     font-size: 0.875rem;
   `;
@@ -154,8 +155,8 @@ export const createSceneContextMenu = (
   const menu = document.createElement('div');
   menu.style.cssText = `
     position: fixed;
-    background: var(--surface);
-    border: 1px solid var(--outline);
+    background: #141414;
+    border: 1px solid #262626;
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     z-index: 1000;
@@ -169,10 +170,11 @@ export const createSceneContextMenu = (
     padding: 0.5rem 0.75rem;
     cursor: pointer;
     font-size: 0.875rem;
+    color: #d6d6d6;
     transition: background-color 0.2s ease;
   `;
   renameOption.onmouseenter = () => {
-    renameOption.style.backgroundColor = 'var(--surface-variant)';
+    renameOption.style.backgroundColor = '#1f1f1f';
   };
   renameOption.onmouseleave = () => {
     renameOption.style.backgroundColor = 'transparent';
@@ -189,12 +191,12 @@ export const createSceneContextMenu = (
     deleteOption.style.cssText = `
       padding: 0.5rem 0.75rem;
       cursor: pointer;
-      color: var(--error);
+      color: #f87171;
       font-size: 0.875rem;
       transition: background-color 0.2s ease;
     `;
     deleteOption.onmouseenter = () => {
-      deleteOption.style.backgroundColor = 'var(--surface-variant)';
+      deleteOption.style.backgroundColor = '#1f1f1f';
     };
     deleteOption.onmouseleave = () => {
       deleteOption.style.backgroundColor = 'transparent';
