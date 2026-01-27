@@ -188,7 +188,10 @@ export class VideoLoopManager {
   }
 
   /**
-   * Handle 'random' mode - jump to random time when reaching end
+   * Handle 'random' mode - jump to random time periodically (BPM-driven)
+   * Note: This does NOT call play() - the caller controls whether the video plays or stays paused.
+   * Timeline mode keeps video paused and samples frames via seeks.
+   * Column mode can call play() separately if needed.
    */
   private static handleRandomMode(
     video: HTMLVideoElement,
@@ -200,7 +203,6 @@ export class VideoLoopManager {
     if (state.isReversing) {
       state.isReversing = false;
       this.cleanupInterval(state);
-      try { void video.play(); } catch {}
     }
     const now = Date.now();
     const intervalMs = this.getRandomJumpIntervalMs(layer);
@@ -214,9 +216,7 @@ export class VideoLoopManager {
       state.lastBoundary = 'end';
       this.cleanupInterval(state);
       try { video.currentTime = this.pickRandomTime(duration); } catch {}
-      video.play().catch((error: any) => {
-        console.error('🎬 Failed to continue random playback:', layer.name, error);
-      });
+      // Don't call play() here - let the component/mode decide whether to play or pause
     }
   }
 

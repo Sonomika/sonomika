@@ -190,6 +190,7 @@ const VideoTexture: React.FC<{
   const liveMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const fallbackMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const frameReadyRef = useRef<boolean>(false);
+  const lastTimeUpdateRef = useRef<number>(-1);
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use composition settings for aspect ratio instead of video's natural ratio
@@ -341,16 +342,19 @@ const VideoTexture: React.FC<{
       fallbackMaterialRef.current.transparent = true;
     }
     if (activeTexture && ready) {
-      if (frameReadyRef.current) {
+      const t = Number(video?.currentTime || 0);
+      const timeChanged = lastTimeUpdateRef.current < 0 || Math.abs(t - lastTimeUpdateRef.current) > 0.0005;
+      if (frameReadyRef.current || timeChanged) {
         activeTexture.needsUpdate = true;
         frameReadyRef.current = false;
+        lastTimeUpdateRef.current = t;
       }
       // Also update previous texture during transition to keep it smooth
       if (isTransitioning && previousTexture) {
         previousTexture.needsUpdate = true;
       }
       // Keep fallback updated when possible
-      if (canvas && fallbackTexture) {
+      if (canvas && fallbackTexture && (timeChanged || !(video as any).requestVideoFrameCallback)) {
         try {
           const ctx = canvas.getContext('2d');
           if (ctx) {
@@ -589,7 +593,10 @@ const TimelineScene: React.FC<{
   useEffect(() => {
     assets.videos.forEach((video, assetId) => {
       // Find the clip that corresponds to this video
-      const activeClip = activeClips.find(clip => clip.asset && clip.asset.id === assetId);
+      const activeClip = activeClips.find((clip) => {
+        const clipAssetId = clip?.asset?.id;
+        return clipAssetId != null && String(clipAssetId) === String(assetId);
+      });
       
       if (isPlaying && activeClip) {
         const rawRel = Number(activeClip.relativeTime || 0);
@@ -601,7 +608,6 @@ const TimelineScene: React.FC<{
         // Sync video to correct time position to prevent positioning flashes
         const syncThreshold = mode === LOOP_MODES.RANDOM ? 0.03 : 0.15;
         if (Math.abs(currentBeforeSync - targetTime) > syncThreshold) {
-          console.log(`Syncing video ${assetId} to time:`, targetTime);
           video.currentTime = targetTime;
           const rewoundToStart = currentBeforeSync - targetTime > 0.4 && targetTime < 0.1;
           if (rewoundToStart) {
@@ -609,10 +615,11 @@ const TimelineScene: React.FC<{
             try { clearCachedVideoCanvas(String(assetId)); } catch {}
           }
         }
-        
+
         // Force muted autoplay policy compliance and remove readyState gating
         try { video.muted = true; } catch {}
         try { video.playbackRate = 1; } catch {}
+        // Play the video (Random mode also plays continuously, with periodic random jumps)
         if (video.paused) {
           const p = video.play();
           if (p && typeof (p as any).catch === 'function') {
@@ -694,7 +701,10 @@ const TimelineScene: React.FC<{
     // Reduce sync frequency when not actively playing to save CPU
     const syncInterval = setInterval(() => {
       assets.videos.forEach((video, assetId) => {
-        const activeClip = activeClips.find(clip => clip.asset && clip.asset.id === assetId);
+        const activeClip = activeClips.find((clip) => {
+          const clipAssetId = clip?.asset?.id;
+          return clipAssetId != null && String(clipAssetId) === String(assetId);
+        });
         
         if (activeClip) {
           const rawRel = Number(activeClip.relativeTime || 0);
@@ -707,6 +717,7 @@ const TimelineScene: React.FC<{
           const driftThreshold = mode === LOOP_MODES.RANDOM ? 0.05 : 0.3;
           if (drift > driftThreshold) {
             video.currentTime = targetTime;
+            // Resume playback if paused (including Random mode - plays continuously with periodic jumps)
             try { if (video.paused) void video.play(); } catch {}
           }
         }

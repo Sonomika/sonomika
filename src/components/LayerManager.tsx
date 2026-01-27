@@ -1250,6 +1250,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               bpm={bpm}
               globalEffects={currentScene?.globalEffects || []}
               overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
+              isTimelineMode={true}
             />
           </div>
         </div>

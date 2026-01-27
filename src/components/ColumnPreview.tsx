@@ -72,6 +72,7 @@ interface ColumnPreviewProps {
   bpm: number;
   globalEffects?: any[];
   overridesKey?: string;
+  isTimelineMode?: boolean; // If true, reads video options from timeline store
 }
 
 // Cache last frame canvases per asset to avoid flashes across mounts
@@ -146,6 +147,19 @@ const VideoTexture: React.FC<{
     return () => {
       stopped = true;
       try { anyVideo.cancelVideoFrameCallback?.(handle); } catch {}
+    };
+  }, [video]);
+
+  // Listen for 'seeked' event to update texture after seek completes (important for paused video in timeline Random mode)
+  useEffect(() => {
+    if (!video) return;
+    const onSeeked = () => {
+      frameReadyRef.current = true;
+      lastTimeUpdateRef.current = -1; // Force timeChanged check to pass
+    };
+    video.addEventListener('seeked', onSeeked);
+    return () => {
+      video.removeEventListener('seeked', onSeeked);
     };
   }, [video]);
 
@@ -474,7 +488,8 @@ const ColumnScene: React.FC<{
   compositionWidth?: number;
   compositionHeight?: number;
   onFirstFrameReady?: () => void;
-}> = ({ column, isPlaying, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady }) => {
+  isTimelineMode?: boolean;
+}> = ({ column, isPlaying, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false }) => {
   const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -736,7 +751,8 @@ const ColumnScene: React.FC<{
         const v = assets.videos.get(layer.asset.id);
         if (!v || v.readyState < 2) return;
 
-        const opts = getOpts ? getOpts(String(layer.id), false) : null;
+        // Use isTimelineMode to read from correct store section
+        const opts = getOpts ? getOpts(String(layer.id), isTimelineMode) : null;
         const mode = String(opts?.loopMode || '');
 
         // Preserve legacy behavior unless a non-native mode is selected
@@ -744,6 +760,12 @@ const ColumnScene: React.FC<{
           try { v.loop = false; } catch {}
           const rbpm = Number(opts?.randomBpm ?? bpm);
           VideoLoopManager.handleLoopMode(v, { ...(layer || {}), loopMode: mode, randomBpm: rbpm } as any, String(layer.id));
+          
+          // Random mode: let video play continuously (same behavior in both timeline and column mode)
+          // The video plays normally and jumps to random positions at BPM intervals
+          if (mode === LOOP_MODES.RANDOM && v.paused) {
+            try { v.play().catch(() => {}); } catch {}
+          }
         } else {
           // Default/Forward: keep native looping (existing behavior)
           try { v.loop = true; } catch {}
@@ -1214,6 +1236,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   bpm,
   globalEffects = [],
   overridesKey,
+  isTimelineMode = false,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [maskVisible, setMaskVisible] = useState<boolean>(true);
@@ -1432,6 +1455,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 globalEffects={globalEffects}
                 compositionWidth={width}
                 compositionHeight={height}
+                isTimelineMode={isTimelineMode}
                 onFirstFrameReady={() => {
                   setMaskVisible(false);
                   // Unfreeze mirror when first frame is ready
