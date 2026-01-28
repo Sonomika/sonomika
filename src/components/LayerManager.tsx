@@ -1059,6 +1059,34 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     handleContextMenuClose();
   };
 
+  // Delete column (the one the user right-clicked)
+  const handleDeleteColumn = () => {
+    if (!contextMenu.columnId) {
+      handleContextMenuClose();
+      return;
+    }
+
+    const currentScene = getCurrentScene();
+    if (!currentScene) {
+      handleContextMenuClose();
+      return;
+    }
+
+    const targetId = contextMenu.columnId;
+    const updatedColumns = (currentScene.columns || []).filter((c: any) => c?.id !== targetId);
+
+    // If we just deleted the currently playing column, stop playback.
+    try {
+      if (playingColumnId === targetId) stopColumn();
+    } catch {}
+
+    const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+    updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
+    console.log(`Deleted column ${targetId}`);
+
+    handleContextMenuClose();
+  };
+
   // Copy column
   const handleCopyColumn = () => {
     if (contextMenu.columnId) {
@@ -1078,7 +1106,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     handleContextMenuClose();
   };
 
-  // Paste column: insert to the right of the selected/target column
+  // Paste column: insert at the right-clicked/target column
   const handlePasteColumn = () => {
     if (!(clipboard && clipboard.type === 'column' && clipboard.data)) {
       handleContextMenuClose();
@@ -1095,7 +1123,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     const targetIndex = targetColumnId
       ? currentScene.columns.findIndex((c: any) => c.id === targetColumnId)
       : currentScene.columns.length - 1;
-    const insertIndex = targetIndex >= 0 ? targetIndex + 1 : currentScene.columns.length;
+    // Insert at the target index (where user right-clicked), not one to the right.
+    const insertIndex = targetIndex >= 0 ? targetIndex : currentScene.columns.length;
 
     const pastedColumn = {
       ...clipboard.data,
@@ -1111,7 +1140,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     updatedColumns.splice(insertIndex, 0, pastedColumn);
     const { updateScene: updateSceneFn } = getSceneManagementFunctions();
     updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
-    console.log(`Pasted column ${pastedColumn.name} after column index ${targetIndex}`);
+    console.log(`Pasted column ${pastedColumn.name} at column index ${insertIndex}`);
 
     handleContextMenuClose();
   };
@@ -2848,7 +2877,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className={"context-menu-item tw-select-none tw-text-sm tw-font-medium tw-bg-transparent tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5 " + ((clipboard && clipboard.type === 'column') ? 'tw-cursor-pointer tw-text-white hover:tw-bg-neutral-700' : 'tw-cursor-default tw-text-neutral-500 tw-opacity-50')} onClick={clipboard && clipboard.type === 'column' ? handlePasteColumn : undefined}>Paste Column</div>
             
             {/* Delete option - show different text based on context */}
-            <div className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5" onClick={handleDeleteLayer}>{contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? 'Delete Clip' : 'Delete Column'}</div>
+            <div
+              className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5"
+              onClick={contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? handleDeleteLayer : handleDeleteColumn}
+            >
+              {contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? 'Delete Clip' : 'Delete Column'}
+            </div>
             </div>
           </div>
         )}
@@ -2984,7 +3018,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             </div>
             
             {/* Delete option - show different text based on context */}
-            <div className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5" onClick={handleDeleteLayer}>{contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? 'Delete Clip' : 'Delete Column'}</div>
+            <div
+              className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5"
+              onClick={contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? handleDeleteLayer : handleDeleteColumn}
+            >
+              {contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? 'Delete Clip' : 'Delete Column'}
+            </div>
           </div>
         )}
       </div>
