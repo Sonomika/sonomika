@@ -282,6 +282,9 @@ export function buildPresetDataFromState(state: AnyState): any {
     timelineScenes,
     currentTimelineSceneId: state.currentTimelineSceneId,
     timelineTracksBySceneId,
+    // Persist UI mode so each saved set reopens in the same mode.
+    // `true` => timeline mode, `false` => column mode.
+    showTimeline: !!state.showTimeline,
     playingColumnId: state.playingColumnId,
     bpm: state.bpm,
     sidebarVisible: state.sidebarVisible,

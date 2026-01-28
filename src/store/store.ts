@@ -1174,6 +1174,9 @@ export const useStore = createWithEqualityFn<AppState & {
               }) || []
             };
             const cleanedData = sanitizePresetDataOnLoad(rawData);
+            // Apply view mode via action so side-effects (stop/cleanup) run correctly.
+            const desiredShowTimeline = Boolean((cleanedData as any)?.showTimeline);
+            const { showTimeline: _ignoredShowTimeline, ...rest } = (cleanedData as any) || {};
             // Apply/clear timeline tracks stored outside zustand so Timeline reflects the loaded set
             try {
               const byId = (cleanedData as any)?.timelineTracksBySceneId as Record<string, any[]> | undefined;
@@ -1188,11 +1191,15 @@ export const useStore = createWithEqualityFn<AppState & {
               try { localStorage.removeItem('vj-timeline-selected-clips'); } catch {}
             } catch {}
             try { localStorage.removeItem('vj-app-storage'); } catch (clearError) { console.warn('Failed to clear localStorage:', clearError); }
-            set({ ...cleanedData, currentPresetName: presetName } as any);
+            set({ ...rest, currentPresetName: presetName } as any);
+            try { (get() as any).setShowTimeline?.(desiredShowTimeline); } catch {}
             return true;
           }
 
           const cleanedData = sanitizePresetDataOnLoad(preset.data || {});
+          // Apply view mode via action so side-effects (stop/cleanup) run correctly.
+          const desiredShowTimeline = Boolean((cleanedData as any)?.showTimeline);
+          const { showTimeline: _ignoredShowTimeline, ...rest } = (cleanedData as any) || {};
           // Apply/clear timeline tracks stored outside zustand so Timeline reflects the loaded set
           try {
             const byId = (cleanedData as any)?.timelineTracksBySceneId as Record<string, any[]> | undefined;
@@ -1206,7 +1213,8 @@ export const useStore = createWithEqualityFn<AppState & {
             }
             try { localStorage.removeItem('vj-timeline-selected-clips'); } catch {}
           } catch {}
-          set({ ...cleanedData, currentPresetName: presetName } as any);
+          set({ ...rest, currentPresetName: presetName } as any);
+          try { (get() as any).setShowTimeline?.(desiredShowTimeline); } catch {}
           return true;
         } catch (e) {
           console.error('Failed to load preset from content:', e);
@@ -1254,6 +1262,9 @@ export const useStore = createWithEqualityFn<AppState & {
           if (!preset?.data) return false;
           // Apply sanitized data to store
           const cleanedData = sanitizePresetDataOnLoad(preset.data || {});
+          // Apply view mode via action so side-effects (stop/cleanup) run correctly.
+          const desiredShowTimeline = Boolean((cleanedData as any)?.showTimeline);
+          const { showTimeline: _ignoredShowTimeline, ...rest } = (cleanedData as any) || {};
           // Apply/clear timeline tracks stored outside zustand so Timeline reflects the loaded set
           try {
             const byId = (cleanedData as any)?.timelineTracksBySceneId as Record<string, any[]> | undefined;
@@ -1267,7 +1278,8 @@ export const useStore = createWithEqualityFn<AppState & {
             }
             try { localStorage.removeItem('vj-timeline-selected-clips'); } catch {}
           } catch {}
-          set({ ...cleanedData, currentPresetName: (data as any)?.name || name } as any);
+          set({ ...rest, currentPresetName: (data as any)?.name || name } as any);
+          try { (get() as any).setShowTimeline?.(desiredShowTimeline); } catch {}
           return true;
         } catch (e) {
           console.error('Failed to load cloud preset:', e);
