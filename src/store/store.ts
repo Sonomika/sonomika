@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ActionLogger } from '../utils/ActionLogger';
 import { AppState, Scene, Column, Layer, MIDIMapping, Asset, CompositionSettings, TransitionType } from './types';
 import { buildPresetDataFromState, sanitizePresetDataOnLoad } from '../utils/presetSanitizer';
+import { createDefaultKeyToColumnMappings } from '../midi/defaultKeyColumnMappings';
 
 // Helper: convert hex color (e.g., #00bcd4) to HSL components for CSS variables
 const hexToHslComponents = (hex: string): { h: number; s: number; l: number } => {
@@ -100,6 +101,13 @@ const createClearedSceneWithId = (id: string, name: string): Scene => ({
   name,
 });
 
+const withDefaultMidiMappingsIfMissing = (data: any): any => {
+  // Respect any explicit value from the set (including an intentionally empty array).
+  // Only apply defaults if the set doesn't include midiMappings at all, or it's invalid.
+  if (data && Array.isArray(data.midiMappings)) return data;
+  return { ...(data || {}), midiMappings: createDefaultKeyToColumnMappings() };
+};
+
 const initialState: AppState = {
   scenes: createDefaultScenes(),
   currentSceneId: '',
@@ -115,7 +123,7 @@ const initialState: AppState = {
   accentColor: '#00bcd4',
   neutralContrast: 1.5,
   fontColor: '#d6d6d6',
-  midiMappings: [],
+  midiMappings: createDefaultKeyToColumnMappings(),
   midiForceChannel1: false,
   selectedMIDIDevices: [], // Empty array means no devices - MIDI disabled
   midiCCOffset: 0,
@@ -1173,7 +1181,7 @@ export const useStore = createWithEqualityFn<AppState & {
                 return !(asset?.base64Data && asset.size > 1024 * 1024);
               }) || []
             };
-            const cleanedData = sanitizePresetDataOnLoad(rawData);
+            const cleanedData = withDefaultMidiMappingsIfMissing(sanitizePresetDataOnLoad(rawData));
             // Apply view mode via action so side-effects (stop/cleanup) run correctly.
             const desiredShowTimeline = Boolean((cleanedData as any)?.showTimeline);
             const { showTimeline: _ignoredShowTimeline, ...rest } = (cleanedData as any) || {};
@@ -1196,7 +1204,7 @@ export const useStore = createWithEqualityFn<AppState & {
             return true;
           }
 
-          const cleanedData = sanitizePresetDataOnLoad(preset.data || {});
+          const cleanedData = withDefaultMidiMappingsIfMissing(sanitizePresetDataOnLoad(preset.data || {}));
           // Apply view mode via action so side-effects (stop/cleanup) run correctly.
           const desiredShowTimeline = Boolean((cleanedData as any)?.showTimeline);
           const { showTimeline: _ignoredShowTimeline, ...rest } = (cleanedData as any) || {};
@@ -1261,7 +1269,7 @@ export const useStore = createWithEqualityFn<AppState & {
           const preset = data?.content;
           if (!preset?.data) return false;
           // Apply sanitized data to store
-          const cleanedData = sanitizePresetDataOnLoad(preset.data || {});
+          const cleanedData = withDefaultMidiMappingsIfMissing(sanitizePresetDataOnLoad(preset.data || {}));
           // Apply view mode via action so side-effects (stop/cleanup) run correctly.
           const desiredShowTimeline = Boolean((cleanedData as any)?.showTimeline);
           const { showTimeline: _ignoredShowTimeline, ...rest } = (cleanedData as any) || {};
