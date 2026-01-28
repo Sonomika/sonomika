@@ -28,10 +28,11 @@ import { ScrollArea as AppScrollArea } from './ui';
 import { Tabs, TabsList, TabsTrigger, TabsContent, Dialog, DialogContent, DialogHeader, DialogTitle } from './ui';
 import { GlobalEffectsTab } from './GlobalEffectsTab';
 import SequenceTab from './SequenceTab';
-import { EnterFullScreenIcon, HamburgerMenuIcon, ChevronLeftIcon, ChevronRightIcon, PlayIcon, PauseIcon, StopIcon } from '@radix-ui/react-icons';
+import { EnterFullScreenIcon, HamburgerMenuIcon, ChevronLeftIcon, ChevronRightIcon, PlayIcon, PauseIcon, StopIcon, GlobeIcon } from '@radix-ui/react-icons';
 import TimelineControls from './TimelineControls';
 import FileBrowser from './FileBrowser';
 import { debounce } from '../utils/debounce';
+import { Equirectangular360Preview, isEquirectangularAspectRatio } from './Equirectangular360Preview';
 
 
 interface LayerManagerProps {
@@ -202,12 +203,77 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [debugLines, setDebugLines] = useState<string[]>([]);
   const [, setRefreshTrigger] = useState(0);
   const [isBeatPulse, setIsBeatPulse] = useState(false);
   const beatPulseTimeoutRef = React.useRef<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewHeaderRef = useRef<HTMLDivElement | null>(null);
   const prevShowTimelineRef = useRef<boolean>(Boolean(showTimeline));
+  const timelineStopOnFirstUpdateRef = useRef<boolean>(Boolean(showTimeline));
+  const timelineAllowPlayRef = useRef<boolean>(false);
+
+  // Always default to STOP when switching between column and timeline modes.
+  useEffect(() => {
+    if (prevShowTimelineRef.current === Boolean(showTimeline)) return;
+    prevShowTimelineRef.current = Boolean(showTimeline);
+    try { setIsPlaying(false); } catch {}
+    try { globalStop({ source: 'mode-switch', force: true } as any); } catch {}
+    try { stopColumn(); } catch {}
+    try { setPreviewContent(null); } catch {}
+    try { timelineStopOnFirstUpdateRef.current = true; } catch {}
+    try { timelineAllowPlayRef.current = false; } catch {}
+  }, [showTimeline, globalStop, stopColumn]);
+
+  useEffect(() => {
+    const onTimelinePlay = () => { timelineAllowPlayRef.current = true; };
+    const onTimelineStop = () => {
+      timelineAllowPlayRef.current = false;
+      try { setIsPlaying(false); } catch {}
+      try {
+        setPreviewContent((prev: any) => (prev && prev.type === 'timeline' ? { ...prev, isPlaying: false } : prev));
+      } catch {}
+    };
+    try { document.addEventListener('timelinePlay', onTimelinePlay as any); } catch {}
+    try { document.addEventListener('timelineStop', onTimelineStop as any); } catch {}
+    return () => {
+      try { document.removeEventListener('timelinePlay', onTimelinePlay as any); } catch {}
+      try { document.removeEventListener('timelineStop', onTimelineStop as any); } catch {}
+    };
+  }, []);
+
+  const pushDebug = (msg: string) => {
+    try {
+      setDebugLines((prev) => {
+        const next = [...prev, msg];
+        return next.length > 8 ? next.slice(next.length - 8) : next;
+      });
+    } catch {}
+  };
+
+  useEffect(() => {
+    const onDebug = (evt: any) => {
+      const msg = evt?.detail?.msg;
+      if (!msg) return;
+      pushDebug(String(msg));
+    };
+    try { window.addEventListener('vjDebug', onDebug as any); } catch {}
+    return () => {
+      try { window.removeEventListener('vjDebug', onDebug as any); } catch {}
+    };
+  }, []);
+
+  const resumeAllVideos = () => {
+    try {
+      const videos = document.querySelectorAll('video');
+      videos.forEach((video) => {
+        try {
+          const p = (video as HTMLVideoElement).play();
+          if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
+        } catch {}
+      });
+    } catch {}
+  };
 
   // Sync local column-mode playing state with global transport
   useEffect(() => {
@@ -228,6 +294,82 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [isPreviewMirrorOpen, setIsPreviewMirrorOpen] = useState(false);
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [fsFallbackActive, setFsFallbackActive] = useState(false);
+  // 360 preview mode for equirectangular compositions
+  const [is360PreviewMode, setIs360PreviewMode] = useState(false);
+  const [sphereSourceCanvas, setSphereSourceCanvas] = useState<HTMLCanvasElement | null>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const previewWrapperRef = useRef<HTMLDivElement | null>(null);
+  const isEquirectangular = isEquirectangularAspectRatio(
+    compositionSettings?.width || 1920, 
+    compositionSettings?.height || 1080
+  );
+  
+  // Effect to capture the R3F canvas element when 360 mode is activated
+  // Also re-capture when fullscreen changes as canvas may be recreated
+  useEffect(() => {
+    if (!is360PreviewMode || !isEquirectangular) {
+      setSphereSourceCanvas(null);
+      return;
+    }
+    
+    // Find the canvas in the preview container
+    const findCanvas = () => {
+      const container = previewContainerRef.current;
+      if (!container) return;
+      // Find the first canvas that's not part of the 360 preview itself
+      const canvases = container.querySelectorAll('canvas');
+      let targetCanvas: HTMLCanvasElement | null = null;
+      for (const canvas of canvases) {
+        // Skip if this canvas is inside the 360 preview (it's the output canvas)
+        const isIn360Preview = canvas.closest('[data-360-preview]');
+        if (!isIn360Preview && canvas.width > 0 && canvas.height > 0) {
+          targetCanvas = canvas;
+          break;
+        }
+      }
+      if (targetCanvas) {
+        previewCanvasRef.current = targetCanvas;
+        // Only update state if the canvas actually changed
+        setSphereSourceCanvas(prev => prev === targetCanvas ? prev : targetCanvas);
+      }
+      // NOTE: Don't clear canvas if not found - keep the old reference during transitions
+    };
+    
+    // Initial search with small delay to let canvas render
+    const initialTimeout = setTimeout(findCanvas, 50);
+    
+    // Use MutationObserver to detect when canvas is added (no attributes to reduce overhead)
+    const observer = new MutationObserver(() => {
+      findCanvas();
+    });
+    
+    if (previewContainerRef.current) {
+      observer.observe(previewContainerRef.current, { childList: true, subtree: true });
+    }
+    
+    // Poll less frequently to reduce overhead (500ms is enough)
+    const pollInterval = setInterval(findCanvas, 500);
+    
+    // Also listen for resize events which happen during fullscreen
+    const handleResize = () => {
+      setTimeout(findCanvas, 100);
+    };
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(pollInterval);
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [is360PreviewMode, isEquirectangular, isPreviewFullscreen, fsFallbackActive]);
+  
+  // Reset 360 mode when composition changes to non-equirectangular
+  useEffect(() => {
+    if (!isEquirectangular && is360PreviewMode) {
+      setIs360PreviewMode(false);
+    }
+  }, [isEquirectangular, is360PreviewMode]);
 
   // Helper functions to get current scene and management functions based on mode
   const getCurrentScene = () => {
@@ -420,14 +562,31 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   // Memoized callback for timeline preview updates
   const handleTimelinePreviewUpdate = useCallback((previewContent: any) => {
+    if (!previewContent) {
+      setPreviewContent(null);
+      setIsPlaying(false);
+      return;
+    }
+
+    // In timeline mode, default to STOP on refresh/initial load unless global play is active.
+    // Allow play updates from the timeline itself.
+    if (showTimeline && !timelineAllowPlayRef.current) {
+      setPreviewContent({
+        ...previewContent,
+        isPlaying: false
+      });
+      setIsPlaying(false);
+      timelineStopOnFirstUpdateRef.current = false;
+      return;
+    }
+
     setPreviewContent(previewContent);
-    
+
     // Update isPlaying state based on previewContent.isPlaying
     if (previewContent && typeof previewContent.isPlaying === 'boolean') {
-      console.log('🎭 LayerManager updating isPlaying to:', previewContent.isPlaying);
       setIsPlaying(previewContent.isPlaying);
     }
-  }, []);
+  }, [showTimeline, isGlobalPlaying]);
 
   // Clear timeline preview when switching to column mode
   useEffect(() => {
@@ -1251,6 +1410,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               globalEffects={currentScene?.globalEffects || []}
               overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
               isTimelineMode={true}
+              // In timeline mode, Stop should pause effects too (freeze frameloop) while preserving last frame.
+              hardFreeze={!Boolean(previewContent.isPlaying)}
             />
           </div>
         </div>
@@ -1324,10 +1485,19 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 column={liveColumn}
                 width={compositionSettings.width}
                 height={compositionSettings.height}
-                isPlaying={isPlaying && playingColumnId === previewContent.columnId}
+                isPlaying={
+                  // Normal mode: only play when this column is the playing column.
+                  // 360 mode: allow local or global play state to drive playback.
+                  (is360PreviewMode && isEquirectangular)
+                    ? (isPlaying || isGlobalPlaying)
+                    : (playingColumnId === previewContent.columnId && isGlobalPlaying)
+                }
                 bpm={bpm}
                 globalEffects={currentScene?.globalEffects || []}
                 overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
+                forceAlwaysRender={is360PreviewMode && isEquirectangular}
+                suppressPause={is360PreviewMode && isEquirectangular}
+                hardFreeze={!isGlobalPlaying}
               />
             </div>
                      {debugMode && (
@@ -1369,7 +1539,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   width={compositionSettings.width}
                   height={compositionSettings.height}
                   bpm={bpm}
-                  isPlaying={isPlaying}
+                  isPlaying={showTimeline ? isPlaying : (isGlobalPlaying && isPlaying)}
                 />
               </div>
             )}
@@ -2346,10 +2516,67 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <div className="tw-inline-flex tw-items-center tw-h-10 tw-w-full tw-bg-secondary tw-rounded-none">
                     <h4 className="tw-text-sm tw-leading-[14px] tw-font-medium tw-text-foreground tw-pl-2">Preview</h4>
                     <div className="tw-flex tw-items-center tw-gap-2 tw-ml-auto tw-pr-3">
+                    {/* 360 preview toggle - only shown for equirectangular (2:1) compositions */}
+                    {isEquirectangular && (
+                      <button
+                        className={`tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-border tw-border-neutral-700 ${
+                          is360PreviewMode 
+                            ? 'tw-text-white tw-bg-accent hover:tw-bg-accent/80' 
+                            : 'tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          const entering360 = !is360PreviewMode;
+                          
+                          
+                          if (entering360) {
+                            // Resume videos immediately, in the same user gesture, so play() is not blocked.
+                            try { document.dispatchEvent(new CustomEvent('videoResume')); } catch {}
+                            // CRITICAL: Call globalPlay FIRST to set isGlobalPlaying=true in store.
+                            // This ensures that when the store update triggers a re-render before React state updates,
+                            // the isPlaying prop will be true (because isGlobalPlaying=true).
+                            try { globalPlay({ force: true, source: 'preview:360-toggle' } as any); } catch {}
+                            resumeAllVideos();
+                            try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: '[360-toggle] enter' } })); } catch {}
+                            // Reassert the current column play to match the behavior of clicking a column tab.
+                            if (previewContent?.type === 'column' && previewContent?.columnId) {
+                              try {
+                                try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: `[360-toggle] reassert ${previewContent.columnId}` } })); } catch {}
+                                handleColumnPlay(previewContent.columnId, currentScene, setPreviewContent, setIsPlaying, playColumn);
+                                requestAnimationFrame(() => {
+                                  try { handleColumnPlay(previewContent.columnId, currentScene, setPreviewContent, setIsPlaying, playColumn); } catch {}
+                                });
+                              } catch {}
+                            }
+                            setIsPlaying(true);
+                            const c = previewCanvasRef.current;
+                            if (c && c.width > 0 && c.height > 0) {
+                              setSphereSourceCanvas(c);
+                            }
+                            setTimeout(() => {
+                              resumeAllVideos();
+                            }, 0);
+                          }
+                          setIs360PreviewMode(!is360PreviewMode);
+                        }}
+                        title={is360PreviewMode ? 'Switch to flat view' : 'Switch to 360 view (drag to pan)'}
+                        aria-label={is360PreviewMode ? 'Switch to flat view' : 'Switch to 360 view'}
+                        aria-pressed={is360PreviewMode}
+                      >
+                        <GlobeIcon className="tw-w-3.5 tw-h-3.5" />
+                      </button>
+                    )}
                     {/* Mirror button removed per request to hide R3F icon */}
                     <button
                       className="tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800 tw-border tw-border-neutral-700"
-                      onClick={togglePreviewFullscreen}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        // Same as 360 toggle: dispatch synchronous play signal within the gesture.
+                        try { globalPlay({ force: true, source: 'preview:fullscreen' } as any); } catch {}
+                        togglePreviewFullscreen();
+                      }}
                       title="Fullscreen Preview"
                       aria-label="Fullscreen Preview"
                     >
@@ -2360,9 +2587,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 </div>
               )}
               <div 
-                className="tw-flex tw-items-center tw-justify-center tw-bg-neutral-900 tw-w-full tw-flex-1"
+                className="tw-flex tw-items-center tw-justify-center tw-bg-neutral-900 tw-w-full tw-flex-1 tw-relative"
               >
+                {/* Flat preview (always renders as source for 360 mode) */}
                 <div
+                  // In 360 mode we must keep the source canvas laid out at full size.
+                  // Using `absolute` without `inset-0` can collapse width/height to 0 and freeze the 360 texture.
+                  // Also, don't hide the flat preview until the 360 view has a valid source canvas.
+                  className={(is360PreviewMode && isEquirectangular && sphereSourceCanvas) ? 'tw-absolute tw-inset-0 tw-opacity-0 tw-pointer-events-none' : ''}
                   style={
                     (isPreviewFullscreen || fsFallbackActive)
                       ? ({
@@ -2376,6 +2608,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                           height: previewSize.height || undefined
                         } as any)
                   }
+                  ref={(el) => {
+                    // Always capture the flat preview's canvas so it's available immediately when toggling 360.
+                    if (!el) return;
+                    const canvas = el.querySelector('canvas');
+                    if (canvas && canvas !== previewCanvasRef.current) {
+                      previewCanvasRef.current = canvas;
+                    }
+                  }}
                 >
                   {(() => {
                     console.log('🎭 Rendering preview content in preview window');
@@ -2384,6 +2624,38 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     return content;
                   })()}
                 </div>
+                
+                {/* 360 spherical preview (shown when 360 mode is active and source canvas is ready) */}
+                {is360PreviewMode && isEquirectangular && sphereSourceCanvas && (
+                  <div
+                    className="tw-w-full tw-h-full"
+                    data-360-preview="true"
+                    style={
+                      (isPreviewFullscreen || fsFallbackActive)
+                        ? ({
+                            width: previewSize.width || '100%',
+                            height: previewSize.height || '100dvh',
+                            maxWidth: '100%',
+                            maxHeight: '100dvh'
+                          } as any)
+                        : ({
+                            width: previewSize.width || '100%',
+                            height: previewSize.height || '100%'
+                          } as any)
+                    }
+                  >
+                    <Equirectangular360Preview
+                      sourceCanvas={sphereSourceCanvas}
+                      width={compositionSettings?.width || 1920}
+                      height={compositionSettings?.height || 1080}
+                      isPlaying={isPlaying || isGlobalPlaying}
+                      initialFov={75}
+                      enableZoom={true}
+                      enablePan={true}
+                      autoRotate={false}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

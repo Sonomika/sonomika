@@ -400,6 +400,24 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   // Reload timeline data when scene changes
   useEffect(() => {
     console.log(`Scene changed to ${currentTimelineSceneId}, reloading timeline data`);
+    // Ensure timeline truly stops when reloading (important on refresh/reload).
+    // Previously we only cleared the legacy playbackInterval, but the RAF loop (rafRef/isPlayingRef)
+    // could keep running, causing preview playback after refresh until user presses Stop.
+    try { pendingPlaybackRef.current = false; } catch {}
+    try {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    } catch {}
+    try { isPlayingRef.current = false; } catch {}
+    try { lastTsRef.current = null; } catch {}
+    try {
+      (window as any).__vj_timeline_is_playing__ = false;
+      (window as any).__vj_timeline_active_layers__ = [];
+    } catch {}
+    try { document.dispatchEvent(new Event('timelineStop')); } catch {}
+
     const newTracks = loadTimelineData();
     setTracks(newTracks);
     setCurrentTime(0);
@@ -2238,6 +2256,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     } catch {}
     console.log('Timeline playback stopped, isPlaying set to false');
   };
+
+  // On mount, force timeline to be stopped (prevents "playing after refresh" cases).
+  useEffect(() => {
+    stopTimelinePlayback();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle play button click
   const handlePlayButtonClick = async () => {

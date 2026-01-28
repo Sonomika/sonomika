@@ -491,6 +491,16 @@ function createWindow() {
     }
   });
 
+  // Fallback: if renderer never reaches "ready-to-show" (e.g. load failures),
+  // still show the window so users can see the inline error/retry page.
+  setTimeout(() => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+    } catch {}
+  }, 2000);
+
   // Ensure renderer-created child windows (via window.open) are chrome-less for output
   try {
     mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -582,12 +592,12 @@ function createWindow() {
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: http: https:; script-src 'unsafe-inline' data: http: https:; style-src 'unsafe-inline' data: http: https:;" />
     <title>Dev Server Not Available</title>
     <style>
-      body { font-family: sans-serif; background: #141414; color: #f5f5f5; padding: 32px; }
+      body { font-family: sans-serif; background: #141414; color: #aaaaaa; padding: 32px; }
       pre { background:#1f1f1f; padding:16px; border-radius:8px; overflow:auto; }
       .muted { color: #aaaaaa; }
-      button { background:#1f1f1f; color:#f5f5f5; border: 1px solid #262626; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+      button { background:#1f1f1f; color:#aaaaaa; border: 1px solid #262626; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
       button:hover { background:#262626; }
-      code { color: #f5f5f5; }
+      code { color: #aaaaaa; }
     </style>
   </head>
   <body>

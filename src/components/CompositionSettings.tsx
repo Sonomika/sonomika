@@ -40,13 +40,20 @@ const PRESET_SIZES = [
   { name: '1600 × 1200 (UXGA, 4:3)', width: 1600, height: 1200 },
   { name: '1920 × 1080 (Full HD, 16:9)', width: 1920, height: 1080 },
   { name: '1920 × 1200 (WUXGA)', width: 1920, height: 1200 },
+  // Equirectangular / 360 Video (2:1 aspect ratio)
+  { name: '2048 × 1024 (2K 360)', width: 2048, height: 1024 },
   { name: '2560 × 1440 (Quad HD, 1440p)', width: 2560, height: 1440 },
   { name: '2816 × 640 (wide custom)', width: 2816, height: 640 },
   { name: '3840 × 1080 (dual Full HD, wide)', width: 3840, height: 1080 },
+  { name: '3840 × 1920 (4K 360)', width: 3840, height: 1920 },
   { name: '3840 × 2160 (4K Ultra HD)', width: 3840, height: 2160 },
+  { name: '4096 × 2048 (4K DCI 360)', width: 4096, height: 2048 },
   { name: '5120 × 2880 (5K Ultra HD)', width: 5120, height: 2880 },
   { name: '5760 × 1080 (triple-wide)', width: 5760, height: 1080 },
+  { name: '5760 × 2880 (6K 360)', width: 5760, height: 2880 },
+  { name: '7680 × 3840 (8K 360)', width: 7680, height: 3840 },
   { name: '7680 × 4320 (8K Ultra HD)', width: 7680, height: 4320 },
+  { name: '8192 × 4096 (8K DCI 360)', width: 8192, height: 4096 },
   { name: '10240 × 768 (ultra-wide custom)', width: 10240, height: 768 },
 ];
 

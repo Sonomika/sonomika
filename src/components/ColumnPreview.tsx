@@ -70,6 +70,12 @@ interface ColumnPreviewProps {
   height: number;
   isPlaying: boolean;
   bpm: number;
+  /** Force frameloop to 'always' regardless of isPlaying (used for 360 mode source) */
+  forceAlwaysRender?: boolean;
+  /** Prevent pause scheduling during 360 transition */
+  suppressPause?: boolean;
+  /** Force the canvas to stop rendering entirely (used for global pause/stop) */
+  hardFreeze?: boolean;
   globalEffects?: any[];
   overridesKey?: string;
   isTimelineMode?: boolean; // If true, reads video options from timeline store
@@ -483,13 +489,14 @@ const EffectLayer: React.FC<{
 const ColumnScene: React.FC<{
   column: any;
   isPlaying: boolean;
+  suppressPause?: boolean;
   bpm: number;
   globalEffects?: any[];
   compositionWidth?: number;
   compositionHeight?: number;
   onFirstFrameReady?: () => void;
   isTimelineMode?: boolean;
-}> = ({ column, isPlaying, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false }) => {
+}> = ({ column, isPlaying, suppressPause = false, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false }) => {
   const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -629,6 +636,10 @@ const ColumnScene: React.FC<{
               video.setAttribute('data-layer-id', layer.id);
               // Keep legacy default looping; advanced modes are handled by VideoLoopManager
               try { video.loop = true; } catch {}
+              // If we're not playing, ensure cached videos aren't running in the background (prevents "plays on refresh")
+              if (!isPlaying) {
+                try { video.pause(); } catch {}
+              }
               newVideos.set(asset.id, video);
             } else {
               console.log('Loading new video with path:', getAssetPath(asset, true), 'for asset:', asset.name);
@@ -657,7 +668,9 @@ const ColumnScene: React.FC<{
               video.src = assetPath;
               video.muted = true;
               video.loop = true;
-              video.autoplay = true;
+              // Do NOT autoplay on creation; playback is controlled by the isPlaying effect.
+              // This prevents timeline/preview from "playing on refresh" before user presses Play.
+              video.autoplay = false;
               video.playsInline = true;
               video.style.backgroundColor = 'transparent';
               video.crossOrigin = 'anonymous';
@@ -687,10 +700,10 @@ const ColumnScene: React.FC<{
                 video!.load();
               });
 
-              try {
-                const p = video.play();
-                if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
-              } catch {}
+              // Keep paused until the play/pause effect decides to play.
+              if (!isPlaying) {
+                try { video.pause(); } catch {}
+              }
 
               // Cache locally for this component, while global cache is managed by preloader
               globalAssetCacheRef.current.videos.set(asset.id, video);
@@ -713,9 +726,42 @@ const ColumnScene: React.FC<{
 
   // Handle play/pause without resetting on param changes
   const prevIsPlayingRef = useRef<boolean>(false);
+  const pauseVideosTimeoutRef = useRef<number | null>(null);
+  const suppressResumeRef = useRef<boolean>(false);
+
+  // If suppressPause is enabled (360 transition), ensure videos resume once.
+  useEffect(() => {
+    if (!suppressPause) {
+      suppressResumeRef.current = false;
+      return;
+    }
+    if (suppressResumeRef.current) return;
+    suppressResumeRef.current = true;
+
+    try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: `[ColumnPreview] resumeAll videos=${assets.videos.size}` } })); } catch {}
+    
+    try {
+      assets.videos.forEach((v) => {
+        if (!v) return;
+        if (!v.paused) return;
+        try {
+          const p = v.play();
+          if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
+        } catch {}
+      });
+    } catch {}
+  }, [suppressPause, assets.videos]);
+
   useEffect(() => {
     const isTimelinePreview = column?.id === 'timeline-preview';
     if (isPlaying) {
+      try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: `[ColumnPreview] play branch videos=${assets.videos.size}` } })); } catch {}
+      
+      // Cancel any pending pause (prevents gesture-breaking pause/resume during UI transitions)
+      if (pauseVideosTimeoutRef.current != null) {
+        try { window.clearTimeout(pauseVideosTimeoutRef.current); } catch {}
+        pauseVideosTimeoutRef.current = null;
+      }
       const justStarted = !prevIsPlayingRef.current;
       column.layers.forEach((layer: any) => {
         if (!layer?.asset || layer.asset.type !== 'video') return;
@@ -732,13 +778,41 @@ const ColumnScene: React.FC<{
           if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
         } catch {}
       });
+      prevIsPlayingRef.current = true;
     } else {
-      assets.videos.forEach(video => {
-        try { video.pause(); } catch {}
-      });
+      if (suppressPause) {
+        try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: `[ColumnPreview] skip pause videos=${assets.videos.size}` } })); } catch {}
+        
+        if (pauseVideosTimeoutRef.current != null) {
+          try { window.clearTimeout(pauseVideosTimeoutRef.current); } catch {}
+          pauseVideosTimeoutRef.current = null;
+        }
+        return;
+      }
+      // Debounce pausing videos. During 360/fullscreen toggles we can briefly see isPlaying=false;
+      // immediately pausing causes the browser to require a new user gesture to resume.
+
+      try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: `[ColumnPreview] pause schedule videos=${assets.videos.size}` } })); } catch {}
+      
+      if (pauseVideosTimeoutRef.current != null) {
+        try { window.clearTimeout(pauseVideosTimeoutRef.current); } catch {}
+        pauseVideosTimeoutRef.current = null;
+      }
+      pauseVideosTimeoutRef.current = window.setTimeout(() => {
+        assets.videos.forEach((video) => {
+          try { video.pause(); } catch {}
+        });
+        prevIsPlayingRef.current = false;
+        pauseVideosTimeoutRef.current = null;
+      }, 400);
     }
-    prevIsPlayingRef.current = isPlaying;
-  }, [isPlaying, assets.videos, column.layers, column?.id]);
+    return () => {
+      if (pauseVideosTimeoutRef.current != null) {
+        try { window.clearTimeout(pauseVideosTimeoutRef.current); } catch {}
+        pauseVideosTimeoutRef.current = null;
+      }
+    };
+  }, [isPlaying, suppressPause, assets.videos, column.layers, column?.id]);
 
   // Apply per-layer playback modes (Random / Ping Pong / Reverse)
   useFrame(() => {
@@ -799,6 +873,33 @@ const ColumnScene: React.FC<{
       try { document.removeEventListener('globalStop', onGlobalStop as any); } catch {}
       try { document.removeEventListener('timelineStop', onTimelineStop as any); } catch {}
       try { document.removeEventListener('videoStop', onVideoStop as any); } catch {}
+    };
+  }, [assets.videos]);
+
+  // Important: allow synchronous resume inside a user gesture.
+  // Some UI transitions (like entering 360 preview) can momentarily pause videos; resuming from an effect
+  // can be blocked by autoplay policies. By responding to a synchronous custom event, we can call play()
+  // in the same click gesture call stack.
+  useEffect(() => {
+    const resumeAll = () => {
+      try {
+        assets.videos.forEach((v) => {
+          if (!v) return;
+          if (!v.paused) return;
+          try {
+            const p = v.play();
+            if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
+          } catch {}
+        });
+      } catch {}
+    };
+    const onGlobalPlay = () => resumeAll();
+    const onVideoResume = () => resumeAll();
+    try { document.addEventListener('globalPlay', onGlobalPlay as any); } catch {}
+    try { document.addEventListener('videoResume', onVideoResume as any); } catch {}
+    return () => {
+      try { document.removeEventListener('globalPlay', onGlobalPlay as any); } catch {}
+      try { document.removeEventListener('videoResume', onVideoResume as any); } catch {}
     };
   }, [assets.videos]);
 
@@ -1237,7 +1338,13 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   globalEffects = [],
   overridesKey,
   isTimelineMode = false,
+  forceAlwaysRender = false,
+  suppressPause = false,
+  hardFreeze = false,
 }) => {
+  // Effective playing state considers forceAlwaysRender (used for 360 mode source)
+  const effectiveIsPlaying = isPlaying || forceAlwaysRender;
+  
   const [error, setError] = useState<string | null>(null);
   const [maskVisible, setMaskVisible] = useState<boolean>(true);
   const hasAnyLayerAsset = useMemo(() => {
@@ -1310,7 +1417,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 camera={{ position: [0, 0, 1], fov: 90 }}
                className="tw-w-full tw-h-full tw-block tw-bg-transparent"
                 dpr={1}
-                frameloop={isPlaying ? 'always' : 'demand'}
+                frameloop={hardFreeze ? 'never' : (effectiveIsPlaying ? 'always' : 'demand')}
                 gl={{ 
                   alpha: true,
                   preserveDrawingBuffer: true,
@@ -1450,7 +1557,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               <ColumnScene 
                 key={`scene-${width}x${height}-${column?.id || 'col'}-${overridesKey || 'base'}`}
                 column={column} 
-                isPlaying={isPlaying} 
+                isPlaying={effectiveIsPlaying} 
+                suppressPause={suppressPause}
                 bpm={bpm}
                 globalEffects={globalEffects}
                 compositionWidth={width}
