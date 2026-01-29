@@ -43,6 +43,93 @@ interface LayerManagerProps {
 // Memoized at module scope to preserve component identity across renders
 const MemoMediaLibrary = React.memo(MediaLibrary);
 
+// Component to render video thumbnails that never play
+const VideoThumbnailPreview: React.FC<{ src: string; assetName: string }> = React.memo(({ src, assetName }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Ensure video never plays - pause immediately on any play attempt
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Pause on mount
+    video.pause();
+
+    // Prevent play attempts
+    const handlePlay = (e: Event) => {
+      e.preventDefault();
+      video.pause();
+    };
+
+    const handlePlaying = () => {
+      video.pause();
+    };
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('playing', handlePlaying);
+
+    // Also pause periodically to catch any edge cases
+    const intervalId = setInterval(() => {
+      if (video && !video.paused) {
+        video.pause();
+      }
+    }, 100);
+
+    return () => {
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('playing', handlePlaying);
+      clearInterval(intervalId);
+      video.pause();
+    };
+  }, []);
+
+  // Load first frame for preview when metadata is available
+  const handleLoadedMetadata = () => {
+    const video = videoRef.current;
+    if (video) {
+      // Seek to first frame to show preview
+      video.currentTime = 0;
+      // Ensure it's paused
+      video.pause();
+    }
+  };
+
+  const handleLoadedData = () => {
+    const video = videoRef.current;
+    if (video) {
+      // Ensure paused and at first frame
+      video.currentTime = 0;
+      video.pause();
+    }
+  };
+
+  return (
+    <div className="tw-w-full tw-aspect-video tw-rounded tw-overflow-hidden">
+      <video
+        ref={videoRef}
+        src={src}
+        draggable={false}
+        className="tw-w-full tw-h-full tw-object-cover"
+        muted
+        preload="metadata"
+        playsInline
+        onLoadStart={() => console.log('Layer video loading:', assetName)}
+        onLoadedMetadata={handleLoadedMetadata}
+        onLoadedData={handleLoadedData}
+        onError={(e) => console.error('Layer video error:', assetName, e)}
+        onPlay={(e) => {
+          e.preventDefault();
+          if (videoRef.current) {
+            videoRef.current.pause();
+          }
+        }}
+      />
+    </div>
+  );
+});
+
+VideoThumbnailPreview.displayName = 'VideoThumbnailPreview';
+
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   // console.log('LayerManager component rendering');
   
@@ -2416,17 +2503,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                />
                              )}
                              {layer.asset.type === 'video' && (
-                               <div className="tw-w-full tw-aspect-video tw-rounded tw-overflow-hidden">
-                                 <video
-                                   src={getAssetPath(layer.asset, true)}
-                                   draggable={false}
-                                   className="tw-w-full tw-h-full tw-object-cover"
-                                   muted
-                                   onLoadStart={() => console.log('Layer video loading:', layer.asset.name)}
-                                   onLoadedData={() => console.log('Layer video loaded:', layer.asset.name)}
-                                   onError={(e) => console.error('Layer video error:', layer.asset.name, e)}
-                                 />
-                               </div>
+                               <VideoThumbnailPreview
+                                 src={getAssetPath(layer.asset, true)}
+                                 assetName={layer.asset.name}
+                               />
                              )}
                              {(layer.asset.isEffect || layer.asset.type === 'effect' || layer.asset.type === 'p5js' || layer.asset.type === 'threejs') && (
                                <div className="tw-w-full tw-aspect-video tw-bg-black tw-rounded tw-flex tw-items-center tw-justify-center">
