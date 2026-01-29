@@ -201,4 +201,8 @@ export interface AppState {
   currentPresetName?: string | null;
   // Track last saved/loaded preset file path (Electron)
   currentPresetPath?: string | null;
+  // Enable crossfade transitions when switching between columns
+  columnCrossfadeEnabled?: boolean;
+  // Crossfade transition duration in milliseconds
+  columnCrossfadeDuration?: number;
 } 

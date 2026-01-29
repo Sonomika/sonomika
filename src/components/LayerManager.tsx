@@ -133,7 +133,7 @@ VideoThumbnailPreview.displayName = 'VideoThumbnailPreview';
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   // console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline } = useStore() as any;
+  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline, columnCrossfadeEnabled, setColumnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeDuration } = useStore() as any;
 
   // Track transport state to style Play/Pause/Stop buttons with accent for the active control.
   // Derive from store so refresh/rehydrate reliably shows Stop when fully stopped.
@@ -299,6 +299,133 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const prevShowTimelineRef = useRef<boolean>(Boolean(showTimeline));
   const timelineStopOnFirstUpdateRef = useRef<boolean>(Boolean(showTimeline));
   const timelineAllowPlayRef = useRef<boolean>(false);
+  
+  // Crossfade state management
+  const [previousPreviewContent, setPreviousPreviewContent] = useState<any>(null);
+  const [crossfadeProgress, setCrossfadeProgress] = useState<number>(1); // 0 = old visible, 1 = new visible
+  const [isCrossfading, setIsCrossfading] = useState<boolean>(false);
+  const [showPreviousContent, setShowPreviousContent] = useState<boolean>(false); // Extended visibility for smooth cleanup
+  const crossfadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const cancelCrossfadeRef = useRef<(() => void) | null>(null); // Function to cancel active animation
+  
+  // Handle crossfade transitions when previewContent changes
+  useEffect(() => {
+    // Skip if no content change
+    if (!previewContent || previewContent === previousPreviewContent) {
+      console.log('🎨 Crossfade check: no content change', { previewContent, previousPreviewContent });
+      return;
+    }
+    
+    // Check if we should crossfade for this transition
+    const shouldCrossfade = 
+      columnCrossfadeEnabled && 
+      !showTimeline &&
+      previewContent?.type === 'column' &&
+      previousPreviewContent?.type === 'column' &&
+      previewContent?.columnId !== previousPreviewContent?.columnId;
+    
+    console.log('🎨 Crossfade check:', { 
+      shouldCrossfade,
+      enabled: columnCrossfadeEnabled,
+      isTimeline: showTimeline,
+      prevType: previousPreviewContent?.type,
+      newType: previewContent?.type,
+      prevId: previousPreviewContent?.columnId,
+      newId: previewContent?.columnId
+    });
+    
+    if (shouldCrossfade) {
+      console.log('✅ Starting crossfade transition', { from: previousPreviewContent?.columnId, to: previewContent?.columnId });
+      
+      // Cancel any active crossfade animation
+      if (cancelCrossfadeRef.current) {
+        console.log('⚡ Canceling previous crossfade to start new one');
+        cancelCrossfadeRef.current();
+        cancelCrossfadeRef.current = null;
+      }
+      
+      // Clear any existing crossfade timeout
+      if (crossfadeTimeoutRef.current) {
+        clearTimeout(crossfadeTimeoutRef.current);
+        crossfadeTimeoutRef.current = null;
+      }
+      
+      // When switching rapidly, use the CURRENT displayed content as the "old" content
+      // This makes the transition smooth even if interrupted mid-fade
+      const effectivePreviousContent = isCrossfading ? previewContent : previousPreviewContent;
+      const effectiveStartProgress = isCrossfading ? crossfadeProgress : 0;
+      
+      // Capture the target content at start of animation to avoid race conditions
+      const targetContent = previewContent;
+      
+      // If we're interrupting a crossfade, immediately update previousContent
+      if (isCrossfading) {
+        setPreviousPreviewContent(effectivePreviousContent);
+      }
+      
+      // Start new crossfade
+      setIsCrossfading(true);
+      setShowPreviousContent(true);
+      
+      // Start with both visible (or continue from where we left off if interrupted)
+      const startProgress = Math.max(0.05, effectiveStartProgress);
+      setCrossfadeProgress(startProgress);
+      
+      // Animate crossfade using configured duration (linear)
+      const duration = columnCrossfadeDuration || 400;
+      const startTime = Date.now();
+      const prerollDelay = 50; // Give new content 50ms to initialize
+      
+      let cancelled = false;
+      
+      // Store cancel function
+      cancelCrossfadeRef.current = () => {
+        cancelled = true;
+        console.log('🛑 Crossfade cancelled');
+      };
+      
+      const animate = () => {
+        if (cancelled) return; // Stop animation if cancelled
+        
+        const elapsed = Date.now() - startTime;
+        // Don't start actual fade until after preroll delay
+        const fadeElapsed = Math.max(0, elapsed - prerollDelay);
+        const progress = Math.min(1, fadeElapsed / duration);
+        
+        // Linear progress from startProgress to 1.0
+        const progressRange = 1.0 - startProgress;
+        const mappedProgress = startProgress + (progress * progressRange);
+        setCrossfadeProgress(mappedProgress);
+        
+        if (progress < 1 && !cancelled) {
+          requestAnimationFrame(animate);
+        } else if (!cancelled) {
+          // Ensure we're at exactly 1.0 for final frame
+          setCrossfadeProgress(1);
+          
+          // Wait one more frame before updating state
+          requestAnimationFrame(() => {
+            if (cancelled) return;
+            console.log('✅ Crossfade complete, updating previous content to:', targetContent?.columnId);
+            // Mark crossfade as complete
+            setIsCrossfading(false);
+            cancelCrossfadeRef.current = null;
+            // Update previous content to the captured target (ready for next crossfade)
+            setPreviousPreviewContent(targetContent);
+          });
+        }
+      };
+      
+      requestAnimationFrame(animate);
+    } else {
+      // No crossfade - just update previous content immediately for next potential transition
+      console.log('⏭️ No crossfade, updating previous content to:', previewContent?.columnId);
+      setPreviousPreviewContent(previewContent);
+      setCrossfadeProgress(1);
+      setIsCrossfading(false);
+      setShowPreviousContent(false);
+    }
+  }, [previewContent, columnCrossfadeEnabled, showTimeline, columnCrossfadeDuration]);
 
   // Always default to STOP when switching between column and timeline modes.
   useEffect(() => {
@@ -1417,9 +1544,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     return lv.some((a) => cv.includes(a));
   };
 
-  // Render preview content
-  const renderPreviewContent = () => {
-    if (!previewContent) {
+  // Helper to render specific preview content (used for crossfading)
+  const renderSpecificPreviewContent = (content: any, forcePlaying: boolean = false) => {
+    if (!content) {
       return (
         <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden tw-w-full">
           {(() => {
@@ -1442,8 +1569,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     }
 
     // Render timeline preview using the exact same component as column preview
-    if (previewContent.type === 'timeline') {
-      const activeClips = previewContent.activeClips || [];
+    if (content.type === 'timeline') {
+      const activeClips = content.activeClips || [];
       // Convert active clips into a temporary column structure for rendering
       // Timeline clips are completely independent - only use clip params, never column layers
       const tempLayers = activeClips.map((clip: any) => {
@@ -1521,23 +1648,23 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               column={tempColumn}
               width={compositionSettings.width}
               height={compositionSettings.height}
-              isPlaying={Boolean(previewContent.isPlaying)}
+              isPlaying={Boolean(content.isPlaying)}
               bpm={bpm}
               globalEffects={currentScene?.globalEffects || []}
               overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
               isTimelineMode={true}
               // In timeline mode, Stop should pause effects too (freeze frameloop) while preserving last frame.
-              hardFreeze={!Boolean(previewContent.isPlaying)}
+              hardFreeze={!Boolean(content.isPlaying)}
             />
           </div>
         </div>
       );
     }
 
-    if (previewContent.type === 'column') {
+    if (content.type === 'column') {
       console.log('🎨 Rendering column preview');
       // Always resolve the latest column from the store so updates are live
-      const baseColumn = currentScene?.columns?.find((col: any) => col.id === previewContent.columnId) || previewContent.column;
+      const baseColumn = currentScene?.columns?.find((col: any) => col.id === content.columnId) || content.column;
       // Apply Resolume-style per-layer overrides from store (row-wise),
       // so overrides work even if base column lacks that row
       let liveColumn = baseColumn;
@@ -1602,18 +1729,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 width={compositionSettings.width}
                 height={compositionSettings.height}
                 isPlaying={
+                  // Force playing during crossfade, or normal mode checks
+                  forcePlaying ||
                   // Normal mode: only play when this column is the playing column.
                   // 360 mode: allow local or global play state to drive playback.
                   (is360PreviewMode && isEquirectangular)
                     ? (isPlaying || isGlobalPlaying)
-                    : (playingColumnId === previewContent.columnId && isGlobalPlaying)
+                    : (playingColumnId === content.columnId && isGlobalPlaying)
                 }
                 bpm={bpm}
                 globalEffects={currentScene?.globalEffects || []}
                 overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
                 forceAlwaysRender={is360PreviewMode && isEquirectangular}
                 suppressPause={is360PreviewMode && isEquirectangular}
-                hardFreeze={!isGlobalPlaying}
+                hardFreeze={!isGlobalPlaying && !forcePlaying}
               />
             </div>
                      {debugMode && (
@@ -1634,7 +1763,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       return previewElement;
     }
 
-    if (previewContent.type === 'layer') {
+    if (content.type === 'layer') {
       return (
         <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden tw-w-full">
           <div className="tw-flex tw-items-center tw-gap-3 tw-h-10 tw-px-3 tw-bg-neutral-800 tw-border-b tw-border-neutral-800">
@@ -1642,15 +1771,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <span className="tw-text-xs tw-text-neutral-400 tw-ml-auto">{isPlaying ? 'Playing' : 'Stopped'}</span>
           </div>
           <div className="tw-p-2">
-            <div className="tw-text-sm tw-text-neutral-200 tw-mb-2">{previewContent.layer.name}</div>
-            {previewContent.asset && (
+            <div className="tw-text-sm tw-text-neutral-200 tw-mb-2">{content.layer.name}</div>
+            {content.asset && (
               <div className="tw-rounded tw-border tw-border-neutral-800 tw-bg-black">
                 <CanvasRenderer
                   assets={[{
-                    type: previewContent.asset.type === 'image' ? 'image' : 
-                           previewContent.asset.type === 'video' ? 'video' : 'effect',
-                    asset: previewContent.asset,
-                    layer: previewContent.layer
+                    type: content.asset.type === 'image' ? 'image' : 
+                           content.asset.type === 'video' ? 'video' : 'effect',
+                    asset: content.asset,
+                    layer: content.layer
                   }]}
                   width={compositionSettings.width}
                   height={compositionSettings.height}
@@ -1664,8 +1793,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       );
     }
 
-    if (previewContent.type === 'timeline') {
-      const activeClips = previewContent.activeClips || [];
+    if (content.type === 'timeline') {
+      const activeClips = content.activeClips || [];
       
       return (
         <div className="tw-h-full tw-flex tw-flex-col">
@@ -1673,7 +1802,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <h4 className="tw-text-sm tw-text-neutral-200">Timeline Preview</h4>
             <span className="tw-text-xs tw-text-neutral-400 tw-ml-auto">{isPlaying ? 'Playing' : 'Stopped'}</span>
             <div className="tw-text-xs tw-text-neutral-400">
-              Time: {Math.floor(previewContent.currentTime)}s / {Math.floor(previewContent.duration)}s
+              Time: {Math.floor(content.currentTime)}s / {Math.floor(content.duration)}s
             </div>
           </div>
           
@@ -1682,7 +1811,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               <div className="tw-flex tw-items-center tw-justify-center tw-h-48 tw-bg-neutral-800 tw-border tw-border-neutral-700 tw-rounded">
                 <div className="tw-text-center tw-text-neutral-300">
                   <div className="tw-text-sm">No clips playing at current time</div>
-                  <div className="tw-mt-1 tw-text-xs tw-text-neutral-400">{Math.floor(previewContent.currentTime)}s</div>
+                  <div className="tw-mt-1 tw-text-xs tw-text-neutral-400">{Math.floor(content.currentTime)}s</div>
                 </div>
               </div>
             ) : (
@@ -1695,7 +1824,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <TimelineComposer
                     activeClips={activeClips}
                     isPlaying={isPlaying}
-                    currentTime={previewContent.currentTime}
+                    currentTime={content.currentTime}
                     width={compositionSettings.width}
                     height={compositionSettings.height}
                     bpm={bpm}
@@ -1723,6 +1852,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       <div className="tw-w-full tw-h-full tw-bg-black" />
     );
   };
+
+  // Wrapper function that uses current previewContent
+  const renderPreviewContent = () => renderSpecificPreviewContent(previewContent);
 
   if (!currentScene) {
     return (
@@ -2728,6 +2860,48 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 >
                   {(() => {
                     console.log('🎭 Rendering preview content in preview window');
+                    
+                    // Handle crossfade rendering (show both old and new content)
+                    if ((isCrossfading || showPreviousContent) && previousPreviewContent) {
+                      console.log('🎨 Rendering crossfade', { progress: crossfadeProgress, isCrossfading, showPreviousContent });
+                      
+                      const oldOpacity = 1 - crossfadeProgress;
+                      const newOpacity = crossfadeProgress;
+                      
+                      // Force both columns to keep playing during active crossfade
+                      const forcePlaying = isCrossfading && isGlobalPlaying;
+                      
+                      return (
+                        <div className="tw-relative tw-w-full tw-h-full tw-bg-black">
+                          {/* New/incoming column - render FIRST (behind) so it's ready */}
+                          <div
+                            className="tw-absolute tw-inset-0"
+                            style={{ 
+                              opacity: newOpacity,
+                              transition: 'none', // Managed by animation frame
+                              zIndex: 1
+                            }}
+                          >
+                            {renderSpecificPreviewContent(previewContent, forcePlaying)}
+                          </div>
+                          
+                          {/* Old/outgoing column - render SECOND (on top) to fade out over new content */}
+                          <div
+                            className="tw-absolute tw-inset-0 tw-pointer-events-none"
+                            style={{ 
+                              opacity: oldOpacity,
+                              transition: 'none', // Managed by animation frame
+                              visibility: oldOpacity > 0.01 ? 'visible' : 'hidden',
+                              zIndex: 2
+                            }}
+                          >
+                            {renderSpecificPreviewContent(previousPreviewContent, forcePlaying)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Normal rendering (no crossfade)
                     const content = renderPreviewContent();
                     console.log('🎭 Preview content rendered:', content);
                     return content;

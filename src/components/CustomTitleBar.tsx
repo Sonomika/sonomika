@@ -69,6 +69,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const [mobileFileOpen, setMobileFileOpen] = useState(false);
   const [mobileExternalOpen, setMobileExternalOpen] = useState(false);
   const [mobileRecordOpen, setMobileRecordOpen] = useState(false);
+  const [mobileCrossfadeOpen, setMobileCrossfadeOpen] = useState(false);
   const [mobileDevOpen, setMobileDevOpen] = useState(false);
   
   const fileMenuRef = useRef<HTMLDivElement>(null);
@@ -80,8 +81,10 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const helpMenuRef = useRef<HTMLDivElement>(null);
+  const [crossfadeMenuOpen, setCrossfadeMenuOpen] = useState(false);
+  const crossfadeMenuRef = useRef<HTMLDivElement>(null);
   // API docs removed
-  const { currentPresetName, showTimeline, spoutEnabled } = (useStore() as any) || {};
+  const { currentPresetName, showTimeline, spoutEnabled, columnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeEnabled, setColumnCrossfadeDuration } = (useStore() as any) || {};
 
   // Detect Electron vs Web
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
@@ -356,6 +359,57 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* Crossfade dropdown */}
+          <div className="menu-item-dropdown app-no-drag" ref={crossfadeMenuRef}>
+            <Popover open={crossfadeMenuOpen} onOpenChange={setCrossfadeMenuOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className={`tw-inline-flex tw-items-center tw-gap-1 tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent`}
+                >
+                  Crossfade
+                </button>
+              </PopoverTrigger>
+              {crossfadeMenuOpen && (
+                <PopoverContent className="tw-min-w-[180px] app-no-drag" align="start" side="bottom" >
+                  <div className="tw-flex tw-flex-col tw-py-1">
+                    <button 
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setColumnCrossfadeEnabled(false);
+                        setCrossfadeMenuOpen(false); 
+                      }}
+                    >
+                      <span className="tw-inline-flex tw-items-center tw-gap-2">
+                        Off
+                        {!columnCrossfadeEnabled ? <CheckIcon className="tw-w-3.5 tw-h-3.5 tw-text-neutral-300" /> : null}
+                      </span>
+                    </button>
+                    <div className="tw-border-t tw-border-neutral-800 tw-my-0" />
+                    {[200, 400, 600, 800, 1000].map((duration) => (
+                      <button 
+                        key={duration}
+                        className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setColumnCrossfadeEnabled(true);
+                          setColumnCrossfadeDuration(duration);
+                          setCrossfadeMenuOpen(false); 
+                        }}
+                      >
+                        <span className="tw-inline-flex tw-items-center tw-gap-2">
+                          {duration}ms
+                          {columnCrossfadeEnabled && columnCrossfadeDuration === duration ? <CheckIcon className="tw-w-3.5 tw-h-3.5 tw-text-neutral-300" /> : null}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              )}
+            </Popover>
+          </div>
+
           <button 
             className="tw-px-2 tw-py-1 tw-text-xs tw-text-white tw-bg-transparent tw-border-0 tw-outline-none focus:tw-outline-none focus:tw-ring-0 tw-shadow-none tw-appearance-none hover:tw-bg-transparent app-no-drag" 
             onClick={onOpenSettings}
@@ -450,6 +504,48 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                   <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onRecordSettings?.(); setMobileMenuOpen(false); }}>Record Settings</button>
                 </div>
               )}
+
+              {/* Crossfade dropdown (mobile) */}
+              <button
+                className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800"
+                onClick={() => setMobileCrossfadeOpen(!mobileCrossfadeOpen)}
+              >
+                <span>Crossfade</span>
+                <ChevronRightIcon className={`tw-w-3.5 tw-h-3.5 tw-transition-transform ${mobileCrossfadeOpen ? 'tw-rotate-90' : ''}`} />
+              </button>
+              {mobileCrossfadeOpen && (
+                <div className="tw-ml-2 tw-space-y-1">
+                  <button 
+                    className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" 
+                    onClick={() => { 
+                      setColumnCrossfadeEnabled(false); 
+                      setMobileMenuOpen(false); 
+                    }}
+                  >
+                    <span className="tw-inline-flex tw-items-center tw-gap-2">
+                      Off
+                      {!columnCrossfadeEnabled ? <CheckIcon className="tw-w-3.5 tw-h-3.5 tw-text-neutral-300" /> : null}
+                    </span>
+                  </button>
+                  {[200, 400, 600, 800, 1000].map((duration) => (
+                    <button 
+                      key={duration}
+                      className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" 
+                      onClick={() => { 
+                        setColumnCrossfadeEnabled(true);
+                        setColumnCrossfadeDuration(duration);
+                        setMobileMenuOpen(false); 
+                      }}
+                    >
+                      <span className="tw-inline-flex tw-items-center tw-gap-2">
+                        {duration}ms
+                        {columnCrossfadeEnabled && columnCrossfadeDuration === duration ? <CheckIcon className="tw-w-3.5 tw-h-3.5 tw-text-neutral-300" /> : null}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onCompositionSettings?.(); setMobileMenuOpen(false); }}>Composition Settings</button>
               {/* Settings */}
               <button className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800" onClick={() => { onOpenSettings?.(); setMobileMenuOpen(false); }}>Settings</button>

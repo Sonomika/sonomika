@@ -156,6 +156,9 @@ const initialState: AppState = {
   // Track last saved/loaded preset file path (Electron)
   currentPresetName: null as any,
   currentPresetPath: null as any,
+  // Enable crossfade transitions when switching between columns
+  columnCrossfadeEnabled: false,
+  columnCrossfadeDuration: 400, // 400ms default (linear fade)
 };
 
 try {
@@ -265,6 +268,8 @@ export const useStore = createWithEqualityFn<AppState & {
   setSpoutSenderName: (name: string) => void;
   setSpoutMaxFps: (fps: number) => void;
   setShowSystemEffectsTab: (v: boolean) => void;
+  setColumnCrossfadeEnabled: (enabled: boolean) => void;
+  setColumnCrossfadeDuration: (duration: number) => void;
 }>()(
   persist(
     (set, get) => ({
@@ -333,6 +338,8 @@ export const useStore = createWithEqualityFn<AppState & {
       setSpoutSenderName: (name: string) => set({ spoutSenderName: String(name || '').trim().slice(0, 64) || 'Sonomika Output' } as any),
       setSpoutMaxFps: (fps: number) => set({ spoutMaxFps: Math.max(1, Math.min(120, Math.floor(Number(fps) || 60))) } as any),
       setShowSystemEffectsTab: (v: boolean) => set({ showSystemEffectsTab: Boolean(v) }),
+      setColumnCrossfadeEnabled: (enabled: boolean) => set({ columnCrossfadeEnabled: Boolean(enabled) }),
+      setColumnCrossfadeDuration: (duration: number) => set({ columnCrossfadeDuration: Math.max(100, Math.min(2000, Math.floor(Number(duration) || 400))) }),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();
@@ -1445,9 +1452,12 @@ export const useStore = createWithEqualityFn<AppState & {
          spoutEnabled: (state as any).spoutEnabled,
          spoutSenderName: (state as any).spoutSenderName,
          spoutMaxFps: (state as any).spoutMaxFps,
-            showSystemEffectsTab: state.showSystemEffectsTab,
-         };
-       },
+           showSystemEffectsTab: state.showSystemEffectsTab,
+           // Persist crossfade settings
+           columnCrossfadeEnabled: (state as any).columnCrossfadeEnabled,
+           columnCrossfadeDuration: (state as any).columnCrossfadeDuration,
+        };
+      },
              onRehydrateStorage: () => (state) => {
         // Always start in a stopped state after refresh/reload.
         // Transport state (e.g. playingColumnId) should not auto-resume on rehydrate.
