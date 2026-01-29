@@ -430,6 +430,39 @@ function App() {
     };
   }, []);
 
+  // Warm up effect discovery/loading shortly after mount so timeline/layer UI has effect metadata sooner.
+  // This is intentionally non-blocking to keep initial render responsive.
+  useEffect(() => {
+    let cancelled = false;
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
+    if (!isElectron) return;
+
+    const run = () => {
+      if (cancelled) return;
+      try {
+        // EffectCache internally dedupes concurrent calls.
+        effectCache.startPreloading().catch(() => {});
+      } catch {}
+    };
+
+    try {
+      const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, opts?: any) => number);
+      if (typeof ric === 'function') {
+        const id = ric(run, { timeout: 1200 });
+        return () => {
+          cancelled = true;
+          try { (window as any).cancelIdleCallback?.(id); } catch {}
+        };
+      }
+    } catch {}
+
+    const t = window.setTimeout(run, 600);
+    return () => {
+      cancelled = true;
+      try { window.clearTimeout(t); } catch {}
+    };
+  }, []);
+
   // Keep processor mappings up-to-date when store mappings change
   useEffect(() => {
     try {

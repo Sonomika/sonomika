@@ -267,6 +267,42 @@ export class EffectDiscovery {
         const bankFolder = path.join(effectsFolder, 'bank');
         const bankEffectsFolder = path.join(bankFolder, 'effects');
         const bankSourcesFolder = path.join(bankFolder, 'sources');
+
+        // Cache the (expensive) filesystem scan so app refresh/reopen is faster.
+        // This does not change discovery paths; it only avoids rescanning when nothing changed.
+        const cacheKey = `vj-effect-files-cache-v1:${String(bankFolderRoot)}`;
+        const now = Date.now();
+        const maxAgeMs = 12 * 60 * 60 * 1000; // 12 hours
+        try {
+          const raw = localStorage.getItem(cacheKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const ts = Number(parsed?.ts || 0);
+            const files = parsed?.files;
+            if (Array.isArray(files) && files.every((f: any) => typeof f === 'string') && ts > 0 && (now - ts) < maxAgeMs) {
+              // Kick off a background refresh so new files appear next run.
+              try {
+                setTimeout(() => {
+                  try {
+                    const rescan: string[] = [];
+                    if (fs.existsSync(bankFolderRoot)) rescan.push(...this.scanDirectoryRecursively(fs, path, bankFolderRoot));
+                    if (fs.existsSync(visualEffectsFolderNew)) {
+                      const v = this.scanDirectoryRecursively(fs, path, visualEffectsFolderNew);
+                      rescan.push(...v.map((p: string) => p.replace(/^visual-effects\//, 'effects/')));
+                    } else if (fs.existsSync(visualEffectsFolderLegacy)) {
+                      rescan.push(...this.scanDirectoryRecursively(fs, path, visualEffectsFolderLegacy).map((p: string) => p));
+                    }
+                    if (fs.existsSync(sourcesFolder)) rescan.push(...this.scanDirectoryRecursively(fs, path, sourcesFolder));
+                    if (fs.existsSync(bankEffectsFolder)) rescan.push(...this.scanDirectoryRecursively(fs, path, bankEffectsFolder));
+                    if (fs.existsSync(bankSourcesFolder)) rescan.push(...this.scanDirectoryRecursively(fs, path, bankSourcesFolder));
+                    localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), files: rescan }));
+                  } catch {}
+                }, 0);
+              } catch {}
+              return files as string[];
+            }
+          }
+        } catch {}
         
         // Recursively scan for all .tsx files in all effect folders
         let effectFiles: string[] = [];
@@ -300,7 +336,10 @@ export class EffectDiscovery {
           const bankSourceFiles = this.scanDirectoryRecursively(fs, path, bankSourcesFolder);
           effectFiles = effectFiles.concat(bankSourceFiles);
         }
-        
+
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({ ts: now, files: effectFiles }));
+        } catch {}
         return effectFiles;
         
       } else {

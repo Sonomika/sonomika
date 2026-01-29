@@ -617,6 +617,45 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       return new Set<string>(Array.isArray(arr) ? arr : []);
     } catch { return new Set<string>(); }
   });
+  // On refresh, selectedClips can be restored from localStorage, but the store's
+  // selectedTimelineClip is only set during user interaction (click/double-click).
+  // Rehydrate selectedTimelineClip from the restored selection so Layer Options works immediately.
+  useEffect(() => {
+    if (!showTimeline) return;
+    try {
+      const st: any = (useStore as any).getState?.() || {};
+      const setSelectedTimelineClip = st.setSelectedTimelineClip;
+      if (typeof setSelectedTimelineClip !== 'function') return;
+
+      const currentSel: any = st.selectedTimelineClip || null;
+      const selectedIds = Array.from(selectedClips || []);
+      // Prefer an existing store selection; otherwise fall back to restored UI selection.
+      const desiredId = (currentSel && currentSel.id) ? String(currentSel.id) : (selectedIds[0] ? String(selectedIds[0]) : '');
+      if (!desiredId) return;
+
+      // Important: avoid continually "re-hydrating" on every tracks update.
+      // Once the store has a selection for the desired id, leave it alone.
+      if (currentSel && String(currentSel.id) === desiredId && currentSel.trackId) {
+        return;
+      }
+
+      const track = tracks.find((t: any) => (t?.clips || []).some((c: any) => String(c?.id) === desiredId));
+      const clip = track?.clips?.find((c: any) => String(c?.id) === desiredId);
+      if (!track || !clip) {
+        // If the selection no longer exists, clear the store selection.
+        if (currentSel && String(currentSel.id) === desiredId) setSelectedTimelineClip(null);
+        return;
+      }
+
+      const trackNum = parseInt(String(track.id || 'track-1').split('-')[1] || '1', 10);
+      const nextSel = { id: clip.id, trackId: track.id, startTime: clip.startTime, duration: clip.duration, data: clip, layerId: null, trackNum };
+
+      // Avoid redundant updates (do NOT depend on clip object identity, which can change often).
+      if (currentSel && String(currentSel.id) === String(nextSel.id) && String(currentSel.trackId) === String(nextSel.trackId)) return;
+      setSelectedTimelineClip(nextSel);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTimeline, currentTimelineSceneId, tracks, selectedClips]);
   const [draggedAsset, setDraggedAsset] = useState<any>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   // waveform state managed by wavesurfer

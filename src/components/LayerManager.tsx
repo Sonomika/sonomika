@@ -2548,10 +2548,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     {/* 360 preview toggle - only shown for equirectangular (2:1) compositions */}
                     {isEquirectangular && (
                       <button
-                        className={`tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-border tw-border-neutral-700 ${
+                        className={`tw-inline-flex tw-items-center tw-justify-center tw-w-7 tw-h-7 tw-rounded tw-border ${
                           is360PreviewMode 
-                            ? 'tw-text-white tw-bg-accent hover:tw-bg-accent/80' 
-                            : 'tw-text-neutral-300 tw-bg-neutral-900 hover:tw-text-white hover:tw-bg-neutral-800'
+                            ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black hover:tw-opacity-90' 
+                            : 'tw-text-neutral-300 tw-bg-neutral-900 tw-border-neutral-700 hover:tw-text-white hover:tw-bg-neutral-800'
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
