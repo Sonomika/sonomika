@@ -1,7 +1,12 @@
+// Load .env into process.env for the Electron main process (dev convenience).
+// Safe if missing in production.
+import 'dotenv/config';
+
 import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog, powerSaveBlocker, nativeImage, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { SpoutSender } from './spout/SpoutSender';
+import { createGa4Analytics } from './analytics/ga4';
 
 const shouldMuteConsole = process.env.VJ_DEBUG_LOGS !== 'true';
 
@@ -45,6 +50,7 @@ if (!gotTheLock) {
 } else {
   app.on('second-instance', () => {
     // Someone tried to run a second instance, focus our window instead
+    try { ga4?.track('second_instance', { ts_ms: Date.now() }); } catch {}
     const windows = BrowserWindow.getAllWindows();
     if (windows.length > 0) {
       if (windows[0].isMinimized()) windows[0].restore();
@@ -65,6 +71,23 @@ let encryptedAuthStore: Record<string, Buffer> = {};
 const spoutSender = new SpoutSender();
 const SPOUT_SENDER_NAME = 'Sonomika Output';
 const SPOUT_MAX_FPS = 60;
+
+let ga4: ReturnType<typeof createGa4Analytics> | null = null;
+let ga4Heartbeat: NodeJS.Timeout | null = null;
+let ga4SessionStartMs = Date.now();
+let ga4ActiveSinceMs: number | null = null;
+let ga4TotalActiveMs = 0;
+let ga4LastHeartbeatAtMs = Date.now();
+
+function ga4FlushActiveTime(nowMs: number) {
+  if (ga4ActiveSinceMs != null) {
+    const delta = Math.max(0, nowMs - ga4ActiveSinceMs);
+    ga4TotalActiveMs += delta;
+    ga4ActiveSinceMs = nowMs;
+    return delta;
+  }
+  return 0;
+}
 
 // Resolve an application icon path that works in dev and production
 function resolveAppIconPath(): string | undefined {
@@ -445,6 +468,21 @@ function createWindow() {
     },
     show: false, // Don't show until ready
   });
+
+  // GA4: measure "time using app" as focused/active time on the main window.
+  try {
+    mainWindow.on('focus', () => {
+      const now = Date.now();
+      ga4ActiveSinceMs = now;
+      ga4?.track('app_focus', { ts_ms: now });
+    });
+    mainWindow.on('blur', () => {
+      const now = Date.now();
+      const delta = ga4FlushActiveTime(now);
+      ga4ActiveSinceMs = null;
+      ga4?.track('app_blur', { ts_ms: now, active_delta_ms: delta, active_total_ms: ga4TotalActiveMs });
+    });
+  } catch {}
 
   // Debug preload path
   const preloadPath = path.join(__dirname, 'preload.js');
@@ -1229,6 +1267,52 @@ app.whenReady().then(() => {
   console.log('app.getPath(exe):', app.getPath('exe'));
   console.log('process.execPath:', process.execPath);
   console.log('process.resourcesPath:', process.resourcesPath);
+
+  // GA4 (Electron-only) via Measurement Protocol in main process.
+  // To enable: set GA4_API_SECRET in the environment (recommended only for packaged builds).
+  // Disable anytime via GA4_DISABLED=true.
+  try {
+    ga4 = createGa4Analytics({
+      measurementId: process.env.GA4_MEASUREMENT_ID || 'G-6F2FP4ZXNS',
+      apiSecret: process.env.GA4_API_SECRET,
+      appName: 'Sonomika',
+      // Keep dev builds quiet by default. Set GA4_ENABLE_DEV=true to allow dev tracking.
+      enableInDev: String(process.env.GA4_ENABLE_DEV || '').toLowerCase() === 'true',
+    });
+    ga4SessionStartMs = Date.now();
+    ga4LastHeartbeatAtMs = ga4SessionStartMs;
+    ga4.trackFirstOpenOnce();
+    ga4.trackAppOpen();
+
+    // Start in "active" immediately; we'll correct on first blur/focus.
+    ga4ActiveSinceMs = Date.now();
+
+    // Heartbeat: powers GA4 engagement/session duration reporting.
+    // Sends at most once per minute.
+    const g = ga4;
+    if (g && g.enabled) {
+      ga4Heartbeat = setInterval(() => {
+        try {
+          const now = Date.now();
+          const sinceLast = Math.max(0, now - ga4LastHeartbeatAtMs);
+          ga4LastHeartbeatAtMs = now;
+
+          const deltaActive = ga4FlushActiveTime(now);
+
+          // GA4 uses engagement_time_msec to compute engagement. We send
+          // a "user_engagement" ping with the active delta for the last interval.
+          // If the app wasn't focused, deltaActive will be 0.
+          g.track('user_engagement', {
+            ts_ms: now,
+            uptime_ms: Math.max(0, now - ga4SessionStartMs),
+            heartbeat_interval_ms: sinceLast,
+            engagement_time_msec: Math.max(0, deltaActive),
+            active_total_ms: ga4TotalActiveMs,
+          });
+        } catch {}
+      }, 60_000);
+    }
+  } catch {}
   
   // Set app user model ID on Windows to ensure correct taskbar icon
   if (process.platform === 'win32') {
@@ -1292,6 +1376,37 @@ app.whenReady().then(() => {
     callback(filePath);
   });
   
+  // GA4: allow renderer to log events (no secrets in renderer).
+  // NOTE: We intentionally do NOT accept nested params or file paths.
+  ipcMain.on('ga4:track', (_event, payload: any) => {
+    try {
+      if (!ga4?.enabled) return;
+      const name = String(payload?.name || '').trim();
+      if (!name) return;
+      // Keep event names GA-ish and bounded
+      const safeName = name.slice(0, 40).replace(/[^a-zA-Z0-9_]/g, '_');
+      const rawParams = payload?.params && typeof payload.params === 'object' ? payload.params : {};
+      const safeParams: Record<string, string | number | boolean> = {};
+      for (const [kRaw, v] of Object.entries(rawParams)) {
+        const k = String(kRaw || '').trim().slice(0, 40).replace(/[^a-zA-Z0-9_]/g, '_');
+        if (!k) continue;
+        if (v == null) continue;
+        const t = typeof v;
+        if (t === 'string') {
+          // prevent paths / huge values
+          const s = String(v);
+          safeParams[k] = s.length > 120 ? s.slice(0, 120) : s;
+        } else if (t === 'number') {
+          const n = Number(v);
+          if (isFinite(n)) safeParams[k] = n;
+        } else if (t === 'boolean') {
+          safeParams[k] = Boolean(v);
+        }
+      }
+      ga4.track(safeName, safeParams);
+    } catch {}
+  });
+
   // Set up IPC handlers
   ipcMain.handle('show-open-dialog', async (event, options: Electron.OpenDialogOptions) => {
     const result = await dialog.showOpenDialog(mainWindow!, options);
@@ -1476,7 +1591,7 @@ app.whenReady().then(() => {
   ipcMain.handle('spout:start', async (_e, payload: { senderName?: string }) => {
     try {
       const res = spoutSender.start(SPOUT_SENDER_NAME);
-      if (!res.ok) {
+      if (res.ok === false) {
         console.warn('[spout] start failed:', res.error);
         return { success: false, error: res.error };
       }
@@ -2035,6 +2150,21 @@ app.whenReady().then(() => {
 // Ensure Spout sender is released on app shutdown so no "ghost" senders remain.
 try {
   app.on('before-quit', () => {
+    try {
+      const now = Date.now();
+      const deltaActive = ga4FlushActiveTime(now);
+      ga4ActiveSinceMs = null;
+      try { if (ga4Heartbeat) clearInterval(ga4Heartbeat); } catch {}
+      ga4Heartbeat = null;
+
+      ga4?.track('session_end', {
+        ts_ms: now,
+        uptime_ms: Math.max(0, now - ga4SessionStartMs),
+        active_delta_ms: deltaActive,
+        active_total_ms: ga4TotalActiveMs,
+      });
+      ga4?.track('app_quit', { ts_ms: now });
+    } catch {}
     try { spoutSender.stop(); } catch {}
   });
 } catch {}
@@ -2048,8 +2178,10 @@ app.on('window-all-closed', () => {
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
+  try { ga4?.trackAppError((error as any)?.name || 'uncaughtException'); } catch {}
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  try { ga4?.trackAppError('unhandledRejection'); } catch {}
 }); 

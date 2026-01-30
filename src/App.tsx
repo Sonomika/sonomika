@@ -50,6 +50,7 @@ declare global {
       startSpout?: (senderName?: string) => Promise<{ success: boolean; error?: string }>;
       stopSpout?: () => Promise<{ success: boolean; error?: string }>;
       sendSpoutFrame?: (dataUrl: string, maxFps?: number) => void;
+      trackEvent?: (name: string, params?: Record<string, string | number | boolean>) => void;
     };
     electronAPI?: {
       getScreenSizes?: () => Promise<Array<{width: number, height: number}>>;
@@ -145,6 +146,12 @@ function App() {
   });
 
   const { toast } = useToast();
+
+  const track = (name: string, params?: Record<string, string | number | boolean>) => {
+    try {
+      (window as any).electron?.trackEvent?.(name, params);
+    } catch {}
+  };
 
   // Auto-scroll the main app container while dragging near top/bottom edges.
   // This makes it possible to drag items from the library to targets that are off-screen.
@@ -664,6 +671,7 @@ function App() {
         // Close mirror window
         streamManagerRef.current?.closeMirrorWindow();
         setIsMirrorOpen(false);
+        track('mirror_close', { ts_ms: Date.now() });
       } else {
         // Find or create the main canvas element
         let canvas = findMainCanvas();
@@ -711,6 +719,7 @@ function App() {
         streamManagerRef.current = new CanvasStreamManager(canvas);
         await streamManagerRef.current.openMirrorWindow();
         setIsMirrorOpen(true);
+        track('mirror_open', { ts_ms: Date.now(), width: canvas.width, height: canvas.height });
       }
     } catch (error) {
       console.error('Mirror window error:', error);
@@ -806,6 +815,7 @@ function App() {
               data: presetData
             };
             await (window as any).electron.saveFile(existingPath, JSON.stringify(preset, null, 2));
+            track('set_save', { ts_ms: Date.now(), existing_file: true, set_name: String(key).slice(0, 80) });
             return;
           }
           await handleSaveAsPreset();
@@ -826,6 +836,7 @@ function App() {
       }
     } catch (e) {
       console.error('Save preset failed:', e);
+      track('set_save_error', { ts_ms: Date.now() });
     }
   };
 
@@ -862,9 +873,11 @@ function App() {
           description: `VJ Preset: ${key}`,
           data: presetData
         };
-        await (window as any).electron.saveFile(result.filePath, JSON.stringify(preset, null, 2));
+        const json = JSON.stringify(preset, null, 2);
+        await (window as any).electron.saveFile(result.filePath, json);
         try { (useStore.getState() as any).setCurrentPresetPath?.(result.filePath); } catch {}
         try { (useStore.getState() as any).setCurrentPresetName?.(key); } catch {}
+        track('set_save_as', { ts_ms: Date.now(), set_name: String(key).slice(0, 80), bytes: json.length });
       }
     }
   };
@@ -884,15 +897,19 @@ function App() {
             const content = await (window as any).electron.readFileText(loadedPath);
             if (content) {
               const { loadPresetFromContent } = useStore.getState() as any;
+              const fileBase = String(loadedPath).split(/[\\\/]/).pop() || '';
+              const setName = fileBase.replace(/\.(sonomika|json)$/i, '') || 'unknown';
               if (typeof loadPresetFromContent === 'function') {
-                await loadPresetFromContent(content, String(loadedPath).split(/[\\\/]/).pop());
+                await loadPresetFromContent(content, fileBase);
                 // Critical: bind future "Save Set" to the file the user actually opened
                 try { (useStore.getState() as any).setCurrentPresetPath?.(loadedPath); } catch {}
+                track('set_load', { ts_ms: Date.now(), set_name: String(setName).slice(0, 80), bytes: String(content).length });
               } else {
                 const blob = new Blob([content], { type: 'application/json' });
                 const file = new File([blob], loadedPath);
                 await loadPreset(file);
                 try { (useStore.getState() as any).setCurrentPresetPath?.(loadedPath); } catch {}
+                track('set_load', { ts_ms: Date.now(), set_name: String(setName).slice(0, 80), bytes: String(content).length });
               }
             }
           }
@@ -903,6 +920,7 @@ function App() {
       }
     } catch (e) {
       console.error('Load preset failed:', e);
+      track('set_load_error', { ts_ms: Date.now() });
     }
   };
 

@@ -143,6 +143,13 @@ try {
                 electron_1.ipcRenderer.send('spout:frame', { dataUrl: dataUrl, maxFps: maxFps });
             }
             catch (_a) { }
+        },
+        // Analytics bridge (renderer -> main). Does NOT expose secrets.
+        trackEvent: (name, params) => {
+            try {
+                electron_1.ipcRenderer.send('ga4:track', { name: name, params: params });
+            }
+            catch (_a) { }
         }
     });
 

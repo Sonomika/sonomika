@@ -1,7 +1,408 @@
 "use strict";
-const electron = require("electron");
 const fs = require("fs");
 const path = require("path");
+const require$$2 = require("os");
+const require$$3 = require("crypto");
+const electron = require("electron");
+var config = {};
+var main = { exports: {} };
+const version = "17.2.3";
+const require$$4 = {
+  version
+};
+var hasRequiredMain;
+function requireMain() {
+  if (hasRequiredMain) return main.exports;
+  hasRequiredMain = 1;
+  const fs$1 = fs;
+  const path$1 = path;
+  const os = require$$2;
+  const crypto = require$$3;
+  const packageJson = require$$4;
+  const version2 = packageJson.version;
+  const TIPS = [
+    "🔐 encrypt with Dotenvx: https://dotenvx.com",
+    "🔐 prevent committing .env to code: https://dotenvx.com/precommit",
+    "🔐 prevent building .env in docker: https://dotenvx.com/prebuild",
+    "📡 add observability to secrets: https://dotenvx.com/ops",
+    "👥 sync secrets across teammates & machines: https://dotenvx.com/ops",
+    "🗂️ backup and recover secrets: https://dotenvx.com/ops",
+    "✅ audit secrets and track compliance: https://dotenvx.com/ops",
+    "🔄 add secrets lifecycle management: https://dotenvx.com/ops",
+    "🔑 add access controls to secrets: https://dotenvx.com/ops",
+    "🛠️  run anywhere with `dotenvx run -- yourcommand`",
+    "⚙️  specify custom .env file path with { path: '/custom/path/.env' }",
+    "⚙️  enable debug logging with { debug: true }",
+    "⚙️  override existing env vars with { override: true }",
+    "⚙️  suppress all logs with { quiet: true }",
+    "⚙️  write to custom object with { processEnv: myObject }",
+    "⚙️  load multiple .env files with { path: ['.env.local', '.env'] }"
+  ];
+  function _getRandomTip() {
+    return TIPS[Math.floor(Math.random() * TIPS.length)];
+  }
+  function parseBoolean(value) {
+    if (typeof value === "string") {
+      return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
+    }
+    return Boolean(value);
+  }
+  function supportsAnsi() {
+    return process.stdout.isTTY;
+  }
+  function dim(text) {
+    return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
+  }
+  const LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
+  function parse(src) {
+    const obj = {};
+    let lines = src.toString();
+    lines = lines.replace(/\r\n?/mg, "\n");
+    let match;
+    while ((match = LINE.exec(lines)) != null) {
+      const key = match[1];
+      let value = match[2] || "";
+      value = value.trim();
+      const maybeQuote = value[0];
+      value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
+      if (maybeQuote === '"') {
+        value = value.replace(/\\n/g, "\n");
+        value = value.replace(/\\r/g, "\r");
+      }
+      obj[key] = value;
+    }
+    return obj;
+  }
+  function _parseVault(options) {
+    options = options || {};
+    const vaultPath = _vaultPath(options);
+    options.path = vaultPath;
+    const result = DotenvModule.configDotenv(options);
+    if (!result.parsed) {
+      const err = new Error(`MISSING_DATA: Cannot parse ${vaultPath} for an unknown reason`);
+      err.code = "MISSING_DATA";
+      throw err;
+    }
+    const keys = _dotenvKey(options).split(",");
+    const length = keys.length;
+    let decrypted;
+    for (let i = 0; i < length; i++) {
+      try {
+        const key = keys[i].trim();
+        const attrs = _instructions(result, key);
+        decrypted = DotenvModule.decrypt(attrs.ciphertext, attrs.key);
+        break;
+      } catch (error) {
+        if (i + 1 >= length) {
+          throw error;
+        }
+      }
+    }
+    return DotenvModule.parse(decrypted);
+  }
+  function _warn(message) {
+    console.error(`[dotenv@${version2}][WARN] ${message}`);
+  }
+  function _debug(message) {
+    console.log(`[dotenv@${version2}][DEBUG] ${message}`);
+  }
+  function _log(message) {
+    console.log(`[dotenv@${version2}] ${message}`);
+  }
+  function _dotenvKey(options) {
+    if (options && options.DOTENV_KEY && options.DOTENV_KEY.length > 0) {
+      return options.DOTENV_KEY;
+    }
+    if (process.env.DOTENV_KEY && process.env.DOTENV_KEY.length > 0) {
+      return process.env.DOTENV_KEY;
+    }
+    return "";
+  }
+  function _instructions(result, dotenvKey) {
+    let uri;
+    try {
+      uri = new URL(dotenvKey);
+    } catch (error) {
+      if (error.code === "ERR_INVALID_URL") {
+        const err = new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      }
+      throw error;
+    }
+    const key = uri.password;
+    if (!key) {
+      const err = new Error("INVALID_DOTENV_KEY: Missing key part");
+      err.code = "INVALID_DOTENV_KEY";
+      throw err;
+    }
+    const environment = uri.searchParams.get("environment");
+    if (!environment) {
+      const err = new Error("INVALID_DOTENV_KEY: Missing environment part");
+      err.code = "INVALID_DOTENV_KEY";
+      throw err;
+    }
+    const environmentKey = `DOTENV_VAULT_${environment.toUpperCase()}`;
+    const ciphertext = result.parsed[environmentKey];
+    if (!ciphertext) {
+      const err = new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${environmentKey} in your .env.vault file.`);
+      err.code = "NOT_FOUND_DOTENV_ENVIRONMENT";
+      throw err;
+    }
+    return { ciphertext, key };
+  }
+  function _vaultPath(options) {
+    let possibleVaultPath = null;
+    if (options && options.path && options.path.length > 0) {
+      if (Array.isArray(options.path)) {
+        for (const filepath of options.path) {
+          if (fs$1.existsSync(filepath)) {
+            possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
+          }
+        }
+      } else {
+        possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
+      }
+    } else {
+      possibleVaultPath = path$1.resolve(process.cwd(), ".env.vault");
+    }
+    if (fs$1.existsSync(possibleVaultPath)) {
+      return possibleVaultPath;
+    }
+    return null;
+  }
+  function _resolveHome(envPath) {
+    return envPath[0] === "~" ? path$1.join(os.homedir(), envPath.slice(1)) : envPath;
+  }
+  function _configVault(options) {
+    const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
+    const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options && options.quiet);
+    if (debug || !quiet) {
+      _log("Loading env from encrypted .env.vault");
+    }
+    const parsed = DotenvModule._parseVault(options);
+    let processEnv = process.env;
+    if (options && options.processEnv != null) {
+      processEnv = options.processEnv;
+    }
+    DotenvModule.populate(processEnv, parsed, options);
+    return { parsed };
+  }
+  function configDotenv(options) {
+    const dotenvPath = path$1.resolve(process.cwd(), ".env");
+    let encoding = "utf8";
+    let processEnv = process.env;
+    if (options && options.processEnv != null) {
+      processEnv = options.processEnv;
+    }
+    let debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || options && options.debug);
+    let quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || options && options.quiet);
+    if (options && options.encoding) {
+      encoding = options.encoding;
+    } else {
+      if (debug) {
+        _debug("No encoding is specified. UTF-8 is used by default");
+      }
+    }
+    let optionPaths = [dotenvPath];
+    if (options && options.path) {
+      if (!Array.isArray(options.path)) {
+        optionPaths = [_resolveHome(options.path)];
+      } else {
+        optionPaths = [];
+        for (const filepath of options.path) {
+          optionPaths.push(_resolveHome(filepath));
+        }
+      }
+    }
+    let lastError;
+    const parsedAll = {};
+    for (const path2 of optionPaths) {
+      try {
+        const parsed = DotenvModule.parse(fs$1.readFileSync(path2, { encoding }));
+        DotenvModule.populate(parsedAll, parsed, options);
+      } catch (e) {
+        if (debug) {
+          _debug(`Failed to load ${path2} ${e.message}`);
+        }
+        lastError = e;
+      }
+    }
+    const populated = DotenvModule.populate(processEnv, parsedAll, options);
+    debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || debug);
+    quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || quiet);
+    if (debug || !quiet) {
+      const keysCount = Object.keys(populated).length;
+      const shortPaths = [];
+      for (const filePath of optionPaths) {
+        try {
+          const relative = path$1.relative(process.cwd(), filePath);
+          shortPaths.push(relative);
+        } catch (e) {
+          if (debug) {
+            _debug(`Failed to load ${filePath} ${e.message}`);
+          }
+          lastError = e;
+        }
+      }
+      _log(`injecting env (${keysCount}) from ${shortPaths.join(",")} ${dim(`-- tip: ${_getRandomTip()}`)}`);
+    }
+    if (lastError) {
+      return { parsed: parsedAll, error: lastError };
+    } else {
+      return { parsed: parsedAll };
+    }
+  }
+  function config2(options) {
+    if (_dotenvKey(options).length === 0) {
+      return DotenvModule.configDotenv(options);
+    }
+    const vaultPath = _vaultPath(options);
+    if (!vaultPath) {
+      _warn(`You set DOTENV_KEY but you are missing a .env.vault file at ${vaultPath}. Did you forget to build it?`);
+      return DotenvModule.configDotenv(options);
+    }
+    return DotenvModule._configVault(options);
+  }
+  function decrypt(encrypted, keyStr) {
+    const key = Buffer.from(keyStr.slice(-64), "hex");
+    let ciphertext = Buffer.from(encrypted, "base64");
+    const nonce = ciphertext.subarray(0, 12);
+    const authTag = ciphertext.subarray(-16);
+    ciphertext = ciphertext.subarray(12, -16);
+    try {
+      const aesgcm = crypto.createDecipheriv("aes-256-gcm", key, nonce);
+      aesgcm.setAuthTag(authTag);
+      return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
+    } catch (error) {
+      const isRange = error instanceof RangeError;
+      const invalidKeyLength = error.message === "Invalid key length";
+      const decryptionFailed = error.message === "Unsupported state or unable to authenticate data";
+      if (isRange || invalidKeyLength) {
+        const err = new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      } else if (decryptionFailed) {
+        const err = new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");
+        err.code = "DECRYPTION_FAILED";
+        throw err;
+      } else {
+        throw error;
+      }
+    }
+  }
+  function populate(processEnv, parsed, options = {}) {
+    const debug = Boolean(options && options.debug);
+    const override = Boolean(options && options.override);
+    const populated = {};
+    if (typeof parsed !== "object") {
+      const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
+      err.code = "OBJECT_REQUIRED";
+      throw err;
+    }
+    for (const key of Object.keys(parsed)) {
+      if (Object.prototype.hasOwnProperty.call(processEnv, key)) {
+        if (override === true) {
+          processEnv[key] = parsed[key];
+          populated[key] = parsed[key];
+        }
+        if (debug) {
+          if (override === true) {
+            _debug(`"${key}" is already defined and WAS overwritten`);
+          } else {
+            _debug(`"${key}" is already defined and was NOT overwritten`);
+          }
+        }
+      } else {
+        processEnv[key] = parsed[key];
+        populated[key] = parsed[key];
+      }
+    }
+    return populated;
+  }
+  const DotenvModule = {
+    configDotenv,
+    _configVault,
+    _parseVault,
+    config: config2,
+    decrypt,
+    parse,
+    populate
+  };
+  main.exports.configDotenv = DotenvModule.configDotenv;
+  main.exports._configVault = DotenvModule._configVault;
+  main.exports._parseVault = DotenvModule._parseVault;
+  main.exports.config = DotenvModule.config;
+  main.exports.decrypt = DotenvModule.decrypt;
+  main.exports.parse = DotenvModule.parse;
+  main.exports.populate = DotenvModule.populate;
+  main.exports = DotenvModule;
+  return main.exports;
+}
+var envOptions;
+var hasRequiredEnvOptions;
+function requireEnvOptions() {
+  if (hasRequiredEnvOptions) return envOptions;
+  hasRequiredEnvOptions = 1;
+  const options = {};
+  if (process.env.DOTENV_CONFIG_ENCODING != null) {
+    options.encoding = process.env.DOTENV_CONFIG_ENCODING;
+  }
+  if (process.env.DOTENV_CONFIG_PATH != null) {
+    options.path = process.env.DOTENV_CONFIG_PATH;
+  }
+  if (process.env.DOTENV_CONFIG_QUIET != null) {
+    options.quiet = process.env.DOTENV_CONFIG_QUIET;
+  }
+  if (process.env.DOTENV_CONFIG_DEBUG != null) {
+    options.debug = process.env.DOTENV_CONFIG_DEBUG;
+  }
+  if (process.env.DOTENV_CONFIG_OVERRIDE != null) {
+    options.override = process.env.DOTENV_CONFIG_OVERRIDE;
+  }
+  if (process.env.DOTENV_CONFIG_DOTENV_KEY != null) {
+    options.DOTENV_KEY = process.env.DOTENV_CONFIG_DOTENV_KEY;
+  }
+  envOptions = options;
+  return envOptions;
+}
+var cliOptions;
+var hasRequiredCliOptions;
+function requireCliOptions() {
+  if (hasRequiredCliOptions) return cliOptions;
+  hasRequiredCliOptions = 1;
+  const re = /^dotenv_config_(encoding|path|quiet|debug|override|DOTENV_KEY)=(.+)$/;
+  cliOptions = function optionMatcher(args) {
+    const options = args.reduce(function(acc, cur) {
+      const matches = cur.match(re);
+      if (matches) {
+        acc[matches[1]] = matches[2];
+      }
+      return acc;
+    }, {});
+    if (!("quiet" in options)) {
+      options.quiet = "true";
+    }
+    return options;
+  };
+  return cliOptions;
+}
+var hasRequiredConfig;
+function requireConfig() {
+  if (hasRequiredConfig) return config;
+  hasRequiredConfig = 1;
+  (function() {
+    requireMain().config(
+      Object.assign(
+        {},
+        requireEnvOptions(),
+        requireCliOptions()(process.argv)
+      )
+    );
+  })();
+  return config;
+}
+requireConfig();
 const _SpoutSender = class _SpoutSender {
   constructor() {
     this.sender = null;
@@ -93,6 +494,149 @@ const _SpoutSender = class _SpoutSender {
 _SpoutSender.DEFAULT_SENDER_NAME = "Sonomika Output";
 _SpoutSender.DEFAULT_MAX_FPS = 60;
 let SpoutSender = _SpoutSender;
+function safeReadJsonFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+function safeWriteJsonFile(filePath, data) {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(data), "utf8");
+  } catch {
+  }
+}
+function getClientIdFilePath() {
+  return path.join(electron.app.getPath("userData"), "ga4_client_id.json");
+}
+function getSessionFilePath() {
+  return path.join(electron.app.getPath("userData"), "ga4_session.json");
+}
+function getOrCreateClientId() {
+  const fp = getClientIdFilePath();
+  const existing = safeReadJsonFile(fp);
+  if (existing && typeof existing.client_id === "string" && existing.client_id.length > 0 && typeof existing.created_at_ms === "number") {
+    return { state: existing, isNew: false };
+  }
+  const created = {
+    client_id: require$$3.randomUUID(),
+    created_at_ms: Date.now()
+  };
+  safeWriteJsonFile(fp, created);
+  return { state: created, isNew: true };
+}
+function nextSessionInfo() {
+  const fp = getSessionFilePath();
+  const existing = safeReadJsonFile(fp);
+  const prev = existing && typeof existing.ga_session_number === "number" && isFinite(existing.ga_session_number) ? existing.ga_session_number : 0;
+  const next = { ga_session_number: Math.max(0, Math.floor(prev)) + 1 };
+  safeWriteJsonFile(fp, next);
+  const ga_session_id = Math.floor(Date.now() / 1e3);
+  return { ga_session_id, ga_session_number: next.ga_session_number };
+}
+function truncate(str, max) {
+  if (str.length <= max) return str;
+  return str.slice(0, Math.max(0, max - 1)) + "…";
+}
+function createGa4Analytics(init) {
+  const measurementId = String(init.measurementId).trim();
+  const apiSecret = String(init.apiSecret || "").trim();
+  const appName = String(init.appName).trim();
+  const enableInDev = Boolean(init.enableInDev);
+  const disabledByEnv = String(process.env.GA4_DISABLED || "").toLowerCase() === "true" || String(process.env.GA4_DISABLED || "").toLowerCase() === "1";
+  const canSendInThisBuild = electron.app.isPackaged || enableInDev;
+  const enabled = !disabledByEnv && canSendInThisBuild && measurementId && apiSecret;
+  const debug = String(process.env.GA4_DEBUG || "").toLowerCase() === "true" || String(process.env.GA4_DEBUG || "").toLowerCase() === "1";
+  const { state: client, isNew } = getOrCreateClientId();
+  const session = nextSessionInfo();
+  function baseParams(params) {
+    return {
+      // GA4 session attribution params (Measurement Protocol)
+      ga_session_id: session.ga_session_id,
+      ga_session_number: session.ga_session_number,
+      // Recommended minimum engagement time to help GA4 keep the event
+      engagement_time_msec: 1,
+      // App/device-ish context
+      app_name: appName,
+      app_version: electron.app.getVersion?.() || void 0,
+      platform: process.platform,
+      arch: process.arch,
+      packaged: electron.app.isPackaged,
+      ...params
+    };
+  }
+  async function sendEvent(name, params) {
+    if (!enabled) return;
+    const eventName = String(name || "").trim();
+    if (!eventName) return;
+    const endpoint = debug ? "https://www.google-analytics.com/debug/mp/collect" : "https://www.google-analytics.com/mp/collect";
+    const url = `${endpoint}?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;
+    const payload = {
+      client_id: client.client_id,
+      user_properties: {
+        app_name: { value: appName },
+        app_version: { value: electron.app.getVersion?.() || "unknown" },
+        platform: { value: process.platform },
+        arch: { value: process.arch },
+        packaged: { value: electron.app.isPackaged ? "1" : "0" }
+      },
+      events: [
+        {
+          name: eventName,
+          params: baseParams(params)
+        }
+      ]
+    };
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      try {
+        if (debug) await res.text();
+      } catch {
+      }
+    } catch {
+    }
+  }
+  function track(name, params) {
+    void sendEvent(name, params);
+  }
+  function trackFirstOpenOnce() {
+    if (!enabled) return;
+    if (!isNew) return;
+    track("first_open", { first_open_ms: client.created_at_ms });
+  }
+  function trackAppOpen() {
+    if (!enabled) return;
+    track("session_start", { ts_ms: Date.now() });
+    track("app_open", { ts_ms: Date.now() });
+  }
+  function trackAppError(errorType) {
+    if (!enabled) return;
+    track("app_error", {
+      error_type: truncate(String(errorType || "unknown"), 80),
+      fatal: true,
+      ts_ms: Date.now()
+    });
+  }
+  return {
+    enabled,
+    clientId: client.client_id,
+    sessionId: session.ga_session_id,
+    sessionNumber: session.ga_session_number,
+    track,
+    trackFirstOpenOnce,
+    trackAppOpen,
+    trackAppError
+  };
+}
 const shouldMuteConsole = process.env.VJ_DEBUG_LOGS !== "true";
 const originalLog = console.log;
 const originalWarn = console.warn;
@@ -120,6 +664,10 @@ if (!gotTheLock) {
   electron.app.quit();
 } else {
   electron.app.on("second-instance", () => {
+    try {
+      ga4?.track("second_instance", { ts_ms: Date.now() });
+    } catch {
+    }
     const windows = electron.BrowserWindow.getAllWindows();
     if (windows.length > 0) {
       if (windows[0].isMinimized()) windows[0].restore();
@@ -138,6 +686,21 @@ let encryptedAuthStore = {};
 const spoutSender = new SpoutSender();
 const SPOUT_SENDER_NAME = "Sonomika Output";
 const SPOUT_MAX_FPS = 60;
+let ga4 = null;
+let ga4Heartbeat = null;
+let ga4SessionStartMs = Date.now();
+let ga4ActiveSinceMs = null;
+let ga4TotalActiveMs = 0;
+let ga4LastHeartbeatAtMs = Date.now();
+function ga4FlushActiveTime(nowMs) {
+  if (ga4ActiveSinceMs != null) {
+    const delta = Math.max(0, nowMs - ga4ActiveSinceMs);
+    ga4TotalActiveMs += delta;
+    ga4ActiveSinceMs = nowMs;
+    return delta;
+  }
+  return 0;
+}
 function resolveAppIconPath() {
   console.log("=== ICON RESOLUTION DEBUG ===");
   console.log("process.cwd():", process.cwd());
@@ -453,6 +1016,20 @@ function createWindow() {
     show: false
     // Don't show until ready
   });
+  try {
+    mainWindow.on("focus", () => {
+      const now = Date.now();
+      ga4ActiveSinceMs = now;
+      ga4?.track("app_focus", { ts_ms: now });
+    });
+    mainWindow.on("blur", () => {
+      const now = Date.now();
+      const delta = ga4FlushActiveTime(now);
+      ga4ActiveSinceMs = null;
+      ga4?.track("app_blur", { ts_ms: now, active_delta_ms: delta, active_total_ms: ga4TotalActiveMs });
+    });
+  } catch {
+  }
   const preloadPath = path.join(__dirname, "preload.js");
   console.log("Preload script path:", preloadPath);
   console.log("Preload script exists:", require("fs").existsSync(preloadPath));
@@ -1226,6 +1803,40 @@ electron.app.whenReady().then(() => {
   console.log("app.getPath(exe):", electron.app.getPath("exe"));
   console.log("process.execPath:", process.execPath);
   console.log("process.resourcesPath:", process.resourcesPath);
+  try {
+    ga4 = createGa4Analytics({
+      measurementId: process.env.GA4_MEASUREMENT_ID || "G-6F2FP4ZXNS",
+      apiSecret: process.env.GA4_API_SECRET,
+      appName: "Sonomika",
+      // Keep dev builds quiet by default. Set GA4_ENABLE_DEV=true to allow dev tracking.
+      enableInDev: String(process.env.GA4_ENABLE_DEV || "").toLowerCase() === "true"
+    });
+    ga4SessionStartMs = Date.now();
+    ga4LastHeartbeatAtMs = ga4SessionStartMs;
+    ga4.trackFirstOpenOnce();
+    ga4.trackAppOpen();
+    ga4ActiveSinceMs = Date.now();
+    const g = ga4;
+    if (g && g.enabled) {
+      ga4Heartbeat = setInterval(() => {
+        try {
+          const now = Date.now();
+          const sinceLast = Math.max(0, now - ga4LastHeartbeatAtMs);
+          ga4LastHeartbeatAtMs = now;
+          const deltaActive = ga4FlushActiveTime(now);
+          g.track("user_engagement", {
+            ts_ms: now,
+            uptime_ms: Math.max(0, now - ga4SessionStartMs),
+            heartbeat_interval_ms: sinceLast,
+            engagement_time_msec: Math.max(0, deltaActive),
+            active_total_ms: ga4TotalActiveMs
+          });
+        } catch {
+        }
+      }, 6e4);
+    }
+  } catch {
+  }
   if (process.platform === "win32") {
     try {
       electron.app.setAppUserModelId("com.sonomika.app");
@@ -1271,6 +1882,33 @@ electron.app.whenReady().then(() => {
     console.log("Request URL:", request.url);
     console.log("File path resolved:", filePath);
     callback(filePath);
+  });
+  electron.ipcMain.on("ga4:track", (_event, payload) => {
+    try {
+      if (!ga4?.enabled) return;
+      const name = String(payload?.name || "").trim();
+      if (!name) return;
+      const safeName = name.slice(0, 40).replace(/[^a-zA-Z0-9_]/g, "_");
+      const rawParams = payload?.params && typeof payload.params === "object" ? payload.params : {};
+      const safeParams = {};
+      for (const [kRaw, v] of Object.entries(rawParams)) {
+        const k = String(kRaw || "").trim().slice(0, 40).replace(/[^a-zA-Z0-9_]/g, "_");
+        if (!k) continue;
+        if (v == null) continue;
+        const t = typeof v;
+        if (t === "string") {
+          const s = String(v);
+          safeParams[k] = s.length > 120 ? s.slice(0, 120) : s;
+        } else if (t === "number") {
+          const n = Number(v);
+          if (isFinite(n)) safeParams[k] = n;
+        } else if (t === "boolean") {
+          safeParams[k] = Boolean(v);
+        }
+      }
+      ga4.track(safeName, safeParams);
+    } catch {
+    }
   });
   electron.ipcMain.handle("show-open-dialog", async (event, options) => {
     const result = await electron.dialog.showOpenDialog(mainWindow, options);
@@ -1430,7 +2068,7 @@ electron.app.whenReady().then(() => {
   electron.ipcMain.handle("spout:start", async (_e, payload) => {
     try {
       const res = spoutSender.start(SPOUT_SENDER_NAME);
-      if (!res.ok) {
+      if (res.ok === false) {
         console.warn("[spout] start failed:", res.error);
         return { success: false, error: res.error };
       }
@@ -2003,6 +2641,24 @@ electron.app.whenReady().then(() => {
 try {
   electron.app.on("before-quit", () => {
     try {
+      const now = Date.now();
+      const deltaActive = ga4FlushActiveTime(now);
+      ga4ActiveSinceMs = null;
+      try {
+        if (ga4Heartbeat) clearInterval(ga4Heartbeat);
+      } catch {
+      }
+      ga4Heartbeat = null;
+      ga4?.track("session_end", {
+        ts_ms: now,
+        uptime_ms: Math.max(0, now - ga4SessionStartMs),
+        active_delta_ms: deltaActive,
+        active_total_ms: ga4TotalActiveMs
+      });
+      ga4?.track("app_quit", { ts_ms: now });
+    } catch {
+    }
+    try {
       spoutSender.stop();
     } catch {
     }
@@ -2016,7 +2672,15 @@ electron.app.on("window-all-closed", () => {
 });
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
+  try {
+    ga4?.trackAppError(error?.name || "uncaughtException");
+  } catch {
+  }
 });
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  try {
+    ga4?.trackAppError("unhandledRejection");
+  } catch {
+  }
 });
