@@ -108,6 +108,89 @@ const withDefaultMidiMappingsIfMissing = (data: any): any => {
   return { ...(data || {}), midiMappings: createDefaultKeyToColumnMappings() };
 };
 
+// --- User effect cache + rehydration (AI / external loaded effects) ---
+const USER_EFFECT_CODE_KEY_PREFIX = 'vj-user-effect-code:';
+
+const getCachedUserEffectCode = (effectId: string): string | null => {
+  const id = String(effectId || '').trim();
+  if (!id) return null;
+  try {
+    const raw = localStorage.getItem(`${USER_EFFECT_CODE_KEY_PREFIX}${id}`);
+    return raw && typeof raw === 'string' && raw.trim().length > 0 ? raw : null;
+  } catch {
+    return null;
+  }
+};
+
+const collectReferencedEffectIdsFromScenes = (scenes: any[]): string[] => {
+  const ids = new Set<string>();
+  try {
+    for (const scene of scenes || []) {
+      // Global effect slots (explicit effectId)
+      for (const slot of scene?.globalEffects || []) {
+        const effId = slot?.effectId;
+        if (effId) ids.add(String(effId));
+      }
+      // Layer-based effects (asset.id / asset.name / layer.type === 'effect')
+      for (const col of scene?.columns || []) {
+        for (const layer of col?.layers || []) {
+          const type = (layer as any)?.type;
+          const asset: any = (layer as any)?.asset || {};
+          const isEffectLayer = type === 'effect' || asset?.isEffect === true;
+          if (!isEffectLayer) continue;
+          const effId = asset?.id || asset?.name;
+          if (effId) ids.add(String(effId));
+        }
+      }
+    }
+  } catch {}
+  return Array.from(ids).filter(Boolean);
+};
+
+const collectReferencedEffectIdsFromStateLike = (data: any): string[] => {
+  const ids = new Set<string>();
+  try {
+    const scenes = Array.isArray(data?.scenes) ? data.scenes : [];
+    const timelineScenes = Array.isArray(data?.timelineScenes) ? data.timelineScenes : [];
+    for (const id of collectReferencedEffectIdsFromScenes(scenes)) ids.add(id);
+    for (const id of collectReferencedEffectIdsFromScenes(timelineScenes)) ids.add(id);
+  } catch {}
+  return Array.from(ids).filter(Boolean);
+};
+
+const rehydrateMissingUserEffectsForIds = async (effectIds: string[]): Promise<void> => {
+  const wanted = Array.from(new Set((effectIds || []).map((x) => String(x || '').trim()).filter(Boolean)));
+  if (wanted.length === 0) return;
+  if (typeof window === 'undefined' || !window.localStorage) return;
+
+  try {
+    const [{ getEffect }, { EffectDiscovery }] = await Promise.all([
+      import('../utils/effectRegistry'),
+      import('../utils/EffectDiscovery'),
+    ]);
+    const discovery = EffectDiscovery.getInstance();
+
+    // Only attempt to load effects that are actually missing in the registry.
+    const missing = wanted.filter((id) => !getEffect(id));
+    if (missing.length === 0) return;
+
+    for (const id of missing) {
+      try {
+        const code = getCachedUserEffectCode(id);
+        if (!code) continue;
+
+        // Use a stable, safe-ish sourceName to aid debugging in EffectDiscovery metadata.
+        const safe = String(id).replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 80) || 'effect';
+        await discovery.loadUserEffectFromContent(code, `ai-cache/${safe}.js`);
+      } catch {
+        // Best-effort only; keep going for the rest.
+      }
+    }
+  } catch {
+    // If discovery/registry aren't available in this environment, skip silently.
+  }
+};
+
 const initialState: AppState = {
   scenes: createDefaultScenes(),
   currentSceneId: '',
@@ -157,8 +240,8 @@ const initialState: AppState = {
   currentPresetName: null as any,
   currentPresetPath: null as any,
   // Enable crossfade transitions when switching between columns
-  columnCrossfadeEnabled: false,
-  columnCrossfadeDuration: 400, // 400ms default (linear fade)
+  columnCrossfadeEnabled: true,
+  columnCrossfadeDuration: 200, // 200ms default (linear fade)
 };
 
 try {
@@ -1192,6 +1275,11 @@ export const useStore = createWithEqualityFn<AppState & {
             // Apply view mode via action so side-effects (stop/cleanup) run correctly.
             const desiredShowTimeline = Boolean((cleanedData as any)?.showTimeline);
             const { showTimeline: _ignoredShowTimeline, ...rest } = (cleanedData as any) || {};
+            // Rehydrate any user/AI effects referenced by slots before applying state.
+            try {
+              const ids = collectReferencedEffectIdsFromStateLike(rest);
+              await rehydrateMissingUserEffectsForIds(ids);
+            } catch {}
             // Apply/clear timeline tracks stored outside zustand so Timeline reflects the loaded set
             try {
               const byId = (cleanedData as any)?.timelineTracksBySceneId as Record<string, any[]> | undefined;
@@ -1215,6 +1303,11 @@ export const useStore = createWithEqualityFn<AppState & {
           // Apply view mode via action so side-effects (stop/cleanup) run correctly.
           const desiredShowTimeline = Boolean((cleanedData as any)?.showTimeline);
           const { showTimeline: _ignoredShowTimeline, ...rest } = (cleanedData as any) || {};
+          // Rehydrate any user/AI effects referenced by slots before applying state.
+          try {
+            const ids = collectReferencedEffectIdsFromStateLike(rest);
+            await rehydrateMissingUserEffectsForIds(ids);
+          } catch {}
           // Apply/clear timeline tracks stored outside zustand so Timeline reflects the loaded set
           try {
             const byId = (cleanedData as any)?.timelineTracksBySceneId as Record<string, any[]> | undefined;
@@ -1280,6 +1373,11 @@ export const useStore = createWithEqualityFn<AppState & {
           // Apply view mode via action so side-effects (stop/cleanup) run correctly.
           const desiredShowTimeline = Boolean((cleanedData as any)?.showTimeline);
           const { showTimeline: _ignoredShowTimeline, ...rest } = (cleanedData as any) || {};
+          // Rehydrate any user/AI effects referenced by slots before applying state.
+          try {
+            const ids = collectReferencedEffectIdsFromStateLike(rest);
+            await rehydrateMissingUserEffectsForIds(ids);
+          } catch {}
           // Apply/clear timeline tracks stored outside zustand so Timeline reflects the loaded set
           try {
             const byId = (cleanedData as any)?.timelineTracksBySceneId as Record<string, any[]> | undefined;
@@ -1544,6 +1642,14 @@ export const useStore = createWithEqualityFn<AppState & {
               console.warn('Failed to clear localStorage:', clearError);
             }
           }
+
+          // Rehydrate any missing user/AI effects referenced by persisted slots.
+          // This prevents "broken" effect slots after a hard reload.
+          try {
+            const ids = collectReferencedEffectIdsFromStateLike(state as any);
+            // Fire and forget; rehydration is best-effort and can happen after initial paint.
+            setTimeout(() => { void rehydrateMissingUserEffectsForIds(ids); }, 0);
+          } catch {}
        },
     }
   ),

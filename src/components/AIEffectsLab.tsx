@@ -241,7 +241,11 @@ export const AIEffectsLab: React.FC = () => {
       const discovery = EffectDiscovery.getInstance();
       const effect = await discovery.loadUserEffectFromContent(code, `ai-generated-${Date.now()}.js`);
       if (effect) {
-        try { localStorage.setItem('vj-ai-last-code', code); } catch {}
+        try {
+          localStorage.setItem('vj-ai-last-code', code);
+          // Persist the generated effect code so presets referencing it can rehydrate on reload.
+          localStorage.setItem(`vj-user-effect-code:${String(effect.id)}`, code);
+        } catch {}
         setStatus(`Loaded user effect: ${effect.name}`);
       } else {
         setStatus('Failed to load effect. Ensure it exports default component and metadata.');
@@ -261,7 +265,14 @@ export const AIEffectsLab: React.FC = () => {
       // Use a stable sourceName so repeated applies hot-replace the same effect id
       const effect = await discovery.loadUserEffectFromContent(code, 'ai-live-edit.js');
       if (!effect) { setStatus('Failed to load effect for apply'); return; }
-      try { localStorage.setItem('vj-ai-last-code', code); } catch {}
+      try {
+        localStorage.setItem('vj-ai-last-code', code);
+        // Persist code by effect id so it can be auto-loaded on app reload / preset load.
+        localStorage.setItem(`vj-user-effect-code:${String(effect.id)}`, code);
+        // Backwards-compatible cache for older presets that may reference the legacy id
+        // derived from the stable source name `ai-live-edit.js`.
+        localStorage.setItem('vj-user-effect-code:user-ai-live-edit', code);
+      } catch {}
       // Update current layer to reference the user effect and use friendly name for cell
       try {
         const id = effect.id; // e.g., user-ai-live-edit

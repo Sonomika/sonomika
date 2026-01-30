@@ -568,6 +568,30 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
             </div>
             <div className="tw-text-xs tw-text-neutral-400">{appVersion || '—'}</div>
           </div>
+
+          {/* Updates and Support */}
+          <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
+          <div className="tw-flex tw-items-center tw-justify-between">
+            <div>
+              <div className="tw-text-sm tw-text-neutral-200">Updates and Support</div>
+              <div className="tw-text-xs tw-text-neutral-400">Links, downloads, and community</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const url = 'https://linktr.ee/sonomika';
+                const electron = (window as any).electron;
+                if (electron?.openExternal) {
+                  electron.openExternal(url);
+                } else {
+                  window.open(url, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              className="tw-inline-flex tw-items-center tw-justify-center tw-rounded-md tw-px-4 tw-py-2 tw-text-sm tw-font-medium tw-bg-neutral-700 hover:tw-bg-neutral-600 tw-text-neutral-100 tw-border tw-border-neutral-600 tw-transition-colors"
+            >
+              Open
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -514,6 +514,11 @@ function createWindow() {
           }
         };
       }
+      const url = details.url;
+      if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+        electron.shell.openExternal(url);
+        return { action: "deny" };
+      }
       return { action: "allow" };
     });
     mainWindow.webContents.on("did-create-window", (childWindow, details) => {
@@ -1375,6 +1380,18 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.handle("get-app-path", async () => {
     return electron.app.getAppPath();
+  });
+  electron.ipcMain.handle("open-external-url", async (_event, url) => {
+    try {
+      if (url && typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"))) {
+        await electron.shell.openExternal(url);
+        return { success: true };
+      }
+      return { success: false, error: "Invalid URL" };
+    } catch (e) {
+      console.error("open-external-url failed:", e);
+      return { success: false, error: String(e) };
+    }
   });
   electron.ipcMain.handle("get-app-version", async () => {
     try {

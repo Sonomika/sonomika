@@ -97,6 +97,9 @@ try {
         getAppVersion: () => {
             return electron_1.ipcRenderer.invoke('get-app-version');
         },
+        openExternal: (url) => {
+            return electron_1.ipcRenderer.invoke('open-external-url', url);
+        },
         // Record menu events from main process (native app menu)
         onRecordStart: (handler) => {
             try {

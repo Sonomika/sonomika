@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog, powerSaveBlocker, nativeImage } from 'electron';
+import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog, powerSaveBlocker, nativeImage, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { SpoutSender } from './spout/SpoutSender';
@@ -502,6 +502,7 @@ function createWindow() {
   }, 2000);
 
   // Ensure renderer-created child windows (via window.open) are chrome-less for output
+  // External URLs (http/https) open in the system browser instead of in-app
   try {
     mainWindow.webContents.setWindowOpenHandler((details) => {
       const isOutput = details.frameName === 'output-canvas';
@@ -524,6 +525,12 @@ function createWindow() {
             },
           },
         } as any;
+      }
+      // Open external URLs in the system browser
+      const url = details.url;
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        shell.openExternal(url);
+        return { action: 'deny' };
       }
       return { action: 'allow' } as any;
     });
@@ -1409,6 +1416,19 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-app-path', async () => {
     return app.getAppPath();
+  });
+
+  ipcMain.handle('open-external-url', async (_event, url: string) => {
+    try {
+      if (url && typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
+        await shell.openExternal(url);
+        return { success: true };
+      }
+      return { success: false, error: 'Invalid URL' };
+    } catch (e) {
+      console.error('open-external-url failed:', e);
+      return { success: false, error: String(e) };
+    }
   });
 
   ipcMain.handle('get-app-version', async () => {
