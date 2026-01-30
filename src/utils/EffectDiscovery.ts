@@ -1002,6 +1002,45 @@ export class EffectDiscovery {
   }
 
   /**
+   * Remove a user effect by its effect id, and attempt to unregister any aliases.
+   * This is intended for AI/temp user effects added via "Apply to Slot" so users can clear them.
+   */
+  async removeUserEffect(effectId: string, sourceName?: string): Promise<boolean> {
+    const id = String(effectId || '').trim();
+    if (!id) return false;
+
+    const existing = this.userEffects.get(id);
+    const removed = this.userEffects.delete(id);
+    if (!removed) return false;
+
+    // Best-effort cleanup of any registry aliases that might have been registered
+    const idsToUnregister = new Set<string>();
+    idsToUnregister.add(id);
+    idsToUnregister.add(`user-${id}`);
+
+    const src = String(sourceName || (existing as any)?.metadata?.sourcePath || '');
+    if (src) {
+      try {
+        const baseFileName = src.replace(/[^a-zA-Z0-9_.\/-]/g, '');
+        const idBase = baseFileName.replace(/\.(js|mjs)$/i, '') || 'user-effect';
+        const fileSlug = this.generateEffectId(`${idBase}.tsx`);
+        if (fileSlug) idsToUnregister.add(`user-${fileSlug}`);
+      } catch {}
+    }
+
+    try {
+      const { unregisterEffect } = await import('./effectRegistry');
+      for (const key of idsToUnregister) {
+        try { unregisterEffect(key); } catch {}
+      }
+    } catch {
+      // Registry not available; safe to ignore.
+    }
+
+    return true;
+  }
+
+  /**
    * Load a single user effect from raw JS module content (ESM), suitable for external .js files.
    * The module must export default React component and optional `metadata`.
    * Note: External JS must not use bare imports; rely on globals (window.React, window.THREE, window.r3f).

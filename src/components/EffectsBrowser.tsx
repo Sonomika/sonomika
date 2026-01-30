@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { HeartIcon, HeartFilledIcon } from '@radix-ui/react-icons';
+import { Cross2Icon, HeartIcon, HeartFilledIcon } from '@radix-ui/react-icons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui';
 import { UserEffectsLoader } from './UserEffectsLoader';
 
@@ -112,6 +112,31 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
 
   const effectKey = (e: LightEffect) => e.fileKey || `${e.id}:${e.metadata?.folder || 'other'}`;
   const displayName = (name: string) => (name || '').replace(/\s*\(External\)\s*$/i, '').trim();
+  const hasCachedUserEffectCode = (id: string) => {
+    const key = String(id || '').trim();
+    if (!key) return false;
+    try {
+      const v = localStorage.getItem(`vj-user-effect-code:${key}`);
+      return typeof v === 'string' && v.trim().length > 0;
+    } catch {
+      return false;
+    }
+  };
+  const isAIGeneratedTemp = (e: LightEffect) => {
+    const src = String(e?.fileKey || (e as any)?.metadata?.sourcePath || '').toLowerCase();
+    return (
+      src.includes('ai-live-edit.js') ||
+      src.startsWith('ai-cache/') ||
+      src.includes('ai-generated-') ||
+      (src.includes('ai') && src.includes('cache'))
+    );
+  };
+  const canRemoveFromBank = (e: LightEffect) => {
+    // Show remove only for items that are backed by cached user-effect code
+    // (typical for AI-generated effects, including those rehydrated when loading a set).
+    // This also safely covers cases where a cached AI effect "overlays" a bank effect id.
+    return isAIGeneratedTemp(e) || hasCachedUserEffectCode(e.id);
+  };
 
   const toggleFavorite = (e: LightEffect) => {
     const key = effectKey(e);
@@ -119,6 +144,46 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
     const set = new Set(favorites);
     if (set.has(key)) set.delete(key); else set.add(key);
     persistFavorites(Array.from(set));
+  };
+
+  const removeFromBank = async (e: LightEffect) => {
+    try {
+      // Remove from favorites if it was favorited (prevents ghost entries in Favorites tab)
+      try {
+        const k = effectKey(e);
+        if (k && favorites.includes(k)) {
+          persistFavorites(favorites.filter((x) => x !== k));
+        }
+      } catch {}
+
+      // Remove persisted code so it doesn't rehydrate on reload/preset load
+      try {
+        localStorage.removeItem(`vj-user-effect-code:${String(e.id)}`);
+      } catch {}
+
+      // Special-case: if this is the "last AI live edit", also clear the restore cache
+      try {
+        const src = String(e.fileKey || '').toLowerCase();
+        if (src.includes('ai-live-edit.js')) {
+          localStorage.removeItem('vj-ai-last-code');
+          localStorage.removeItem('vj-user-effect-code:user-ai-live-edit');
+        }
+      } catch {}
+
+      // Remove from EffectDiscovery registry so it disappears from the Library list
+      try {
+        const { EffectDiscovery } = await import('../utils/EffectDiscovery');
+        const discovery = EffectDiscovery.getInstance();
+        await discovery.removeUserEffect(String(e.id), String(e.fileKey || ''));
+      } catch {}
+
+      // Optimistically remove from current list and refresh to ensure consistency
+      try {
+        const k = effectKey(e);
+        setEffects((prev) => prev.filter((x) => effectKey(x) !== k));
+      } catch {}
+      refreshEffects();
+    } catch {}
   };
 
   const filtered = useMemo(() => {
@@ -347,17 +412,29 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                       <div className="tw-text-xs ">by {e.author}</div>
                     </div>
-                    <button
-                      onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
-                      className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'}
-                      title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
-                    >
-                      {favorites.includes(effectKey(e)) ? (
-                        <HeartFilledIcon className="tw-w-4 tw-h-4 " />
-                      ) : (
-                        <HeartIcon className="tw-w-4 tw-h-4 " />
-                      )}
-                    </button>
+                    <div className="tw-flex tw-items-center tw-gap-1">
+                      {canRemoveFromBank(e) ? (
+                        <button
+                          onMouseDown={(ev) => { ev.stopPropagation(); }}
+                          onClick={(ev) => { ev.stopPropagation(); void removeFromBank(e); }}
+                          className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1 tw-text-red-400 hover:tw-text-red-300'}
+                          title="Remove from bank"
+                        >
+                          <Cross2Icon className="tw-w-4 tw-h-4" />
+                        </button>
+                      ) : null}
+                      <button
+                        onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                        className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'}
+                        title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        {favorites.includes(effectKey(e)) ? (
+                          <HeartFilledIcon className="tw-w-4 tw-h-4 " />
+                        ) : (
+                          <HeartIcon className="tw-w-4 tw-h-4 " />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -474,17 +551,29 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
                       <div className="tw-text-sm tw-font-medium tw-text-left">{displayName(e.name)}</div>
                       {e.author ? (<div className="tw-text-xs ">by {e.author}</div>) : null}
                     </div>
-                    <button
-                      onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
-                      className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'}
-                      title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
-                    >
-                      {favorites.includes(effectKey(e)) ? (
-                        <HeartFilledIcon className="tw-w-4 tw-h-4 " />
-                      ) : (
-                        <HeartIcon className="tw-w-4 tw-h-4 " />
-                      )}
-                    </button>
+                    <div className="tw-flex tw-items-center tw-gap-1">
+                      {canRemoveFromBank(e) ? (
+                        <button
+                          onMouseDown={(ev) => { ev.stopPropagation(); }}
+                          onClick={(ev) => { ev.stopPropagation(); void removeFromBank(e); }}
+                          className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1 tw-text-red-400 hover:tw-text-red-300'}
+                          title="Remove from bank"
+                        >
+                          <Cross2Icon className="tw-w-4 tw-h-4" />
+                        </button>
+                      ) : null}
+                      <button
+                        onClick={(ev) => { ev.stopPropagation(); toggleFavorite(e); }}
+                        className={'tw-inline-flex tw-items-center tw-justify-center tw-rounded tw-border tw-border-neutral-800 tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-px-1.5 tw-py-1'}
+                        title={favorites.includes(effectKey(e)) ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        {favorites.includes(effectKey(e)) ? (
+                          <HeartFilledIcon className="tw-w-4 tw-h-4 " />
+                        ) : (
+                          <HeartIcon className="tw-w-4 tw-h-4 " />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
