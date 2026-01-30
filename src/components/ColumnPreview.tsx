@@ -79,6 +79,7 @@ interface ColumnPreviewProps {
   globalEffects?: any[];
   overridesKey?: string;
   isTimelineMode?: boolean; // If true, reads video options from timeline store
+  key?: string; // Add key prop to force remount on dimension changes
 }
 
 // Cache last frame canvases per asset to avoid flashes across mounts
@@ -1414,6 +1415,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 <div style={{ aspectRatio: `${width}/${height}`, width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} className="tw-flex tw-items-center tw-justify-center">
                   <div style={{ width: '100%', height: '100%' }}>
               <Canvas
+                key={`canvas-${width}x${height}`}
                 camera={{ position: [0, 0, 1], fov: 90 }}
                className="tw-w-full tw-h-full tw-block tw-bg-transparent"
                 dpr={1}

@@ -1645,6 +1645,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             style={{ aspectRatio }}
           >
             <ColumnPreview
+              key={`preview-${compositionSettings.width}x${compositionSettings.height}`}
               column={tempColumn}
               width={compositionSettings.width}
               height={compositionSettings.height}
@@ -1725,6 +1726,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               style={{ aspectRatio: aspectRatio }}
             >
               <ColumnPreview
+                key={`live-preview-${compositionSettings.width}x${compositionSettings.height}`}
                 column={liveColumn}
                 width={compositionSettings.width}
                 height={compositionSettings.height}
@@ -1822,6 +1824,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   style={{ aspectRatio: compositionSettings.width / compositionSettings.height }}
                 >
                   <TimelineComposer
+                    key={`timeline-${compositionSettings.width}x${compositionSettings.height}`}
                     activeClips={activeClips}
                     isPlaying={isPlaying}
                     currentTime={content.currentTime}
@@ -2928,6 +2931,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     }
                   >
                     <Equirectangular360Preview
+                      key={`360-preview-${compositionSettings?.width || 1920}x${compositionSettings?.height || 1080}`}
                       sourceCanvas={sphereSourceCanvas}
                       width={compositionSettings?.width || 1920}
                       height={compositionSettings?.height || 1080}

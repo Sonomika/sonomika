@@ -811,6 +811,7 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
       <div className="renderer-main-content">
         <div className="tw-w-full tw-h-full" style={{ backgroundColor }}>
           <Canvas
+            key={`renderer-canvas-${canvasWidth}x${canvasHeight}`}
             camera={{ position: [0, 0, 2], fov: 75 }}
             className="tw-w-full tw-h-full"
             dpr={[1, Math.min(1.5, (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1)]}

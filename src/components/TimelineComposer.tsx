@@ -1188,6 +1188,7 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
         <div style={{ aspectRatio: `${width}/${height}`, width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} className="tw-flex tw-items-center tw-justify-center">
           <div style={{ width: '100%', height: '100%' }}>
       <Canvas
+        key={`timeline-canvas-${width}x${height}`}
         camera={{ position: [0, 0, 1], fov: 90 }}
         className="tw-w-full tw-h-full tw-block"
         dpr={1}

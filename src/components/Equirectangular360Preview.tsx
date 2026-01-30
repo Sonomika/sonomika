@@ -290,6 +290,7 @@ export const Equirectangular360Preview: React.FC<Equirectangular360PreviewProps>
       {/* Canvas container */}
       <div className="tw-relative tw-flex-1 tw-min-h-0 tw-rounded tw-overflow-hidden">
         <Canvas
+          key={`360-canvas-${width}x${height}`}
           camera={{
             position: [0, 0, 0.1], // Camera at center of sphere
             fov: initialFov,
