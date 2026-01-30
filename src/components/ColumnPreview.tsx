@@ -70,6 +70,8 @@ interface ColumnPreviewProps {
   height: number;
   isPlaying: boolean;
   bpm: number;
+  /** Disable the black mask overlay (used for outgoing crossfade layer) */
+  disableMask?: boolean;
   /** Force frameloop to 'always' regardless of isPlaying (used for 360 mode source) */
   forceAlwaysRender?: boolean;
   /** Prevent pause scheduling during 360 transition */
@@ -1342,12 +1344,13 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   forceAlwaysRender = false,
   suppressPause = false,
   hardFreeze = false,
+  disableMask = false,
 }) => {
   // Effective playing state considers forceAlwaysRender (used for 360 mode source)
   const effectiveIsPlaying = isPlaying || forceAlwaysRender;
   
   const [error, setError] = useState<string | null>(null);
-  const [maskVisible, setMaskVisible] = useState<boolean>(true);
+  const [maskVisible, setMaskVisible] = useState<boolean>(!disableMask);
   const hasAnyLayerAsset = useMemo(() => {
     try {
       const layers = (column as any)?.layers;
@@ -1359,10 +1362,15 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   
   // Re-arm mask whenever the column changes so background never shows during switch
   useEffect(() => {
+    // Outgoing crossfade layer should never mask (it would cause black flash).
+    if (disableMask) {
+      try { setMaskVisible(false); } catch {}
+      return;
+    }
     try { setMaskVisible(true); } catch {}
     // Signal mirror to freeze on last frame while new column warms up
     try { window.dispatchEvent(new CustomEvent('mirrorFreeze', { detail: { freeze: true } })); } catch {}
-  }, [column?.id]);
+  }, [column?.id, disableMask]);
   // Use composition background color behind the transparent canvas so sources show correct bg
   const compositionBg = (() => {
     try {
@@ -1405,7 +1413,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
             {/* Full width container */}
            <div className="tw-w-full tw-h-full tw-bg-transparent tw-relative tw-overflow-hidden">
               {/* Black mask overlay to hide composition background until first frame is ready */}
-              {maskVisible && (
+              {!disableMask && maskVisible && (
                 <div className="tw-absolute tw-inset-0 tw-bg-black tw-z-[5] tw-pointer-events-none" />
               )}
               {/* Debug indicator removed */}
@@ -1567,7 +1575,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 compositionHeight={height}
                 isTimelineMode={isTimelineMode}
                 onFirstFrameReady={() => {
-                  setMaskVisible(false);
+                  try { setMaskVisible(false); } catch {}
                   // Unfreeze mirror when first frame is ready
                   try { window.dispatchEvent(new CustomEvent('mirrorFreeze', { detail: { freeze: false } })); } catch {}
                 }}

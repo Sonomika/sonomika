@@ -307,6 +307,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [showPreviousContent, setShowPreviousContent] = useState<boolean>(false); // Extended visibility for smooth cleanup
   const crossfadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cancelCrossfadeRef = useRef<(() => void) | null>(null); // Function to cancel active animation
+  const crossfadeTargetRef = useRef<any>(null); // Track the content being faded TO during active crossfade
+  const lastCrossfadeColumnIdRef = useRef<string | null>(null); // Track the last column we started crossfading to
+  const lastShownColumnIdRef = useRef<string | null>(null); // Track the last column ID we displayed (for crossfade source)
+  const previousContentRef = useRef<any>(null); // Ref-based previous content for immediate access during crossfade
+  const isCrossfadingRef = useRef<boolean>(false); // Ref for immediate crossfade detection (avoids state batching delay)
   
   // Handle crossfade transitions when previewContent changes
   useEffect(() => {
@@ -316,26 +321,53 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       return;
     }
     
+    const currIsColumn = previewContent?.type === 'column';
+    const currColumnId = previewContent?.columnId;
+    
+    // Use ref to track last shown column (more reliable than state for timing)
+    const lastShownColumnId = lastShownColumnIdRef.current;
+    const prevStateColumnId = previousPreviewContent?.columnId;
+    const prevIsValidColumn = previousPreviewContent?.type === 'column' && prevStateColumnId;
+    
+    // Determine the effective previous column ID (from state or ref, whichever is valid and different)
+    const effectivePrevColumnId = prevIsValidColumn ? prevStateColumnId : lastShownColumnId;
+    
     // Check if we should crossfade for this transition
     const shouldCrossfade = 
       columnCrossfadeEnabled && 
       !showTimeline &&
-      previewContent?.type === 'column' &&
-      previousPreviewContent?.type === 'column' &&
-      previewContent?.columnId !== previousPreviewContent?.columnId;
+      currIsColumn &&
+      effectivePrevColumnId && // Have a valid previous column
+      currColumnId !== effectivePrevColumnId; // And it's different from current
     
     console.log('🎨 Crossfade check:', { 
       shouldCrossfade,
       enabled: columnCrossfadeEnabled,
       isTimeline: showTimeline,
-      prevType: previousPreviewContent?.type,
-      newType: previewContent?.type,
-      prevId: previousPreviewContent?.columnId,
-      newId: previewContent?.columnId
+      currIsColumn,
+      prevIsValidColumn,
+      effectivePrevColumnId,
+      currColumnId,
+      lastShownColumnId,
+      prevStateColumnId,
+      lastCrossfadeColumnId: lastCrossfadeColumnIdRef.current
     });
     
     if (shouldCrossfade) {
-      console.log('✅ Starting crossfade transition', { from: previousPreviewContent?.columnId, to: previewContent?.columnId });
+      // Skip if we're already crossfading to this exact column (prevents duplicate calls)
+      if (lastCrossfadeColumnIdRef.current === previewContent?.columnId) {
+        console.log('🎨 Skipping duplicate crossfade to same column:', previewContent?.columnId);
+        return;
+      }
+      
+      console.log('✅ Starting crossfade transition', { from: effectivePrevColumnId, to: currColumnId });
+      
+      // Track that we're crossfading to this column
+      lastCrossfadeColumnIdRef.current = currColumnId;
+      
+      // IMMEDIATELY mark as crossfading via ref (state update is async)
+      // This prevents the black flash between content change and state update
+      isCrossfadingRef.current = true;
       
       // Cancel any active crossfade animation
       if (cancelCrossfadeRef.current) {
@@ -350,25 +382,40 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         crossfadeTimeoutRef.current = null;
       }
       
-      // When switching rapidly, use the CURRENT displayed content as the "old" content
+      // When switching rapidly, use the content being faded TO as the new "old" content
       // This makes the transition smooth even if interrupted mid-fade
-      const effectivePreviousContent = isCrossfading ? previewContent : previousPreviewContent;
+      // IMPORTANT: Use refs for immediate access - state may be stale due to React batching
+      const effectivePreviousContent = isCrossfading && crossfadeTargetRef.current 
+        ? crossfadeTargetRef.current 
+        : (previousContentRef.current || previousPreviewContent);
       const effectiveStartProgress = isCrossfading ? crossfadeProgress : 0;
       
       // Capture the target content at start of animation to avoid race conditions
       const targetContent = previewContent;
       
-      // If we're interrupting a crossfade, immediately update previousContent
-      if (isCrossfading) {
+      // If we're interrupting a crossfade, immediately update previousContent to the content we were fading TO
+      if (isCrossfading && crossfadeTargetRef.current) {
         setPreviousPreviewContent(effectivePreviousContent);
+        previousContentRef.current = effectivePreviousContent;
+      }
+      
+      // Store the new target in the ref for potential interruption detection
+      crossfadeTargetRef.current = targetContent;
+      
+      // CRITICAL: Ensure previousContentRef has valid content for the render
+      // This is needed because React state updates are async, but the render needs
+      // the previous content immediately
+      if (!previousContentRef.current && effectivePreviousContent) {
+        previousContentRef.current = effectivePreviousContent;
       }
       
       // Start new crossfade
       setIsCrossfading(true);
       setShowPreviousContent(true);
       
-      // Start with both visible (or continue from where we left off if interrupted)
-      const startProgress = Math.max(0.05, effectiveStartProgress);
+      // Start with old content fully visible (progress = 0 means old at 100%, new at 0%)
+      // If interrupted mid-fade, continue from current progress
+      const startProgress = effectiveStartProgress > 0 ? effectiveStartProgress : 0;
       setCrossfadeProgress(startProgress);
       
       // Animate crossfade using configured duration (linear)
@@ -409,9 +456,17 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             console.log('✅ Crossfade complete, updating previous content to:', targetContent?.columnId);
             // Mark crossfade as complete
             setIsCrossfading(false);
+            isCrossfadingRef.current = false; // Clear ref immediately
             cancelCrossfadeRef.current = null;
+            crossfadeTargetRef.current = null; // Clear the target ref
+            lastCrossfadeColumnIdRef.current = null; // Clear the last crossfade column ref
             // Update previous content to the captured target (ready for next crossfade)
             setPreviousPreviewContent(targetContent);
+            previousContentRef.current = targetContent; // Sync update
+            // Update the last shown column ref
+            if (targetContent?.type === 'column' && targetContent?.columnId) {
+              lastShownColumnIdRef.current = targetContent.columnId;
+            }
           });
         }
       };
@@ -419,11 +474,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       requestAnimationFrame(animate);
     } else {
       // No crossfade - just update previous content immediately for next potential transition
-      console.log('⏭️ No crossfade, updating previous content to:', previewContent?.columnId);
+      console.log('⏭️ No crossfade, updating previous content to:', currColumnId);
+      // Update BOTH state and ref for previous content (ref is for immediate access)
       setPreviousPreviewContent(previewContent);
+      previousContentRef.current = previewContent; // Sync update for immediate access
       setCrossfadeProgress(1);
       setIsCrossfading(false);
+      isCrossfadingRef.current = false; // Clear ref
       setShowPreviousContent(false);
+      crossfadeTargetRef.current = null; // Clear the target ref
+      lastCrossfadeColumnIdRef.current = null; // Clear the last crossfade column ref
+      // Update the last shown column ref for next transition
+      if (currIsColumn && currColumnId) {
+        lastShownColumnIdRef.current = currColumnId;
+      }
     }
   }, [previewContent, columnCrossfadeEnabled, showTimeline, columnCrossfadeDuration]);
 
@@ -803,7 +867,16 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   }, [showTimeline, isGlobalPlaying]);
 
   // Clear timeline preview when switching to column mode
+  // NOTE: This is now handled by the mode switch effect at line ~434 using prevShowTimelineRef
+  // to avoid clearing on initial mount. Keeping this for backwards compatibility but adding
+  // a ref check to prevent running on initial mount.
+  const clearTimelineInitializedRef = useRef(false);
   useEffect(() => {
+    // Skip on initial mount - let the scene-change effect set up the initial preview
+    if (!clearTimelineInitializedRef.current) {
+      clearTimelineInitializedRef.current = true;
+      return;
+    }
     if (!showTimeline) {
       // When switching to column mode, clear any lingering timeline preview
       console.log('🎭 Switched to column mode - clearing timeline preview');
@@ -955,6 +1028,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   useEffect(() => {
     try {
       if (!playingColumnId) return;
+      // Skip if we're already crossfading to this column
+      // This prevents redundant updates when handleColumnPlay triggers playColumn
+      if (lastCrossfadeColumnIdRef.current === playingColumnId) {
+        console.log('🎵 Skipping redundant updatePreviewForColumn - already crossfading to:', playingColumnId);
+        return;
+      }
       updatePreviewForColumn(playingColumnId);
     } catch {}
   }, [playingColumnId]);
@@ -1545,7 +1624,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   };
 
   // Helper to render specific preview content (used for crossfading)
-  const renderSpecificPreviewContent = (content: any, forcePlaying: boolean = false) => {
+  // disableMask: used for the outgoing layer during crossfade to prevent black mask flashes
+  const renderSpecificPreviewContent = (content: any, forcePlaying: boolean = false, disableMask: boolean = false) => {
     if (!content) {
       return (
         <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden tw-w-full">
@@ -1656,6 +1736,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               isTimelineMode={true}
               // In timeline mode, Stop should pause effects too (freeze frameloop) while preserving last frame.
               hardFreeze={!Boolean(content.isPlaying)}
+              disableMask={disableMask}
             />
           </div>
         </div>
@@ -1745,6 +1826,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 forceAlwaysRender={is360PreviewMode && isEquirectangular}
                 suppressPause={is360PreviewMode && isEquirectangular}
                 hardFreeze={!isGlobalPlaying && !forcePlaying}
+                disableMask={disableMask}
               />
             </div>
                      {debugMode && (
@@ -2865,14 +2947,17 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     console.log('🎭 Rendering preview content in preview window');
                     
                     // Handle crossfade rendering (show both old and new content)
-                    if ((isCrossfading || showPreviousContent) && previousPreviewContent) {
-                      console.log('🎨 Rendering crossfade', { progress: crossfadeProgress, isCrossfading, showPreviousContent });
+                    // Use refs as fallback in case state hasn't updated yet (React batching delay)
+                    const effectivePrevContent = previousPreviewContent || previousContentRef.current;
+                    const effectiveIsCrossfading = isCrossfading || isCrossfadingRef.current;
+                    if ((effectiveIsCrossfading || showPreviousContent) && effectivePrevContent) {
+                      console.log('🎨 Rendering crossfade', { progress: crossfadeProgress, isCrossfading, effectiveIsCrossfading, showPreviousContent, hasPrevContent: !!effectivePrevContent });
                       
                       const oldOpacity = 1 - crossfadeProgress;
                       const newOpacity = crossfadeProgress;
                       
                       // Force both columns to keep playing during active crossfade
-                      const forcePlaying = isCrossfading && isGlobalPlaying;
+                      const forcePlaying = effectiveIsCrossfading && isGlobalPlaying;
                       
                       return (
                         <div className="tw-relative tw-w-full tw-h-full tw-bg-black">
@@ -2885,7 +2970,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                               zIndex: 1
                             }}
                           >
-                            {renderSpecificPreviewContent(previewContent, forcePlaying)}
+                            {renderSpecificPreviewContent(previewContent, forcePlaying, false)}
                           </div>
                           
                           {/* Old/outgoing column - render SECOND (on top) to fade out over new content */}
@@ -2898,7 +2983,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                               zIndex: 2
                             }}
                           >
-                            {renderSpecificPreviewContent(previousPreviewContent, forcePlaying)}
+                            {renderSpecificPreviewContent(effectivePrevContent, forcePlaying, true)}
                           </div>
                         </div>
                       );
