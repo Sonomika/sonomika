@@ -3055,22 +3055,22 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 <ScrollArea.Root className="vj-scroll-root tw-h-full" type="always">
                   <ScrollArea.Viewport className="vj-scroll-viewport tw-h-full tw-w-full tw-pr-3 tw-pb-3">
                     <Tabs value={showMediaLibrary ? String(showMediaLibrary) : (localStorage.getItem('vj-ui-right-tab') || 'effects')} onValueChange={(val) => { setShowMediaLibrary(val === 'media' ? false : (val as any)); try { localStorage.setItem('vj-ui-right-tab', String(val)); } catch {} }}>
-                      <TabsContent value="effects">
+                      <TabsContent value="effects" forceMount className="data-[state=inactive]:tw-hidden">
                         <div className="tw-space-y-2">
                           <EffectsBrowser />
                         </div>
                       </TabsContent>
-                      <TabsContent value="files">
+                      <TabsContent value="files" forceMount className="data-[state=inactive]:tw-hidden">
                         <div className="tw-h-full">
                           <FileBrowser />
                         </div>
                       </TabsContent>
-                      <TabsContent value="midi">
+                      <TabsContent value="midi" forceMount className="data-[state=inactive]:tw-hidden">
                         <div className="midi-tab">
                           <MIDIMapper />
                         </div>
                       </TabsContent>
-                      <TabsContent value="lfo">
+                      <TabsContent value="lfo" forceMount className="data-[state=inactive]:tw-hidden">
                         <div className="lfo-tab">
                           <LFOMapper 
                             selectedLayer={effectiveSelectedLayer || selectedLayer}
@@ -3078,7 +3078,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                           />
                         </div>
                       </TabsContent>
-                      <TabsContent value="ai">
+                      <TabsContent value="ai" forceMount className="data-[state=inactive]:tw-hidden">
                         <div className="tw-h-full tw-flex tw-flex-col">
                           <AIEffectsLab />
                         </div>

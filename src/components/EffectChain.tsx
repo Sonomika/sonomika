@@ -26,7 +26,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   opacity = 1,
   baseAssetId
 }) => {
-  const { gl, camera } = useThree();
+  const { gl, camera, invalidate } = useThree();
 
   const [videoTexture, setVideoTexture] = useState<THREE.VideoTexture | null>(null);
   const videoRtRef = useRef<THREE.WebGLRenderTarget | null>(null);
@@ -536,35 +536,40 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
         // If this effect does not replace, show background previous pass
         const EffectComponent = getEffectComponentSync((item as any).effectId);
-        const md: any = (EffectComponent as any)?.metadata || {};
-        const replacesVideo = md?.replacesVideo === true;
-        const bgMesh = bgMeshesRef.current[idx];
-        if (bgMesh) {
-          const mat = bgMesh.material as THREE.MeshBasicMaterial;
-          const nextMap = !replacesVideo ? (currentTexture as any) : null;
-          if (mat.map !== nextMap) {
-            mat.map = nextMap as any;
-            mat.needsUpdate = true;
+        
+        // Only render if effect component is loaded
+        if (EffectComponent) {
+          const md: any = (EffectComponent as any)?.metadata || {};
+          const replacesVideo = md?.replacesVideo === true;
+          const bgMesh = bgMeshesRef.current[idx];
+          if (bgMesh) {
+            const mat = bgMesh.material as THREE.MeshBasicMaterial;
+            const nextMap = !replacesVideo ? (currentTexture as any) : null;
+            if (mat.map !== nextMap) {
+              mat.map = nextMap as any;
+              mat.needsUpdate = true;
+            }
+            bgMesh.visible = !!nextMap;
           }
-          bgMesh.visible = !!nextMap;
+          // Guard: if this effect needs prior pass (overlay) but there's no input yet,
+          // skip writing a blank frame to RT so we keep showing the previous final texture
+          const needsInput = !replacesVideo;
+          const hasInput = Boolean(currentTexture);
+          if (needsInput && !hasInput) {
+            // do not update currentTexture; keep previous
+          } else {
+            // Do not clear color; background quad already contains previous pass
+            gl.setClearColor(0x000000, 0);
+            gl.setRenderTarget(rt);
+            // Clear depth/stencil to prevent earlier frames from blocking renders
+            gl.clear(false, true, true);
+            gl.render(offscreenScenes[idx], camera);
+            gl.setRenderTarget(currentRT);
+            gl.setClearColor(prevClear, prevAlpha);
+            currentTexture = rt.texture;
+          }
         }
-        // Guard: if this effect needs prior pass (overlay) but there's no input yet,
-        // skip writing a blank frame to RT so we keep showing the previous final texture
-        const needsInput = !replacesVideo;
-        const hasInput = Boolean(currentTexture);
-        if (needsInput && !hasInput) {
-          // do not update currentTexture; keep previous
-        } else {
-          // Do not clear color; background quad already contains previous pass
-          gl.setClearColor(0x000000, 0);
-          gl.setRenderTarget(rt);
-          // Clear depth/stencil to prevent earlier frames from blocking renders
-          gl.clear(false, true, true);
-          gl.render(offscreenScenes[idx], camera);
-          gl.setRenderTarget(currentRT);
-          gl.setClearColor(prevClear, prevAlpha);
-          currentTexture = rt.texture;
-        }
+        // If effect not loaded yet, keep previous texture (don't update currentTexture)
       }
     });
 
@@ -588,6 +593,39 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       setInputTextures(nextInputTextures);
     }
   });
+
+  // Track which effects are loaded to trigger portal rebuild when they become available
+  const [effectsLoadedTrigger, setEffectsLoadedTrigger] = useState(0);
+  const effectsLoadedKey = useMemo(() => {
+    return items
+      .filter(item => item.type !== 'video')
+      .map(item => {
+        const EffectComponent = getEffectComponentSync(item.effectId);
+        return EffectComponent ? '1' : '0';
+      })
+      .join('');
+  }, [items, effectsLoadedTrigger]);
+
+  // Poll for effect availability on mount and when items change
+  React.useEffect(() => {
+    const checkEffects = () => {
+      const anyUnloaded = items.some(item => {
+        if (item.type === 'video') return false;
+        return !getEffectComponentSync(item.effectId);
+      });
+      
+      if (anyUnloaded) {
+        // Schedule a re-check to catch when effects finish loading
+        const timer = setTimeout(() => {
+          setEffectsLoadedTrigger(prev => prev + 1);
+          invalidate();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    };
+    
+    checkEffects();
+  }, [items, effectsLoadedTrigger, invalidate]);
 
   // Build portals for sources/effects
   const portals = useMemo(() => {
@@ -656,7 +694,7 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       );
     });
     return list;
-  }, [items, offscreenScenes, inputTextures, compositionWidth, compositionHeight]);
+  }, [items, offscreenScenes, inputTextures, compositionWidth, compositionHeight, effectsLoadedKey]);
 
   // Display final texture
   // Always render the final texture on a plane matching the composition aspect
