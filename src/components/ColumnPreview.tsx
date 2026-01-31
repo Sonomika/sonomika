@@ -70,8 +70,6 @@ interface ColumnPreviewProps {
   height: number;
   isPlaying: boolean;
   bpm: number;
-  /** Disable the black mask overlay (used for outgoing crossfade layer) */
-  disableMask?: boolean;
   /** Force frameloop to 'always' regardless of isPlaying (used for 360 mode source) */
   forceAlwaysRender?: boolean;
   /** Prevent pause scheduling during 360 transition */
@@ -82,6 +80,8 @@ interface ColumnPreviewProps {
   overridesKey?: string;
   isTimelineMode?: boolean; // If true, reads video options from timeline store
   key?: string; // Add key prop to force remount on dimension changes
+  /** Skip the initial black mask (used for crossfade when content is already warmed up) */
+  skipInitialMask?: boolean;
 }
 
 // Cache last frame canvases per asset to avoid flashes across mounts
@@ -1344,13 +1344,14 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   forceAlwaysRender = false,
   suppressPause = false,
   hardFreeze = false,
-  disableMask = false,
+  skipInitialMask = false,
 }) => {
   // Effective playing state considers forceAlwaysRender (used for 360 mode source)
   const effectiveIsPlaying = isPlaying || forceAlwaysRender;
   
   const [error, setError] = useState<string | null>(null);
-  const [maskVisible, setMaskVisible] = useState<boolean>(!disableMask);
+  // Start with mask hidden if skipInitialMask is true (used for crossfade when content is already warmed up)
+  const [maskVisible, setMaskVisible] = useState<boolean>(!skipInitialMask);
   const hasAnyLayerAsset = useMemo(() => {
     try {
       const layers = (column as any)?.layers;
@@ -1361,16 +1362,13 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   }, [column]);
   
   // Re-arm mask whenever the column changes so background never shows during switch
+  // Skip if skipInitialMask is true (crossfade case where content is already warmed up)
   useEffect(() => {
-    // Outgoing crossfade layer should never mask (it would cause black flash).
-    if (disableMask) {
-      try { setMaskVisible(false); } catch {}
-      return;
-    }
+    if (skipInitialMask) return; // Don't re-arm mask during crossfade
     try { setMaskVisible(true); } catch {}
     // Signal mirror to freeze on last frame while new column warms up
     try { window.dispatchEvent(new CustomEvent('mirrorFreeze', { detail: { freeze: true } })); } catch {}
-  }, [column?.id, disableMask]);
+  }, [column?.id, skipInitialMask]);
   // Use composition background color behind the transparent canvas so sources show correct bg
   const compositionBg = (() => {
     try {
@@ -1413,7 +1411,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
             {/* Full width container */}
            <div className="tw-w-full tw-h-full tw-bg-transparent tw-relative tw-overflow-hidden">
               {/* Black mask overlay to hide composition background until first frame is ready */}
-              {!disableMask && maskVisible && (
+              {maskVisible && (
                 <div className="tw-absolute tw-inset-0 tw-bg-black tw-z-[5] tw-pointer-events-none" />
               )}
               {/* Debug indicator removed */}
@@ -1575,7 +1573,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 compositionHeight={height}
                 isTimelineMode={isTimelineMode}
                 onFirstFrameReady={() => {
-                  try { setMaskVisible(false); } catch {}
+                  setMaskVisible(false);
                   // Unfreeze mirror when first frame is ready
                   try { window.dispatchEvent(new CustomEvent('mirrorFreeze', { detail: { freeze: false } })); } catch {}
                 }}
