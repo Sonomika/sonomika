@@ -133,7 +133,7 @@ VideoThumbnailPreview.displayName = 'VideoThumbnailPreview';
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   // console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline, columnCrossfadeEnabled, setColumnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeDuration } = useStore() as any;
+  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline, columnCrossfadeEnabled, setColumnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeDuration, cellCrossfadeEnabled } = useStore() as any;
 
   // Track transport state to style Play/Pause/Stop buttons with accent for the active control.
   // Derive from store so refresh/rehydrate reliably shows Stop when fully stopped.
@@ -307,6 +307,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [showPreviousContent, setShowPreviousContent] = useState<boolean>(false); // Extended visibility for smooth cleanup
   const crossfadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cancelCrossfadeRef = useRef<(() => void) | null>(null); // Function to cancel active animation
+  // Track last override map so we can crossfade row-override ("cell") changes
+  const lastOverridesRef = useRef<Record<number, string>>((activeLayerOverrides || {}) as any);
   
   // Handle crossfade transitions when previewContent changes
   useEffect(() => {
@@ -317,12 +319,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     }
     
     // Check if we should crossfade for this transition
-    const shouldCrossfade = 
-      columnCrossfadeEnabled && 
+    const isColumnSwitch =
+      columnCrossfadeEnabled &&
       !showTimeline &&
       previewContent?.type === 'column' &&
       previousPreviewContent?.type === 'column' &&
       previewContent?.columnId !== previousPreviewContent?.columnId;
+    const isCellOverrideSwitch =
+      cellCrossfadeEnabled &&
+      !showTimeline &&
+      previewContent?.type === 'column' &&
+      previousPreviewContent?.type === 'column' &&
+      previewContent?.columnId === previousPreviewContent?.columnId &&
+      Boolean((previewContent as any)?.overrideVersion) &&
+      (previewContent as any)?.overrideVersion !== (previousPreviewContent as any)?.overrideVersion;
+    const shouldCrossfade = isColumnSwitch || isCellOverrideSwitch;
     
     console.log('🎨 Crossfade check:', { 
       shouldCrossfade,
@@ -425,7 +436,35 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       setIsCrossfading(false);
       setShowPreviousContent(false);
     }
-  }, [previewContent, columnCrossfadeEnabled, showTimeline, columnCrossfadeDuration]);
+  }, [previewContent, columnCrossfadeEnabled, cellCrossfadeEnabled, showTimeline, columnCrossfadeDuration]);
+
+  // Crossfade when selecting cells in other columns (row override changes).
+  // This preserves the ability to select any cell, but fades the preview between the old and new override state.
+  useEffect(() => {
+    const nextOverrides = (activeLayerOverrides || {}) as Record<number, string>;
+    const prevOverrides = (lastOverridesRef.current || {}) as Record<number, string>;
+    // Always keep ref updated
+    lastOverridesRef.current = nextOverrides;
+
+    if (showTimeline) return;
+    if (!cellCrossfadeEnabled) return;
+    if (!previewContent || previewContent.type !== 'column') return;
+
+    // Only crossfade when overrides actually changed
+    const prevJson = JSON.stringify(prevOverrides || {});
+    const nextJson = JSON.stringify(nextOverrides || {});
+    if (prevJson === nextJson) return;
+
+    // Snapshot current preview into "previous" slot with the old override map
+    const prevSnapshot = { ...(previewContent as any), overrideMap: prevOverrides, overrideVersion: (previewContent as any).overrideVersion || 0 };
+    setPreviousPreviewContent(prevSnapshot);
+
+    // Update previewContent to include the new override map and a monotonically increasing version
+    setPreviewContent((cur: any) => {
+      if (!cur || cur.type !== 'column') return cur;
+      return { ...cur, overrideMap: nextOverrides, overrideVersion: Date.now() };
+    });
+  }, [activeLayerOverrides, cellCrossfadeEnabled, showTimeline, previewContent]);
 
   // Always default to STOP when switching between column and timeline modes.
   useEffect(() => {
@@ -1674,7 +1713,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       let liveColumn = baseColumn;
       try {
         const st: any = (useStore as any).getState?.();
-        const overrides: Record<number, string> = (st?.activeLayerOverrides || {}) as any;
+        const overrides: Record<number, string> = ((content as any)?.overrideMap || st?.activeLayerOverrides || {}) as any;
         const byId: Record<string, any> = {};
         for (const c of currentScene?.columns || []) byId[c.id] = c;
         const getLayerFor = (col: any, ln: number) => {
@@ -1706,6 +1745,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         });
         liveColumn = { ...baseColumn, layers: finalLayers };
       } catch {}
+      const overridesKeyForRender = (() => {
+        try { return JSON.stringify((content as any)?.overrideMap || (useStore as any).getState?.()?.activeLayerOverrides || {}); } catch { return '{}'; }
+      })();
 
       // Show the first layer with content as the main preview
       const layersWithContent = (liveColumn?.layers || []).filter((layer: any) => layer.asset);
@@ -1744,7 +1786,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 }
                 bpm={bpm}
                 globalEffects={currentScene?.globalEffects || []}
-                overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
+                overridesKey={overridesKeyForRender}
                 forceAlwaysRender={is360PreviewMode && isEquirectangular}
                 suppressPause={is360PreviewMode && isEquirectangular}
                 hardFreeze={!isGlobalPlaying && !forcePlaying}

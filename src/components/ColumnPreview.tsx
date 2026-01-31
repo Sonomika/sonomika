@@ -1563,7 +1563,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               <HiddenRenderDriver />
               <ClearOnEmptyColumn isEmpty={!hasAnyLayerAsset} clearTo={'#000000'} />
               <ColumnScene 
-                key={`scene-${width}x${height}-${column?.id || 'col'}-${overridesKey || 'base'}`}
+                // Keep scene stable across row-override changes; props updates handle rerender.
+                key={`scene-${width}x${height}-${column?.id || 'col'}`}
                 column={column} 
                 isPlaying={effectiveIsPlaying} 
                 suppressPause={suppressPause}

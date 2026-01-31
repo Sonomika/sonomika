@@ -294,6 +294,10 @@ export function buildPresetDataFromState(state: AnyState): any {
     transitionType: state.transitionType,
     transitionDuration: state.transitionDuration,
     compositionSettings: state.compositionSettings,
+    // Crossfade settings (UI)
+    columnCrossfadeEnabled: !!(state as any).columnCrossfadeEnabled,
+    columnCrossfadeDuration: (state as any).columnCrossfadeDuration,
+    cellCrossfadeEnabled: !!(state as any).cellCrossfadeEnabled,
     assets,
   };
 }

@@ -84,7 +84,7 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
   const [crossfadeMenuOpen, setCrossfadeMenuOpen] = useState(false);
   const crossfadeMenuRef = useRef<HTMLDivElement>(null);
   // API docs removed
-  const { currentPresetName, showTimeline, spoutEnabled, columnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeEnabled, setColumnCrossfadeDuration } = (useStore() as any) || {};
+  const { currentPresetName, showTimeline, spoutEnabled, columnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeEnabled, setColumnCrossfadeDuration, cellCrossfadeEnabled, setCellCrossfadeEnabled } = (useStore() as any) || {};
 
   // Detect Electron vs Web
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron;
@@ -404,6 +404,21 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                         </span>
                       </button>
                     ))}
+                    <div className="tw-border-t tw-border-neutral-800 tw-my-0" />
+                    <button
+                      className="tw-flex tw-w-full tw-items-center tw-justify-between tw-px-3 tw-py-1.5 tw-text-sm tw-bg-neutral-900 hover:tw-bg-neutral-800 tw-text-neutral-100 tw-border-none tw-shadow-none"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        try { setCellCrossfadeEnabled?.(!cellCrossfadeEnabled); } catch {}
+                        setCrossfadeMenuOpen(false);
+                      }}
+                      title="Fade when selecting cells in other columns (row overrides)"
+                    >
+                      <span className="tw-inline-flex tw-items-center tw-gap-2">
+                        Crossfade cells
+                        {cellCrossfadeEnabled ? <CheckIcon className="tw-w-3.5 tw-h-3.5 tw-text-neutral-300" /> : null}
+                      </span>
+                    </button>
                   </div>
                 </PopoverContent>
               )}
@@ -543,6 +558,20 @@ export const CustomTitleBar: React.FC<CustomTitleBarProps> = ({
                       </span>
                     </button>
                   ))}
+                  <div className="tw-border-t tw-border-neutral-800 tw-my-1" />
+                  <button
+                    className="tw-block tw-w-full tw-text-left tw-px-3 tw-py-2 tw-text-sm tw-bg-neutral-900 tw-text-neutral-100 hover:tw-bg-neutral-800"
+                    onClick={() => {
+                      try { setCellCrossfadeEnabled?.(!cellCrossfadeEnabled); } catch {}
+                      setMobileMenuOpen(false);
+                    }}
+                    title="Fade when selecting cells in other columns (row overrides)"
+                  >
+                    <span className="tw-inline-flex tw-items-center tw-gap-2">
+                      Crossfade cells
+                      {cellCrossfadeEnabled ? <CheckIcon className="tw-w-3.5 tw-h-3.5 tw-text-neutral-300" /> : null}
+                    </span>
+                  </button>
                 </div>
               )}
 

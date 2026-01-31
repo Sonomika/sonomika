@@ -205,4 +205,6 @@ export interface AppState {
   columnCrossfadeEnabled?: boolean;
   // Crossfade transition duration in milliseconds
   columnCrossfadeDuration?: number;
+  // Enable crossfade transitions when switching "cells" (row overrides) across columns
+  cellCrossfadeEnabled?: boolean;
 } 

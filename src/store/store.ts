@@ -242,6 +242,8 @@ const initialState: AppState = {
   // Enable crossfade transitions when switching between columns
   columnCrossfadeEnabled: true,
   columnCrossfadeDuration: 200, // 200ms default (linear fade)
+  // Crossfade when switching per-row overrides (selecting cells in other columns)
+  cellCrossfadeEnabled: true,
 };
 
 try {
@@ -353,6 +355,7 @@ export const useStore = createWithEqualityFn<AppState & {
   setShowSystemEffectsTab: (v: boolean) => void;
   setColumnCrossfadeEnabled: (enabled: boolean) => void;
   setColumnCrossfadeDuration: (duration: number) => void;
+  setCellCrossfadeEnabled: (enabled: boolean) => void;
 }>()(
   persist(
     (set, get) => ({
@@ -423,6 +426,7 @@ export const useStore = createWithEqualityFn<AppState & {
       setShowSystemEffectsTab: (v: boolean) => set({ showSystemEffectsTab: Boolean(v) }),
       setColumnCrossfadeEnabled: (enabled: boolean) => set({ columnCrossfadeEnabled: Boolean(enabled) }),
       setColumnCrossfadeDuration: (duration: number) => set({ columnCrossfadeDuration: Math.max(100, Math.min(2000, Math.floor(Number(duration) || 400))) }),
+      setCellCrossfadeEnabled: (enabled: boolean) => set({ cellCrossfadeEnabled: Boolean(enabled) }),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();
@@ -1554,6 +1558,7 @@ export const useStore = createWithEqualityFn<AppState & {
            // Persist crossfade settings
            columnCrossfadeEnabled: (state as any).columnCrossfadeEnabled,
            columnCrossfadeDuration: (state as any).columnCrossfadeDuration,
+          cellCrossfadeEnabled: (state as any).cellCrossfadeEnabled,
         };
       },
              onRehydrateStorage: () => (state) => {
