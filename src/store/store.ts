@@ -241,7 +241,7 @@ const initialState: AppState = {
   currentPresetPath: null as any,
   // Enable crossfade transitions when switching between columns
   columnCrossfadeEnabled: true,
-  columnCrossfadeDuration: 200, // 200ms default (linear fade)
+  columnCrossfadeDuration: 400, // 400ms default (linear fade)
   // Crossfade when switching per-row overrides (selecting cells in other columns)
   cellCrossfadeEnabled: true,
 };
