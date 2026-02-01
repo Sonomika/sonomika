@@ -656,39 +656,6 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               </div>
             </div>
             <div className="tw-space-y-3 tw-pr-0">
-              {/* Allow fading effect layers (column + timeline) */}
-              {(() => {
-                const assetName = (selectedLayer as any)?.asset?.name || '';
-                const isVideoLayer = selectedLayer?.type === 'video' ||
-                  (selectedLayer as any)?.asset?.type === 'video' ||
-                  assetName.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i);
-                if (isVideoLayer) return null;
-                return (
-                  <div className="tw-w-full">
-                    <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Opacity</label>
-                    <div className="tw-flex tw-items-center tw-gap-2">
-                      <div className="tw-flex-1 tw-min-w-0">
-                        <Slider
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          value={[layerOpacity]}
-                          onValueChange={(v) => v && v[0] !== undefined && handleOpacityChange(v[0])}
-                        />
-                      </div>
-                      <input
-                        type="number"
-                        step={0.01}
-                        min={0}
-                        max={1}
-                        value={Number(layerOpacity).toFixed(2)}
-                        onChange={(e) => handleOpacityChange(parseFloat(e.target.value) || 1)}
-                        className="tw-w-14 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 tw-text-sm focus:tw-ring-2 focus:tw-ring-purple-600"
-                      />
-                    </div>
-                  </div>
-                );
-              })()}
               {effectMetadata ? (
                 effectMetadata.parameters?.map((param: any) => {
                   const currentValue = selectedLayer.params?.[param.name]?.value ?? param.value;
@@ -1042,32 +1009,6 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   />
                 </div>
 
-                {/* Opacity (column + timeline mode) */}
-                <div className="tw-col-span-2">
-                  <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Opacity</label>
-                  <div className="tw-flex tw-items-center tw-gap-2">
-                    <div className="tw-flex-1 tw-min-w-0">
-                      <Slider
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={[layerOpacity]}
-                        onValueChange={(v) => v && v[0] !== undefined && handleOpacityChange(v[0])}
-                      />
-                    </div>
-                    <input
-                      type="number"
-                      step={0.01}
-                      min={0}
-                      max={1}
-                      value={Number(layerOpacity).toFixed(2)}
-                      onChange={(e) => handleOpacityChange(parseFloat(e.target.value) || 1)}
-                      className="tw-w-14 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 tw-text-sm focus:tw-ring-2 focus:tw-ring-purple-600"
-                    />
-                  </div>
-                  <p className="tw-text-xs tw-text-neutral-500 tw-mt-0.5">Lower to see layers underneath</p>
-                </div>
-
                 {/* Playback mode (Loop / Random) */}
                 <div className="tw-col-span-2">
                   <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Playback</label>
@@ -1087,29 +1028,18 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 {loopMode === LOOP_MODES.RANDOM && (
                   <div className="tw-col-span-2">
                     <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Random BPM</label>
-                    <div className="tw-flex tw-items-center tw-gap-2">
-                      <div className="tw-flex-1 tw-min-w-0">
-                        <ParamRow
-                          label="Random BPM"
-                          value={Number(randomBpm)}
-                          min={30}
-                          max={500}
-                          step={1}
-                          buttonsAfter
-                          showLabel={false}
-                          onChange={(value) => handleRandomBpmChange(Number(value))}
-                          onIncrement={() => handleRandomBpmChange(Number(randomBpm) + 1)}
-                          onDecrement={() => handleRandomBpmChange(Number(randomBpm) - 1)}
-                        />
-                      </div>
-                      <input
-                        type="number"
-                        step={1}
+                    <div className="tw-w-full tw-min-w-0">
+                      <ParamRow
+                        label="Random BPM"
+                        value={Number(randomBpm)}
                         min={30}
                         max={500}
-                        value={String(Math.floor(Number(randomBpm) || 120))}
-                        onChange={(e) => handleRandomBpmChange(parseFloat(e.target.value))}
-                        className="tw-w-[72px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                        step={1}
+                        buttonsAfter
+                        showLabel={false}
+                        onChange={(value) => handleRandomBpmChange(Number(value))}
+                        onIncrement={() => handleRandomBpmChange(Number(randomBpm) + 1)}
+                        onDecrement={() => handleRandomBpmChange(Number(randomBpm) - 1)}
                       />
                     </div>
                     <div className="tw-mt-1 tw-text-xs tw-text-neutral-400">
@@ -1119,41 +1049,30 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                 )}
 
                 {/* Render Resolution / Scale as numeric value (0.1 .. 1.0) */}
-                <div className="tw-col-span-2 sm:tw-col-span-1">
+                <div className="tw-col-span-2">
                   <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Render Resolution</label>
-                  <div className="tw-flex tw-items-center tw-gap-2">
-                    <div className="tw-flex-1 tw-min-w-0">
-                      <ParamRow
-                        label="Render Resolution"
-                        value={Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1))}
-                        min={0.1}
-                        max={1}
-                        step={0.01}
-                        buttonsAfter
-                        showLabel={false}
-                        onChange={(value) => handleRenderScaleChange(Number(value))}
-                        onIncrement={() => {
-                          if (!selectedLayer) return;
-                          const cur = Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1));
-                          const next = Math.min(1, Math.round((cur + 0.01) * 100) / 100);
-                          handleRenderScaleChange(next);
-                        }}
-                        onDecrement={() => {
-                          if (!selectedLayer) return;
-                          const cur = Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1));
-                          const next = Math.max(0.1, Math.round((cur - 0.01) * 100) / 100);
-                          handleRenderScaleChange(next);
-                        }}
-                      />
-                    </div>
-                    <input
-                      type="number"
-                      step={0.01}
+                  <div className="tw-w-full tw-min-w-0">
+                    <ParamRow
+                      label="Render Resolution"
+                      value={Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1))}
                       min={0.1}
                       max={1}
-                      value={Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1)).toFixed(2)}
-                      onChange={(e) => handleRenderScaleChange(parseFloat(e.target.value))}
-                      className="tw-w-[72px] tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 focus:tw-ring-2 focus:tw-ring-purple-600"
+                      step={0.01}
+                      buttonsAfter
+                      showLabel={false}
+                      onChange={(value) => handleRenderScaleChange(Number(value))}
+                      onIncrement={() => {
+                        if (!selectedLayer) return;
+                        const cur = Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1));
+                        const next = Math.min(1, Math.round((cur + 0.01) * 100) / 100);
+                        handleRenderScaleChange(next);
+                      }}
+                      onDecrement={() => {
+                        if (!selectedLayer) return;
+                        const cur = Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1));
+                        const next = Math.max(0.1, Math.round((cur - 0.01) * 100) / 100);
+                        handleRenderScaleChange(next);
+                      }}
                     />
                   </div>
                 </div>
@@ -1168,6 +1087,26 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           <p className="tw-text-xs tw-text-neutral-400">
             {hasEffect ? (effectMetadata?.description || 'No description available.') : 'Video layer'}
           </p>
+        </div>
+
+        {/* Opacity (always at bottom) */}
+        <div className="tw-space-y-1">
+          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Opacity</h4>
+          <div className="tw-w-full tw-min-w-0">
+            <ParamRow
+              label="Opacity"
+              value={Number(layerOpacity)}
+              min={0}
+              max={1}
+              step={0.01}
+              buttonsAfter
+              showLabel={false}
+              onChange={(value) => handleOpacityChange(Number(value))}
+              onIncrement={() => handleOpacityChange(Number(layerOpacity) + 0.01)}
+              onDecrement={() => handleOpacityChange(Number(layerOpacity) - 0.01)}
+            />
+          </div>
+          <p className="tw-text-xs tw-text-neutral-500">Lower to see layers underneath</p>
         </div>
 
 

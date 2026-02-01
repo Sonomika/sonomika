@@ -1266,10 +1266,8 @@ const ColumnScene: React.FC<{
           if (kind === 'video') {
             const video = assets.videos.get(String(layer.asset?.id ?? ''));
             if (!video) {
-              finalize();
               continue;
             }
-            if (current.length > 0) finalize(); // enforce: video must be bottom-most in its stack
             current.push({ 
               type: 'video', 
               video, 
@@ -1362,15 +1360,13 @@ const ColumnScene: React.FC<{
           
           // Always render through EffectChain so sizing matches the FX pipeline.
           const chainVideo = chain.find((it: any) => it?.type === 'video') as Extract<ChainItem, { type: 'video' }> | undefined;
-          const baseItem: any = chainVideo || chain[0];
-          const chainOpacity = typeof baseItem?.opacity === 'number' ? baseItem.opacity : 1;
           elements.push(
             <EffectChain
               key={`chain-${column?.id || 'col'}-${rowHint}-${chainIndex}-${chainKey}`}
               items={chainWithGlobals}
               compositionWidth={compositionWidth}
               compositionHeight={compositionHeight}
-              opacity={chainOpacity}
+              opacity={1}
               baseAssetId={String((chainVideo as any)?.assetId || '')}
             />
           );

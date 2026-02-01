@@ -27,14 +27,18 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   baseAssetId
 }) => {
   const { gl, camera, invalidate } = useThree();
+  // Scratch RT used for stage output before mixing
   const mixRtRef = useRef<THREE.WebGLRenderTarget | null>(null);
+  // Output RT used when we need a mixed "currentTexture" without a stage RT (e.g. video overlay)
+  const mixOutRtRef = useRef<THREE.WebGLRenderTarget | null>(null);
   const mixSceneRef = useRef<THREE.Scene | null>(null);
   const mixMeshRef = useRef<THREE.Mesh | null>(null);
   const transparentTexRef = useRef<THREE.DataTexture | null>(null);
   const lastMixSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
-  const [videoTexture, setVideoTexture] = useState<THREE.VideoTexture | null>(null);
-  const videoRtRef = useRef<THREE.WebGLRenderTarget | null>(null);
+  // Cache per-video textures/RTs so we can stack multiple videos in one chain
+  const videoTexMapRef = useRef<Map<HTMLVideoElement, THREE.VideoTexture>>(new Map());
+  const videoRtMapRef = useRef<Map<string, THREE.WebGLRenderTarget>>(new Map());
   const videoSceneRef = useRef<THREE.Scene | null>(null);
   const videoMeshRef = useRef<THREE.Mesh | null>(null);
   const [seedTexture, setSeedTexture] = useState<THREE.CanvasTexture | null>(null);
@@ -74,13 +78,11 @@ export const EffectChain: React.FC<EffectChainProps> = ({
 
   // Determine effective render scale for video only (fallback 1)
   const defaultVideoRenderScale = (useStore as any).getState?.()?.defaultVideoRenderScale ?? 1;
-  const effectiveScale = React.useMemo(() => {
-    const firstVideo = items.find((it) => it.type === 'video') as Extract<ChainItem, { type: 'video' }> | undefined;
-    const raw = (firstVideo as any)?.renderScale;
+  const effectiveScaleFor = (it: any) => {
+    const raw = it?.renderScale;
     const n = raw != null ? (typeof raw === 'number' ? raw : parseFloat(String(raw))) : defaultVideoRenderScale;
-    const clamped = Number.isFinite(n) ? Math.max(0.1, Math.min(1, n)) : defaultVideoRenderScale;
-    return clamped;
-  }, [items, defaultVideoRenderScale]);
+    return Number.isFinite(n) ? Math.max(0.1, Math.min(1, n)) : defaultVideoRenderScale;
+  };
 
   const ensureRTs = () => {
     // Offscreen RTs for sources/effects remain full composition resolution
@@ -210,7 +212,6 @@ export const EffectChain: React.FC<EffectChainProps> = ({
     const firstVideo = items.find((it) => it.type === 'video') as Extract<ChainItem, { type: 'video' }> | undefined;
     return firstVideo || null;
   }, [items]);
-  const baseVideoEl = firstVideoItem?.video || null;
   const baseVideoAssetId = (firstVideoItem?.assetId as any) || baseAssetId || null;
   const baseVideoFit: 'cover' | 'contain' | 'stretch' | 'none' | 'tile' | undefined = (firstVideoItem as any)?.fitMode;
 
@@ -249,9 +250,25 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   }, [baseVideoAssetId]);
 
   React.useEffect(() => {
-    if (!baseVideoEl) return;
-    const video = baseVideoEl;
+    return () => {
+      // Dispose cached video textures + RTs
+      try {
+        videoTexMapRef.current.forEach((t) => { try { t.dispose(); } catch {} });
+        videoTexMapRef.current.clear();
+      } catch {}
+      try {
+        videoRtMapRef.current.forEach((rt) => { try { rt.dispose(); } catch {} });
+        videoRtMapRef.current.clear();
+      } catch {}
+      try { mixRtRef.current?.dispose(); } catch {}
+      try { mixOutRtRef.current?.dispose(); } catch {}
+      try { transparentTexRef.current?.dispose(); } catch {}
+    };
+  }, []);
 
+  const getVideoTextureFor = (video: HTMLVideoElement) => {
+    const existing = videoTexMapRef.current.get(video);
+    if (existing) return existing;
     const tex = new THREE.VideoTexture(video);
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
@@ -263,20 +280,9 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         (tex as any).encoding = (THREE as any).sRGBEncoding;
       }
     } catch {}
-    try {
-      (tex as any).colorSpace = (THREE as any).SRGBColorSpace || (tex as any).colorSpace;
-      if (!(tex as any).colorSpace && (THREE as any).sRGBEncoding) {
-        (tex as any).encoding = (THREE as any).sRGBEncoding;
-      }
-    } catch {}
-    setVideoTexture((prev) => {
-      if (prev) try { prev.dispose(); } catch {}
-      return tex;
-    });
-    return () => {
-      tex.dispose();
-    };
-  }, [baseVideoEl]);
+    videoTexMapRef.current.set(video, tex);
+    return tex;
+  };
 
   // When composition dimensions change, update the video plane geometry to match new aspect
   React.useEffect(() => {
@@ -327,6 +333,17 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           stencilBuffer: false,
         });
         lastMixSizeRef.current = { w, h };
+      }
+      if (!mixOutRtRef.current || mixOutRtRef.current.width !== w || mixOutRtRef.current.height !== h) {
+        mixOutRtRef.current?.dispose();
+        mixOutRtRef.current = new THREE.WebGLRenderTarget(w, h, {
+          format: THREE.RGBAFormat,
+          type: THREE.UnsignedByteType,
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter,
+          depthBuffer: false,
+          stencilBuffer: false,
+        });
       }
       if (!transparentTexRef.current) {
         const data = new Uint8Array([0, 0, 0, 0]);
@@ -389,8 +406,9 @@ export const EffectChain: React.FC<EffectChainProps> = ({
     // Step 1: find base as we go bottom->top within this chain
     items.forEach((item, idx) => {
       if (item.type === 'video') {
-        if (videoTexture) {
-          videoTexture.needsUpdate = true;
+        const prevTexture = currentTexture;
+        const videoTexture = getVideoTextureFor(item.video);
+        videoTexture.needsUpdate = true;
           // lazily create scene/mesh/rt for scaling modes
           if (!videoSceneRef.current) {
             const s = new THREE.Scene();
@@ -407,15 +425,20 @@ export const EffectChain: React.FC<EffectChainProps> = ({
             const mat = m.material as THREE.MeshBasicMaterial;
             if (mat.map !== videoTexture) { mat.map = videoTexture; mat.needsUpdate = true; }
           }
-          // ensure RT size with device pixel ratio for crisp rendering
+          // ensure RT size with device pixel ratio for crisp rendering (per-video scale)
           const dpr = Math.min(window.devicePixelRatio || 1, 2);
-          const w = Math.max(2, Math.floor(compositionWidth * effectiveScale * dpr));
-          const h = Math.max(2, Math.floor(compositionHeight * effectiveScale * dpr));
-          if (!videoRtRef.current || videoRtRef.current.width !== w || videoRtRef.current.height !== h) {
-            videoRtRef.current?.dispose();
-            videoRtRef.current = new THREE.WebGLRenderTarget(w, h, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false });
+          const scale = effectiveScaleFor(item);
+          const w = Math.max(2, Math.floor(compositionWidth * scale * dpr));
+          const h = Math.max(2, Math.floor(compositionHeight * scale * dpr));
+          const key = String((item as any).assetId || idx);
+          const existingRt = videoRtMapRef.current.get(key);
+          let videoRt = existingRt;
+          if (!videoRt || videoRt.width !== w || videoRt.height !== h) {
+            try { videoRt?.dispose(); } catch {}
+            videoRt = new THREE.WebGLRenderTarget(w, h, { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false });
+            videoRtMapRef.current.set(key, videoRt);
             // Seed video RT with previous final texture
-            seedRenderTarget(gl, videoRtRef.current, (finalTextureRef as any)?.current || null, camera);
+            seedRenderTarget(gl, videoRt, (finalTextureRef as any)?.current || null, camera);
           }
           // apply fit mode scaling on mesh
           const m = videoMeshRef.current as THREE.Mesh;
@@ -572,14 +595,52 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
           // Do not clear color; preserve prior contents to avoid flashes
           gl.setClearColor(0x000000, 0);
-          gl.setRenderTarget(videoRtRef.current!);
+          gl.setRenderTarget(videoRt!);
           // Clear depth/stencil each frame so seeded depth values do not block new draws
           gl.clear(false, true, true);
           gl.render(videoSceneRef.current!, camera);
           gl.setRenderTarget(currentRT);
           gl.setClearColor(prevClear, prevAlpha);
-          currentTexture = videoRtRef.current!.texture;
-        }
+          const videoOut = videoRt!.texture;
+
+          // If there's already content below, composite this video over it using opacity
+          const stageOpacityRaw = (item as any).opacity;
+          const stageOpacity = Number.isFinite(Number(stageOpacityRaw)) ? Math.max(0, Math.min(1, Number(stageOpacityRaw))) : 1;
+          if (prevTexture && stageOpacity < 0.999 && mixSceneRef.current && mixMeshRef.current && mixOutRtRef.current) {
+            const mat = mixMeshRef.current.material as THREE.ShaderMaterial;
+            mat.uniforms.tBase.value = prevTexture;
+            mat.uniforms.tTop.value = videoOut;
+            mat.uniforms.uOpacity.value = stageOpacity;
+            const currentRT2 = gl.getRenderTarget();
+            const prevClear2 = new THREE.Color();
+            gl.getClearColor(prevClear2);
+            const prevAlpha2 = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+            gl.setClearColor(0x000000, 0);
+            gl.setRenderTarget(mixOutRtRef.current);
+            gl.clear(true, true, true);
+            gl.render(mixSceneRef.current, camera);
+            gl.setRenderTarget(currentRT2);
+            gl.setClearColor(prevClear2, prevAlpha2);
+            currentTexture = mixOutRtRef.current.texture;
+          } else if (!prevTexture && stageOpacity < 0.999 && mixSceneRef.current && mixMeshRef.current && mixOutRtRef.current) {
+            const mat = mixMeshRef.current.material as THREE.ShaderMaterial;
+            mat.uniforms.tBase.value = transparentTexRef.current;
+            mat.uniforms.tTop.value = videoOut;
+            mat.uniforms.uOpacity.value = stageOpacity;
+            const currentRT2 = gl.getRenderTarget();
+            const prevClear2 = new THREE.Color();
+            gl.getClearColor(prevClear2);
+            const prevAlpha2 = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+            gl.setClearColor(0x000000, 0);
+            gl.setRenderTarget(mixOutRtRef.current);
+            gl.clear(true, true, true);
+            gl.render(mixSceneRef.current, camera);
+            gl.setRenderTarget(currentRT2);
+            gl.setClearColor(prevClear2, prevAlpha2);
+            currentTexture = mixOutRtRef.current.texture;
+          } else {
+            currentTexture = videoOut;
+          }
         nextInputTextures[idx] = currentTexture;
       } else if (item.type === 'source') {
         const rt = rtRefs.current[idx]!;
