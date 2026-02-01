@@ -1,4 +1,5 @@
 import { useStore } from '../store/store';
+import { trackFeature } from './analytics';
 
 type ElectronSpoutApi = {
   startSpout?: (senderName?: string) => Promise<{ success: boolean; error?: string }>;
@@ -29,6 +30,7 @@ export class SpoutStreamManager {
       if (this.running) return { success: true };
       const electronAny: ElectronSpoutApi | undefined = (window as any)?.electron;
       if (!electronAny?.startSpout || !electronAny?.sendSpoutFrame) {
+        trackFeature('spout_start', { ok: false, reason: 'no_api' });
         return { success: false, error: 'Spout API not available (Electron only).' };
       }
 
@@ -39,19 +41,24 @@ export class SpoutStreamManager {
       }
 
       const res = await electronAny.startSpout(SPOUT_SENDER_NAME);
-      if (!res?.success) return { success: false, error: res?.error || 'Failed to start Spout.' };
+      if (!res?.success) {
+        trackFeature('spout_start', { ok: false, reason: 'start_failed' });
+        return { success: false, error: res?.error || 'Failed to start Spout.' };
+      }
 
       this.running = true;
       this.lastAt = 0;
       this.lastDataUrl = '';
       this.ensureTempCanvas();
       this.loop();
+      trackFeature('spout_start', { ok: true, sender: SPOUT_SENDER_NAME });
       return { success: true };
     }));
   }
 
   async stop(): Promise<void> {
     this.op = this.op.then(async () => {
+      const wasRunning = this.running;
       this.running = false;
       if (this.animationId != null) {
         try { cancelAnimationFrame(this.animationId); } catch {}
@@ -64,6 +71,7 @@ export class SpoutStreamManager {
         const electronAny: ElectronSpoutApi | undefined = (window as any)?.electron;
         await electronAny?.stopSpout?.();
       } catch {}
+      if (wasRunning) trackFeature('spout_stop', { ok: true });
     });
     await this.op;
   }

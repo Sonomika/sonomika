@@ -1,6 +1,1231 @@
-"use strict";const p=require("fs"),l=require("path"),De=require("os"),_e=require("crypto"),o=require("electron");var he={},$={exports:{}};const xe="17.2.3",Ce={version:xe};var ge;function Ie(){if(ge)return $.exports;ge=1;const s=p,r=l,n=De,t=_e,i=Ce.version,d=["🔐 encrypt with Dotenvx: https://dotenvx.com","🔐 prevent committing .env to code: https://dotenvx.com/precommit","🔐 prevent building .env in docker: https://dotenvx.com/prebuild","📡 add observability to secrets: https://dotenvx.com/ops","👥 sync secrets across teammates & machines: https://dotenvx.com/ops","🗂️ backup and recover secrets: https://dotenvx.com/ops","✅ audit secrets and track compliance: https://dotenvx.com/ops","🔄 add secrets lifecycle management: https://dotenvx.com/ops","🔑 add access controls to secrets: https://dotenvx.com/ops","🛠️  run anywhere with `dotenvx run -- yourcommand`","⚙️  specify custom .env file path with { path: '/custom/path/.env' }","⚙️  enable debug logging with { debug: true }","⚙️  override existing env vars with { override: true }","⚙️  suppress all logs with { quiet: true }","⚙️  write to custom object with { processEnv: myObject }","⚙️  load multiple .env files with { path: ['.env.local', '.env'] }"];function f(){return d[Math.floor(Math.random()*d.length)]}function m(a){return typeof a=="string"?!["false","0","no","off",""].includes(a.toLowerCase()):!!a}function w(){return process.stdout.isTTY}function O(a){return w()?`\x1B[2m${a}\x1B[0m`:a}const _=/(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;function N(a){const y={};let b=a.toString();b=b.replace(/\r\n?/mg,`
-`);let v;for(;(v=_.exec(b))!=null;){const D=v[1];let E=v[2]||"";E=E.trim();const g=E[0];E=E.replace(/^(['"`])([\s\S]*)\1$/mg,"$2"),g==='"'&&(E=E.replace(/\\n/g,`
-`),E=E.replace(/\\r/g,"\r")),y[D]=E}return y}function V(a){a=a||{};const y=S(a);a.path=y;const b=I.configDotenv(a);if(!b.parsed){const g=new Error(`MISSING_DATA: Cannot parse ${y} for an unknown reason`);throw g.code="MISSING_DATA",g}const v=G(a).split(","),D=v.length;let E;for(let g=0;g<D;g++)try{const x=v[g].trim(),T=h(b,x);E=I.decrypt(T.ciphertext,T.key);break}catch(x){if(g+1>=D)throw x}return I.parse(E)}function C(a){console.error(`[dotenv@${i}][WARN] ${a}`)}function M(a){console.log(`[dotenv@${i}][DEBUG] ${a}`)}function L(a){console.log(`[dotenv@${i}] ${a}`)}function G(a){return a&&a.DOTENV_KEY&&a.DOTENV_KEY.length>0?a.DOTENV_KEY:process.env.DOTENV_KEY&&process.env.DOTENV_KEY.length>0?process.env.DOTENV_KEY:""}function h(a,y){let b;try{b=new URL(y)}catch(x){if(x.code==="ERR_INVALID_URL"){const T=new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");throw T.code="INVALID_DOTENV_KEY",T}throw x}const v=b.password;if(!v){const x=new Error("INVALID_DOTENV_KEY: Missing key part");throw x.code="INVALID_DOTENV_KEY",x}const D=b.searchParams.get("environment");if(!D){const x=new Error("INVALID_DOTENV_KEY: Missing environment part");throw x.code="INVALID_DOTENV_KEY",x}const E=`DOTENV_VAULT_${D.toUpperCase()}`,g=a.parsed[E];if(!g){const x=new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${E} in your .env.vault file.`);throw x.code="NOT_FOUND_DOTENV_ENVIRONMENT",x}return{ciphertext:g,key:v}}function S(a){let y=null;if(a&&a.path&&a.path.length>0)if(Array.isArray(a.path))for(const b of a.path)s.existsSync(b)&&(y=b.endsWith(".vault")?b:`${b}.vault`);else y=a.path.endsWith(".vault")?a.path:`${a.path}.vault`;else y=r.resolve(process.cwd(),".env.vault");return s.existsSync(y)?y:null}function k(a){return a[0]==="~"?r.join(n.homedir(),a.slice(1)):a}function R(a){const y=m(process.env.DOTENV_CONFIG_DEBUG||a&&a.debug),b=m(process.env.DOTENV_CONFIG_QUIET||a&&a.quiet);(y||!b)&&L("Loading env from encrypted .env.vault");const v=I._parseVault(a);let D=process.env;return a&&a.processEnv!=null&&(D=a.processEnv),I.populate(D,v,a),{parsed:v}}function F(a){const y=r.resolve(process.cwd(),".env");let b="utf8",v=process.env;a&&a.processEnv!=null&&(v=a.processEnv);let D=m(v.DOTENV_CONFIG_DEBUG||a&&a.debug),E=m(v.DOTENV_CONFIG_QUIET||a&&a.quiet);a&&a.encoding?b=a.encoding:D&&M("No encoding is specified. UTF-8 is used by default");let g=[y];if(a&&a.path)if(!Array.isArray(a.path))g=[k(a.path)];else{g=[];for(const j of a.path)g.push(k(j))}let x;const T={};for(const j of g)try{const U=I.parse(s.readFileSync(j,{encoding:b}));I.populate(T,U,a)}catch(U){D&&M(`Failed to load ${j} ${U.message}`),x=U}const ae=I.populate(v,T,a);if(D=m(v.DOTENV_CONFIG_DEBUG||D),E=m(v.DOTENV_CONFIG_QUIET||E),D||!E){const j=Object.keys(ae).length,U=[];for(const fe of g)try{const ee=r.relative(process.cwd(),fe);U.push(ee)}catch(ee){D&&M(`Failed to load ${fe} ${ee.message}`),x=ee}L(`injecting env (${j}) from ${U.join(",")} ${O(`-- tip: ${f()}`)}`)}return x?{parsed:T,error:x}:{parsed:T}}function z(a){if(G(a).length===0)return I.configDotenv(a);const y=S(a);return y?I._configVault(a):(C(`You set DOTENV_KEY but you are missing a .env.vault file at ${y}. Did you forget to build it?`),I.configDotenv(a))}function H(a,y){const b=Buffer.from(y.slice(-64),"hex");let v=Buffer.from(a,"base64");const D=v.subarray(0,12),E=v.subarray(-16);v=v.subarray(12,-16);try{const g=t.createDecipheriv("aes-256-gcm",b,D);return g.setAuthTag(E),`${g.update(v)}${g.final()}`}catch(g){const x=g instanceof RangeError,T=g.message==="Invalid key length",ae=g.message==="Unsupported state or unable to authenticate data";if(x||T){const j=new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");throw j.code="INVALID_DOTENV_KEY",j}else if(ae){const j=new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");throw j.code="DECRYPTION_FAILED",j}else throw g}}function ie(a,y,b={}){const v=!!(b&&b.debug),D=!!(b&&b.override),E={};if(typeof y!="object"){const g=new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");throw g.code="OBJECT_REQUIRED",g}for(const g of Object.keys(y))Object.prototype.hasOwnProperty.call(a,g)?(D===!0&&(a[g]=y[g],E[g]=y[g]),v&&M(D===!0?`"${g}" is already defined and WAS overwritten`:`"${g}" is already defined and was NOT overwritten`)):(a[g]=y[g],E[g]=y[g]);return E}const I={configDotenv:F,_configVault:R,_parseVault:V,config:z,decrypt:H,parse:N,populate:ie};return $.exports.configDotenv=I.configDotenv,$.exports._configVault=I._configVault,$.exports._parseVault=I._parseVault,$.exports.config=I.config,$.exports.decrypt=I.decrypt,$.exports.parse=I.parse,$.exports.populate=I.populate,$.exports=I,$.exports}var ce,me;function Oe(){if(me)return ce;me=1;const s={};return process.env.DOTENV_CONFIG_ENCODING!=null&&(s.encoding=process.env.DOTENV_CONFIG_ENCODING),process.env.DOTENV_CONFIG_PATH!=null&&(s.path=process.env.DOTENV_CONFIG_PATH),process.env.DOTENV_CONFIG_QUIET!=null&&(s.quiet=process.env.DOTENV_CONFIG_QUIET),process.env.DOTENV_CONFIG_DEBUG!=null&&(s.debug=process.env.DOTENV_CONFIG_DEBUG),process.env.DOTENV_CONFIG_OVERRIDE!=null&&(s.override=process.env.DOTENV_CONFIG_OVERRIDE),process.env.DOTENV_CONFIG_DOTENV_KEY!=null&&(s.DOTENV_KEY=process.env.DOTENV_CONFIG_DOTENV_KEY),ce=s,ce}var le,ye;function Me(){if(ye)return le;ye=1;const s=/^dotenv_config_(encoding|path|quiet|debug|override|DOTENV_KEY)=(.+)$/;return le=function(n){const t=n.reduce(function(e,i){const d=i.match(s);return d&&(e[d[1]]=d[2]),e},{});return"quiet"in t||(t.quiet="true"),t},le}var we;function Ne(){return we||(we=1,(function(){Ie().config(Object.assign({},Oe(),Me()(process.argv)))})()),he}Ne();const J=class J{constructor(){this.sender=null,this.senderName=null,this.lastFrameAtMs=0}start(r){if(process.platform!=="win32")return{ok:!1,error:"Spout output is only supported on Windows."};const n=J.DEFAULT_SENDER_NAME;if(this.sender&&this.senderName===n)return{ok:!0};this.sender&&this.stop();const t=this.tryLoadAddon();if(!t)return{ok:!1,error:"Spout addon not found. Build/copy `electron_spout.node` and ensure it is unpacked (not inside asar)."};try{return this.sender=new t.SpoutOutput(n),this.senderName=n,this.lastFrameAtMs=0,{ok:!0}}catch(e){return this.sender=null,this.senderName=null,{ok:!1,error:`Failed to create Spout sender: ${String(e)}`}}}stop(){try{const r=this.sender;r&&typeof r.close=="function"&&r.close(),r&&typeof r.release=="function"&&r.release(),r&&typeof r.dispose=="function"&&r.dispose()}catch{}this.sender=null,this.senderName=null}isRunning(){return!!this.sender}pushDataUrlFrame(r,n){const t=this.sender;if(!t)return;const e=J.DEFAULT_MAX_FPS,i=Date.now(),d=1e3/e;if(!(i-this.lastFrameAtMs<d))try{const f=o.nativeImage.createFromDataURL(String(r||""));if(f.isEmpty())return;t.updateFrame(Buffer.from(f.toBitmap()),f.getSize()),this.lastFrameAtMs=i}catch{}}tryLoadAddon(){const r=[()=>require("electron_spout.node"),()=>require("electron-spout.node"),()=>require(l.join(process.cwd(),"electron_spout.node")),()=>require(l.join(process.cwd(),"electron-spout.node")),()=>require(l.join(process.cwd(),"native","electron_spout.node")),()=>require(l.join(process.cwd(),"native","electron-spout.node")),()=>require(l.join(process.resourcesPath||"","electron_spout.node")),()=>require(l.join(process.resourcesPath||"","electron-spout.node")),()=>require(l.join(process.resourcesPath||"","app.asar.unpacked","electron_spout.node")),()=>require(l.join(process.resourcesPath||"","app.asar.unpacked","electron-spout.node")),()=>require(l.join(process.resourcesPath||"","app.asar.unpacked","native","electron_spout.node")),()=>require(l.join(process.resourcesPath||"","app.asar.unpacked","native","electron-spout.node"))];for(const n of r)try{const t=n();if(t&&t.SpoutOutput)return t}catch{}return null}};J.DEFAULT_SENDER_NAME="Sonomika Output",J.DEFAULT_MAX_FPS=60;let ue=J;function Se(s){try{if(!p.existsSync(s))return null;const r=p.readFileSync(s,"utf8");return JSON.parse(r)}catch{return null}}function Ee(s,r){try{const n=l.dirname(s);p.existsSync(n)||p.mkdirSync(n,{recursive:!0}),p.writeFileSync(s,JSON.stringify(r),"utf8")}catch{}}function Ae(){return l.join(o.app.getPath("userData"),"ga4_client_id.json")}function Pe(){return l.join(o.app.getPath("userData"),"ga4_session.json")}function Fe(){const s=Ae(),r=Se(s);if(r&&typeof r.client_id=="string"&&r.client_id.length>0&&typeof r.created_at_ms=="number")return{state:r,isNew:!1};const n={client_id:_e.randomUUID(),created_at_ms:Date.now()};return Ee(s,n),{state:n,isNew:!0}}function Te(){const s=Pe(),r=Se(s),n=r&&typeof r.ga_session_number=="number"&&isFinite(r.ga_session_number)?r.ga_session_number:0,t={ga_session_number:Math.max(0,Math.floor(n))+1};return Ee(s,t),{ga_session_id:Math.floor(Date.now()/1e3),ga_session_number:t.ga_session_number}}function je(s,r){return s.length<=r?s:s.slice(0,Math.max(0,r-1))+"…"}function Ve(s){const r=String(s.measurementId).trim(),n=String(s.apiSecret||"").trim(),t=String(s.appName).trim(),e=!!s.enableInDev,i=String(process.env.GA4_DISABLED||"").toLowerCase()==="true"||String(process.env.GA4_DISABLED||"").toLowerCase()==="1",d=o.app.isPackaged||e,f=!i&&d&&r&&n,m=String(process.env.GA4_DEBUG||"").toLowerCase()==="true"||String(process.env.GA4_DEBUG||"").toLowerCase()==="1",{state:w,isNew:O}=Fe(),_=Te();function N(h){return{ga_session_id:_.ga_session_id,ga_session_number:_.ga_session_number,engagement_time_msec:1,app_name:t,app_version:o.app.getVersion?.()||void 0,platform:process.platform,arch:process.arch,packaged:o.app.isPackaged,...h}}async function V(h,S){if(!f)return;const k=String(h||"").trim();if(!k)return;const F=`${m?"https://www.google-analytics.com/debug/mp/collect":"https://www.google-analytics.com/mp/collect"}?measurement_id=${encodeURIComponent(r)}&api_secret=${encodeURIComponent(n)}`,z={client_id:w.client_id,user_properties:{app_name:{value:t},app_version:{value:o.app.getVersion?.()||"unknown"},platform:{value:process.platform},arch:{value:process.arch},packaged:{value:o.app.isPackaged?"1":"0"}},events:[{name:k,params:N(S)}]};try{const H=await fetch(F,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(z)});try{m&&await H.text()}catch{}}catch{}}function C(h,S){V(h,S)}function M(){f&&O&&C("first_open",{first_open_ms:w.created_at_ms})}function L(){f&&(C("session_start",{ts_ms:Date.now()}),C("app_open",{ts_ms:Date.now()}))}function G(h){f&&C("app_error",{error_type:je(String(h||"unknown"),80),fatal:!0,ts_ms:Date.now()})}return{enabled:f,clientId:w.client_id,sessionId:_.ga_session_id,sessionNumber:_.ga_session_number,track:C,trackFirstOpenOnce:M,trackAppOpen:L,trackAppError:G}}const Re=process.env.VJ_DEBUG_LOGS!=="true",ze=console.log,$e=console.warn;if(Re){const s=()=>{};console.log=(...r)=>{const n=r.join(" ");(n.includes("ICON")||n.includes("APP PATHS")||n.includes("RESOLVED")||n.includes("NO ICON")||n.includes("process.cwd")||n.includes("__dirname")||n.includes("Checking icon")||n.includes("✓")||n.includes("✗")||n.includes("Creating window")||n.includes("Icon loaded")||n.includes("user model")||n.includes("taskbar"))&&ze(...r)},console.warn=(...r)=>{const n=r.join(" ");(n.includes("ICON")||n.includes("APP PATHS"))&&$e(...r)},console.info=s}process.env.ELECTRON_DISABLE_SECURITY_WARNINGS="true";const Be=o.app.requestSingleInstanceLock();Be?o.app.on("second-instance",()=>{try{P?.track("second_instance",{ts_ms:Date.now()})}catch{}const s=o.BrowserWindow.getAllWindows();s.length>0&&(s[0].isMinimized()&&s[0].restore(),s[0].focus())}):(console.log("Another instance is already running, quitting..."),o.app.quit());let c=null,u=null,Q=null,Z=null,X=null,q=null;const B=new Map;let A={};const Y=new ue,be="Sonomika Output",Le=60;let P=null,te=null,ne=Date.now(),W=null,re=0,de=Date.now();function pe(s){if(W!=null){const r=Math.max(0,s-W);return re+=r,W=s,r}return 0}function se(){console.log("=== ICON RESOLUTION DEBUG ==="),console.log("process.cwd():",process.cwd()),console.log("__dirname:",__dirname),console.log("process.resourcesPath:",process.resourcesPath),console.log("app.getAppPath():",o.app.getAppPath()),console.log("app.getPath(exe):",o.app.getPath("exe"));const s=[...process.platform==="win32"?[l.join(process.resourcesPath||"","icons","icon.ico"),l.join(__dirname,"../icons/icon.ico"),l.join(__dirname,"../../public/icons/icon.ico"),l.join(__dirname,"../public/icons/icon.ico"),l.join(process.cwd(),"public","icons","icon.ico"),l.join(process.resourcesPath||"","icons","sonomika_icon_2.ico"),l.join(__dirname,"../icons/sonomika_icon_2.ico")]:[],l.join(process.resourcesPath||"","icons","icon.png"),l.join(__dirname,"../icons/icon.png"),l.join(__dirname,"../../public/icons/icon.png"),l.join(__dirname,"../public/icons/icon.png"),l.join(process.cwd(),"public","icons","icon.png"),l.join(process.resourcesPath||"","icons","sonomika_icon_2.png"),l.join(__dirname,"../icons/sonomika_icon_2.png")];console.log("Checking icon candidates:");for(const r of s){const n=p.existsSync(r);if(console.log(`  ${n?"✓":"✗"} ${r}`),n){try{const t=p.statSync(r);console.log(`    Size: ${t.size} bytes, Modified: ${t.mtime}`)}catch{console.log("    (Could not stat file)")}return console.log("=== RESOLVED ICON PATH ==="),r}}console.log("=== NO ICON FOUND ===")}function ke(){const s=o.app.getPath("userData");return l.join(s,"auth_store.json")}function Ue(){try{const s=ke();if(p.existsSync(s)){const r=p.readFileSync(s,"utf8"),n=JSON.parse(r);A=Object.fromEntries(Object.entries(n).map(([t,e])=>[t,Buffer.from(e,"base64")]))}}catch(s){console.warn("Failed to load encrypted auth store, starting empty:",s),A={}}}function K(){try{const s=ke(),r=l.dirname(s);p.existsSync(r)||p.mkdirSync(r,{recursive:!0});const n=Object.fromEntries(Object.entries(A).map(([t,e])=>[t,e.toString("base64")]));p.writeFileSync(s,JSON.stringify(n),"utf8")}catch(s){console.warn("Failed to persist encrypted auth store:",s)}}function qe(){try{const s=o.app.getPath("documents"),r=l.join(s,"Sonomika");p.existsSync(r)||(p.mkdirSync(r,{recursive:!0}),console.log("Created Sonomika folder in Documents:",r));const n=["bank","music","recordings","video","ai-templates"];for(const h of n){const S=l.join(r,h);p.existsSync(S)||(p.mkdirSync(S,{recursive:!0}),console.log("Created folder:",S))}const t=[l.join(process.resourcesPath||"","app.asar.unpacked","bank"),l.join(__dirname,"../bank"),l.join(process.cwd(),"bank")],e=l.join(r,"bank");let i=!1;for(const h of t)if(p.existsSync(h)&&!i)try{oe(h,e),console.log("Copied bank folder from",h,"to",e),i=!0}catch(S){console.warn("Failed to copy bank folder from",h,":",S)}const d=[l.join(process.resourcesPath||"","user-documents","sets"),l.join(process.resourcesPath||"","app.asar.unpacked","user-documents","sets"),l.join(__dirname,"../user-documents","sets"),l.join(process.cwd(),"user-documents","sets"),l.join(process.resourcesPath||"","app.asar.unpacked","sets"),l.join(__dirname,"../sets"),l.join(process.cwd(),"sets")],f=l.join(r,"sets");let m=!1;console.log("Looking for sets folder in source paths..."),console.log("process.resourcesPath:",process.resourcesPath);for(const h of d){const S=p.existsSync(h);if(console.log("  Checking:",h,S?"✓ EXISTS":"✗ NOT FOUND"),S)try{const k=p.existsSync(f)?p.readdirSync(f).length:0;oe(h,f);const R=p.existsSync(f)?p.readdirSync(f).length:0;console.log(`Copied sets folder from ${h} to ${f} (${R-k} files)`),m=!0;break}catch(k){console.warn("Failed to copy sets folder from",h,":",k)}}m||console.warn("⚠️ Sets folder was not copied. Checked paths:",d);const w=[l.join(process.resourcesPath||"","user-documents"),l.join(process.resourcesPath||"","app.asar.unpacked","user-documents"),l.join(__dirname,"../user-documents"),l.join(process.cwd(),"user-documents")];console.log("Looking for user-documents folder in source paths...");let O=!1;for(const h of w){const S=p.existsSync(h);if(console.log("  Checking:",h,S?"✓ EXISTS":"✗ NOT FOUND"),S)try{const k=["midi mapping","music","recordings","video"];for(const R of k){const F=l.join(h,R),z=l.join(r,R);if(p.existsSync(F)){const H=p.existsSync(z)?p.readdirSync(z).length:0;oe(F,z);const ie=p.existsSync(z)?p.readdirSync(z).length:0;console.log(`Copied ${R} folder from ${F} to ${z} (${ie-H} files)`)}else console.log(`  Source ${R} folder does not exist:`,F)}O=!0;break}catch(k){console.warn("Failed to copy user-documents folders from",h,":",k)}}O||console.warn("⚠️ user-documents folders were not copied. Checked paths:",w);const _=l.join(r,"ai-templates");p.existsSync(_)||p.mkdirSync(_,{recursive:!0});const N=o.app.getAppPath(),V=[l.join(process.resourcesPath||"","src","ai-templates"),l.join(process.resourcesPath||"","app.asar.unpacked","src","ai-templates"),l.join(__dirname,"../src/ai-templates"),l.join(__dirname,"../../src/ai-templates"),l.join(N,"src/ai-templates"),l.join(process.cwd(),"src/ai-templates")];let C=0;const L=(p.existsSync(_)?p.readdirSync(_).filter(h=>h.endsWith(".js")):[]).length===0;L&&console.log("AI templates folder is empty, will copy template files...");for(const h of V)if(p.existsSync(h))try{console.log("Checking AI templates source path:",h);const S=p.readdirSync(h,{withFileTypes:!0});console.log(`Found ${S.length} entries in ${h}`);for(const k of S)if(k.isFile()&&k.name.endsWith(".js")){const R=l.join(h,k.name),F=l.join(_,k.name);!p.existsSync(F)||L?(p.copyFileSync(R,F),console.log("Copied AI template file:",k.name,"to",F),C++):console.log("Skipped AI template file (already exists):",k.name)}if(C>0){console.log(`Successfully copied ${C} AI template file(s) from ${h}`);break}}catch(S){console.warn("Failed to copy AI templates from",h,":",S)}else console.log("AI templates source path does not exist:",h);C===0&&(console.warn("⚠️ No AI template files were copied. Checked paths:",V),console.warn("   This might indicate the template files are not included in the build."));const G=["midi mapping","sets"];for(const h of G){const S=l.join(r,h);if(p.existsSync(S)){const k=p.readdirSync(S);k.length===0?console.warn(`⚠️ ${h} folder exists but is empty. Files may not have been copied from installer.`):console.log(`✓ ${h} folder has ${k.length} file(s)`)}else console.warn(`⚠️ ${h} folder was not created. Files may not have been found in installer.`)}}catch(s){console.error("Failed to initialize user Documents folders:",s)}}function oe(s,r){p.existsSync(r)||p.mkdirSync(r,{recursive:!0});const n=p.readdirSync(s,{withFileTypes:!0});for(const t of n){const e=l.join(s,t.name),i=l.join(r,t.name);t.isDirectory()?oe(e,i):p.existsSync(i)||p.copyFileSync(e,i)}}function ve(){const s=se();console.log("Creating window with icon path:",s);let r;if(s)try{r=o.nativeImage.createFromPath(s),r&&!r.isEmpty()?console.log("Icon loaded successfully, size:",r.getSize()):console.warn("Icon file found but failed to load or is empty")}catch(e){console.error("Error loading icon:",e)}c=new o.BrowserWindow({width:1200,height:800,frame:!1,titleBarStyle:"hidden",icon:r,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:l.join(__dirname,"preload.js"),backgroundThrottling:!1},show:!1});try{c.on("focus",()=>{const e=Date.now();W=e,P?.track("app_focus",{ts_ms:e})}),c.on("blur",()=>{const e=Date.now(),i=pe(e);W=null,P?.track("app_blur",{ts_ms:e,active_delta_ms:i,active_total_ms:re})})}catch{}const n=l.join(__dirname,"preload.js");if(console.log("Preload script path:",n),console.log("Preload script exists:",require("fs").existsSync(n)),require("fs").existsSync(n)){const e=require("fs").readFileSync(n,"utf8");console.log("Preload script first 200 chars:",e.substring(0,200))}c.webContents.session.webRequest.onHeadersReceived((e,i)=>{console.log("Setting CSP headers for URL:",e.url);const d={...e.responseHeaders,"Content-Security-Policy":[]};console.log("CSP headers disabled for development"),i({responseHeaders:d})}),c.once("ready-to-show",()=>{if(c.show(),c.webContents.setBackgroundThrottling(!1),process.platform==="win32"&&r)try{c.setIcon(r),console.log("Forced icon update on window after show")}catch(e){console.error("Error forcing icon update:",e)}}),setTimeout(()=>{try{c&&!c.isDestroyed()&&!c.isVisible()&&c.show()}catch{}},2e3);try{c.webContents.setWindowOpenHandler(e=>{if(e.frameName==="output-canvas")return{action:"allow",overrideBrowserWindowOptions:{title:"Output",frame:!1,titleBarStyle:"hidden",autoHideMenuBar:!0,backgroundColor:"#000000",fullscreenable:!0,resizable:!0,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,backgroundThrottling:!1}}};const d=e.url;return d&&(d.startsWith("http://")||d.startsWith("https://"))?(o.shell.openExternal(d),{action:"deny"}):{action:"allow"}}),c.webContents.on("did-create-window",(e,i)=>{try{if(i?.frameName==="output-canvas"){Z=e;try{e.removeMenu()}catch{}try{e.setMenuBarVisibility(!1)}catch{}try{e.webContents.setBackgroundThrottling(!1)}catch{}try{X&&isFinite(X)&&X>0&&e.setAspectRatio(X)}catch{}try{e.on("closed",()=>{Z=null})}catch{}}}catch{}})}catch{}if(c.on("maximize",()=>{try{c?.webContents.send("window-state",{maximized:!0})}catch{}}),c.on("unmaximize",()=>{try{c?.webContents.send("window-state",{maximized:!1})}catch{}}),process.env.NODE_ENV==="development"||!o.app.isPackaged){console.log("Running in development mode");const e=process.env.VITE_DEV_SERVER_URL||process.env.ELECTRON_RENDERER_URL,i=Number(process.env.VITE_DEV_SERVER_PORT||5173),d=[],f=w=>{w&&(d.includes(w)||d.push(w))};f(e),f(`http://localhost:${i}`),f(`http://127.0.0.1:${i}`);const m=(w,O=0)=>{if(!c)return;if(w.length===0){console.warn("All dev server attempts failed; showing inline error page");const C=d.filter(Boolean),M=`<!DOCTYPE html>
+"use strict";
+const fs = require("fs");
+const path = require("path");
+const require$$2 = require("os");
+const require$$3 = require("crypto");
+const electron = require("electron");
+var config = {};
+var main = { exports: {} };
+const version = "17.2.3";
+const require$$4 = {
+  version
+};
+var hasRequiredMain;
+function requireMain() {
+  if (hasRequiredMain) return main.exports;
+  hasRequiredMain = 1;
+  const fs$1 = fs;
+  const path$1 = path;
+  const os = require$$2;
+  const crypto = require$$3;
+  const packageJson = require$$4;
+  const version2 = packageJson.version;
+  const TIPS = [
+    "🔐 encrypt with Dotenvx: https://dotenvx.com",
+    "🔐 prevent committing .env to code: https://dotenvx.com/precommit",
+    "🔐 prevent building .env in docker: https://dotenvx.com/prebuild",
+    "📡 add observability to secrets: https://dotenvx.com/ops",
+    "👥 sync secrets across teammates & machines: https://dotenvx.com/ops",
+    "🗂️ backup and recover secrets: https://dotenvx.com/ops",
+    "✅ audit secrets and track compliance: https://dotenvx.com/ops",
+    "🔄 add secrets lifecycle management: https://dotenvx.com/ops",
+    "🔑 add access controls to secrets: https://dotenvx.com/ops",
+    "🛠️  run anywhere with `dotenvx run -- yourcommand`",
+    "⚙️  specify custom .env file path with { path: '/custom/path/.env' }",
+    "⚙️  enable debug logging with { debug: true }",
+    "⚙️  override existing env vars with { override: true }",
+    "⚙️  suppress all logs with { quiet: true }",
+    "⚙️  write to custom object with { processEnv: myObject }",
+    "⚙️  load multiple .env files with { path: ['.env.local', '.env'] }"
+  ];
+  function _getRandomTip() {
+    return TIPS[Math.floor(Math.random() * TIPS.length)];
+  }
+  function parseBoolean(value) {
+    if (typeof value === "string") {
+      return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
+    }
+    return Boolean(value);
+  }
+  function supportsAnsi() {
+    return process.stdout.isTTY;
+  }
+  function dim(text) {
+    return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
+  }
+  const LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
+  function parse(src) {
+    const obj = {};
+    let lines = src.toString();
+    lines = lines.replace(/\r\n?/mg, "\n");
+    let match;
+    while ((match = LINE.exec(lines)) != null) {
+      const key = match[1];
+      let value = match[2] || "";
+      value = value.trim();
+      const maybeQuote = value[0];
+      value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
+      if (maybeQuote === '"') {
+        value = value.replace(/\\n/g, "\n");
+        value = value.replace(/\\r/g, "\r");
+      }
+      obj[key] = value;
+    }
+    return obj;
+  }
+  function _parseVault(options) {
+    options = options || {};
+    const vaultPath = _vaultPath(options);
+    options.path = vaultPath;
+    const result = DotenvModule.configDotenv(options);
+    if (!result.parsed) {
+      const err = new Error(`MISSING_DATA: Cannot parse ${vaultPath} for an unknown reason`);
+      err.code = "MISSING_DATA";
+      throw err;
+    }
+    const keys = _dotenvKey(options).split(",");
+    const length = keys.length;
+    let decrypted;
+    for (let i = 0; i < length; i++) {
+      try {
+        const key = keys[i].trim();
+        const attrs = _instructions(result, key);
+        decrypted = DotenvModule.decrypt(attrs.ciphertext, attrs.key);
+        break;
+      } catch (error) {
+        if (i + 1 >= length) {
+          throw error;
+        }
+      }
+    }
+    return DotenvModule.parse(decrypted);
+  }
+  function _warn(message) {
+    console.error(`[dotenv@${version2}][WARN] ${message}`);
+  }
+  function _debug(message) {
+    console.log(`[dotenv@${version2}][DEBUG] ${message}`);
+  }
+  function _log(message) {
+    console.log(`[dotenv@${version2}] ${message}`);
+  }
+  function _dotenvKey(options) {
+    if (options && options.DOTENV_KEY && options.DOTENV_KEY.length > 0) {
+      return options.DOTENV_KEY;
+    }
+    if (process.env.DOTENV_KEY && process.env.DOTENV_KEY.length > 0) {
+      return process.env.DOTENV_KEY;
+    }
+    return "";
+  }
+  function _instructions(result, dotenvKey) {
+    let uri;
+    try {
+      uri = new URL(dotenvKey);
+    } catch (error) {
+      if (error.code === "ERR_INVALID_URL") {
+        const err = new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      }
+      throw error;
+    }
+    const key = uri.password;
+    if (!key) {
+      const err = new Error("INVALID_DOTENV_KEY: Missing key part");
+      err.code = "INVALID_DOTENV_KEY";
+      throw err;
+    }
+    const environment = uri.searchParams.get("environment");
+    if (!environment) {
+      const err = new Error("INVALID_DOTENV_KEY: Missing environment part");
+      err.code = "INVALID_DOTENV_KEY";
+      throw err;
+    }
+    const environmentKey = `DOTENV_VAULT_${environment.toUpperCase()}`;
+    const ciphertext = result.parsed[environmentKey];
+    if (!ciphertext) {
+      const err = new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${environmentKey} in your .env.vault file.`);
+      err.code = "NOT_FOUND_DOTENV_ENVIRONMENT";
+      throw err;
+    }
+    return { ciphertext, key };
+  }
+  function _vaultPath(options) {
+    let possibleVaultPath = null;
+    if (options && options.path && options.path.length > 0) {
+      if (Array.isArray(options.path)) {
+        for (const filepath of options.path) {
+          if (fs$1.existsSync(filepath)) {
+            possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
+          }
+        }
+      } else {
+        possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
+      }
+    } else {
+      possibleVaultPath = path$1.resolve(process.cwd(), ".env.vault");
+    }
+    if (fs$1.existsSync(possibleVaultPath)) {
+      return possibleVaultPath;
+    }
+    return null;
+  }
+  function _resolveHome(envPath) {
+    return envPath[0] === "~" ? path$1.join(os.homedir(), envPath.slice(1)) : envPath;
+  }
+  function _configVault(options) {
+    const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
+    const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options && options.quiet);
+    if (debug || !quiet) {
+      _log("Loading env from encrypted .env.vault");
+    }
+    const parsed = DotenvModule._parseVault(options);
+    let processEnv = process.env;
+    if (options && options.processEnv != null) {
+      processEnv = options.processEnv;
+    }
+    DotenvModule.populate(processEnv, parsed, options);
+    return { parsed };
+  }
+  function configDotenv(options) {
+    const dotenvPath = path$1.resolve(process.cwd(), ".env");
+    let encoding = "utf8";
+    let processEnv = process.env;
+    if (options && options.processEnv != null) {
+      processEnv = options.processEnv;
+    }
+    let debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || options && options.debug);
+    let quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || options && options.quiet);
+    if (options && options.encoding) {
+      encoding = options.encoding;
+    } else {
+      if (debug) {
+        _debug("No encoding is specified. UTF-8 is used by default");
+      }
+    }
+    let optionPaths = [dotenvPath];
+    if (options && options.path) {
+      if (!Array.isArray(options.path)) {
+        optionPaths = [_resolveHome(options.path)];
+      } else {
+        optionPaths = [];
+        for (const filepath of options.path) {
+          optionPaths.push(_resolveHome(filepath));
+        }
+      }
+    }
+    let lastError;
+    const parsedAll = {};
+    for (const path2 of optionPaths) {
+      try {
+        const parsed = DotenvModule.parse(fs$1.readFileSync(path2, { encoding }));
+        DotenvModule.populate(parsedAll, parsed, options);
+      } catch (e) {
+        if (debug) {
+          _debug(`Failed to load ${path2} ${e.message}`);
+        }
+        lastError = e;
+      }
+    }
+    const populated = DotenvModule.populate(processEnv, parsedAll, options);
+    debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || debug);
+    quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || quiet);
+    if (debug || !quiet) {
+      const keysCount = Object.keys(populated).length;
+      const shortPaths = [];
+      for (const filePath of optionPaths) {
+        try {
+          const relative = path$1.relative(process.cwd(), filePath);
+          shortPaths.push(relative);
+        } catch (e) {
+          if (debug) {
+            _debug(`Failed to load ${filePath} ${e.message}`);
+          }
+          lastError = e;
+        }
+      }
+      _log(`injecting env (${keysCount}) from ${shortPaths.join(",")} ${dim(`-- tip: ${_getRandomTip()}`)}`);
+    }
+    if (lastError) {
+      return { parsed: parsedAll, error: lastError };
+    } else {
+      return { parsed: parsedAll };
+    }
+  }
+  function config2(options) {
+    if (_dotenvKey(options).length === 0) {
+      return DotenvModule.configDotenv(options);
+    }
+    const vaultPath = _vaultPath(options);
+    if (!vaultPath) {
+      _warn(`You set DOTENV_KEY but you are missing a .env.vault file at ${vaultPath}. Did you forget to build it?`);
+      return DotenvModule.configDotenv(options);
+    }
+    return DotenvModule._configVault(options);
+  }
+  function decrypt(encrypted, keyStr) {
+    const key = Buffer.from(keyStr.slice(-64), "hex");
+    let ciphertext = Buffer.from(encrypted, "base64");
+    const nonce = ciphertext.subarray(0, 12);
+    const authTag = ciphertext.subarray(-16);
+    ciphertext = ciphertext.subarray(12, -16);
+    try {
+      const aesgcm = crypto.createDecipheriv("aes-256-gcm", key, nonce);
+      aesgcm.setAuthTag(authTag);
+      return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
+    } catch (error) {
+      const isRange = error instanceof RangeError;
+      const invalidKeyLength = error.message === "Invalid key length";
+      const decryptionFailed = error.message === "Unsupported state or unable to authenticate data";
+      if (isRange || invalidKeyLength) {
+        const err = new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      } else if (decryptionFailed) {
+        const err = new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");
+        err.code = "DECRYPTION_FAILED";
+        throw err;
+      } else {
+        throw error;
+      }
+    }
+  }
+  function populate(processEnv, parsed, options = {}) {
+    const debug = Boolean(options && options.debug);
+    const override = Boolean(options && options.override);
+    const populated = {};
+    if (typeof parsed !== "object") {
+      const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
+      err.code = "OBJECT_REQUIRED";
+      throw err;
+    }
+    for (const key of Object.keys(parsed)) {
+      if (Object.prototype.hasOwnProperty.call(processEnv, key)) {
+        if (override === true) {
+          processEnv[key] = parsed[key];
+          populated[key] = parsed[key];
+        }
+        if (debug) {
+          if (override === true) {
+            _debug(`"${key}" is already defined and WAS overwritten`);
+          } else {
+            _debug(`"${key}" is already defined and was NOT overwritten`);
+          }
+        }
+      } else {
+        processEnv[key] = parsed[key];
+        populated[key] = parsed[key];
+      }
+    }
+    return populated;
+  }
+  const DotenvModule = {
+    configDotenv,
+    _configVault,
+    _parseVault,
+    config: config2,
+    decrypt,
+    parse,
+    populate
+  };
+  main.exports.configDotenv = DotenvModule.configDotenv;
+  main.exports._configVault = DotenvModule._configVault;
+  main.exports._parseVault = DotenvModule._parseVault;
+  main.exports.config = DotenvModule.config;
+  main.exports.decrypt = DotenvModule.decrypt;
+  main.exports.parse = DotenvModule.parse;
+  main.exports.populate = DotenvModule.populate;
+  main.exports = DotenvModule;
+  return main.exports;
+}
+var envOptions;
+var hasRequiredEnvOptions;
+function requireEnvOptions() {
+  if (hasRequiredEnvOptions) return envOptions;
+  hasRequiredEnvOptions = 1;
+  const options = {};
+  if (process.env.DOTENV_CONFIG_ENCODING != null) {
+    options.encoding = process.env.DOTENV_CONFIG_ENCODING;
+  }
+  if (process.env.DOTENV_CONFIG_PATH != null) {
+    options.path = process.env.DOTENV_CONFIG_PATH;
+  }
+  if (process.env.DOTENV_CONFIG_QUIET != null) {
+    options.quiet = process.env.DOTENV_CONFIG_QUIET;
+  }
+  if (process.env.DOTENV_CONFIG_DEBUG != null) {
+    options.debug = process.env.DOTENV_CONFIG_DEBUG;
+  }
+  if (process.env.DOTENV_CONFIG_OVERRIDE != null) {
+    options.override = process.env.DOTENV_CONFIG_OVERRIDE;
+  }
+  if (process.env.DOTENV_CONFIG_DOTENV_KEY != null) {
+    options.DOTENV_KEY = process.env.DOTENV_CONFIG_DOTENV_KEY;
+  }
+  envOptions = options;
+  return envOptions;
+}
+var cliOptions;
+var hasRequiredCliOptions;
+function requireCliOptions() {
+  if (hasRequiredCliOptions) return cliOptions;
+  hasRequiredCliOptions = 1;
+  const re = /^dotenv_config_(encoding|path|quiet|debug|override|DOTENV_KEY)=(.+)$/;
+  cliOptions = function optionMatcher(args) {
+    const options = args.reduce(function(acc, cur) {
+      const matches = cur.match(re);
+      if (matches) {
+        acc[matches[1]] = matches[2];
+      }
+      return acc;
+    }, {});
+    if (!("quiet" in options)) {
+      options.quiet = "true";
+    }
+    return options;
+  };
+  return cliOptions;
+}
+var hasRequiredConfig;
+function requireConfig() {
+  if (hasRequiredConfig) return config;
+  hasRequiredConfig = 1;
+  (function() {
+    requireMain().config(
+      Object.assign(
+        {},
+        requireEnvOptions(),
+        requireCliOptions()(process.argv)
+      )
+    );
+  })();
+  return config;
+}
+requireConfig();
+const _SpoutSender = class _SpoutSender {
+  constructor() {
+    this.sender = null;
+    this.senderName = null;
+    this.lastFrameAtMs = 0;
+  }
+  start(senderName) {
+    if (process.platform !== "win32") {
+      return { ok: false, error: "Spout output is only supported on Windows." };
+    }
+    const safeName = _SpoutSender.DEFAULT_SENDER_NAME;
+    if (this.sender && this.senderName === safeName) return { ok: true };
+    if (this.sender) this.stop();
+    const addon = this.tryLoadAddon();
+    if (!addon) {
+      return {
+        ok: false,
+        error: "Spout addon not found. Build/copy `electron_spout.node` and ensure it is unpacked (not inside asar)."
+      };
+    }
+    try {
+      this.sender = new addon.SpoutOutput(safeName);
+      this.senderName = safeName;
+      this.lastFrameAtMs = 0;
+      return { ok: true };
+    } catch (e) {
+      this.sender = null;
+      this.senderName = null;
+      return { ok: false, error: `Failed to create Spout sender: ${String(e)}` };
+    }
+  }
+  stop() {
+    try {
+      const s = this.sender;
+      if (s && typeof s.close === "function") s.close();
+      if (s && typeof s.release === "function") s.release();
+      if (s && typeof s.dispose === "function") s.dispose();
+    } catch {
+    }
+    this.sender = null;
+    this.senderName = null;
+  }
+  isRunning() {
+    return !!this.sender;
+  }
+  pushDataUrlFrame(dataUrl, opts) {
+    const sender = this.sender;
+    if (!sender) return;
+    const maxFps = _SpoutSender.DEFAULT_MAX_FPS;
+    const now = Date.now();
+    const interval = 1e3 / maxFps;
+    if (now - this.lastFrameAtMs < interval) return;
+    try {
+      const img = electron.nativeImage.createFromDataURL(String(dataUrl || ""));
+      if (img.isEmpty()) return;
+      sender.updateFrame(Buffer.from(img.toBitmap()), img.getSize());
+      this.lastFrameAtMs = now;
+    } catch {
+    }
+  }
+  tryLoadAddon() {
+    const attempts = [
+      // 1) If required from CWD / node_modules-style.
+      () => require("electron_spout.node"),
+      () => require("electron-spout.node"),
+      // 2) Common dev locations (project root).
+      () => require(path.join(process.cwd(), "electron_spout.node")),
+      () => require(path.join(process.cwd(), "electron-spout.node")),
+      () => require(path.join(process.cwd(), "native", "electron_spout.node")),
+      () => require(path.join(process.cwd(), "native", "electron-spout.node")),
+      // 3) Production: resources path unpacked (recommended for .node).
+      () => require(path.join(process.resourcesPath || "", "electron_spout.node")),
+      () => require(path.join(process.resourcesPath || "", "electron-spout.node")),
+      () => require(path.join(process.resourcesPath || "", "app.asar.unpacked", "electron_spout.node")),
+      () => require(path.join(process.resourcesPath || "", "app.asar.unpacked", "electron-spout.node")),
+      () => require(path.join(process.resourcesPath || "", "app.asar.unpacked", "native", "electron_spout.node")),
+      () => require(path.join(process.resourcesPath || "", "app.asar.unpacked", "native", "electron-spout.node"))
+    ];
+    for (const load of attempts) {
+      try {
+        const mod = load();
+        if (mod && mod.SpoutOutput) return mod;
+      } catch {
+      }
+    }
+    return null;
+  }
+};
+_SpoutSender.DEFAULT_SENDER_NAME = "Sonomika Output";
+_SpoutSender.DEFAULT_MAX_FPS = 60;
+let SpoutSender = _SpoutSender;
+function safeReadJsonFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+function safeWriteJsonFile(filePath, data) {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(data), "utf8");
+  } catch {
+  }
+}
+function getClientIdFilePath() {
+  return path.join(electron.app.getPath("userData"), "ga4_client_id.json");
+}
+function getSessionFilePath() {
+  return path.join(electron.app.getPath("userData"), "ga4_session.json");
+}
+function getGeoFilePath() {
+  return path.join(electron.app.getPath("userData"), "ga4_geo.json");
+}
+function looksLikeIpAddress(ip) {
+  const s = ip.trim();
+  if (!s) return false;
+  const isV4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(s);
+  const isV6 = /^[0-9a-f:]+$/i.test(s) && s.includes(":");
+  return isV4 || isV6;
+}
+function getCachedIpOverride(maxAgeMs) {
+  try {
+    const fp = getGeoFilePath();
+    const st = safeReadJsonFile(fp);
+    if (!st || typeof st.fetched_at_ms !== "number") return void 0;
+    if (Date.now() - st.fetched_at_ms > maxAgeMs) return void 0;
+    if (typeof st.ip_override !== "string") return void 0;
+    const ip = st.ip_override.trim();
+    return looksLikeIpAddress(ip) ? ip : void 0;
+  } catch {
+    return void 0;
+  }
+}
+async function fetchPublicIpOverride(timeoutMs) {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), Math.max(250, timeoutMs));
+    try {
+      const res = await fetch("https://api.ipify.org?format=json", { signal: controller.signal });
+      if (!res.ok) return void 0;
+      const data = await res.json();
+      const ip = typeof data?.ip === "string" ? data.ip.trim() : "";
+      if (!looksLikeIpAddress(ip)) return void 0;
+      safeWriteJsonFile(getGeoFilePath(), { ip_override: ip, fetched_at_ms: Date.now() });
+      return ip;
+    } finally {
+      clearTimeout(t);
+    }
+  } catch {
+    return void 0;
+  }
+}
+function getOrCreateClientId() {
+  const fp = getClientIdFilePath();
+  const existing = safeReadJsonFile(fp);
+  if (existing && typeof existing.client_id === "string" && existing.client_id.length > 0 && typeof existing.created_at_ms === "number") {
+    return { state: existing, isNew: false };
+  }
+  const created = {
+    client_id: require$$3.randomUUID(),
+    created_at_ms: Date.now()
+  };
+  safeWriteJsonFile(fp, created);
+  return { state: created, isNew: true };
+}
+function nextSessionInfo() {
+  const fp = getSessionFilePath();
+  const existing = safeReadJsonFile(fp);
+  const prev = existing && typeof existing.ga_session_number === "number" && isFinite(existing.ga_session_number) ? existing.ga_session_number : 0;
+  const next = { ga_session_number: Math.max(0, Math.floor(prev)) + 1 };
+  safeWriteJsonFile(fp, next);
+  const ga_session_id = Math.floor(Date.now() / 1e3);
+  return { ga_session_id, ga_session_number: next.ga_session_number };
+}
+function truncate(str, max) {
+  if (str.length <= max) return str;
+  return str.slice(0, Math.max(0, max - 1)) + "…";
+}
+function createGa4Analytics(init) {
+  const measurementId = String(init.measurementId).trim();
+  const apiSecret = String(init.apiSecret || "").trim();
+  const appName = String(init.appName).trim();
+  const enableInDev = Boolean(init.enableInDev);
+  const disabledByEnv = String(process.env.GA4_DISABLED || "").toLowerCase() === "true" || String(process.env.GA4_DISABLED || "").toLowerCase() === "1";
+  const canSendInThisBuild = electron.app.isPackaged || enableInDev;
+  const enabled = !disabledByEnv && canSendInThisBuild && measurementId && apiSecret;
+  const debug = String(process.env.GA4_DEBUG || "").toLowerCase() === "true" || String(process.env.GA4_DEBUG || "").toLowerCase() === "1";
+  const { state: client, isNew } = getOrCreateClientId();
+  const session = nextSessionInfo();
+  const explicitCountryId = String(process.env.GA4_COUNTRY_ID || "").trim().toUpperCase();
+  const explicitRegionId = String(process.env.GA4_REGION_ID || "").trim();
+  const explicitCity = String(process.env.GA4_CITY || "").trim();
+  const explicitUserLocation = explicitCountryId || explicitRegionId || explicitCity ? {
+    ...explicitCity ? { city: explicitCity } : {},
+    ...explicitRegionId ? { region_id: explicitRegionId } : {},
+    ...explicitCountryId ? { country_id: explicitCountryId } : {}
+  } : void 0;
+  const geoDisabled = String(process.env.GA4_GEO_DISABLED || "").toLowerCase() === "true" || String(process.env.GA4_GEO_DISABLED || "").toLowerCase() === "1";
+  let ipOverride = void 0;
+  const envIpOverride = String(process.env.GA4_IP_OVERRIDE || "").trim();
+  if (looksLikeIpAddress(envIpOverride)) ipOverride = envIpOverride;
+  if (!ipOverride) ipOverride = getCachedIpOverride(7 * 24 * 60 * 60 * 1e3);
+  if (!ipOverride && !geoDisabled) {
+    void fetchPublicIpOverride(2e3).then((ip) => {
+      if (ip) ipOverride = ip;
+    });
+  }
+  function baseParams(params) {
+    return {
+      // GA4 session attribution params (Measurement Protocol)
+      ga_session_id: session.ga_session_id,
+      ga_session_number: session.ga_session_number,
+      // Recommended minimum engagement time to help GA4 keep the event
+      engagement_time_msec: 1,
+      // App/device-ish context
+      app_name: appName,
+      app_version: electron.app.getVersion?.() || void 0,
+      platform: process.platform,
+      arch: process.arch,
+      packaged: electron.app.isPackaged,
+      ...params
+    };
+  }
+  async function sendEvent(name, params) {
+    if (!enabled) return;
+    const eventName = String(name || "").trim();
+    if (!eventName) return;
+    const endpoint = debug ? "https://www.google-analytics.com/debug/mp/collect" : "https://www.google-analytics.com/mp/collect";
+    const url = `${endpoint}?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;
+    const payload = {
+      client_id: client.client_id,
+      ...geoDisabled ? {} : explicitUserLocation ? { user_location: explicitUserLocation } : ipOverride ? { ip_override: ipOverride } : {},
+      user_properties: {
+        app_name: { value: appName },
+        app_version: { value: electron.app.getVersion?.() || "unknown" },
+        platform: { value: process.platform },
+        arch: { value: process.arch },
+        packaged: { value: electron.app.isPackaged ? "1" : "0" }
+      },
+      events: [
+        {
+          name: eventName,
+          params: baseParams(params)
+        }
+      ]
+    };
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      try {
+        if (debug) await res.text();
+      } catch {
+      }
+    } catch {
+    }
+  }
+  function track(name, params) {
+    void sendEvent(name, params);
+  }
+  function trackFirstOpenOnce() {
+    if (!enabled) return;
+    if (!isNew) return;
+    track("first_open", { first_open_ms: client.created_at_ms });
+  }
+  function trackAppOpen() {
+    if (!enabled) return;
+    track("session_start", { ts_ms: Date.now() });
+    track("app_open", { ts_ms: Date.now() });
+  }
+  function trackAppError(errorType) {
+    if (!enabled) return;
+    track("app_error", {
+      error_type: truncate(String(errorType || "unknown"), 80),
+      fatal: true,
+      ts_ms: Date.now()
+    });
+  }
+  return {
+    enabled,
+    clientId: client.client_id,
+    sessionId: session.ga_session_id,
+    sessionNumber: session.ga_session_number,
+    track,
+    trackFirstOpenOnce,
+    trackAppOpen,
+    trackAppError
+  };
+}
+const shouldMuteConsole = process.env.VJ_DEBUG_LOGS !== "true";
+const originalLog = console.log;
+const originalWarn = console.warn;
+if (shouldMuteConsole) {
+  const noop = () => {
+  };
+  console.log = (...args) => {
+    const message = args.join(" ");
+    if (message.includes("ICON") || message.includes("APP PATHS") || message.includes("RESOLVED") || message.includes("NO ICON") || message.includes("process.cwd") || message.includes("__dirname") || message.includes("Checking icon") || message.includes("✓") || message.includes("✗") || message.includes("Creating window") || message.includes("Icon loaded") || message.includes("user model") || message.includes("taskbar")) {
+      originalLog(...args);
+    }
+  };
+  console.warn = (...args) => {
+    const message = args.join(" ");
+    if (message.includes("ICON") || message.includes("APP PATHS")) {
+      originalWarn(...args);
+    }
+  };
+  console.info = noop;
+}
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
+const gotTheLock = electron.app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.log("Another instance is already running, quitting...");
+  electron.app.quit();
+} else {
+  electron.app.on("second-instance", () => {
+    try {
+      ga4?.track("second_instance", { ts_ms: Date.now() });
+    } catch {
+    }
+    const windows = electron.BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      if (windows[0].isMinimized()) windows[0].restore();
+      windows[0].focus();
+    }
+  });
+}
+let mainWindow = null;
+let mirrorWindow = null;
+let mirrorPowerSaveBlockId = null;
+let outputWindow = null;
+let outputAspectRatio = null;
+let mirrorAspectRatio = null;
+const advancedMirrorWindows = /* @__PURE__ */ new Map();
+let encryptedAuthStore = {};
+const spoutSender = new SpoutSender();
+const SPOUT_SENDER_NAME = "Sonomika Output";
+const SPOUT_MAX_FPS = 60;
+let ga4 = null;
+let ga4Heartbeat = null;
+let ga4SessionStartMs = Date.now();
+let ga4ActiveSinceMs = null;
+let ga4TotalActiveMs = 0;
+let ga4LastHeartbeatAtMs = Date.now();
+function ga4FlushActiveTime(nowMs) {
+  if (ga4ActiveSinceMs != null) {
+    const delta = Math.max(0, nowMs - ga4ActiveSinceMs);
+    ga4TotalActiveMs += delta;
+    ga4ActiveSinceMs = nowMs;
+    return delta;
+  }
+  return 0;
+}
+function resolveAppIconPath() {
+  console.log("=== ICON RESOLUTION DEBUG ===");
+  console.log("process.cwd():", process.cwd());
+  console.log("__dirname:", __dirname);
+  console.log("process.resourcesPath:", process.resourcesPath);
+  console.log("app.getAppPath():", electron.app.getAppPath());
+  console.log("app.getPath(exe):", electron.app.getPath("exe"));
+  const candidates = [
+    // On Windows, prefer ICO files first (better for window/taskbar icons)
+    ...process.platform === "win32" ? [
+      path.join(process.resourcesPath || "", "icons", "icon.ico"),
+      path.join(__dirname, "../icons/icon.ico"),
+      path.join(__dirname, "../../public/icons/icon.ico"),
+      path.join(__dirname, "../public/icons/icon.ico"),
+      path.join(process.cwd(), "public", "icons", "icon.ico"),
+      // Fallback to old name for backwards compatibility
+      path.join(process.resourcesPath || "", "icons", "sonomika_icon_2.ico"),
+      path.join(__dirname, "../icons/sonomika_icon_2.ico")
+    ] : [],
+    // Then check PNG files (fallback or for non-Windows)
+    path.join(process.resourcesPath || "", "icons", "icon.png"),
+    path.join(__dirname, "../icons/icon.png"),
+    path.join(__dirname, "../../public/icons/icon.png"),
+    path.join(__dirname, "../public/icons/icon.png"),
+    path.join(process.cwd(), "public", "icons", "icon.png"),
+    // Fallback to old name for backwards compatibility
+    path.join(process.resourcesPath || "", "icons", "sonomika_icon_2.png"),
+    path.join(__dirname, "../icons/sonomika_icon_2.png")
+  ];
+  console.log("Checking icon candidates:");
+  for (const p of candidates) {
+    const exists = fs.existsSync(p);
+    console.log(`  ${exists ? "✓" : "✗"} ${p}`);
+    if (exists) {
+      try {
+        const stats = fs.statSync(p);
+        console.log(`    Size: ${stats.size} bytes, Modified: ${stats.mtime}`);
+      } catch (e) {
+        console.log(`    (Could not stat file)`);
+      }
+      console.log("=== RESOLVED ICON PATH ===");
+      return p;
+    }
+  }
+  console.log("=== NO ICON FOUND ===");
+  return void 0;
+}
+function getAuthStoreFilePath() {
+  const userData = electron.app.getPath("userData");
+  return path.join(userData, "auth_store.json");
+}
+function loadEncryptedAuthStoreFromDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    if (fs.existsSync(fp)) {
+      const raw = fs.readFileSync(fp, "utf8");
+      const json = JSON.parse(raw);
+      encryptedAuthStore = Object.fromEntries(
+        Object.entries(json).map(([k, base64]) => [k, Buffer.from(base64, "base64")])
+      );
+    }
+  } catch (e) {
+    console.warn("Failed to load encrypted auth store, starting empty:", e);
+    encryptedAuthStore = {};
+  }
+}
+function persistEncryptedAuthStoreToDisk() {
+  try {
+    const fp = getAuthStoreFilePath();
+    const dir = path.dirname(fp);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const json = Object.fromEntries(
+      Object.entries(encryptedAuthStore).map(([k, buf]) => [k, buf.toString("base64")])
+    );
+    fs.writeFileSync(fp, JSON.stringify(json), "utf8");
+  } catch (e) {
+    console.warn("Failed to persist encrypted auth store:", e);
+  }
+}
+function initializeUserDocumentsFolders() {
+  try {
+    const documentsPath = electron.app.getPath("documents");
+    const sonomikaDocsPath = path.join(documentsPath, "Sonomika");
+    if (!fs.existsSync(sonomikaDocsPath)) {
+      fs.mkdirSync(sonomikaDocsPath, { recursive: true });
+      console.log("Created Sonomika folder in Documents:", sonomikaDocsPath);
+    }
+    const folders = ["bank", "music", "recordings", "video", "ai-templates"];
+    for (const folderName of folders) {
+      const folderPath = path.join(sonomikaDocsPath, folderName);
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+        console.log("Created folder:", folderPath);
+      }
+    }
+    const bankSourcePaths = [
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "bank"),
+      path.join(__dirname, "../bank"),
+      path.join(process.cwd(), "bank")
+    ];
+    const bankDestPath = path.join(sonomikaDocsPath, "bank");
+    let bankCopied = false;
+    for (const sourcePath of bankSourcePaths) {
+      if (fs.existsSync(sourcePath) && !bankCopied) {
+        try {
+          copyDirectoryRecursive(sourcePath, bankDestPath);
+          console.log("Copied bank folder from", sourcePath, "to", bankDestPath);
+          bankCopied = true;
+        } catch (e) {
+          console.warn("Failed to copy bank folder from", sourcePath, ":", e);
+        }
+      }
+    }
+    const setsSourcePaths = [
+      // Production: extraResources location (user-documents)
+      path.join(process.resourcesPath || "", "user-documents", "sets"),
+      // Production: asarUnpack location
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "user-documents", "sets"),
+      // Development paths
+      path.join(__dirname, "../user-documents", "sets"),
+      path.join(process.cwd(), "user-documents", "sets"),
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "sets"),
+      path.join(__dirname, "../sets"),
+      path.join(process.cwd(), "sets")
+    ];
+    const setsDestPath = path.join(sonomikaDocsPath, "sets");
+    let setsCopied = false;
+    console.log("Looking for sets folder in source paths...");
+    console.log("process.resourcesPath:", process.resourcesPath);
+    for (const sourcePath of setsSourcePaths) {
+      const exists = fs.existsSync(sourcePath);
+      console.log("  Checking:", sourcePath, exists ? "✓ EXISTS" : "✗ NOT FOUND");
+      if (exists) {
+        try {
+          const filesBefore = fs.existsSync(setsDestPath) ? fs.readdirSync(setsDestPath).length : 0;
+          copyDirectoryRecursive(sourcePath, setsDestPath);
+          const filesAfter = fs.existsSync(setsDestPath) ? fs.readdirSync(setsDestPath).length : 0;
+          console.log(`Copied sets folder from ${sourcePath} to ${setsDestPath} (${filesAfter - filesBefore} files)`);
+          setsCopied = true;
+          break;
+        } catch (e) {
+          console.warn("Failed to copy sets folder from", sourcePath, ":", e);
+        }
+      }
+    }
+    if (!setsCopied) {
+      console.warn("⚠️ Sets folder was not copied. Checked paths:", setsSourcePaths);
+    }
+    const userDocsSourcePaths = [
+      // Production: extraResources location (most likely)
+      path.join(process.resourcesPath || "", "user-documents"),
+      // Production: asarUnpack location
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "user-documents"),
+      // Development paths
+      path.join(__dirname, "../user-documents"),
+      path.join(process.cwd(), "user-documents")
+    ];
+    console.log("Looking for user-documents folder in source paths...");
+    let userDocsCopied = false;
+    for (const userDocsSource of userDocsSourcePaths) {
+      const exists = fs.existsSync(userDocsSource);
+      console.log("  Checking:", userDocsSource, exists ? "✓ EXISTS" : "✗ NOT FOUND");
+      if (exists) {
+        try {
+          const subfolders = ["midi mapping", "music", "recordings", "video"];
+          for (const subfolder of subfolders) {
+            const srcSubfolder = path.join(userDocsSource, subfolder);
+            const destSubfolder = path.join(sonomikaDocsPath, subfolder);
+            if (fs.existsSync(srcSubfolder)) {
+              const filesBefore = fs.existsSync(destSubfolder) ? fs.readdirSync(destSubfolder).length : 0;
+              copyDirectoryRecursive(srcSubfolder, destSubfolder);
+              const filesAfter = fs.existsSync(destSubfolder) ? fs.readdirSync(destSubfolder).length : 0;
+              console.log(`Copied ${subfolder} folder from ${srcSubfolder} to ${destSubfolder} (${filesAfter - filesBefore} files)`);
+            } else {
+              console.log(`  Source ${subfolder} folder does not exist:`, srcSubfolder);
+            }
+          }
+          userDocsCopied = true;
+          break;
+        } catch (e) {
+          console.warn("Failed to copy user-documents folders from", userDocsSource, ":", e);
+        }
+      }
+    }
+    if (!userDocsCopied) {
+      console.warn("⚠️ user-documents folders were not copied. Checked paths:", userDocsSourcePaths);
+    }
+    const aiTemplatesDestPath = path.join(sonomikaDocsPath, "ai-templates");
+    if (!fs.existsSync(aiTemplatesDestPath)) {
+      fs.mkdirSync(aiTemplatesDestPath, { recursive: true });
+    }
+    const appPath = electron.app.getAppPath();
+    const aiTemplatesSourcePaths = [
+      // Production: extraResources location (most likely)
+      path.join(process.resourcesPath || "", "src", "ai-templates"),
+      // Production: asarUnpack location
+      path.join(process.resourcesPath || "", "app.asar.unpacked", "src", "ai-templates"),
+      // Development: relative to compiled main.js
+      path.join(__dirname, "../src/ai-templates"),
+      path.join(__dirname, "../../src/ai-templates"),
+      // Development: relative to app path
+      path.join(appPath, "src/ai-templates"),
+      // Development: current working directory
+      path.join(process.cwd(), "src/ai-templates")
+    ];
+    let templatesCopied = 0;
+    const destEntries = fs.existsSync(aiTemplatesDestPath) ? fs.readdirSync(aiTemplatesDestPath).filter((f) => f.endsWith(".js")) : [];
+    const isDestEmpty = destEntries.length === 0;
+    if (isDestEmpty) {
+      console.log("AI templates folder is empty, will copy template files...");
+    }
+    for (const sourcePath of aiTemplatesSourcePaths) {
+      if (fs.existsSync(sourcePath)) {
+        try {
+          console.log("Checking AI templates source path:", sourcePath);
+          const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
+          console.log(`Found ${entries.length} entries in ${sourcePath}`);
+          for (const entry of entries) {
+            if (entry.isFile() && entry.name.endsWith(".js")) {
+              const srcFile = path.join(sourcePath, entry.name);
+              const destFile = path.join(aiTemplatesDestPath, entry.name);
+              if (!fs.existsSync(destFile) || isDestEmpty) {
+                fs.copyFileSync(srcFile, destFile);
+                console.log("Copied AI template file:", entry.name, "to", destFile);
+                templatesCopied++;
+              } else {
+                console.log("Skipped AI template file (already exists):", entry.name);
+              }
+            }
+          }
+          if (templatesCopied > 0) {
+            console.log(`Successfully copied ${templatesCopied} AI template file(s) from ${sourcePath}`);
+            break;
+          }
+        } catch (e) {
+          console.warn("Failed to copy AI templates from", sourcePath, ":", e);
+        }
+      } else {
+        console.log("AI templates source path does not exist:", sourcePath);
+      }
+    }
+    if (templatesCopied === 0) {
+      console.warn("⚠️ No AI template files were copied. Checked paths:", aiTemplatesSourcePaths);
+      console.warn("   This might indicate the template files are not included in the build.");
+    }
+    const foldersToCheck = ["midi mapping", "sets"];
+    for (const folderName of foldersToCheck) {
+      const folderPath = path.join(sonomikaDocsPath, folderName);
+      if (fs.existsSync(folderPath)) {
+        const files = fs.readdirSync(folderPath);
+        if (files.length === 0) {
+          console.warn(`⚠️ ${folderName} folder exists but is empty. Files may not have been copied from installer.`);
+        } else {
+          console.log(`✓ ${folderName} folder has ${files.length} file(s)`);
+        }
+      } else {
+        console.warn(`⚠️ ${folderName} folder was not created. Files may not have been found in installer.`);
+      }
+    }
+  } catch (e) {
+    console.error("Failed to initialize user Documents folders:", e);
+  }
+}
+function copyDirectoryRecursive(src, dest) {
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectoryRecursive(srcPath, destPath);
+    } else {
+      if (!fs.existsSync(destPath)) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+}
+function createWindow() {
+  const appIconPath = resolveAppIconPath();
+  console.log("Creating window with icon path:", appIconPath);
+  let appIcon = void 0;
+  if (appIconPath) {
+    try {
+      appIcon = electron.nativeImage.createFromPath(appIconPath);
+      if (appIcon && !appIcon.isEmpty()) {
+        console.log("Icon loaded successfully, size:", appIcon.getSize());
+      } else {
+        console.warn("Icon file found but failed to load or is empty");
+      }
+    } catch (e) {
+      console.error("Error loading icon:", e);
+    }
+  }
+  mainWindow = new electron.BrowserWindow({
+    width: 1200,
+    height: 800,
+    frame: false,
+    // Remove default window frame
+    titleBarStyle: "hidden",
+    icon: appIcon,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, "preload.js"),
+      backgroundThrottling: false
+    },
+    show: false
+    // Don't show until ready
+  });
+  try {
+    mainWindow.on("focus", () => {
+      const now = Date.now();
+      ga4ActiveSinceMs = now;
+      ga4?.track("app_focus", { ts_ms: now });
+    });
+    mainWindow.on("blur", () => {
+      const now = Date.now();
+      const delta = ga4FlushActiveTime(now);
+      ga4ActiveSinceMs = null;
+      ga4?.track("app_blur", { ts_ms: now, active_delta_ms: delta, active_total_ms: ga4TotalActiveMs });
+    });
+  } catch {
+  }
+  const preloadPath = path.join(__dirname, "preload.js");
+  console.log("Preload script path:", preloadPath);
+  console.log("Preload script exists:", require("fs").existsSync(preloadPath));
+  if (require("fs").existsSync(preloadPath)) {
+    const preloadContent = require("fs").readFileSync(preloadPath, "utf8");
+    console.log("Preload script first 200 chars:", preloadContent.substring(0, 200));
+  }
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    console.log("Setting CSP headers for URL:", details.url);
+    const responseHeaders = {
+      ...details.responseHeaders,
+      "Content-Security-Policy": []
+    };
+    console.log("CSP headers disabled for development");
+    callback({
+      responseHeaders
+    });
+  });
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
+    mainWindow.webContents.setBackgroundThrottling(false);
+    if (process.platform === "win32" && appIcon) {
+      try {
+        mainWindow.setIcon(appIcon);
+        console.log("Forced icon update on window after show");
+      } catch (e) {
+        console.error("Error forcing icon update:", e);
+      }
+    }
+  });
+  setTimeout(() => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+    } catch {
+    }
+  }, 2e3);
+  try {
+    mainWindow.webContents.setWindowOpenHandler((details) => {
+      const isOutput = details.frameName === "output-canvas";
+      if (isOutput) {
+        return {
+          action: "allow",
+          overrideBrowserWindowOptions: {
+            title: "Output",
+            frame: false,
+            titleBarStyle: "hidden",
+            autoHideMenuBar: true,
+            backgroundColor: "#000000",
+            fullscreenable: true,
+            resizable: true,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true,
+              sandbox: false,
+              backgroundThrottling: false
+            }
+          }
+        };
+      }
+      const url = details.url;
+      if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+        electron.shell.openExternal(url);
+        return { action: "deny" };
+      }
+      return { action: "allow" };
+    });
+    mainWindow.webContents.on("did-create-window", (childWindow, details) => {
+      try {
+        if (details?.frameName === "output-canvas") {
+          outputWindow = childWindow;
+          try {
+            childWindow.removeMenu();
+          } catch {
+          }
+          try {
+            childWindow.setMenuBarVisibility(false);
+          } catch {
+          }
+          try {
+            childWindow.webContents.setBackgroundThrottling(false);
+          } catch {
+          }
+          try {
+            if (outputAspectRatio && isFinite(outputAspectRatio) && outputAspectRatio > 0) {
+              childWindow.setAspectRatio(outputAspectRatio);
+            }
+          } catch {
+          }
+          try {
+            childWindow.on("closed", () => {
+              outputWindow = null;
+            });
+          } catch {
+          }
+        }
+      } catch {
+      }
+    });
+  } catch {
+  }
+  mainWindow.on("maximize", () => {
+    try {
+      mainWindow?.webContents.send("window-state", { maximized: true });
+    } catch {
+    }
+  });
+  mainWindow.on("unmaximize", () => {
+    try {
+      mainWindow?.webContents.send("window-state", { maximized: false });
+    } catch {
+    }
+  });
+  const isDev = process.env.NODE_ENV === "development" || !electron.app.isPackaged;
+  if (isDev) {
+    console.log("Running in development mode");
+    const preferredUrl = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL;
+    const port = Number(process.env.VITE_DEV_SERVER_PORT || 5173);
+    const candidates = [];
+    const appendCandidate = (url) => {
+      if (!url) return;
+      if (!candidates.includes(url)) {
+        candidates.push(url);
+      }
+    };
+    appendCandidate(preferredUrl);
+    appendCandidate(`http://localhost:${port}`);
+    appendCandidate(`http://127.0.0.1:${port}`);
+    const loadSequentially = (remaining, attempt = 0) => {
+      if (!mainWindow) return;
+      if (remaining.length === 0) {
+        console.warn("All dev server attempts failed; showing inline error page");
+        const safeCandidates = candidates.filter(Boolean);
+        const html = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -17,7 +1242,7 @@
   </head>
   <body>
     <h1>Dev Server Not Available</h1>
-    <p>Could not connect to the Vite dev server on port ${i}.</p>
+    <p>Could not connect to the Vite dev server on port ${port}.</p>
     <p class="muted">This window will keep retrying automatically.</p>
     <p>Make sure it is running with:</p>
     <pre>cd "${process.cwd()}"
@@ -28,7 +1253,7 @@ npm run dev:electron</pre>
     </div>
     <script>
       (function () {
-        const candidates = ${JSON.stringify(C)};
+        const candidates = ${JSON.stringify(safeCandidates)};
         const statusEl = document.getElementById('status');
         const setStatus = (t) => { try { statusEl.textContent = t; } catch {} };
 
@@ -57,7 +1282,133 @@ npm run dev:electron</pre>
       })();
     <\/script>
   </body>
-</html>`;c.loadURL(`data:text/html,${encodeURIComponent(M)}`);return}const _=w[0],N=w.slice(1),V=O+1;console.log(`Trying dev server URL: ${_} (attempt ${V})`),c.loadURL(_).then(()=>{console.log(`Electron loaded renderer from ${_}`),c?.webContents.openDevTools({mode:"detach"})}).catch(C=>{console.warn(`Failed to load ${_}: ${C?.message||C}`);const M=Math.min(5e3,1e3*Math.pow(2,O));console.log(`Retrying with next candidate in ${M}ms`),setTimeout(()=>m(N,V),M)})};setTimeout(()=>m(d),1200)}else{console.log("Running in production mode");const e=o.app.getAppPath(),i=[l.join(e,"dist/index.html"),l.join(__dirname,"../dist/index.html"),l.join(__dirname,"../web/index.html")],d=i.find(f=>{try{return p.existsSync(f)}catch{return!1}});d?(console.log("Loading production file:",d),c.loadFile(d)):(console.error("No production index.html found at",i),console.error("App path:",e),console.error("__dirname:",__dirname),c.loadURL("data:text/html,<html><body><h1>VJ App</h1><p>Missing build.</p></body></html>"))}c.webContents.on("did-finish-load",()=>{console.log("Window loaded successfully")});try{c.webContents.on("render-process-gone",(e,i)=>{console.error("[electron] render-process-gone",i)}),c.webContents.on("unresponsive",()=>{console.error("[electron] webContents became unresponsive")}),c.webContents.on("media-started-playing",()=>{console.log("[electron] media-started-playing")}),c.webContents.on("media-paused",()=>{console.log("[electron] media-paused")})}catch{}c.webContents.on("did-fail-load",(e,i,d)=>{console.error("Failed to load:",i,d)}),c.on("closed",()=>{c=null})}function We(){if(u&&!u.isDestroyed()){u.focus();return}const s=se();console.log("Creating mirror window with icon path:",s);let r;if(s)try{r=o.nativeImage.createFromPath(s),r&&!r.isEmpty()?console.log("Mirror window icon loaded successfully, size:",r.getSize()):console.warn("Mirror window icon file found but failed to load or is empty")}catch(t){console.error("Error loading mirror window icon:",t)}u=new o.BrowserWindow({width:1920,height:1080,title:"sonomika",icon:r,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:l.join(__dirname,"mirror-preload.js"),backgroundThrottling:!1},show:!1,resizable:!0,maximizable:!0,fullscreen:!1,kiosk:!1,alwaysOnTop:!0,skipTaskbar:!1,focusable:!0,movable:!0,frame:!1,titleBarStyle:"hidden",transparent:!1,fullscreenable:!0,autoHideMenuBar:!0,minWidth:480,minHeight:270}),u.loadURL(`data:text/html,${encodeURIComponent(`
+</html>`;
+        mainWindow.loadURL(`data:text/html,${encodeURIComponent(html)}`);
+        return;
+      }
+      const url = remaining[0];
+      const remainingNext = remaining.slice(1);
+      const nextAttempt = attempt + 1;
+      console.log(`Trying dev server URL: ${url} (attempt ${nextAttempt})`);
+      mainWindow.loadURL(url).then(() => {
+        console.log(`Electron loaded renderer from ${url}`);
+        mainWindow?.webContents.openDevTools({ mode: "detach" });
+      }).catch((error) => {
+        console.warn(`Failed to load ${url}: ${error?.message || error}`);
+        const backoff = Math.min(5e3, 1e3 * Math.pow(2, attempt));
+        console.log(`Retrying with next candidate in ${backoff}ms`);
+        setTimeout(() => loadSequentially(remainingNext, nextAttempt), backoff);
+      });
+    };
+    setTimeout(() => loadSequentially(candidates), 1200);
+  } else {
+    console.log("Running in production mode");
+    const appPath = electron.app.getAppPath();
+    const prodCandidates = [
+      path.join(appPath, "dist/index.html"),
+      path.join(__dirname, "../dist/index.html"),
+      path.join(__dirname, "../web/index.html")
+    ];
+    const found = prodCandidates.find((p) => {
+      try {
+        return fs.existsSync(p);
+      } catch {
+        return false;
+      }
+    });
+    if (found) {
+      console.log("Loading production file:", found);
+      mainWindow.loadFile(found);
+    } else {
+      console.error("No production index.html found at", prodCandidates);
+      console.error("App path:", appPath);
+      console.error("__dirname:", __dirname);
+      mainWindow.loadURL(`data:text/html,<html><body><h1>VJ App</h1><p>Missing build.</p></body></html>`);
+    }
+  }
+  mainWindow.webContents.on("did-finish-load", () => {
+    console.log("Window loaded successfully");
+  });
+  try {
+    mainWindow.webContents.on("render-process-gone", (_e, details) => {
+      console.error("[electron] render-process-gone", details);
+    });
+    mainWindow.webContents.on("unresponsive", () => {
+      console.error("[electron] webContents became unresponsive");
+    });
+    mainWindow.webContents.on("media-started-playing", () => {
+      console.log("[electron] media-started-playing");
+    });
+    mainWindow.webContents.on("media-paused", () => {
+      console.log("[electron] media-paused");
+    });
+  } catch {
+  }
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
+    console.error("Failed to load:", errorCode, errorDescription);
+  });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+}
+function createMirrorWindow() {
+  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+    mirrorWindow.focus();
+    return;
+  }
+  const appIconPath = resolveAppIconPath();
+  console.log("Creating mirror window with icon path:", appIconPath);
+  let appIcon = void 0;
+  if (appIconPath) {
+    try {
+      appIcon = electron.nativeImage.createFromPath(appIconPath);
+      if (appIcon && !appIcon.isEmpty()) {
+        console.log("Mirror window icon loaded successfully, size:", appIcon.getSize());
+      } else {
+        console.warn("Mirror window icon file found but failed to load or is empty");
+      }
+    } catch (e) {
+      console.error("Error loading mirror window icon:", e);
+    }
+  }
+  mirrorWindow = new electron.BrowserWindow({
+    width: 1920,
+    // Start with standard HD size; will be resized to canvas dimensions
+    height: 1080,
+    // Start with standard HD size; will be resized to canvas dimensions
+    title: "sonomika",
+    icon: appIcon,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: path.join(__dirname, "mirror-preload.js"),
+      backgroundThrottling: false
+    },
+    show: false,
+    resizable: true,
+    // Allow resizing
+    maximizable: true,
+    // Allow maximizing
+    fullscreen: false,
+    kiosk: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    focusable: true,
+    movable: true,
+    frame: false,
+    // Keep borderless but add custom controls
+    titleBarStyle: "hidden",
+    transparent: false,
+    fullscreenable: true,
+    autoHideMenuBar: true,
+    minWidth: 480,
+    // Minimum size
+    minHeight: 270
+  });
+  const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -185,11 +1536,111 @@ npm run dev:electron</pre>
       <\/script>
     </body>
     </html>
-  `)}`),u.once("ready-to-show",()=>{u.show(),u.center();try{u.setAspectRatio(q||1920/1080)}catch{}try{Q==null&&(Q=o.powerSaveBlocker.start("prevent-display-sleep")),u.webContents.setBackgroundThrottling(!1)}catch{}}),u.webContents.on("before-input-event",(t,e)=>{e.key==="Escape"&&u.close()}),u.on("closed",()=>{try{Q!=null&&o.powerSaveBlocker.stop(Q)}catch{}Q=null,console.log("Mirror window closed, notifying main app"),c&&!c.isDestroyed()&&c.webContents.send("mirror-window-closed"),u=null})}function Ge(){u&&!u.isDestroyed()&&(u.close(),u=null)}function Ke(s,r){const n=B.get(s);if(n&&!n.isDestroyed()){try{n.focus()}catch{}return n}const t=l.join(__dirname,"mirror-preload.js"),e=l.join(__dirname,"preload.js"),i=p.existsSync(t)?t:e,d=se(),f=d?o.nativeImage.createFromPath(d):void 0,m=new o.BrowserWindow({width:r?.width??960,height:r?.height??540,x:r?.x,y:r?.y,title:r?.title??`VJ Mirror Slice: ${s}`,icon:f,webPreferences:{nodeIntegration:!1,contextIsolation:!0,sandbox:!1,webSecurity:!1,allowRunningInsecureContent:!0,preload:i},show:!1,resizable:!0,maximizable:!0,fullscreen:!1,kiosk:!1,alwaysOnTop:!0,skipTaskbar:!1,focusable:!0,movable:!0,frame:!1,titleBarStyle:"hidden",transparent:!1,thickFrame:!1,hasShadow:!1,backgroundColor:"#000000",fullscreenable:!0,autoHideMenuBar:!0,minWidth:320,minHeight:180});try{m.setMenuBarVisibility(!1)}catch{}try{m.removeMenu()}catch{}const w=`
+  `;
+  mirrorWindow.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
+  mirrorWindow.once("ready-to-show", () => {
+    mirrorWindow.show();
+    mirrorWindow.center();
+    try {
+      mirrorWindow.setAspectRatio(mirrorAspectRatio || 1920 / 1080);
+    } catch {
+    }
+    try {
+      if (mirrorPowerSaveBlockId == null) {
+        mirrorPowerSaveBlockId = electron.powerSaveBlocker.start("prevent-display-sleep");
+      }
+      mirrorWindow.webContents.setBackgroundThrottling(false);
+    } catch {
+    }
+  });
+  mirrorWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.key === "Escape") {
+      mirrorWindow.close();
+    }
+  });
+  mirrorWindow.on("closed", () => {
+    try {
+      if (mirrorPowerSaveBlockId != null) {
+        electron.powerSaveBlocker.stop(mirrorPowerSaveBlockId);
+      }
+    } catch {
+    }
+    mirrorPowerSaveBlockId = null;
+    console.log("Mirror window closed, notifying main app");
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("mirror-window-closed");
+    }
+    mirrorWindow = null;
+  });
+}
+function closeMirrorWindow() {
+  if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+    mirrorWindow.close();
+    mirrorWindow = null;
+  }
+}
+function createAdvancedMirrorWindow(id, opts) {
+  const existing = advancedMirrorWindows.get(id);
+  if (existing && !existing.isDestroyed()) {
+    try {
+      existing.focus();
+    } catch {
+    }
+    return existing;
+  }
+  const mirrorPreload = path.join(__dirname, "mirror-preload.js");
+  const fallbackPreload = path.join(__dirname, "preload.js");
+  const preloadPath = fs.existsSync(mirrorPreload) ? mirrorPreload : fallbackPreload;
+  const appIconPath = resolveAppIconPath();
+  const appIcon = appIconPath ? electron.nativeImage.createFromPath(appIconPath) : void 0;
+  const win = new electron.BrowserWindow({
+    width: opts?.width ?? 960,
+    height: opts?.height ?? 540,
+    x: opts?.x,
+    y: opts?.y,
+    title: opts?.title ?? `VJ Mirror Slice: ${id}`,
+    icon: appIcon,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      preload: preloadPath
+    },
+    show: false,
+    resizable: true,
+    maximizable: true,
+    fullscreen: false,
+    kiosk: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    focusable: true,
+    movable: true,
+    frame: false,
+    titleBarStyle: "hidden",
+    transparent: false,
+    thickFrame: false,
+    hasShadow: false,
+    backgroundColor: "#000000",
+    fullscreenable: true,
+    autoHideMenuBar: true,
+    minWidth: 320,
+    minHeight: 180
+  });
+  try {
+    win.setMenuBarVisibility(false);
+  } catch {
+  }
+  try {
+    win.removeMenu();
+  } catch {
+  }
+  const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${r?.title??`VJ Mirror Slice: ${s}`}</title>
+      <title>${opts?.title ?? `VJ Mirror Slice: ${id}`}</title>
       <style>
         body {
           margin: 0;
@@ -222,33 +1673,1075 @@ npm run dev:electron</pre>
       <img id="mirror-image" style="display: none;" onload="this.classList.add('loaded');">
       <script>
         function toggleFullscreen() {
-          try { window.advancedMirror && window.advancedMirror.toggleSliceFullscreen && window.advancedMirror.toggleSliceFullscreen('${s}'); } catch {}
+          try { window.advancedMirror && window.advancedMirror.toggleSliceFullscreen && window.advancedMirror.toggleSliceFullscreen('${id}'); } catch {}
         }
       <\/script>
     </body>
     </html>
-  `;m.loadURL(`data:text/html,${encodeURIComponent(w)}`);try{m.show(),m.center()}catch{}return m.once("ready-to-show",()=>{try{m.isVisible()||(m.show(),m.center())}catch{}}),m.on("closed",()=>{B.delete(s)}),m.webContents.on("before-input-event",(O,_)=>{_.key==="Escape"&&m.close()}),B.set(s,m),m}function Ye(){const s=[{label:"VJ App",submenu:[{label:"About VJ App",role:"about"},{type:"separator"},{label:"Quit",accelerator:"CmdOrCtrl+Q",click:()=>{o.app.quit()}}]},{label:"External",submenu:[{label:"Mirror Window",accelerator:"CmdOrCtrl+M",click:()=>{c&&c.webContents.send("toggle-mirror")}},{label:"Advanced Mirror",accelerator:"CmdOrCtrl+Shift+M",click:()=>{c&&c.webContents.send("toggle-advanced-mirror")}},{type:"separator"},{label:"Spout Output",click:()=>{try{c?.webContents.send("spout:toggle")}catch{}}}]},{label:"Record",submenu:[{label:"Record",accelerator:"CmdOrCtrl+Shift+R",click:()=>{c&&c.webContents.send("record:start")}},{label:"Record Settings",click:()=>{c&&c.webContents.send("record:settings")}}]},{label:"View",submenu:[{label:"Toggle Mirror Window",accelerator:"CmdOrCtrl+M",click:()=>{c&&c.webContents.send("toggle-mirror")}},{type:"separator"},{label:"Reload",accelerator:"CmdOrCtrl+R",click:()=>{c&&c.reload()}}]},{label:"Developer",submenu:[{label:"Toggle Debug Overlay",accelerator:"CmdOrCtrl+Shift+D",click:()=>{try{c?.webContents.send("debug:toggleOverlay")}catch{}}},{label:"Show Debug Panel",accelerator:"CmdOrCtrl+Alt+D",click:()=>{try{c?.webContents.send("debug:openPanel")}catch{}}},{type:"separator"},{label:"Toggle Developer Tools",accelerator:"F12",click:()=>{c&&c.webContents.toggleDevTools()}}]},{label:"Window",submenu:[{label:"Minimize",accelerator:"CmdOrCtrl+M",role:"minimize"},{label:"Close",accelerator:"CmdOrCtrl+W",role:"close"}]}],r=o.Menu.buildFromTemplate(s);o.Menu.setApplicationMenu(r)}o.app.whenReady().then(()=>{console.log("Electron app is ready"),console.log("=== APP PATHS DEBUG ==="),console.log("app.getAppPath():",o.app.getPath("appData")),console.log("app.getPath(exe):",o.app.getPath("exe")),console.log("process.execPath:",process.execPath),console.log("process.resourcesPath:",process.resourcesPath);try{P=Ve({measurementId:process.env.GA4_MEASUREMENT_ID||"G-6F2FP4ZXNS",apiSecret:process.env.GA4_API_SECRET,appName:"Sonomika",enableInDev:String(process.env.GA4_ENABLE_DEV||"").toLowerCase()==="true"}),ne=Date.now(),de=ne,P.trackFirstOpenOnce(),P.trackAppOpen(),W=Date.now();const n=P;n&&n.enabled&&(te=setInterval(()=>{try{const t=Date.now(),e=Math.max(0,t-de);de=t;const i=pe(t);n.track("user_engagement",{ts_ms:t,uptime_ms:Math.max(0,t-ne),heartbeat_interval_ms:e,engagement_time_msec:Math.max(0,i),active_total_ms:re})}catch{}},6e4))}catch{}if(process.platform==="win32")try{o.app.setAppUserModelId("com.sonomika.app"),console.log("Set app user model ID for Windows taskbar icon")}catch(n){console.error("Error setting app user model ID:",n)}try{o.app.commandLine.appendSwitch("autoplay-policy","no-user-gesture-required")}catch{}try{const n=se();console.log("Icon path resolved at app.whenReady():",n),process.platform==="darwin"&&n&&o.app.dock&&typeof o.app.dock.setIcon=="function"&&o.app.dock.setIcon(o.nativeImage.createFromPath(n))}catch(n){console.error("Error setting dock icon:",n)}o.app.commandLine.appendSwitch("disable-background-timer-throttling"),o.app.commandLine.appendSwitch("disable-renderer-backgrounding"),o.app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");try{const n=o.app.commandLine.getSwitchValue("disable-features"),t="CalculateNativeWinOcclusion";n&&n.length>0?n.split(",").includes(t)||o.app.commandLine.appendSwitch("disable-features",`${n},${t}`):o.app.commandLine.appendSwitch("disable-features",t)}catch{}Ye(),Ue(),qe(),o.protocol.registerFileProtocol("local-file",(n,t)=>{const e=n.url.replace("local-file://","");console.log("Loading local file:",e),console.log("Request URL:",n.url),console.log("File path resolved:",e),t(e)}),o.ipcMain.on("ga4:track",(n,t)=>{try{if(!P?.enabled)return;const e=String(t?.name||"").trim();if(!e)return;const i=e.slice(0,40).replace(/[^a-zA-Z0-9_]/g,"_"),d=t?.params&&typeof t.params=="object"?t.params:{},f={};for(const[m,w]of Object.entries(d)){const O=String(m||"").trim().slice(0,40).replace(/[^a-zA-Z0-9_]/g,"_");if(!O||w==null)continue;const _=typeof w;if(_==="string"){const N=String(w);f[O]=N.length>120?N.slice(0,120):N}else if(_==="number"){const N=Number(w);isFinite(N)&&(f[O]=N)}else _==="boolean"&&(f[O]=!!w)}P.track(i,f)}catch{}}),o.ipcMain.handle("show-open-dialog",async(n,t)=>await o.dialog.showOpenDialog(c,t)),o.ipcMain.handle("show-save-dialog",async(n,t)=>{console.log("Show save dialog called with options:",t);const e=await o.dialog.showSaveDialog(c,t);return console.log("Save dialog result:",e),e}),o.ipcMain.handle("save-file",async(n,t,e)=>{try{return await p.promises.writeFile(t,e,"utf8"),!0}catch(i){return console.error("Failed to save file:",i),!1}}),o.ipcMain.handle("save-binary-file",async(n,t,e)=>{try{return console.log("Saving binary file to:",t,"Size:",e.length,"bytes"),await p.promises.writeFile(t,Buffer.from(e)),console.log("Binary file saved successfully"),!0}catch(i){return console.error("Failed to save binary file:",i),!1}});let s=null,r=null;o.ipcMain.handle("offline-render:start",async(n,t)=>{try{const e=l.join(o.app.getPath("userData"),"offline-renders"),i=l.join(e,`${Date.now()}_${(t?.name||"movie").replace(/[^a-z0-9_-]/ig,"_")}`);return await p.promises.mkdir(i,{recursive:!0}),s={dir:i,name:String(t?.name||"movie"),fps:Number(t?.fps)||0,index:0,width:Number(t?.width)||1920,height:Number(t?.height)||1080,quality:t?.quality||"medium"},r=null,console.log("[offline] start",{dir:i,fps:s.fps||"preview",quality:s.quality,size:`${s.width}x${s.height}`}),{success:!0,dir:i}}catch(e){return console.error("[offline] start error",e),{success:!1,error:String(e)}}}),o.ipcMain.handle("offline-render:frame",async(n,t)=>{if(!s)return{success:!1,error:"No session"};try{const e=s,i=l.join(e.dir,`frame_${String(e.index).padStart(6,"0")}.png`),d=String(t?.dataUrl||"").replace(/^data:image\/png;base64,/,"");return await p.promises.writeFile(i,Buffer.from(d,"base64")),e.index+=1,e.index%60===0&&console.log("[offline] saved frames:",e.index),{success:!0,index:e.index}}catch(e){return console.error("[offline] frame error",e),{success:!1,error:String(e)}}}),o.ipcMain.handle("offline-render:finish",async(n,t)=>{if(!s)return{success:!1,error:"No session"};s=null;try{return{success:!1,error:"Offline rendering is disabled. Please use WebM recording via MediaRecorder instead."}}catch(e){return console.error("[offline] finish error",e),{success:!1,error:String(e)}}}),o.ipcMain.handle("get-system-audio-stream",async()=>{try{const{desktopCapturer:n}=require("electron"),t=await n.getSources({types:["screen"],thumbnailSize:{width:1,height:1}});if(t.length===0)throw new Error("No screen sources available");return{success:!0,sourceId:(t.find(i=>i.name==="Entire Screen")||t[0]).id}}catch(n){return console.error("Failed to get system audio stream:",n),{success:!1,error:String(n)}}}),o.ipcMain.handle("get-documents-folder",async()=>{try{const n=o.app.getPath("documents");return{success:!0,path:l.join(n,"Sonomika")}}catch(n){return console.error("Failed to get Documents folder:",n),{success:!1,error:String(n)}}}),o.ipcMain.handle("get-app-path",async()=>o.app.getAppPath()),o.ipcMain.handle("open-external-url",async(n,t)=>{try{return t&&typeof t=="string"&&(t.startsWith("http://")||t.startsWith("https://"))?(await o.shell.openExternal(t),{success:!0}):{success:!1,error:"Invalid URL"}}catch(e){return console.error("open-external-url failed:",e),{success:!1,error:String(e)}}}),o.ipcMain.handle("get-app-version",async()=>{try{const n=e=>{try{if(!e||!p.existsSync(e))return"";const i=p.readFileSync(e,"utf8"),f=JSON.parse(i)?.version;return typeof f=="string"?f.trim():""}catch{return""}},t=[l.join(o.app.getAppPath(),"package.json"),l.join(process.cwd(),"package.json"),l.resolve(__dirname,"..","..","package.json"),l.resolve(__dirname,"..","package.json")];for(const e of t){const i=n(e);if(i)return i}return o.app.getVersion()}catch(n){return console.error("Failed to get app version:",n),"unknown"}}),o.ipcMain.handle("get-resources-path",async()=>process.resourcesPath||o.app.getAppPath()),o.ipcMain.handle("spout:start",async(n,t)=>{try{const e=Y.start(be);return e.ok===!1?(console.warn("[spout] start failed:",e.error),{success:!1,error:e.error}):(console.log("[spout] started sender:",be),{success:!0})}catch(e){return console.warn("[spout] start exception:",e),{success:!1,error:String(e)}}}),o.ipcMain.handle("spout:stop",async()=>{try{Y.stop();try{setTimeout(()=>{try{Y.stop()}catch{}},200)}catch{}return console.log("[spout] stopped"),{success:!0}}catch(n){return console.warn("[spout] stop exception:",n),{success:!1,error:String(n)}}}),o.ipcMain.on("spout:frame",(n,t)=>{try{if(!Y.isRunning())return;Y.pushDataUrlFrame(String(t?.dataUrl||""),{maxFps:Le})}catch{}}),o.ipcMain.handle("read-file-text",async(n,t)=>{try{return await p.promises.readFile(t,"utf8")}catch(e){return console.error("Failed to read file:",e),null}}),o.ipcMain.handle("read-local-file-base64",async(n,t)=>{try{return(await p.promises.readFile(t)).toString("base64")}catch(e){throw console.error("Failed to read local file:",t,e),e}}),o.ipcMain.handle("read-audio-bytes",async(n,t)=>{try{const{fileURLToPath:e}=require("url"),i=typeof t=="string"&&t.startsWith("file:")?e(t):t,d=await p.promises.readFile(i);return d.buffer.slice(d.byteOffset,d.byteOffset+d.byteLength)}catch(e){return console.error("read-audio-bytes failed for",t,e),new ArrayBuffer(0)}}),o.ipcMain.handle("authStorage:isEncryptionAvailable",()=>{try{return o.safeStorage.isEncryptionAvailable()}catch{return!1}}),o.ipcMain.on("authStorage:isEncryptionAvailableSync",n=>{try{n.returnValue=o.safeStorage.isEncryptionAvailable()}catch{n.returnValue=!1}}),o.ipcMain.handle("authStorage:save",async(n,t,e)=>{try{return t?e==null||e===""?(delete A[t],K(),!0):(o.safeStorage.isEncryptionAvailable()?A[t]=o.safeStorage.encryptString(e):A[t]=Buffer.from(e,"utf8"),K(),!0):!1}catch(i){return console.error("Failed to save auth blob:",i),!1}}),o.ipcMain.on("authStorage:saveSync",(n,t,e)=>{try{if(!t){n.returnValue=!1;return}if(e==null||e===""){delete A[t],K(),n.returnValue=!0;return}o.safeStorage.isEncryptionAvailable()?A[t]=o.safeStorage.encryptString(e):A[t]=Buffer.from(e,"utf8"),K(),n.returnValue=!0}catch(i){console.error("Failed to save auth blob (sync):",i),n.returnValue=!1}}),o.ipcMain.handle("authStorage:load",async(n,t)=>{try{if(!t)return null;const e=A[t];return e?o.safeStorage.isEncryptionAvailable()?o.safeStorage.decryptString(e):e.toString("utf8"):null}catch(e){return console.error("Failed to load auth blob:",e),null}}),o.ipcMain.on("authStorage:loadSync",(n,t)=>{try{if(!t){n.returnValue=null;return}const e=A[t];if(!e){n.returnValue=null;return}o.safeStorage.isEncryptionAvailable()?n.returnValue=o.safeStorage.decryptString(e):n.returnValue=e.toString("utf8")}catch(e){console.error("Failed to load auth blob (sync):",e),n.returnValue=null}}),o.ipcMain.handle("authStorage:remove",async(n,t)=>{try{return t?(delete A[t],K(),!0):!1}catch(e){return console.error("Failed to remove auth blob:",e),!1}}),o.ipcMain.on("authStorage:removeSync",(n,t)=>{try{if(!t){n.returnValue=!1;return}delete A[t],K(),n.returnValue=!0}catch(e){console.error("Failed to remove auth blob (sync):",e),n.returnValue=!1}}),o.ipcMain.handle("authStorage:loadAll",async()=>{try{const n={};for(const[t,e]of Object.entries(A))try{o.safeStorage.isEncryptionAvailable()?n[t]=o.safeStorage.decryptString(e):n[t]=e.toString("utf8")}catch{}return n}catch(n){return console.error("Failed to loadAll auth blobs:",n),{}}}),o.ipcMain.handle("get-screen-sizes",async()=>{try{const{screen:n}=require("electron"),t=n.getAllDisplays();console.log("Electron main: Detected displays:",t.length),t.forEach((i,d)=>{console.log(`Display ${d+1}:`,{width:i.bounds.width,height:i.bounds.height,x:i.bounds.x,y:i.bounds.y,scaleFactor:i.scaleFactor,rotation:i.rotation,label:i.label})});const e=t.map(i=>({width:i.bounds.width,height:i.bounds.height}));return console.log("Electron main: Returning screen sizes:",e),e}catch(n){return console.error("Failed to get screen sizes:",n),[]}}),o.ipcMain.on("toggle-app-fullscreen",()=>{if(c&&!c.isDestroyed()){const{screen:n}=require("electron");if(c.isKiosk()||c.isFullScreen())c.setKiosk(!1),c.setFullScreen(!1),c.setBounds({width:1200,height:800}),c.center();else{const t=c.getBounds(),e=n.getDisplayMatching(t);c.setBounds({x:e.bounds.x,y:e.bounds.y,width:e.bounds.width,height:e.bounds.height}),c.setMenuBarVisibility(!1),c.setFullScreenable(!0),c.setAlwaysOnTop(!0),c.setKiosk(!0),c.setFullScreen(!0)}}}),o.ipcMain.on("window-minimize",()=>{console.log("Main: window-minimize IPC received"),c?(console.log("Main: calling mainWindow.minimize()"),c.minimize()):console.log("Main: mainWindow is null")}),o.ipcMain.on("window-maximize",()=>{if(console.log("Main: window-maximize IPC received"),c)if(c.isMaximized()){console.log("Main: calling mainWindow.unmaximize()"),c.unmaximize();try{c.webContents.send("window-state",{maximized:!1})}catch{}}else{console.log("Main: calling mainWindow.maximize()"),c.maximize();try{c.webContents.send("window-state",{maximized:!0})}catch{}}else console.log("Main: mainWindow is null")}),o.ipcMain.on("window-close",()=>{console.log("Main: window-close IPC received"),c?(console.log("Main: calling mainWindow.close()"),c.close()):console.log("Main: mainWindow is null")}),o.ipcMain.on("toggle-mirror",()=>{c&&c.webContents.send("toggle-mirror")}),o.ipcMain.on("open-mirror-window",()=>{We()}),o.ipcMain.on("close-mirror-window",()=>{Ge()}),o.ipcMain.on("set-mirror-bg",(n,t)=>{if(u&&!u.isDestroyed()){const e=typeof t=="string"?t.replace(/'/g,"\\'"):"#000000";u.webContents.executeJavaScript(`document.body.style.background='${e}'`)}}),o.ipcMain.on("canvas-data",(n,t)=>{u&&!u.isDestroyed()&&u.webContents.send("update-canvas",t)}),o.ipcMain.on("sendCanvasData",(n,t)=>{if(u&&!u.isDestroyed())try{const e=(typeof t=="string"?t:"").replace(/'/g,"\\'");u.webContents.executeJavaScript(`
+  `;
+  win.loadURL(`data:text/html,${encodeURIComponent(htmlContent)}`);
+  try {
+    win.show();
+    win.center();
+  } catch {
+  }
+  win.once("ready-to-show", () => {
+    try {
+      if (!win.isVisible()) {
+        win.show();
+        win.center();
+      }
+    } catch {
+    }
+  });
+  win.on("closed", () => {
+    advancedMirrorWindows.delete(id);
+  });
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.key === "Escape") {
+      win.close();
+    }
+  });
+  advancedMirrorWindows.set(id, win);
+  return win;
+}
+function createCustomMenu() {
+  const template = [
+    {
+      label: "VJ App",
+      submenu: [
+        {
+          label: "About VJ App",
+          role: "about"
+        },
+        { type: "separator" },
+        {
+          label: "Quit",
+          accelerator: "CmdOrCtrl+Q",
+          click: () => {
+            electron.app.quit();
+          }
+        }
+      ]
+    },
+    {
+      label: "External",
+      submenu: [
+        {
+          label: "Mirror Window",
+          accelerator: "CmdOrCtrl+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-mirror");
+            }
+          }
+        },
+        {
+          label: "Advanced Mirror",
+          accelerator: "CmdOrCtrl+Shift+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-advanced-mirror");
+            }
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Spout Output",
+          click: () => {
+            try {
+              mainWindow?.webContents.send("spout:toggle");
+            } catch {
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Record",
+      submenu: [
+        {
+          label: "Record",
+          accelerator: "CmdOrCtrl+Shift+R",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("record:start");
+            }
+          }
+        },
+        {
+          label: "Record Settings",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("record:settings");
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "View",
+      submenu: [
+        {
+          label: "Toggle Mirror Window",
+          accelerator: "CmdOrCtrl+M",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send("toggle-mirror");
+            }
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Reload",
+          accelerator: "CmdOrCtrl+R",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.reload();
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Developer",
+      submenu: [
+        {
+          label: "Toggle Debug Overlay",
+          accelerator: "CmdOrCtrl+Shift+D",
+          click: () => {
+            try {
+              mainWindow?.webContents.send("debug:toggleOverlay");
+            } catch {
+            }
+          }
+        },
+        {
+          label: "Show Debug Panel",
+          accelerator: "CmdOrCtrl+Alt+D",
+          click: () => {
+            try {
+              mainWindow?.webContents.send("debug:openPanel");
+            } catch {
+            }
+          }
+        },
+        { type: "separator" },
+        {
+          label: "Toggle Developer Tools",
+          accelerator: "F12",
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.toggleDevTools();
+            }
+          }
+        }
+      ]
+    },
+    {
+      label: "Window",
+      submenu: [
+        {
+          label: "Minimize",
+          accelerator: "CmdOrCtrl+M",
+          role: "minimize"
+        },
+        {
+          label: "Close",
+          accelerator: "CmdOrCtrl+W",
+          role: "close"
+        }
+      ]
+    }
+  ];
+  const menu = electron.Menu.buildFromTemplate(template);
+  electron.Menu.setApplicationMenu(menu);
+}
+electron.app.whenReady().then(() => {
+  console.log("Electron app is ready");
+  console.log("=== APP PATHS DEBUG ===");
+  console.log("app.getAppPath():", electron.app.getPath("appData"));
+  console.log("app.getPath(exe):", electron.app.getPath("exe"));
+  console.log("process.execPath:", process.execPath);
+  console.log("process.resourcesPath:", process.resourcesPath);
+  try {
+    ga4 = createGa4Analytics({
+      measurementId: process.env.GA4_MEASUREMENT_ID || "G-6F2FP4ZXNS",
+      apiSecret: process.env.GA4_API_SECRET,
+      appName: "Sonomika",
+      // Keep dev builds quiet by default. Set GA4_ENABLE_DEV=true to allow dev tracking.
+      enableInDev: String(process.env.GA4_ENABLE_DEV || "").toLowerCase() === "true"
+    });
+    ga4SessionStartMs = Date.now();
+    ga4LastHeartbeatAtMs = ga4SessionStartMs;
+    ga4.trackFirstOpenOnce();
+    ga4.trackAppOpen();
+    ga4ActiveSinceMs = Date.now();
+    const g = ga4;
+    if (g && g.enabled) {
+      ga4Heartbeat = setInterval(() => {
+        try {
+          const now = Date.now();
+          const sinceLast = Math.max(0, now - ga4LastHeartbeatAtMs);
+          ga4LastHeartbeatAtMs = now;
+          const deltaActive = ga4FlushActiveTime(now);
+          g.track("user_engagement", {
+            ts_ms: now,
+            uptime_ms: Math.max(0, now - ga4SessionStartMs),
+            heartbeat_interval_ms: sinceLast,
+            engagement_time_msec: Math.max(0, deltaActive),
+            active_total_ms: ga4TotalActiveMs
+          });
+        } catch {
+        }
+      }, 6e4);
+    }
+  } catch {
+  }
+  if (process.platform === "win32") {
+    try {
+      electron.app.setAppUserModelId("com.sonomika.app");
+      console.log("Set app user model ID for Windows taskbar icon");
+    } catch (e) {
+      console.error("Error setting app user model ID:", e);
+    }
+  }
+  try {
+    electron.app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+  } catch {
+  }
+  try {
+    const iconPath = resolveAppIconPath();
+    console.log("Icon path resolved at app.whenReady():", iconPath);
+    if (process.platform === "darwin" && iconPath && electron.app.dock && typeof electron.app.dock.setIcon === "function") {
+      electron.app.dock.setIcon(electron.nativeImage.createFromPath(iconPath));
+    }
+  } catch (e) {
+    console.error("Error setting dock icon:", e);
+  }
+  electron.app.commandLine.appendSwitch("disable-background-timer-throttling");
+  electron.app.commandLine.appendSwitch("disable-renderer-backgrounding");
+  electron.app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+  try {
+    const existing = electron.app.commandLine.getSwitchValue("disable-features");
+    const extra = "CalculateNativeWinOcclusion";
+    if (existing && existing.length > 0) {
+      if (!existing.split(",").includes(extra)) {
+        electron.app.commandLine.appendSwitch("disable-features", `${existing},${extra}`);
+      }
+    } else {
+      electron.app.commandLine.appendSwitch("disable-features", extra);
+    }
+  } catch {
+  }
+  createCustomMenu();
+  loadEncryptedAuthStoreFromDisk();
+  initializeUserDocumentsFolders();
+  electron.protocol.registerFileProtocol("local-file", (request, callback) => {
+    const filePath = request.url.replace("local-file://", "");
+    console.log("Loading local file:", filePath);
+    console.log("Request URL:", request.url);
+    console.log("File path resolved:", filePath);
+    callback(filePath);
+  });
+  electron.ipcMain.on("ga4:track", (_event, payload) => {
+    try {
+      if (!ga4?.enabled) return;
+      const name = String(payload?.name || "").trim();
+      if (!name) return;
+      const safeName = name.slice(0, 40).replace(/[^a-zA-Z0-9_]/g, "_");
+      const rawParams = payload?.params && typeof payload.params === "object" ? payload.params : {};
+      const safeParams = {};
+      for (const [kRaw, v] of Object.entries(rawParams)) {
+        const k = String(kRaw || "").trim().slice(0, 40).replace(/[^a-zA-Z0-9_]/g, "_");
+        if (!k) continue;
+        if (v == null) continue;
+        const t = typeof v;
+        if (t === "string") {
+          const s = String(v);
+          safeParams[k] = s.length > 120 ? s.slice(0, 120) : s;
+        } else if (t === "number") {
+          const n = Number(v);
+          if (isFinite(n)) safeParams[k] = n;
+        } else if (t === "boolean") {
+          safeParams[k] = Boolean(v);
+        }
+      }
+      ga4.track(safeName, safeParams);
+    } catch {
+    }
+  });
+  electron.ipcMain.handle("show-open-dialog", async (event, options) => {
+    const result = await electron.dialog.showOpenDialog(mainWindow, options);
+    return result;
+  });
+  electron.ipcMain.handle("show-save-dialog", async (event, options) => {
+    console.log("Show save dialog called with options:", options);
+    const result = await electron.dialog.showSaveDialog(mainWindow, options);
+    console.log("Save dialog result:", result);
+    return result;
+  });
+  electron.ipcMain.handle("save-file", async (event, filePath, content) => {
+    try {
+      await fs.promises.writeFile(filePath, content, "utf8");
+      return true;
+    } catch (e) {
+      console.error("Failed to save file:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.handle("save-binary-file", async (event, filePath, data) => {
+    try {
+      console.log("Saving binary file to:", filePath, "Size:", data.length, "bytes");
+      await fs.promises.writeFile(filePath, Buffer.from(data));
+      console.log("Binary file saved successfully");
+      return true;
+    } catch (e) {
+      console.error("Failed to save binary file:", e);
+      return false;
+    }
+  });
+  let offlineSession = null;
+  let offlineAudioPath = null;
+  electron.ipcMain.handle("offline-render:start", async (_e, opts) => {
+    try {
+      const base = path.join(electron.app.getPath("userData"), "offline-renders");
+      const dir = path.join(base, `${Date.now()}_${(opts?.name || "movie").replace(/[^a-z0-9_-]/ig, "_")}`);
+      await fs.promises.mkdir(dir, { recursive: true });
+      offlineSession = { dir, name: String(opts?.name || "movie"), fps: Number(opts?.fps) || 0, index: 0, width: Number(opts?.width) || 1920, height: Number(opts?.height) || 1080, quality: opts?.quality || "medium" };
+      offlineAudioPath = null;
+      console.log("[offline] start", { dir, fps: offlineSession.fps || "preview", quality: offlineSession.quality, size: `${offlineSession.width}x${offlineSession.height}` });
+      return { success: true, dir };
+    } catch (e) {
+      console.error("[offline] start error", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("offline-render:frame", async (_e, payload) => {
+    if (!offlineSession) return { success: false, error: "No session" };
+    try {
+      const p = offlineSession;
+      const file = path.join(p.dir, `frame_${String(p.index).padStart(6, "0")}.png`);
+      const base64 = String(payload?.dataUrl || "").replace(/^data:image\/png;base64,/, "");
+      await fs.promises.writeFile(file, Buffer.from(base64, "base64"));
+      p.index += 1;
+      if (p.index % 60 === 0) {
+        console.log("[offline] saved frames:", p.index);
+      }
+      return { success: true, index: p.index };
+    } catch (e) {
+      console.error("[offline] frame error", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("offline-render:finish", async (_e, payload) => {
+    if (!offlineSession) return { success: false, error: "No session" };
+    offlineSession = null;
+    try {
+      return { success: false, error: "Offline rendering is disabled. Please use WebM recording via MediaRecorder instead." };
+    } catch (e) {
+      console.error("[offline] finish error", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("get-system-audio-stream", async () => {
+    try {
+      const { desktopCapturer } = require("electron");
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: { width: 1, height: 1 }
+      });
+      if (sources.length === 0) {
+        throw new Error("No screen sources available");
+      }
+      const primarySource = sources.find((source) => source.name === "Entire Screen") || sources[0];
+      return {
+        success: true,
+        sourceId: primarySource.id
+      };
+    } catch (e) {
+      console.error("Failed to get system audio stream:", e);
+      return {
+        success: false,
+        error: String(e)
+      };
+    }
+  });
+  electron.ipcMain.handle("get-documents-folder", async () => {
+    try {
+      const documentsPath = electron.app.getPath("documents");
+      const sonomikaDocsPath = path.join(documentsPath, "Sonomika");
+      return { success: true, path: sonomikaDocsPath };
+    } catch (e) {
+      console.error("Failed to get Documents folder:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("get-app-path", async () => {
+    return electron.app.getAppPath();
+  });
+  electron.ipcMain.handle("open-external-url", async (_event, url) => {
+    try {
+      if (url && typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"))) {
+        await electron.shell.openExternal(url);
+        return { success: true };
+      }
+      return { success: false, error: "Invalid URL" };
+    } catch (e) {
+      console.error("open-external-url failed:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("get-app-version", async () => {
+    try {
+      const tryReadPkgVersion = (pkgPath) => {
+        try {
+          if (!pkgPath || !fs.existsSync(pkgPath)) return "";
+          const raw = fs.readFileSync(pkgPath, "utf8");
+          const parsed = JSON.parse(raw);
+          const v = parsed?.version;
+          return typeof v === "string" ? v.trim() : "";
+        } catch {
+          return "";
+        }
+      };
+      const candidates = [
+        path.join(electron.app.getAppPath(), "package.json"),
+        path.join(process.cwd(), "package.json"),
+        // When running from `out/electron/main.js`
+        path.resolve(__dirname, "..", "..", "package.json"),
+        // When running from `dist-electron/main.js`
+        path.resolve(__dirname, "..", "package.json")
+      ];
+      for (const pkgPath of candidates) {
+        const v = tryReadPkgVersion(pkgPath);
+        if (v) return v;
+      }
+      return electron.app.getVersion();
+    } catch (e) {
+      console.error("Failed to get app version:", e);
+      return "unknown";
+    }
+  });
+  electron.ipcMain.handle("get-resources-path", async () => {
+    return process.resourcesPath || electron.app.getAppPath();
+  });
+  electron.ipcMain.handle("spout:start", async (_e, payload) => {
+    try {
+      const res = spoutSender.start(SPOUT_SENDER_NAME);
+      if (res.ok === false) {
+        console.warn("[spout] start failed:", res.error);
+        return { success: false, error: res.error };
+      }
+      console.log("[spout] started sender:", SPOUT_SENDER_NAME);
+      return { success: true };
+    } catch (e) {
+      console.warn("[spout] start exception:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.handle("spout:stop", async () => {
+    try {
+      spoutSender.stop();
+      try {
+        setTimeout(() => {
+          try {
+            spoutSender.stop();
+          } catch {
+          }
+        }, 200);
+      } catch {
+      }
+      console.log("[spout] stopped");
+      return { success: true };
+    } catch (e) {
+      console.warn("[spout] stop exception:", e);
+      return { success: false, error: String(e) };
+    }
+  });
+  electron.ipcMain.on("spout:frame", (_e, payload) => {
+    try {
+      if (!spoutSender.isRunning()) return;
+      spoutSender.pushDataUrlFrame(String(payload?.dataUrl || ""), { maxFps: SPOUT_MAX_FPS });
+    } catch {
+    }
+  });
+  electron.ipcMain.handle("read-file-text", async (event, filePath) => {
+    try {
+      const data = await fs.promises.readFile(filePath, "utf8");
+      return data;
+    } catch (e) {
+      console.error("Failed to read file:", e);
+      return null;
+    }
+  });
+  electron.ipcMain.handle("read-local-file-base64", async (event, filePath) => {
+    try {
+      const data = await fs.promises.readFile(filePath);
+      return data.toString("base64");
+    } catch (err) {
+      console.error("Failed to read local file:", filePath, err);
+      throw err;
+    }
+  });
+  electron.ipcMain.handle("read-audio-bytes", async (_e, urlOrPath) => {
+    try {
+      const { fileURLToPath } = require("url");
+      const asPath = typeof urlOrPath === "string" && urlOrPath.startsWith("file:") ? fileURLToPath(urlOrPath) : urlOrPath;
+      const buf = await fs.promises.readFile(asPath);
+      return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    } catch (err) {
+      console.error("read-audio-bytes failed for", urlOrPath, err);
+      return new ArrayBuffer(0);
+    }
+  });
+  electron.ipcMain.handle("authStorage:isEncryptionAvailable", () => {
+    try {
+      return electron.safeStorage.isEncryptionAvailable();
+    } catch {
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:isEncryptionAvailableSync", (event) => {
+    try {
+      event.returnValue = electron.safeStorage.isEncryptionAvailable();
+    } catch {
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:save", async (event, key, plainText) => {
+    try {
+      if (!key) return false;
+      if (plainText === void 0 || plainText === null || plainText === "") {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        return true;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = electron.safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, "utf8");
+      }
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error("Failed to save auth blob:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:saveSync", (event, key, plainText) => {
+    try {
+      if (!key) {
+        event.returnValue = false;
+        return;
+      }
+      if (plainText === void 0 || plainText === null || plainText === "") {
+        delete encryptedAuthStore[key];
+        persistEncryptedAuthStoreToDisk();
+        event.returnValue = true;
+        return;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        encryptedAuthStore[key] = electron.safeStorage.encryptString(plainText);
+      } else {
+        encryptedAuthStore[key] = Buffer.from(plainText, "utf8");
+      }
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error("Failed to save auth blob (sync):", e);
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:load", async (event, key) => {
+    try {
+      if (!key) return null;
+      const buf = encryptedAuthStore[key];
+      if (!buf) return null;
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        return electron.safeStorage.decryptString(buf);
+      }
+      return buf.toString("utf8");
+    } catch (e) {
+      console.error("Failed to load auth blob:", e);
+      return null;
+    }
+  });
+  electron.ipcMain.on("authStorage:loadSync", (event, key) => {
+    try {
+      if (!key) {
+        event.returnValue = null;
+        return;
+      }
+      const buf = encryptedAuthStore[key];
+      if (!buf) {
+        event.returnValue = null;
+        return;
+      }
+      if (electron.safeStorage.isEncryptionAvailable()) {
+        event.returnValue = electron.safeStorage.decryptString(buf);
+      } else {
+        event.returnValue = buf.toString("utf8");
+      }
+    } catch (e) {
+      console.error("Failed to load auth blob (sync):", e);
+      event.returnValue = null;
+    }
+  });
+  electron.ipcMain.handle("authStorage:remove", async (event, key) => {
+    try {
+      if (!key) return false;
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      return true;
+    } catch (e) {
+      console.error("Failed to remove auth blob:", e);
+      return false;
+    }
+  });
+  electron.ipcMain.on("authStorage:removeSync", (event, key) => {
+    try {
+      if (!key) {
+        event.returnValue = false;
+        return;
+      }
+      delete encryptedAuthStore[key];
+      persistEncryptedAuthStoreToDisk();
+      event.returnValue = true;
+    } catch (e) {
+      console.error("Failed to remove auth blob (sync):", e);
+      event.returnValue = false;
+    }
+  });
+  electron.ipcMain.handle("authStorage:loadAll", async () => {
+    try {
+      const result = {};
+      for (const [k, v] of Object.entries(encryptedAuthStore)) {
+        try {
+          if (electron.safeStorage.isEncryptionAvailable()) {
+            result[k] = electron.safeStorage.decryptString(v);
+          } else {
+            result[k] = v.toString("utf8");
+          }
+        } catch {
+        }
+      }
+      return result;
+    } catch (e) {
+      console.error("Failed to loadAll auth blobs:", e);
+      return {};
+    }
+  });
+  electron.ipcMain.handle("get-screen-sizes", async () => {
+    try {
+      const { screen } = require("electron");
+      const displays = screen.getAllDisplays();
+      console.log("Electron main: Detected displays:", displays.length);
+      displays.forEach((display, index) => {
+        console.log(`Display ${index + 1}:`, {
+          width: display.bounds.width,
+          height: display.bounds.height,
+          x: display.bounds.x,
+          y: display.bounds.y,
+          scaleFactor: display.scaleFactor,
+          rotation: display.rotation,
+          label: display.label
+        });
+      });
+      const result = displays.map((display) => ({
+        width: display.bounds.width,
+        height: display.bounds.height
+      }));
+      console.log("Electron main: Returning screen sizes:", result);
+      return result;
+    } catch (e) {
+      console.error("Failed to get screen sizes:", e);
+      return [];
+    }
+  });
+  electron.ipcMain.on("toggle-app-fullscreen", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const { screen } = require("electron");
+      if (mainWindow.isKiosk() || mainWindow.isFullScreen()) {
+        mainWindow.setKiosk(false);
+        mainWindow.setFullScreen(false);
+        mainWindow.setBounds({ width: 1200, height: 800 });
+        mainWindow.center();
+      } else {
+        const bounds = mainWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mainWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        mainWindow.setMenuBarVisibility(false);
+        mainWindow.setFullScreenable(true);
+        mainWindow.setAlwaysOnTop(true);
+        mainWindow.setKiosk(true);
+        mainWindow.setFullScreen(true);
+      }
+    }
+  });
+  electron.ipcMain.on("window-minimize", () => {
+    console.log("Main: window-minimize IPC received");
+    if (mainWindow) {
+      console.log("Main: calling mainWindow.minimize()");
+      mainWindow.minimize();
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("window-maximize", () => {
+    console.log("Main: window-maximize IPC received");
+    if (mainWindow) {
+      if (mainWindow.isMaximized()) {
+        console.log("Main: calling mainWindow.unmaximize()");
+        mainWindow.unmaximize();
+        try {
+          mainWindow.webContents.send("window-state", { maximized: false });
+        } catch {
+        }
+      } else {
+        console.log("Main: calling mainWindow.maximize()");
+        mainWindow.maximize();
+        try {
+          mainWindow.webContents.send("window-state", { maximized: true });
+        } catch {
+        }
+      }
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("window-close", () => {
+    console.log("Main: window-close IPC received");
+    if (mainWindow) {
+      console.log("Main: calling mainWindow.close()");
+      mainWindow.close();
+    } else {
+      console.log("Main: mainWindow is null");
+    }
+  });
+  electron.ipcMain.on("toggle-mirror", () => {
+    if (mainWindow) {
+      mainWindow.webContents.send("toggle-mirror");
+    }
+  });
+  electron.ipcMain.on("open-mirror-window", () => {
+    createMirrorWindow();
+  });
+  electron.ipcMain.on("close-mirror-window", () => {
+    closeMirrorWindow();
+  });
+  electron.ipcMain.on("set-mirror-bg", (event, color) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const safe = typeof color === "string" ? color.replace(/'/g, "\\'") : "#000000";
+      mirrorWindow.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+    }
+  });
+  electron.ipcMain.on("canvas-data", (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      mirrorWindow.webContents.send("update-canvas", dataUrl);
+    }
+  });
+  electron.ipcMain.on("sendCanvasData", (event, dataUrl) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      try {
+        const escaped = (typeof dataUrl === "string" ? dataUrl : "").replace(/'/g, "\\'");
+        mirrorWindow.webContents.executeJavaScript(`
           (function(){
             try {
               var noStream = document.getElementById('no-stream');
               var img = document.getElementById('mirror-image');
               if (noStream) noStream.style.display = 'none';
               if (img) {
-                if (img.src !== '${e}') {
-                  img.src = '${e}';
+                if (img.src !== '${escaped}') {
+                  img.src = '${escaped}';
                   img.style.display = 'block';
                 }
               }
             } catch(e) {}
           })();
-        `)}catch{}}),o.ipcMain.on("toggle-fullscreen",()=>{if(u&&!u.isDestroyed()){const{screen:n}=require("electron");if(u.isKiosk()||u.isFullScreen()){u.setKiosk(!1),u.setFullScreen(!1);try{u.setVisibleOnAllWorkspaces(!1)}catch{}try{u.setAlwaysOnTop(!0)}catch{}u.setBounds({x:void 0,y:void 0,width:1920,height:1080});try{u.center()}catch{}try{u.focus()}catch{}}else{const t=u.getBounds(),e=n.getDisplayMatching(t);u.setBounds({x:e.bounds.x,y:e.bounds.y,width:e.bounds.width,height:e.bounds.height});try{u.setMenuBarVisibility(!1)}catch{}try{u.setFullScreenable(!0)}catch{}try{process.platform==="darwin"?u.setAlwaysOnTop(!0,"screen-saver"):u.setAlwaysOnTop(!0)}catch{}try{u.setVisibleOnAllWorkspaces(!0,{visibleOnFullScreen:!0})}catch{}try{u.moveTop?.()}catch{}try{u.show()}catch{}try{u.focus()}catch{}u.setKiosk(!0),u.setFullScreen(!0);try{u.moveTop?.()}catch{}try{u.focus()}catch{}}}}),o.ipcMain.on("resize-mirror-window",(n,t,e)=>{if(u&&!u.isDestroyed()){try{let i=Math.max(1,Number(t)||1),d=Math.max(1,Number(e)||1);const{screen:f}=require("electron"),w=f.getPrimaryDisplay().workArea,O=Math.floor(w.width*.9),_=Math.floor(w.height*.9),N=i/d;if(i>O||d>_){const V=O/i,C=_/d,M=Math.min(V,C);i=Math.floor(i*M),d=Math.floor(d*M)}i=Math.max(480,i),d=Math.max(270,d),q&&isFinite(q)&&q>0&&(d=Math.max(1,Math.round(i/q))),console.log("Resizing mirror window to:",i,"x",d,"(aspect locked:",!!q,")"),u.setSize(i,d)}catch{}u.center()}}),o.ipcMain.on("set-mirror-aspect",(n,t,e)=>{try{const i=Math.max(1,Number(t)||1),d=Math.max(1,Number(e)||1),f=i/d;if(q=f,X=f,u&&!u.isDestroyed())try{u.setAspectRatio(f)}catch{}if(Z&&!Z.isDestroyed())try{Z.setAspectRatio(f)}catch{}}catch{}}),o.ipcMain.on("advanced-mirror:open",(n,t)=>{try{if(console.log("[main] advanced-mirror:open",Array.isArray(t)?t.map(e=>e?.id):t),Array.isArray(t))for(const e of t)console.log("[main] createAdvancedMirrorWindow",e?.id),Ke(String(e.id),e)}catch(e){console.warn("advanced-mirror:open error",e)}}),o.ipcMain.on("advanced-mirror:closeAll",()=>{try{B.forEach((n,t)=>{try{n.isDestroyed()||n.close()}catch{}B.delete(t)})}catch(n){console.warn("advanced-mirror:closeAll error",n)}}),o.ipcMain.on("advanced-mirror:sendSliceData",(n,t,e)=>{const i=B.get(String(t));if(i&&!i.isDestroyed()){const d=(typeof e=="string"?e:"").replace(/'/g,"\\'");i.webContents.executeJavaScript(`
+        `);
+      } catch {
+      }
+    }
+  });
+  electron.ipcMain.on("toggle-fullscreen", () => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      const { screen } = require("electron");
+      if (mirrorWindow.isKiosk() || mirrorWindow.isFullScreen()) {
+        mirrorWindow.setKiosk(false);
+        mirrorWindow.setFullScreen(false);
+        try {
+          mirrorWindow.setVisibleOnAllWorkspaces(false);
+        } catch {
+        }
+        try {
+          mirrorWindow.setAlwaysOnTop(true);
+        } catch {
+        }
+        mirrorWindow.setBounds({
+          x: void 0,
+          y: void 0,
+          width: 1920,
+          // Will be updated by renderer
+          height: 1080
+          // Will be updated by renderer
+        });
+        try {
+          mirrorWindow.center();
+        } catch {
+        }
+        try {
+          mirrorWindow.focus();
+        } catch {
+        }
+      } else {
+        const bounds = mirrorWindow.getBounds();
+        const display = screen.getDisplayMatching(bounds);
+        mirrorWindow.setBounds({
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height
+        });
+        try {
+          mirrorWindow.setMenuBarVisibility(false);
+        } catch {
+        }
+        try {
+          mirrorWindow.setFullScreenable(true);
+        } catch {
+        }
+        try {
+          if (process.platform === "darwin") {
+            mirrorWindow.setAlwaysOnTop(true, "screen-saver");
+          } else {
+            mirrorWindow.setAlwaysOnTop(true);
+          }
+        } catch {
+        }
+        try {
+          mirrorWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+        } catch {
+        }
+        try {
+          mirrorWindow.moveTop?.();
+        } catch {
+        }
+        try {
+          mirrorWindow.show();
+        } catch {
+        }
+        try {
+          mirrorWindow.focus();
+        } catch {
+        }
+        mirrorWindow.setKiosk(true);
+        mirrorWindow.setFullScreen(true);
+        try {
+          mirrorWindow.moveTop?.();
+        } catch {
+        }
+        try {
+          mirrorWindow.focus();
+        } catch {
+        }
+      }
+    }
+  });
+  electron.ipcMain.on("resize-mirror-window", (event, width, height) => {
+    if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+      try {
+        let targetW = Math.max(1, Number(width) || 1);
+        let targetH = Math.max(1, Number(height) || 1);
+        const { screen } = require("electron");
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const workArea = primaryDisplay.workArea;
+        const maxW = Math.floor(workArea.width * 0.9);
+        const maxH = Math.floor(workArea.height * 0.9);
+        const aspectRatio = targetW / targetH;
+        if (targetW > maxW || targetH > maxH) {
+          const scaleW = maxW / targetW;
+          const scaleH = maxH / targetH;
+          const scale = Math.min(scaleW, scaleH);
+          targetW = Math.floor(targetW * scale);
+          targetH = Math.floor(targetH * scale);
+        }
+        targetW = Math.max(480, targetW);
+        targetH = Math.max(270, targetH);
+        if (mirrorAspectRatio && isFinite(mirrorAspectRatio) && mirrorAspectRatio > 0) {
+          targetH = Math.max(1, Math.round(targetW / mirrorAspectRatio));
+        }
+        console.log("Resizing mirror window to:", targetW, "x", targetH, "(aspect locked:", !!mirrorAspectRatio, ")");
+        mirrorWindow.setSize(targetW, targetH);
+      } catch {
+      }
+      mirrorWindow.center();
+    }
+  });
+  electron.ipcMain.on("set-mirror-aspect", (event, width, height) => {
+    try {
+      const w = Math.max(1, Number(width) || 1);
+      const h = Math.max(1, Number(height) || 1);
+      const ratio = w / h;
+      mirrorAspectRatio = ratio;
+      outputAspectRatio = ratio;
+      if (mirrorWindow && !mirrorWindow.isDestroyed()) {
+        try {
+          mirrorWindow.setAspectRatio(ratio);
+        } catch {
+        }
+      }
+      if (outputWindow && !outputWindow.isDestroyed()) {
+        try {
+          outputWindow.setAspectRatio(ratio);
+        } catch {
+        }
+      }
+    } catch {
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:open", (event, slices) => {
+    try {
+      console.log("[main] advanced-mirror:open", Array.isArray(slices) ? slices.map((s) => s?.id) : slices);
+      if (Array.isArray(slices)) {
+        for (const s of slices) {
+          console.log("[main] createAdvancedMirrorWindow", s?.id);
+          createAdvancedMirrorWindow(String(s.id), s);
+        }
+      }
+    } catch (e) {
+      console.warn("advanced-mirror:open error", e);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:closeAll", () => {
+    try {
+      advancedMirrorWindows.forEach((win, id) => {
+        try {
+          if (!win.isDestroyed()) win.close();
+        } catch {
+        }
+        advancedMirrorWindows.delete(id);
+      });
+    } catch (e) {
+      console.warn("advanced-mirror:closeAll error", e);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:sendSliceData", (event, id, dataUrl) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const escaped = (typeof dataUrl === "string" ? dataUrl : "").replace(/'/g, "\\'");
+      win.webContents.executeJavaScript(`
         (function() {
           const mirrorImage = document.getElementById('mirror-image');
           if (mirrorImage) {
-            if (mirrorImage.src !== '${d}') {
-              mirrorImage.src = '${d}';
+            if (mirrorImage.src !== '${escaped}') {
+              mirrorImage.src = '${escaped}';
               mirrorImage.style.display = 'block';
             }
           }
         })();
-      `)}}),o.ipcMain.on("advanced-mirror:setBg",(n,t,e)=>{const i=B.get(String(t));if(i&&!i.isDestroyed()){const d=typeof e=="string"?e.replace(/'/g,"\\'"):"#000000";i.webContents.executeJavaScript(`document.body.style.background='${d}'`)}}),o.ipcMain.on("advanced-mirror:resize",(n,t,e,i)=>{const d=B.get(String(t));if(d&&!d.isDestroyed())try{d.setSize(e,i),d.center()}catch{}}),o.ipcMain.on("advanced-mirror:toggleFullscreen",(n,t)=>{const e=B.get(String(t));if(e&&!e.isDestroyed()){const{screen:i}=require("electron");if(e.isKiosk()||e.isFullScreen())try{e.setKiosk(!1),e.setFullScreen(!1),e.setBounds({width:960,height:540}),e.center()}catch{}else try{const d=e.getBounds(),f=i.getDisplayMatching(d);e.setBounds({x:f.bounds.x,y:f.bounds.y,width:f.bounds.width,height:f.bounds.height}),e.setMenuBarVisibility(!1),e.setFullScreenable(!0),e.setAlwaysOnTop(!0),e.setKiosk(!0),e.setFullScreen(!0)}catch{}}}),ve(),o.app.on("activate",()=>{o.BrowserWindow.getAllWindows().length===0&&ve()})});try{o.app.on("before-quit",()=>{try{const s=Date.now(),r=pe(s);W=null;try{te&&clearInterval(te)}catch{}te=null,P?.track("session_end",{ts_ms:s,uptime_ms:Math.max(0,s-ne),active_delta_ms:r,active_total_ms:re}),P?.track("app_quit",{ts_ms:s})}catch{}try{Y.stop()}catch{}})}catch{}o.app.on("window-all-closed",()=>{process.platform!=="darwin"&&o.app.quit()});process.on("uncaughtException",s=>{console.error("Uncaught Exception:",s);try{P?.trackAppError(s?.name||"uncaughtException")}catch{}});process.on("unhandledRejection",(s,r)=>{console.error("Unhandled Rejection at:",r,"reason:",s);try{P?.trackAppError("unhandledRejection")}catch{}});
+      `);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:setBg", (event, id, color) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const safe = typeof color === "string" ? color.replace(/'/g, "\\'") : "#000000";
+      win.webContents.executeJavaScript(`document.body.style.background='${safe}'`);
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:resize", (event, id, width, height) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      try {
+        win.setSize(width, height);
+        win.center();
+      } catch {
+      }
+    }
+  });
+  electron.ipcMain.on("advanced-mirror:toggleFullscreen", (event, id) => {
+    const win = advancedMirrorWindows.get(String(id));
+    if (win && !win.isDestroyed()) {
+      const { screen } = require("electron");
+      if (win.isKiosk() || win.isFullScreen()) {
+        try {
+          win.setKiosk(false);
+          win.setFullScreen(false);
+          win.setBounds({ width: 960, height: 540 });
+          win.center();
+        } catch {
+        }
+      } else {
+        try {
+          const bounds = win.getBounds();
+          const display = screen.getDisplayMatching(bounds);
+          win.setBounds({ x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height });
+          win.setMenuBarVisibility(false);
+          win.setFullScreenable(true);
+          win.setAlwaysOnTop(true);
+          win.setKiosk(true);
+          win.setFullScreen(true);
+        } catch {
+        }
+      }
+    }
+  });
+  createWindow();
+  electron.app.on("activate", () => {
+    if (electron.BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+try {
+  electron.app.on("before-quit", () => {
+    try {
+      const now = Date.now();
+      const deltaActive = ga4FlushActiveTime(now);
+      ga4ActiveSinceMs = null;
+      try {
+        if (ga4Heartbeat) clearInterval(ga4Heartbeat);
+      } catch {
+      }
+      ga4Heartbeat = null;
+      ga4?.track("session_end", {
+        ts_ms: now,
+        uptime_ms: Math.max(0, now - ga4SessionStartMs),
+        active_delta_ms: deltaActive,
+        active_total_ms: ga4TotalActiveMs
+      });
+      ga4?.track("app_quit", { ts_ms: now });
+    } catch {
+    }
+    try {
+      spoutSender.stop();
+    } catch {
+    }
+  });
+} catch {
+}
+electron.app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    electron.app.quit();
+  }
+});
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+  try {
+    ga4?.trackAppError(error?.name || "uncaughtException");
+  } catch {
+  }
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  try {
+    ga4?.trackAppError("unhandledRejection");
+  } catch {
+  }
+});

@@ -51,6 +51,60 @@ function getSessionFilePath() {
   return path.join(app.getPath('userData'), 'ga4_session.json');
 }
 
+type GeoState = {
+  ip_override?: string;
+  fetched_at_ms: number;
+};
+
+function getGeoFilePath() {
+  return path.join(app.getPath('userData'), 'ga4_geo.json');
+}
+
+function looksLikeIpAddress(ip: string) {
+  const s = ip.trim();
+  // Very lightweight validation; GA accepts both v4 and v6.
+  // v4: "1.2.3.4"  v6: contains ":" and hex.
+  if (!s) return false;
+  const isV4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(s);
+  const isV6 = /^[0-9a-f:]+$/i.test(s) && s.includes(':');
+  return isV4 || isV6;
+}
+
+function getCachedIpOverride(maxAgeMs: number): string | undefined {
+  try {
+    const fp = getGeoFilePath();
+    const st = safeReadJsonFile<GeoState>(fp);
+    if (!st || typeof st.fetched_at_ms !== 'number') return undefined;
+    if (Date.now() - st.fetched_at_ms > maxAgeMs) return undefined;
+    if (typeof st.ip_override !== 'string') return undefined;
+    const ip = st.ip_override.trim();
+    return looksLikeIpAddress(ip) ? ip : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function fetchPublicIpOverride(timeoutMs: number): Promise<string | undefined> {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), Math.max(250, timeoutMs));
+    try {
+      // Simple public IP resolver. Best-effort; analytics should never block app startup.
+      const res = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+      if (!res.ok) return undefined;
+      const data = (await res.json()) as { ip?: unknown };
+      const ip = typeof data?.ip === 'string' ? data.ip.trim() : '';
+      if (!looksLikeIpAddress(ip)) return undefined;
+      safeWriteJsonFile(getGeoFilePath(), { ip_override: ip, fetched_at_ms: Date.now() } satisfies GeoState);
+      return ip;
+    } finally {
+      clearTimeout(t);
+    }
+  } catch {
+    return undefined;
+  }
+}
+
 function getOrCreateClientId(): { state: ClientIdState; isNew: boolean } {
   const fp = getClientIdFilePath();
   const existing = safeReadJsonFile<ClientIdState>(fp);
@@ -112,6 +166,42 @@ export function createGa4Analytics(init: Ga4Init) {
   const { state: client, isNew } = getOrCreateClientId();
   const session = nextSessionInfo();
 
+  // GA4 geo/device dimensions do NOT reliably populate for "Measurement Protocol only" setups.
+  // If you aren't also sending gtag/GTM/Firebase-tagged events for the same client_id,
+  // provide geographic info explicitly (user_location or ip_override).
+  //
+  // - Set GA4_COUNTRY_ID / GA4_REGION_ID / GA4_CITY to explicitly define user_location.
+  // - Otherwise we best-effort add ip_override using the current public IP (cached).
+  //
+  // Docs: https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference#payload_geo_info
+  const explicitCountryId = String(process.env.GA4_COUNTRY_ID || '').trim().toUpperCase();
+  const explicitRegionId = String(process.env.GA4_REGION_ID || '').trim();
+  const explicitCity = String(process.env.GA4_CITY || '').trim();
+
+  const explicitUserLocation =
+    explicitCountryId || explicitRegionId || explicitCity
+      ? {
+          ...(explicitCity ? { city: explicitCity } : {}),
+          ...(explicitRegionId ? { region_id: explicitRegionId } : {}),
+          ...(explicitCountryId ? { country_id: explicitCountryId } : {}),
+        }
+      : undefined;
+
+  const geoDisabled =
+    String(process.env.GA4_GEO_DISABLED || '').toLowerCase() === 'true' ||
+    String(process.env.GA4_GEO_DISABLED || '').toLowerCase() === '1';
+
+  let ipOverride: string | undefined = undefined;
+  const envIpOverride = String(process.env.GA4_IP_OVERRIDE || '').trim();
+  if (looksLikeIpAddress(envIpOverride)) ipOverride = envIpOverride;
+  if (!ipOverride) ipOverride = getCachedIpOverride(7 * 24 * 60 * 60 * 1000); // 7 days
+  if (!ipOverride && !geoDisabled) {
+    // Fire-and-forget; ok if it fails.
+    void fetchPublicIpOverride(2_000).then((ip) => {
+      if (ip) ipOverride = ip;
+    });
+  }
+
   function baseParams(params?: Record<string, unknown>) {
     return {
       // GA4 session attribution params (Measurement Protocol)
@@ -143,6 +233,13 @@ export function createGa4Analytics(init: Ga4Init) {
 
     const payload = {
       client_id: client.client_id,
+      ...(geoDisabled
+        ? {}
+        : explicitUserLocation
+          ? { user_location: explicitUserLocation }
+          : ipOverride
+            ? { ip_override: ipOverride }
+            : {}),
       user_properties: {
         app_name: { value: appName },
         app_version: { value: app.getVersion?.() || 'unknown' },

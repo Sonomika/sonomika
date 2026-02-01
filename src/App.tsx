@@ -1152,6 +1152,7 @@ function App() {
         if (isRecording && recorderRef.current) { 
           try { 
             console.log('Stopping recording...');
+            track('feature_use', { feature: 'recording_stop', ts_ms: Date.now() });
             
             // Clear the copy timer immediately to stop drawing new frames
             try {
@@ -1600,6 +1601,13 @@ function App() {
         const audioInfo = audioSource === 'none' ? 'no audio' : `${audioSource} @ ${audioBitrate/1000}kbps`;
         toast({ description: `Recording started (@ ${fps}fps, ${quality}, ${audioInfo})...` });
         setIsRecording(true);
+        track('feature_use', {
+          feature: 'recording_start',
+          ts_ms: Date.now(),
+          fps,
+          quality: String(quality || '').slice(0, 20),
+          audio_source: String(audioSource || '').slice(0, 30),
+        });
         console.log('Recording started, isRecording set to true');
       } catch {}
     })();
@@ -1670,12 +1678,23 @@ function App() {
               const quality = (useStore.getState() as any).recordSettings?.quality || 'medium';
               await (window as any).electron?.offlineRenderStart?.({ name, fps, width, height, quality });
               (window as any).__offlineRecord = { active: true, fps, width, height, off: null, ctx: null, fpsEstimate: 0 };
+              track('feature_use', {
+                feature: 'offline_render_start',
+                ts_ms: Date.now(),
+                fps,
+                width,
+                height,
+                quality: String(quality || '').slice(0, 20),
+              });
             } catch {}
           })();
         }}
         onOfflineStop={() => {
           (async () => {
-            try { if ((window as any).__offlineRecord) (window as any).__offlineRecord.active = false; } catch {}
+            try {
+              if ((window as any).__offlineRecord) (window as any).__offlineRecord.active = false;
+              track('feature_use', { feature: 'offline_render_stop', ts_ms: Date.now() });
+            } catch {}
           })();
         }}
         onOfflineSave={undefined}

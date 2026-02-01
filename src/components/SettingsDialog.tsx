@@ -7,6 +7,7 @@ import { useToast } from '../hooks/use-toast';
 import { getSupabase } from '../lib/supabaseClient';
 import { AITemplateLoader } from '../utils/AITemplateLoader';
 import { AITemplate } from '../types/aiTemplate';
+import { trackFeature } from '../utils/analytics';
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -378,6 +379,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                     toast({ description: 'Directory selection is only available in the Electron app.' });
                     return;
                   }
+                  trackFeature('user_fx_dir_browse', { ok: true });
                   const result = await (window as any).electron.showOpenDialog({ title: 'Select User FX Directory', properties: ['openDirectory'], message: 'Choose a directory containing your custom effects (.tsx or portable .js).' });
                   if (result.canceled || !result.filePaths?.[0]) return;
                   const dir = String(result.filePaths[0]);
@@ -393,6 +395,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                     const discovery = EffectDiscovery.getInstance();
                     const effects = await discovery.loadUserEffectsFromDirectory(dir);
                     toast({ description: `Loaded ${effects.length} effect(s) from ${dir}` });
+                    trackFeature('user_fx_loaded', { ok: true, count: effects.length });
                   } catch (e) {
                     console.warn('Immediate load failed', e);
                   }

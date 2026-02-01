@@ -1,5 +1,6 @@
 import { WebMidi, Input, NoteMessageEvent, ControlChangeMessageEvent } from 'webmidi';
 import { getClock } from '../engine/Clock';
+import { trackFeatureOnce, trackFeatureThrottled } from '../utils/analytics';
 
 type NoteCallback = (note: number, velocity: number, channel: number) => void;
 type CCCallback = (cc: number, value: number, channel: number) => void;
@@ -39,12 +40,14 @@ export class MIDIManager {
       await WebMidi.enable();
       this.initialized = true;
       this.setupInputs();
+      trackFeatureOnce('midi_enabled', { ok: true });
 
       // Listen for device connections/disconnections
       WebMidi.addListener('connected', () => this.setupInputs());
       WebMidi.addListener('disconnected', () => this.setupInputs());
     } catch (error) {
       console.error('WebMidi could not be enabled:', error);
+      trackFeatureOnce('midi_enabled', { ok: false });
     }
   }
 
@@ -67,6 +70,13 @@ export class MIDIManager {
     this.inputs = shouldFilter 
       ? this.allInputs.filter(input => this.selectedDeviceNames.has(input.name))
       : [];
+
+    // Throttle: device attach/detach can fire in bursts.
+    trackFeatureThrottled('midi_devices', 5000, {
+      available: (this.allInputs || []).length,
+      selected: this.selectedDeviceNames.size,
+      active: (this.inputs || []).length,
+    });
 
     this.inputs.forEach(input => {
       input.addListener('noteon', (e: NoteMessageEvent) => {

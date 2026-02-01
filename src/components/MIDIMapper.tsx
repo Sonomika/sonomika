@@ -5,6 +5,7 @@ import { MIDIManager } from '../midi/MIDIManager';
 import { MIDIProcessor } from '../utils/MIDIProcessor';
 import { MIDIMapping } from '../store/types';
 import { KeyboardInputManager } from '../utils/KeyboardInputManager';
+import { trackFeature } from '../utils/analytics';
 import LayerCCMapper from './LayerCCMapper';
 import GlobalCCMapper from './GlobalCCMapper';
 
@@ -355,15 +356,18 @@ export const MIDIMapper: React.FC = () => {
                 const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
                 if (isElectron) {
                   (async () => {
+                    trackFeature('midi_mapping_load_dialog', { ok: true });
                     const result = await (window as any).electron.showOpenDialog({ title: 'Load MIDI Mapping', properties: ['openFile'], filters: [{ name: 'MIDI Mapping', extensions: ['json'] }] });
                     if (!result.canceled && result.filePaths && result.filePaths[0]) {
                       const content = await (window as any).electron.readFileText(result.filePaths[0]);
                       if (content) {
                         loadMappingsFromContent(content);
+                        trackFeature('midi_mapping_loaded', { ok: true, source: 'electron_dialog' });
                       }
                     }
                   })();
                 } else {
+                  trackFeature('midi_mapping_load_dialog', { ok: true, source: 'file_input' });
                   fileInputRef.current?.click();
                 }
               } catch {}

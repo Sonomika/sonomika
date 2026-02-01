@@ -4,6 +4,7 @@ import { useStore } from '../store/store';
 import { AITemplateLoader } from '../utils/AITemplateLoader';
 import { callAIAPI } from '../utils/AIApiCaller';
 import { AITemplate } from '../types/aiTemplate';
+import { trackFeature } from '../utils/analytics';
 
 interface RefEffectOption {
   id: string;
@@ -747,6 +748,7 @@ export const AIEffectsLab: React.FC = () => {
     try {
       const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
       if (isElectron) {
+        trackFeature('ai_external_code_load_dialog', { ok: true, source: 'electron_dialog' });
         const result = await (window as any).electron.showOpenDialog({
           title: 'Load External Code',
           properties: ['openFile'],
@@ -758,12 +760,15 @@ export const AIEffectsLab: React.FC = () => {
         if (typeof content === 'string') {
           setCode(content);
           try { localStorage.setItem('vj-ai-last-code', content); } catch {}
-          setStatus(`Loaded external file: ${filePath.split(/[/\\]/).pop()}`);
+          const base = String(filePath.split(/[/\\]/).pop() || '').slice(0, 80);
+          setStatus(`Loaded external file: ${base}`);
+          trackFeature('ai_external_code_loaded', { ok: true, source: 'electron_dialog' });
         }
         return;
       }
       // Web: File System Access API first
       try {
+        trackFeature('ai_external_code_load_dialog', { ok: true, source: 'web_picker' });
         // @ts-ignore
         const [handle] = await window.showOpenFilePicker({
           types: [{ description: 'JavaScript/TypeScript', accept: { 'application/javascript': ['.js','.mjs','.cjs'], 'text/plain': ['.ts','.tsx','.jsx'] } }]
@@ -773,9 +778,11 @@ export const AIEffectsLab: React.FC = () => {
         setCode(text);
         try { localStorage.setItem('vj-ai-last-code', text); } catch {}
         setStatus(`Loaded external file: ${file.name}`);
+        trackFeature('ai_external_code_loaded', { ok: true, source: 'web_picker' });
         return;
       } catch {}
       // Fallback: hidden input
+      trackFeature('ai_external_code_load_dialog', { ok: true, source: 'web_input' });
       try { hiddenFileInputRef.current?.click(); } catch {}
     } catch (e: any) {
       setStatus(e?.message || 'Failed to load external file');
@@ -790,6 +797,7 @@ export const AIEffectsLab: React.FC = () => {
       setCode(text);
       try { localStorage.setItem('vj-ai-last-code', text); } catch {}
       setStatus(`Loaded external file: ${file.name}`);
+      trackFeature('ai_external_code_loaded', { ok: true, source: 'web_input' });
     } catch (err: any) {
       setStatus(err?.message || 'Failed to read selected file');
     } finally {

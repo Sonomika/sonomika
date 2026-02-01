@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui';
 import { useToast } from '../hooks/use-toast';
+import { trackFeature } from '../utils/analytics';
 
 interface UserEffectsLoaderProps {
   open: boolean;
@@ -24,6 +25,7 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
     try {
       // Check if we're in Electron environment
       if (typeof window !== 'undefined' && (window as any).electron?.showOpenDialog) {
+        trackFeature('user_fx_dir_select_dialog', { ok: true });
         const result = await (window as any).electron.showOpenDialog({
           title: 'Select User Effects Directory',
           properties: ['openDirectory'],
@@ -32,6 +34,7 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
 
         if (!result.canceled && result.filePaths && result.filePaths[0]) {
           setSelectedDirectory(result.filePaths[0]);
+          trackFeature('user_fx_dir_selected', { ok: true });
         }
       } else {
         toast({
@@ -113,6 +116,7 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
         title: 'Success',
         description: `Loaded ${effects.length} user effects from ${selectedDirectory}.`,
       });
+      trackFeature('user_fx_loaded', { ok: true, count: effects.length, source: 'dir' });
       
       onEffectsLoaded?.(effects.length);
       onOpenChange(false);
@@ -179,6 +183,7 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
         toast({ title: 'Not Available', description: 'File selection is only available in Electron.' });
         return;
       }
+      trackFeature('user_fx_js_select_dialog', { ok: true });
       const result = await (window as any).electron.showOpenDialog({
         title: 'Select User Effect (.js)',
         properties: ['openFile'],
@@ -203,6 +208,7 @@ export const UserEffectsLoader: React.FC<UserEffectsLoaderProps> = ({
           }
         } catch {}
         toast({ title: 'Loaded', description: `Loaded user effect: ${effect.name}` });
+        trackFeature('user_fx_loaded', { ok: true, count: 1, source: 'js_file' });
         onEffectsLoaded?.(1);
         onOpenChange(false);
       } else {
