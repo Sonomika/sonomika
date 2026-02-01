@@ -550,6 +550,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // 360 preview mode for equirectangular compositions
   const [is360PreviewMode, setIs360PreviewMode] = useState(false);
   const [sphereSourceCanvas, setSphereSourceCanvas] = useState<HTMLCanvasElement | null>(null);
+  // In 360 mode, the sphere can only consume a SINGLE canvas. During column crossfades the flat preview
+  // is a DOM blend of two canvases, so we composite them into one canvas for the sphere.
+  const sphereCompositeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const sphereCompositeRafRef = useRef<number | null>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewWrapperRef = useRef<HTMLDivElement | null>(null);
   const isEquirectangular = isEquirectangularAspectRatio(
@@ -557,6 +561,119 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     compositionSettings?.height || 1080
   );
   
+  // Composite the "current" + "previous" preview canvases into one source canvas for the 360 sphere.
+  // Without this, 360 mode will show hard cuts because it can only sample one canvas element.
+  useEffect(() => {
+    if (!is360PreviewMode || !isEquirectangular) {
+      if (sphereCompositeRafRef.current != null) {
+        try { cancelAnimationFrame(sphereCompositeRafRef.current); } catch {}
+        sphereCompositeRafRef.current = null;
+      }
+      return;
+    }
+
+    // Ensure composite canvas exists and matches composition size initially.
+    const compW = Math.max(1, Number(compositionSettings?.width) || 1920);
+    const compH = Math.max(1, Number(compositionSettings?.height) || 1080);
+    if (!sphereCompositeCanvasRef.current) {
+      const c = document.createElement('canvas');
+      c.width = compW;
+      c.height = compH;
+      try { c.dataset.vj360Composite = 'true'; } catch {}
+      sphereCompositeCanvasRef.current = c;
+    } else {
+      const c = sphereCompositeCanvasRef.current;
+      if (c.width !== compW || c.height !== compH) {
+        c.width = compW;
+        c.height = compH;
+      }
+    }
+
+    const composite = sphereCompositeCanvasRef.current!;
+    // Ensure 360 preview uses the composite canvas as its source.
+    setSphereSourceCanvas((prev) => (prev === composite ? prev : composite));
+
+    const ctx = composite.getContext('2d', { alpha: false });
+    if (!ctx) return;
+
+    let stopped = false;
+    const tick = () => {
+      if (stopped) return;
+
+      // Find the two canvases we render for crossfade. These wrappers are always present.
+      const container = previewContainerRef.current;
+      const currentCanvas = (container?.querySelector('[data-preview-slot="current"] canvas') as HTMLCanvasElement | null) || null;
+      const previousCanvas = (container?.querySelector('[data-preview-slot="previous"] canvas') as HTMLCanvasElement | null) || null;
+
+      // Prefer matching the actual WebGL internal buffer size (not CSS size).
+      const w = Math.max(1, Number(currentCanvas?.width || composite.width || compW));
+      const h = Math.max(1, Number(currentCanvas?.height || composite.height || compH));
+      if (composite.width !== w || composite.height !== h) {
+        composite.width = w;
+        composite.height = h;
+      }
+
+      const bg = (compositionSettings?.backgroundColor || '#000000');
+      const isActivelyCrossfading = Boolean((isCrossfading || showPreviousContent) && previousPreviewContent);
+      const newA = Math.max(0, Math.min(1, Number(isActivelyCrossfading ? crossfadeProgress : 1)));
+      const oldA = Math.max(0, Math.min(1, 1 - newA));
+
+      try {
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
+
+        if (currentCanvas) {
+          if (isActivelyCrossfading && previousCanvas && oldA > 0.0001) {
+            ctx.globalAlpha = oldA;
+            ctx.drawImage(previousCanvas, 0, 0, w, h);
+            ctx.globalAlpha = newA;
+            ctx.drawImage(currentCanvas, 0, 0, w, h);
+          } else {
+            ctx.globalAlpha = 1;
+            ctx.drawImage(currentCanvas, 0, 0, w, h);
+          }
+        }
+      } catch {
+        // ignore draw errors; next frame may succeed
+      } finally {
+        try { ctx.restore(); } catch {}
+      }
+
+      // Signal the 360 sphere to refresh its CanvasTexture even if playback is stopped.
+      try { composite.dataset.needsUpdate = 'true'; } catch {}
+
+      sphereCompositeRafRef.current = requestAnimationFrame(tick);
+    };
+
+    // Start loop (cancel any previous one first)
+    if (sphereCompositeRafRef.current != null) {
+      try { cancelAnimationFrame(sphereCompositeRafRef.current); } catch {}
+      sphereCompositeRafRef.current = null;
+    }
+    sphereCompositeRafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      stopped = true;
+      if (sphereCompositeRafRef.current != null) {
+        try { cancelAnimationFrame(sphereCompositeRafRef.current); } catch {}
+        sphereCompositeRafRef.current = null;
+      }
+    };
+  }, [
+    is360PreviewMode,
+    isEquirectangular,
+    compositionSettings?.width,
+    compositionSettings?.height,
+    compositionSettings?.backgroundColor,
+    isCrossfading,
+    showPreviousContent,
+    previousPreviewContent,
+    crossfadeProgress,
+  ]);
+
   // Effect to capture the R3F canvas element when 360 mode is activated
   // Also re-capture when fullscreen changes as canvas may be recreated
   useEffect(() => {
@@ -582,8 +699,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       }
       if (targetCanvas) {
         previewCanvasRef.current = targetCanvas;
-        // Only update state if the canvas actually changed
-        setSphereSourceCanvas(prev => prev === targetCanvas ? prev : targetCanvas);
+        // In 360 mode we prefer the composite canvas as the sphere source (see effect above).
+        // Still track the real preview canvas for other consumers (mirroring, etc).
+        if (!sphereCompositeCanvasRef.current) {
+          // Only update state if the canvas actually changed
+          setSphereSourceCanvas(prev => prev === targetCanvas ? prev : targetCanvas);
+        }
       }
       // NOTE: Don't clear canvas if not found - keep the old reference during transitions
     };
@@ -1328,11 +1449,29 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     }
 
     const targetId = contextMenu.columnId;
+    // Safety: never delete the last remaining column
+    if ((currentScene.columns || []).length <= 1) {
+      handleContextMenuClose();
+      return;
+    }
     const updatedColumns = (currentScene.columns || []).filter((c: any) => c?.id !== targetId);
 
     // If we just deleted the currently playing column, stop playback.
     try {
       if (playingColumnId === targetId) stopColumn();
+    } catch {}
+
+    // Clear any row overrides that point to this column
+    try {
+      const st: any = (useStore as any).getState?.();
+      const overrides: Record<number, string> = (st?.activeLayerOverrides || {}) as any;
+      Object.keys(overrides || {}).forEach((k) => {
+        const row = Number(k);
+        if (!Number.isFinite(row)) return;
+        if (String(overrides[row]) === String(targetId)) {
+          try { st?.setActiveLayerOverride?.(row, null); } catch {}
+        }
+      });
     } catch {}
 
     const { updateScene: updateSceneFn } = getSceneManagementFunctions();
@@ -2960,6 +3099,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         {/* Current/new content - always rendered in this slot */}
                         <div
                           className="tw-absolute tw-inset-0"
+                          data-preview-slot="current"
                           style={{ 
                             opacity: newOpacity,
                             transition: 'none',
@@ -2973,6 +3113,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                         {/* Keep this slot always present to maintain consistent DOM structure */}
                         <div
                           className="tw-absolute tw-inset-0 tw-pointer-events-none"
+                          data-preview-slot="previous"
                           style={{ 
                             opacity: oldOpacity,
                             transition: 'none',
@@ -3210,14 +3351,33 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             <div className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5" onClick={handleCopyColumn}>Copy Column</div>
             
             <div className={"context-menu-item tw-select-none tw-text-sm tw-font-medium tw-bg-transparent tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5 " + ((clipboard && clipboard.type === 'column') ? 'tw-cursor-pointer tw-text-white hover:tw-bg-neutral-700' : 'tw-cursor-default tw-text-neutral-500 tw-opacity-50')} onClick={clipboard && clipboard.type === 'column' ? handlePasteColumn : undefined}>Paste Column</div>
-            
-            {/* Delete option - show different text based on context */}
-            <div
-              className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-py-3 tw-px-5"
-              onClick={contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? handleDeleteLayer : handleDeleteColumn}
-            >
-              {contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') ? 'Delete Clip' : 'Delete Column'}
-            </div>
+
+            {/* Clip delete (only when right-clicking a real clip) */}
+            {contextMenu.layerId && !String(contextMenu.layerId).startsWith('empty-') && (
+              <div
+                className="context-menu-item tw-select-none tw-cursor-pointer tw-text-white tw-text-sm tw-font-medium tw-bg-transparent hover:tw-bg-neutral-700 tw-transition-colors tw-border-b tw-border-neutral-700 tw-py-3 tw-px-5"
+                onClick={handleDeleteLayer}
+              >
+                Delete Clip
+              </div>
+            )}
+
+            {/* Column delete (always available) */}
+            {(() => {
+              const sc = getCurrentScene();
+              const canDelete = (sc?.columns || []).length > 1;
+              return (
+                <div
+                  className={
+                    "context-menu-item tw-select-none tw-text-sm tw-font-medium tw-bg-transparent tw-py-3 tw-px-5 " +
+                    (canDelete ? "tw-cursor-pointer tw-text-white hover:tw-bg-neutral-700" : "tw-cursor-default tw-text-neutral-500 tw-opacity-50")
+                  }
+                  onClick={canDelete ? handleDeleteColumn : undefined}
+                >
+                  Delete Column
+                </div>
+              );
+            })()}
             </div>
           </div>
         )}
