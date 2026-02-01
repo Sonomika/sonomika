@@ -79,11 +79,13 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const [loopCount, setLoopCount] = useState(
     videoOptions?.loopCount || 1
   );
-  // Blend mode and opacity controls removed; values still exist in rendering but are no longer editable here
   const [playMode, setPlayMode] = useState<'restart' | 'continue'>(
     videoOptions?.playMode || 'restart'
   );
-  // Removed opacity RAF bookkeeping (UI removed)
+  // Opacity for timeline mode (so user can see layers underneath)
+  const [layerOpacity, setLayerOpacity] = useState<number>(
+    typeof videoOptions?.opacity === 'number' ? videoOptions.opacity : 1
+  );
   const [localParamValues, setLocalParamValues] = useState<Record<string, any>>({});
   const [lockedParams, setLockedParams] = useState<Record<string, boolean>>({});
   // Global randomization smoothing
@@ -361,7 +363,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       setLoopMode(options.loopMode || LOOP_MODES.NONE);
       setLoopCount(options.loopCount || 1);
       setRandomBpm(Math.max(1, Math.min(500, Math.floor(Number(options.randomBpm ?? bpm ?? 120)))));
-      // Blend mode and opacity no longer controlled via UI
+      setLayerOpacity(typeof options.opacity === 'number' ? options.opacity : 1);
       
       if (hasEffect && effectMetadata?.parameters) {
         const baseParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
@@ -415,7 +417,21 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     }
   }, [selectedLayer?.id, selectedLayer?.params, hasEffect, effectMetadata?.parameters, showTimeline, ensureVideoOptionsForLayer, getVideoOptionsForLayer, setVideoOptionsForLayerMode]);
 
-  // Opacity UI removed
+  const handleOpacityChange = (value: number) => {
+    if (!selectedLayer) return;
+    const clamped = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+    setLayerOpacity(clamped);
+    setVideoOptionsForLayerMode(selectedLayer.id, { opacity: clamped }, showTimeline);
+    onUpdateLayer(selectedLayer.id, { opacity: clamped } as any);
+    if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+      const prev = selectedTimelineClip as any;
+      const nextData = { ...(prev.data || {}) } as any;
+      nextData.opacity = clamped;
+      if (!nextData.params) nextData.params = {};
+      nextData.params.opacity = { value: clamped };
+      setSelectedTimelineClip({ ...prev, data: nextData });
+    }
+  };
 
   const handleLoopModeChange = (mode: LoopMode) => {
     setLoopMode(mode);
@@ -486,8 +502,6 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     } catch {}
   };
 
-  // Blend mode UI removed
-
   const handlePlayModeChange = (mode: 'restart' | 'continue') => {
     setPlayMode(mode);
     if (selectedLayer) {
@@ -511,8 +525,6 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       }
     } catch {}
   };
-
-  // Opacity UI removed
 
   const handleRenderScaleChange = (value: number) => {
     if (!selectedLayer) return;
@@ -644,6 +656,39 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               </div>
             </div>
             <div className="tw-space-y-3 tw-pr-0">
+              {/* Allow fading effect layers (column + timeline) */}
+              {(() => {
+                const assetName = (selectedLayer as any)?.asset?.name || '';
+                const isVideoLayer = selectedLayer?.type === 'video' ||
+                  (selectedLayer as any)?.asset?.type === 'video' ||
+                  assetName.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i);
+                if (isVideoLayer) return null;
+                return (
+                  <div className="tw-w-full">
+                    <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Opacity</label>
+                    <div className="tw-flex tw-items-center tw-gap-2">
+                      <div className="tw-flex-1 tw-min-w-0">
+                        <Slider
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={[layerOpacity]}
+                          onValueChange={(v) => v && v[0] !== undefined && handleOpacityChange(v[0])}
+                        />
+                      </div>
+                      <input
+                        type="number"
+                        step={0.01}
+                        min={0}
+                        max={1}
+                        value={Number(layerOpacity).toFixed(2)}
+                        onChange={(e) => handleOpacityChange(parseFloat(e.target.value) || 1)}
+                        className="tw-w-14 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 tw-text-sm focus:tw-ring-2 focus:tw-ring-purple-600"
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
               {effectMetadata ? (
                 effectMetadata.parameters?.map((param: any) => {
                   const currentValue = selectedLayer.params?.[param.name]?.value ?? param.value;
@@ -995,6 +1040,32 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                     columns={5}
                     size="small"
                   />
+                </div>
+
+                {/* Opacity (column + timeline mode) */}
+                <div className="tw-col-span-2">
+                  <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Opacity</label>
+                  <div className="tw-flex tw-items-center tw-gap-2">
+                    <div className="tw-flex-1 tw-min-w-0">
+                      <Slider
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={[layerOpacity]}
+                        onValueChange={(v) => v && v[0] !== undefined && handleOpacityChange(v[0])}
+                      />
+                    </div>
+                    <input
+                      type="number"
+                      step={0.01}
+                      min={0}
+                      max={1}
+                      value={Number(layerOpacity).toFixed(2)}
+                      onChange={(e) => handleOpacityChange(parseFloat(e.target.value) || 1)}
+                      className="tw-w-14 tw-rounded tw-border tw-border-neutral-700 tw-bg-neutral-900 tw-text-neutral-100 tw-px-2 tw-py-1 tw-text-sm focus:tw-ring-2 focus:tw-ring-purple-600"
+                    />
+                  </div>
+                  <p className="tw-text-xs tw-text-neutral-500 tw-mt-0.5">Lower to see layers underneath</p>
                 </div>
 
                 {/* Playback mode (Loop / Random) */}

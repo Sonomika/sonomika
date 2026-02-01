@@ -11,7 +11,7 @@ export interface VideoLayerOptions {
   pingPongEnabled?: boolean;
   playMode?: 'restart' | 'continue';
   renderScale?: number;
-  blendMode?: 'add' | 'multiply' | 'screen' | 'overlay' | 'difference';
+  blendMode?: 'add' | 'normal' | 'multiply' | 'screen' | 'overlay' | 'difference';
   opacity?: number;
   backgroundSizeMode?: 'contain' | 'cover' | 'stretch' | 'none';
   backgroundRepeat?: 'repeat' | 'no-repeat';

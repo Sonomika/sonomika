@@ -69,6 +69,8 @@ interface ColumnPreviewProps {
   width: number;
   height: number;
   isPlaying: boolean;
+  /** Timeline time (seconds) when isTimelineMode */
+  timelineTime?: number;
   bpm: number;
   /** Force frameloop to 'always' regardless of isPlaying (used for 360 mode source) */
   forceAlwaysRender?: boolean;
@@ -108,6 +110,13 @@ const VideoTexture: React.FC<{
   const lastTimeUpdateRef = useRef<number>(-1);
   const loopGuardUntilRef = useRef(0);
   const frameReadyRef = useRef<boolean>(false);
+
+  const ensureOpacityCompositing = (mat: THREE.MeshBasicMaterial | null) => {
+    if (!mat) return;
+    mat.transparent = true;
+    mat.blending = THREE.NormalBlending;
+    mat.needsUpdate = true;
+  };
   
   // Use composition settings for aspect ratio instead of video's natural ratio
   const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
@@ -346,10 +355,12 @@ const VideoTexture: React.FC<{
     if (liveMaterialRef.current) {
       liveMaterialRef.current.opacity = opacity * liveAlpha;
       liveMaterialRef.current.transparent = true;
+      ensureOpacityCompositing(liveMaterialRef.current);
     }
     if (fallbackMaterialRef.current) {
       fallbackMaterialRef.current.opacity = opacity * fallbackAlpha;
       fallbackMaterialRef.current.transparent = true;
+      ensureOpacityCompositing(fallbackMaterialRef.current);
     }
 
     if (texture && ready) {
@@ -415,7 +426,7 @@ const VideoTexture: React.FC<{
       {fallbackTexture && (
         <mesh>
           <planeGeometry args={[finalScaleX, finalScaleY]} />
-          <meshBasicMaterial ref={fallbackMaterialRef} map={fallbackTexture} transparent opacity={opacity} side={THREE.DoubleSide} />
+          <meshBasicMaterial ref={fallbackMaterialRef} map={fallbackTexture} transparent opacity={opacity} side={THREE.DoubleSide} depthWrite={opacity >= 1} />
         </mesh>
       )}
       {/* Render live video on top; if not ready, we'll keep it transparent while fallback shows */}
@@ -426,9 +437,11 @@ const VideoTexture: React.FC<{
             ref={liveMaterialRef}
             map={texture} 
             transparent
-            opacity={1}
+            opacity={opacity}
             blending={THREE.NormalBlending}
             side={THREE.DoubleSide}
+            depthTest={opacity >= 1}
+            depthWrite={opacity >= 1}
           />
         </mesh>
       )}
@@ -499,7 +512,8 @@ const ColumnScene: React.FC<{
   compositionHeight?: number;
   onFirstFrameReady?: () => void;
   isTimelineMode?: boolean;
-}> = ({ column, isPlaying, suppressPause = false, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false }) => {
+  timelineTime?: number;
+}> = ({ column, isPlaying, suppressPause = false, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false, timelineTime }) => {
   const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -1008,6 +1022,38 @@ const ColumnScene: React.FC<{
     }
   });
 
+  // Timeline debug snapshot (consumed by TimelineDebugPanel under the Preview window)
+  useFrame(() => {
+    if (!isTimelineMode) return;
+    try {
+      const layers = Array.isArray(column?.layers) ? column.layers : [];
+      const st: any = (useVideoOptionsStore as any).getState?.();
+      const getOpts = st?.getVideoOptionsForLayer;
+      const clips = layers.map((layer: any) => {
+        const assetId = layer?.asset?.id != null ? String(layer.asset.id) : '';
+        const v = assetId ? assets.videos.get(assetId) : undefined;
+        const opts = getOpts && layer?.id ? getOpts(String(layer.id), true) : null;
+        return {
+          id: String(layer?.id || ''),
+          trackId: `track-${String(layer?.layerNum || '')}`,
+          name: String(layer?.asset?.name || layer?.name || ''),
+          kind: String(layer?.asset?.type || layer?.type || ''),
+          assetId,
+          assetType: String(layer?.asset?.type || ''),
+          hasVideoEl: Boolean(v),
+          readyState: v ? (v as any).readyState : null,
+          opacity: typeof opts?.opacity === 'number' ? opts.opacity : (typeof layer?.opacity === 'number' ? layer.opacity : null),
+        };
+      });
+      (window as any).__vj_timeline_debug__ = {
+        t: Number(timelineTime || 0),
+        playing: Boolean(isPlaying),
+        clips,
+        videosLoaded: Array.from(assets.videos.keys()),
+      };
+    } catch {}
+  });
+
   // Sort layers from bottom to top
   const sortedLayers = useMemo(() => {
     return [...column.layers].sort((a, b) => {
@@ -1218,7 +1264,7 @@ const ColumnScene: React.FC<{
         for (const layer of layersBottomUp) {
           const kind = classifyLayer(layer);
           if (kind === 'video') {
-            const video = assets.videos.get(layer.asset.id);
+            const video = assets.videos.get(String(layer.asset?.id ?? ''));
             if (!video) {
               finalize();
               continue;
@@ -1244,6 +1290,7 @@ const ColumnScene: React.FC<{
               type: 'source', 
               effectId, 
               params: { ...normalizeParams(layer) }, // Clone params
+              opacity: typeof (layer as any)?.opacity === 'number' ? (layer as any).opacity : 1,
               __uniqueKey: `source-${layer.id}`
             });
           } else if (kind === 'effect') {
@@ -1253,6 +1300,7 @@ const ColumnScene: React.FC<{
               type: 'effect', 
               effectId, 
               params: { ...normalizeParams(layer) }, // Clone params
+              opacity: typeof (layer as any)?.opacity === 'number' ? (layer as any).opacity : 1,
               __uniqueKey: `effect-${layer.id}`
             });
               } else {
@@ -1312,13 +1360,18 @@ const ColumnScene: React.FC<{
               })] as ChainItem[])
             : chain;
           
-          // Render current chain (no crossfade logic)
+          // Always render through EffectChain so sizing matches the FX pipeline.
+          const chainVideo = chain.find((it: any) => it?.type === 'video') as Extract<ChainItem, { type: 'video' }> | undefined;
+          const baseItem: any = chainVideo || chain[0];
+          const chainOpacity = typeof baseItem?.opacity === 'number' ? baseItem.opacity : 1;
           elements.push(
             <EffectChain
               key={`chain-${column?.id || 'col'}-${rowHint}-${chainIndex}-${chainKey}`}
               items={chainWithGlobals}
               compositionWidth={compositionWidth}
               compositionHeight={compositionHeight}
+              opacity={chainOpacity}
+              baseAssetId={String((chainVideo as any)?.assetId || '')}
             />
           );
         });
@@ -1337,6 +1390,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   width, 
   height, 
   isPlaying, 
+  timelineTime,
   bpm,
   globalEffects = [],
   overridesKey,
@@ -1504,10 +1558,12 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                     // Keep internal buffer EXACTLY at composition resolution
                     gl.setPixelRatio(1);
                     gl.setSize(compW, compH, false);
-                    gl.domElement.style.width = '100%';
-                    gl.domElement.style.height = '100%';
+                    // Fit canvas element into container without stretching
+                    gl.domElement.style.width = `${cssW}px`;
+                    gl.domElement.style.height = `${cssH}px`;
                     gl.domElement.style.maxWidth = '100%';
                     gl.domElement.style.maxHeight = '100%';
+                    gl.domElement.style.display = 'block';
                   } catch (error) {
                     console.error('Error in canvas setup:', error);
                   }
@@ -1538,10 +1594,11 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
 
                       gl.setPixelRatio(1);
                       gl.setSize(compW, compH, false);
-                      gl.domElement.style.width = '100%';
-                      gl.domElement.style.height = '100%';
+                      gl.domElement.style.width = `${cssW}px`;
+                      gl.domElement.style.height = `${cssH}px`;
                       gl.domElement.style.maxWidth = '100%';
                       gl.domElement.style.maxHeight = '100%';
+                      gl.domElement.style.display = 'block';
                     } catch (error) {
                       console.error('Error in resize observer:', error);
                     }
@@ -1573,6 +1630,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 compositionWidth={width}
                 compositionHeight={height}
                 isTimelineMode={isTimelineMode}
+                timelineTime={timelineTime}
                 onFirstFrameReady={() => {
                   setMaskVisible(false);
                   // Unfreeze mirror when first frame is ready

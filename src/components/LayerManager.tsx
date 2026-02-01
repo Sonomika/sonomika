@@ -128,6 +128,47 @@ const VideoThumbnailPreview: React.FC<{ src: string; assetName: string }> = Reac
   );
 });
 
+// Timeline debug log panel (shown under Timeline preview)
+const TimelineDebugPanel: React.FC = () => {
+  const [text, setText] = useState<string>('');
+
+  useEffect(() => {
+    const tick = () => {
+      try {
+        const d: any = (window as any).__vj_timeline_debug__;
+        if (!d) {
+          setText('timeline debug: waiting for __vj_timeline_debug__ (reload app window if this stays)');
+          return;
+        }
+        const lines: string[] = [];
+        lines.push(`t=${Number(d.t || 0).toFixed(2)} playing=${Boolean(d.playing)}`);
+        const clips = Array.isArray(d.clips) ? d.clips : [];
+        lines.push(`clips=${clips.length} videosLoaded=${Array.isArray(d.videosLoaded) ? d.videosLoaded.length : 0}`);
+        clips.forEach((c: any) => {
+          lines.push(
+            `${String(c.trackId || '')} ${String(c.kind || '')} ${String(c.name || '')} ` +
+            `assetId=${String(c.assetId || '')} type=${String(c.assetType || '')} hasVideo=${Boolean(c.hasVideoEl)} ` +
+            `rs=${c.readyState} op=${c.opacity}`
+          );
+        });
+        setText(lines.join('\n'));
+      } catch {
+        // keep previous
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, []);
+
+  if (!text) return null;
+  return (
+    <pre className="tw-mt-2 tw-max-h-[160px] tw-overflow-auto tw-rounded tw-border tw-border-neutral-800 tw-bg-black/60 tw-p-2 tw-text-[10px] tw-leading-snug tw-text-green-200 tw-whitespace-pre-wrap">
+      {text}
+    </pre>
+  );
+};
+
 VideoThumbnailPreview.displayName = 'VideoThumbnailPreview';
 
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
@@ -1659,7 +1700,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           type: clip.type === 'effect' ? 'effect' : 'video',
           asset: clip.asset,
           opacity: videoOptions.opacity || 1,
-          blendMode: videoOptions.blendMode || 'add',
           params: resolvedParams,
           effects: clip.type === 'effect' ? [clip.asset] : undefined,
           ...(clip.type !== 'effect' ? { 
@@ -1880,6 +1920,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     globalEffects={currentScene?.globalEffects || []}
                   />
                 </div>
+
+                <TimelineDebugPanel />
                 
                 <div className="tw-mt-2">
                   <h5 className="tw-text-sm tw-font-semibold tw-text-white">Active Timeline Clips:</h5>
@@ -2987,6 +3029,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   </div>
                 )}
               </div>
+
+              {/* Timeline debug logs (below Preview window) */}
+              {previewContent?.type === 'timeline' && (
+                <div className="tw-px-2 tw-pb-2">
+                  <TimelineDebugPanel />
+                </div>
+              )}
             </div>
 
             {/* Layer Options / Global - Bottom Center */}

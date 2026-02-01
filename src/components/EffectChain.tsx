@@ -8,8 +8,8 @@ import { EffectErrorBoundary } from './EffectErrorBoundary';
 
 export type ChainItem =
   | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; fitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile'; backgroundSizeMode?: 'cover' | 'contain' | 'auto' | 'custom'; backgroundRepeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'; backgroundSizeCustom?: string; renderScale?: number; __uniqueKey?: string }
-  | { type: 'source'; effectId: string; params?: Record<string, any>; __uniqueKey?: string }
-  | { type: 'effect'; effectId: string; params?: Record<string, any>; __uniqueKey?: string };
+  | { type: 'source'; effectId: string; params?: Record<string, any>; opacity?: number; __uniqueKey?: string }
+  | { type: 'effect'; effectId: string; params?: Record<string, any>; opacity?: number; __uniqueKey?: string };
 
 interface EffectChainProps {
   items: ChainItem[];
@@ -27,6 +27,11 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   baseAssetId
 }) => {
   const { gl, camera, invalidate } = useThree();
+  const mixRtRef = useRef<THREE.WebGLRenderTarget | null>(null);
+  const mixSceneRef = useRef<THREE.Scene | null>(null);
+  const mixMeshRef = useRef<THREE.Mesh | null>(null);
+  const transparentTexRef = useRef<THREE.DataTexture | null>(null);
+  const lastMixSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   const [videoTexture, setVideoTexture] = useState<THREE.VideoTexture | null>(null);
   const videoRtRef = useRef<THREE.WebGLRenderTarget | null>(null);
@@ -306,6 +311,78 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       gl.setClearColor(prevClear, prevAlpha);
     } catch {}
     ensureRTs();
+    // Shared scratch RT for per-stage opacity mixing
+    try {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.max(2, Math.floor(compositionWidth * dpr));
+      const h = Math.max(2, Math.floor(compositionHeight * dpr));
+      if (!mixRtRef.current || lastMixSizeRef.current.w !== w || lastMixSizeRef.current.h !== h) {
+        mixRtRef.current?.dispose();
+        mixRtRef.current = new THREE.WebGLRenderTarget(w, h, {
+          format: THREE.RGBAFormat,
+          type: THREE.UnsignedByteType,
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter,
+          depthBuffer: false,
+          stencilBuffer: false,
+        });
+        lastMixSizeRef.current = { w, h };
+      }
+      if (!transparentTexRef.current) {
+        const data = new Uint8Array([0, 0, 0, 0]);
+        const t = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
+        t.needsUpdate = true;
+        try { (t as any).colorSpace = (THREE as any).LinearSRGBColorSpace || (t as any).colorSpace; } catch {}
+        transparentTexRef.current = t;
+      }
+      if (!mixSceneRef.current || !mixMeshRef.current) {
+        const s = new THREE.Scene();
+        (s as any).background = null;
+        const aspect = compositionWidth / compositionHeight;
+        const geom = new THREE.PlaneGeometry(aspect * 2, 2);
+        const mat = new THREE.ShaderMaterial({
+          transparent: true,
+          depthTest: false,
+          depthWrite: false,
+          uniforms: {
+            tBase: { value: transparentTexRef.current },
+            tTop: { value: transparentTexRef.current },
+            uOpacity: { value: 1.0 },
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform sampler2D tBase;
+            uniform sampler2D tTop;
+            uniform float uOpacity;
+            varying vec2 vUv;
+            void main() {
+              vec4 base = texture2D(tBase, vUv);
+              vec4 top = texture2D(tTop, vUv);
+              gl_FragColor = mix(base, top, clamp(uOpacity, 0.0, 1.0));
+            }
+          `,
+        });
+        const m = new THREE.Mesh(geom, mat);
+        s.add(m);
+        mixSceneRef.current = s;
+        mixMeshRef.current = m;
+      } else {
+        // Keep geometry aspect in sync with composition
+        const m = mixMeshRef.current as THREE.Mesh;
+        const aspect = compositionWidth / compositionHeight;
+        const newGeom = new THREE.PlaneGeometry(aspect * 2, 2);
+        const oldGeom = m.geometry as THREE.BufferGeometry | undefined;
+        m.geometry = newGeom;
+        try { oldGeom?.dispose(); } catch {}
+      }
+    } catch {}
+
     let currentTexture: THREE.Texture | null = seedTexture || null;
     const nextInputTextures: Array<THREE.Texture | null> = items.map(() => null);
 
@@ -517,11 +594,30 @@ export const EffectChain: React.FC<EffectChainProps> = ({
         const prevClear = new THREE.Color();
         gl.getClearColor(prevClear);
         const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
-        // Clear color + depth/stencil so no accumulation/trails occur within source stages
+        const stageOpacityRaw = (item as any).opacity;
+        const stageOpacity = Number.isFinite(Number(stageOpacityRaw)) ? Math.max(0, Math.min(1, Number(stageOpacityRaw))) : 1;
+        const needsMix = stageOpacity < 0.999;
+        const scratch = mixRtRef.current;
+        const mixScene = mixSceneRef.current;
+        const mixMesh = mixMeshRef.current;
+        const baseTex = currentTexture || transparentTexRef.current;
+
+        // Render source output (no background) either directly or into scratch for mixing
         gl.setClearColor(0x000000, 0);
-        gl.setRenderTarget(rt);
+        gl.setRenderTarget(needsMix && scratch ? scratch : rt);
         gl.clear(true, true, true);
         gl.render(offscreenScenes[idx], camera);
+
+        if (needsMix && scratch && mixScene && mixMesh) {
+          const mat = mixMesh.material as THREE.ShaderMaterial;
+          mat.uniforms.tBase.value = baseTex;
+          mat.uniforms.tTop.value = scratch.texture;
+          mat.uniforms.uOpacity.value = stageOpacity;
+          gl.setRenderTarget(rt);
+          gl.clear(true, true, true);
+          gl.render(mixScene, camera);
+        }
+
         gl.setRenderTarget(currentRT);
         gl.setClearColor(prevClear, prevAlpha);
         currentTexture = rt.texture;
@@ -558,12 +654,30 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           if (needsInput && !hasInput) {
             // do not update currentTexture; keep previous
           } else {
-            // Do not clear color; background quad already contains previous pass
+            const stageOpacityRaw = (item as any).opacity;
+            const stageOpacity = Number.isFinite(Number(stageOpacityRaw)) ? Math.max(0, Math.min(1, Number(stageOpacityRaw))) : 1;
+            const needsMix = stageOpacity < 0.999;
+            const scratch = mixRtRef.current;
+            const mixScene = mixSceneRef.current;
+            const mixMesh = mixMeshRef.current;
+            const baseTex = currentTexture || transparentTexRef.current;
+
             gl.setClearColor(0x000000, 0);
-            gl.setRenderTarget(rt);
+            gl.setRenderTarget(needsMix && scratch ? scratch : rt);
             // Clear depth/stencil to prevent earlier frames from blocking renders
-            gl.clear(false, true, true);
+            gl.clear(true, true, true);
             gl.render(offscreenScenes[idx], camera);
+
+            if (needsMix && scratch && mixScene && mixMesh) {
+              const mat = mixMesh.material as THREE.ShaderMaterial;
+              mat.uniforms.tBase.value = baseTex;
+              mat.uniforms.tTop.value = scratch.texture;
+              mat.uniforms.uOpacity.value = stageOpacity;
+              gl.setRenderTarget(rt);
+              gl.clear(true, true, true);
+              gl.render(mixScene, camera);
+            }
+
             gl.setRenderTarget(currentRT);
             gl.setClearColor(prevClear, prevAlpha);
             currentTexture = rt.texture;

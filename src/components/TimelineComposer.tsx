@@ -10,6 +10,9 @@ import { debounce } from '../utils/debounce';
 import { LOOP_MODES } from '../constants/video';
 import { useVideoOptionsStore } from '../store/videoOptionsStore';
 
+// If you don't see this in DevTools Console, you're not running the updated code.
+try { console.log('[Sonomika][TimelineComposer] loaded (timeline opacity/blend debug v3)'); } catch {}
+
 // Deterministic PRNG for timeline "Random" playback (stable per loop)
 const hashStringToUint32 = (s: string): number => {
   let h = 2166136261 >>> 0; // FNV-1a
@@ -180,7 +183,8 @@ const VideoTexture: React.FC<{
   compositionWidth?: number;
   compositionHeight?: number;
   assetId?: string;
-}> = ({ video, opacity, blendMode, effects, compositionWidth, compositionHeight, assetId }) => {
+  renderOrder?: number;
+}> = ({ video, opacity, blendMode, effects, compositionWidth, compositionHeight, assetId, renderOrder = 0 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.VideoTexture | null>(null);
   const [previousTexture, setPreviousTexture] = useState<THREE.VideoTexture | null>(null);
@@ -192,6 +196,80 @@ const VideoTexture: React.FC<{
   const frameReadyRef = useRef<boolean>(false);
   const lastTimeUpdateRef = useRef<number>(-1);
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const applyBlendMode = (mat: THREE.MeshBasicMaterial | null) => {
+    if (!mat) return;
+    // Ensure we can blend with layers underneath.
+    mat.transparent = true;
+    // We rely on premultiplied alpha so "opacity" influences color blending modes.
+    // Without this, modes like Multiply can visually wipe the underlying layer when source has black.
+    (mat as any).premultipliedAlpha = true;
+    mat.blending = THREE.CustomBlending;
+    mat.blendEquation = THREE.AddEquation;
+
+    // Keep alpha behaving like normal transparency across modes.
+    mat.blendEquationAlpha = THREE.AddEquation;
+    mat.blendSrcAlpha = THREE.SrcAlphaFactor;
+    mat.blendDstAlpha = THREE.OneMinusSrcAlphaFactor;
+
+    const mode = String(blendMode || 'add');
+    switch (mode) {
+      case 'normal': {
+        // Premultiplied alpha "source over": src + dst * (1 - srcA)
+        mat.blendSrc = THREE.OneFactor;
+        mat.blendDst = THREE.OneMinusSrcAlphaFactor;
+        mat.blendEquation = THREE.AddEquation;
+        break;
+      }
+      case 'add': {
+        // Additive (respecting opacity via premultiplied rgb).
+        mat.blendSrc = THREE.OneFactor;
+        mat.blendDst = THREE.OneFactor;
+        mat.blendEquation = THREE.AddEquation;
+        break;
+      }
+      case 'multiply': {
+        // Multiply with opacity:
+        // out = dst*(1-a) + (dst*src)*a
+        // With PREMULTIPLIED_ALPHA, src.rgb already includes 'a', so:
+        // out = dst*(1-srcA) + (dst*src.rgb)
+        mat.blendSrc = THREE.DstColorFactor;
+        mat.blendDst = THREE.OneMinusSrcAlphaFactor;
+        mat.blendEquation = THREE.AddEquation;
+        break;
+      }
+      case 'screen': {
+        // Screen approximation via fixed-function blending:
+        // out = src + dst * (1 - srcColor)
+        mat.blendSrc = THREE.OneFactor;
+        mat.blendDst = THREE.OneMinusSrcColorFactor;
+        mat.blendEquation = THREE.AddEquation;
+        break;
+      }
+      case 'overlay': {
+        // Overlay isn't representable with fixed-function blending; approximate with Screen.
+        mat.blendSrc = THREE.OneFactor;
+        mat.blendDst = THREE.OneMinusSrcColorFactor;
+        mat.blendEquation = THREE.AddEquation;
+        break;
+      }
+      case 'difference': {
+        // True "Difference" (abs(dst - src)) needs a shader. As a fallback we do dst - src.
+        mat.blendSrc = THREE.OneFactor;
+        mat.blendDst = THREE.OneFactor;
+        mat.blendEquation = THREE.ReverseSubtractEquation;
+        break;
+      }
+      default: {
+        mat.blendSrc = THREE.OneFactor;
+        mat.blendDst = THREE.OneFactor;
+        mat.blendEquation = THREE.AddEquation;
+        break;
+      }
+    }
+
+    mat.needsUpdate = true;
+  };
   
   // Use composition settings for aspect ratio instead of video's natural ratio
   const aspectRatio = compositionWidth && compositionHeight ? compositionWidth / compositionHeight : 16/9;
@@ -320,6 +398,13 @@ const VideoTexture: React.FC<{
     ensureCanvasAndTexture();
   }, [video, fallbackTexture, assetId]);
 
+  // Ensure blend settings update when user changes blendMode.
+  useEffect(() => {
+    applyBlendMode(liveMaterialRef.current);
+    applyBlendMode(fallbackMaterialRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blendMode]);
+
   // Update textures and control opacity
   useFrame(() => {
     // During transition, use previous texture if available, otherwise use current texture
@@ -336,10 +421,12 @@ const VideoTexture: React.FC<{
     if (liveMaterialRef.current) {
       liveMaterialRef.current.opacity = opacity * liveAlpha;
       liveMaterialRef.current.transparent = true;
+      applyBlendMode(liveMaterialRef.current);
     }
     if (fallbackMaterialRef.current) {
       fallbackMaterialRef.current.opacity = opacity * fallbackAlpha;
       fallbackMaterialRef.current.transparent = true;
+      applyBlendMode(fallbackMaterialRef.current);
     }
     if (activeTexture && ready) {
       const t = Number(video?.currentTime || 0);
@@ -402,9 +489,9 @@ const VideoTexture: React.FC<{
     return (
       <group>
         {fallbackTexture && (
-          <mesh>
+          <mesh renderOrder={renderOrder}>
             <planeGeometry args={[finalScaleX, finalScaleY]} />
-            <meshBasicMaterial ref={fallbackMaterialRef} map={fallbackTexture} transparent opacity={opacity} side={THREE.DoubleSide} />
+            <meshBasicMaterial ref={fallbackMaterialRef} map={fallbackTexture} transparent opacity={opacity} side={THREE.DoubleSide} depthWrite={opacity >= 1} />
           </mesh>
         )}
       </group>
@@ -422,42 +509,28 @@ const VideoTexture: React.FC<{
     <group>
       {/* Fallback behind */}
       {fallbackTexture && (
-        <mesh>
+        <mesh renderOrder={renderOrder}>
           <planeGeometry args={[finalScaleX, finalScaleY]} />
-          <meshBasicMaterial ref={fallbackMaterialRef} map={fallbackTexture} transparent opacity={opacity} side={THREE.DoubleSide} />
+          <meshBasicMaterial ref={fallbackMaterialRef} map={fallbackTexture} transparent opacity={opacity} side={THREE.DoubleSide} depthWrite={opacity >= 1} />
         </mesh>
       )}
       {/* Live on top */}
-      <mesh ref={meshRef}>
+      <mesh ref={meshRef} renderOrder={renderOrder + 1}>
         <planeGeometry args={[finalScaleX, finalScaleY]} />
         <meshBasicMaterial 
           ref={liveMaterialRef}
           map={activeTexture} 
           transparent 
-          opacity={1}
-          blending={getBlendMode(blendMode)}
+          opacity={opacity}
+          blending={THREE.CustomBlending}
           side={THREE.DoubleSide}
-          alphaTest={0.1}
+          alphaTest={0.01}
+          depthTest={opacity >= 1}
+          depthWrite={opacity >= 1}
         />
       </mesh>
     </group>
   );
-};
-
-// Helper function to convert blend modes
-const getBlendMode = (blendMode: string): THREE.Blending => {
-  switch (blendMode) {
-    case 'add':
-      return THREE.AdditiveBlending;
-    case 'multiply':
-      return THREE.MultiplyBlending;
-    case 'screen':
-      return THREE.CustomBlending;
-    case 'overlay':
-      return THREE.CustomBlending;
-    default:
-      return THREE.AdditiveBlending;
-  }
 };
 
 // Timeline Scene Component with effect support - memoized for performance
@@ -472,6 +545,8 @@ const TimelineScene: React.FC<{
   onFirstFrameReady?: () => void;
 }> = ({ activeClips, isPlaying, currentTime, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady }) => {
   const { camera } = useThree();
+  // Subscribe so opacity/blend changes in Layer Options trigger re-render
+  const timelineVideoOptions = useVideoOptionsStore((s) => s.timelineVideoOptionsByLayer);
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
     videos: Map<string, HTMLVideoElement>;
@@ -486,6 +561,36 @@ const TimelineScene: React.FC<{
   const globalAssetCacheRef = useRef<{
     videos: Map<string, HTMLVideoElement>;
   }>({ videos: new Map() });
+
+  // Timeline clips are stored in a few different shapes (some omit asset.type).
+  // We need robust detection so stacked layers render (opacity/blend depend on it).
+  const isVideoClip = React.useCallback((clip: any): boolean => {
+    try {
+      if (!clip) return false;
+      if (clip?.asset?.type === 'video') return true;
+      if (clip?.type === 'video') return true;
+      const name = String(clip?.asset?.name || clip?.name || '');
+      const path = String(clip?.asset?.filePath || clip?.asset?.path || '');
+      const s = `${name} ${path}`.toLowerCase();
+      return /\.(mp4|mov|m4v|webm|mkv|avi|wmv|flv)\b/.test(s);
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const isImageClip = React.useCallback((clip: any): boolean => {
+    try {
+      if (!clip) return false;
+      if (clip?.asset?.type === 'image') return true;
+      if (clip?.type === 'image') return true;
+      const name = String(clip?.asset?.name || clip?.name || '');
+      const path = String(clip?.asset?.filePath || clip?.asset?.path || '');
+      const s = `${name} ${path}`.toLowerCase();
+      return /\.(png|jpg|jpeg|gif|webp|bmp)\b/.test(s);
+    } catch {
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     const onVideoPrimed = (event: Event) => {
@@ -537,7 +642,7 @@ const TimelineScene: React.FC<{
           continue;
         }
 
-        if (asset.type === 'image') {
+        if (asset.type === 'image' || isImageClip(clip)) {
           try {
             const img = new Image();
             img.crossOrigin = 'anonymous';
@@ -551,15 +656,34 @@ const TimelineScene: React.FC<{
           } catch (error) {
             console.error(`❌ Failed to load image for clip ${clip.name}:`, error);
           }
-        } else if (asset.type === 'video') {
+        } else if (asset.type === 'video' || isVideoClip(clip)) {
           try {
+            // Normalize asset.type so downstream path logic and video manager behave consistently.
+            const normalizedAsset = { ...(asset || {}), type: 'video' as const };
             // Use persistent video per assetId
             let managed = videoAssetManager.get(key);
             if (!managed) {
-              managed = await videoAssetManager.getOrCreate(asset, (a) => getAssetPath(a, true));
+              managed = await videoAssetManager.getOrCreate(normalizedAsset as any, (a) => getAssetPath(a, true));
             }
             const video = managed.element;
             try { video.muted = true; } catch {}
+            // Prime: ensure metadata/first frame are available even when timeline is stopped.
+            // Without this, some clips render as nothing (readyState < 2) so opacity/blend appear broken.
+            try { (video as any).playsInline = true; } catch {}
+            try { video.preload = 'auto'; } catch {}
+            try { video.load?.(); } catch {}
+            try {
+              if ((video as any).readyState < 2) {
+                // Best-effort decode first frame (muted autoplay should succeed in Electron).
+                const p = video.play();
+                if (p && typeof (p as any).then === 'function') {
+                  (p as any).then(() => {
+                    try { video.pause(); } catch {}
+                    try { video.currentTime = 0; } catch {}
+                  }).catch(() => {});
+                }
+              }
+            } catch {}
             globalAssetCacheRef.current.videos.set(key, video);
             newVideos.set(key, video);
             console.log(`✅ Video manager provided element for clip ${clip.name}:`, asset.name);
@@ -740,7 +864,7 @@ const TimelineScene: React.FC<{
   // Signal first frame ready when a video is ready or after a couple of frames for effects-only
   useFrame(() => {
     if (firstFrameReadyRef.current) return;
-    const hasVideos = activeClips.some((c: any) => c?.asset?.type === 'video');
+    const hasVideos = activeClips.some((c: any) => isVideoClip(c));
     const anyReady = Array.from(assets.videos.values()).some(v => v.readyState >= 2);
     frameCounterRef.current += 1;
     const enoughFrames = frameCounterRef.current >= 2;
@@ -837,8 +961,9 @@ const TimelineScene: React.FC<{
   };
 
   const classifyClip = (clip: any): 'video' | 'source' | 'effect' | 'unknown' => {
+    if (!clip) return 'unknown';
+    if (isVideoClip(clip)) return 'video';
     if (!clip?.asset) return 'unknown';
-    if (clip.asset.type === 'video') return 'video';
     const effectId = resolveEffectId(clip.asset);
     if (!effectId) return 'unknown';
     const Comp = getEffectComponentSync(effectId);
@@ -898,17 +1023,39 @@ const TimelineScene: React.FC<{
           return out;
         };
 
-        // Build chains based on activeClips order
-        activeClips.forEach((clip: any) => {
+        // Resolve video options per clip for opacity/blend (timeline mode)
+        const videoOptsState = (useVideoOptionsStore as any).getState?.();
+        const getOpts = videoOptsState?.getVideoOptionsForLayer;
+        const getClipOpacityAndBlend = (c: any) => {
+          if (!getOpts || !c?.id) return { opacity: typeof c?.opacity === 'number' ? c.opacity : 1, blendMode: c?.blendMode || 'add' };
+          const opts = getOpts(`timeline-layer-${c.id}`, true);
+          return {
+            opacity: typeof opts?.opacity === 'number' ? opts.opacity : (typeof c?.opacity === 'number' ? c.opacity : 1),
+            blendMode: opts?.blendMode || c?.blendMode || 'add',
+          };
+        };
+        // Layer order: timeline UI shows displayTracks = reverse(nonAudio), so first track in array = bottom row.
+        // We must draw bottom layer first (back), top layer last (front). Sort by track index ascending so
+        // track-1 (bottom row) is first, track-2, track-3 (top row) last.
+        const trackOrder = (c: any) => {
+          const id = String(c?.trackId || '');
+          const num = parseInt(id.replace(/^track-/, ''), 10);
+          return Number.isFinite(num) ? num : 9999;
+        };
+        const sortedClips = [...activeClips].sort((a, b) => trackOrder(a) - trackOrder(b));
+        // Build chains based on sorted order (bottom track first = back, top track last = front)
+        const assetKey = (c: any) => (c?.asset?.id != null ? String(c.asset.id) : '');
+        sortedClips.forEach((clip: any) => {
           const kind = classifyClip(clip);
           if (kind === 'video') {
-            const video = assets.videos.get(clip.asset.id);
+            const video = assets.videos.get(assetKey(clip));
             if (!video) {
               if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
               return;
             }
             if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
-            currentChain.push({ type: 'video', video, opacity: clip.opacity, blendMode: clip.blendMode, assetId: clip.asset?.id });
+            const { opacity: clipOpacity, blendMode: clipBlend } = getClipOpacityAndBlend(clip);
+            currentChain.push({ type: 'video', video, opacity: clipOpacity, blendMode: clipBlend, assetId: clip.asset?.id });
           } else if (kind === 'source') {
             const eid = resolveEffectId(clip.asset);
             if (eid) currentChain.push({ type: 'source', effectId: eid, params: mergeParams(clip), __uniqueKey: `timeline-${clip.id}` });
@@ -955,7 +1102,7 @@ const TimelineScene: React.FC<{
           if (!c?.asset?.id) return false;
           const rel = Math.max(0, c.relativeTime || 0);
           if (rel > fadeWindowSec) return false;
-          const v = assets.videos.get(c.asset.id);
+          const v = assets.videos.get(String(c.asset.id));
           const anyV: any = v as any;
           const produced = anyV && (anyV.__firstFrameProduced || (v && v.readyState >= 2));
           return !produced;
@@ -973,7 +1120,7 @@ const TimelineScene: React.FC<{
               compositionWidth={compositionWidth}
               compositionHeight={compositionHeight}
               opacity={1}
-              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
+              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(String(c.asset?.id ?? '')) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
             />
           );
           appendedFallback = true;
@@ -1000,7 +1147,7 @@ const TimelineScene: React.FC<{
           try {
             // Find clips backing this chain: any active clip at current time in activeClips that maps to items in this chain
             const thisVideoId = (chainWithGlobals.find((it) => it.type === 'video') as any)?.video as HTMLVideoElement | undefined;
-            const thisAssetId = thisVideoId ? (activeClips.find((c: any) => assets.videos.get(c.asset?.id) === thisVideoId)?.asset?.id) : undefined;
+            const thisAssetId = thisVideoId ? (activeClips.find((c: any) => assets.videos.get(String(c.asset?.id ?? '')) === thisVideoId)?.asset?.id) : undefined;
             // Find nearest previous/next boundary across all tracks
             const times: number[] = [];
             activeClips.forEach((c: any) => {
@@ -1048,7 +1195,7 @@ const TimelineScene: React.FC<{
                     compositionWidth={compositionWidth}
                     compositionHeight={compositionHeight}
                     opacity={outOpacity}
-                    baseAssetId={(prevChain.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === (prevChain.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
+                    baseAssetId={(prevChain.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(String(c.asset?.id ?? '')) === (prevChain.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
                   />
                 );
               }
@@ -1059,35 +1206,26 @@ const TimelineScene: React.FC<{
 
           if (chainWithGlobals.length === 1 && chainWithGlobals[0].type === 'video') {
             const v = chainWithGlobals[0] as Extract<ChainItem, { type: 'video' }>;
-            // If this video is the incoming and not produced yet, skip drawing it this frame (hold outgoing)
-            try {
-              const thisAssetId = activeClips.find((c: any) => assets.videos.get(c.asset?.id) === v.video)?.asset?.id;
-              const clipMeta = thisAssetId ? byAsset[thisAssetId] : undefined;
-              const rel = clipMeta ? clipMeta.relativeTime : undefined;
-              const isIncoming = rel != null && rel <= fadeWindowSec;
-              const anyV: any = v.video as any;
-              const produced = anyV && (anyV.__firstFrameProduced || (v.video && (v.video as any).readyState >= 2));
-              if (isIncoming && !produced) {
-                return; // skip rendering this incoming video chain
-              }
-            } catch {}
+            // IMPORTANT: Always render the chain even if the incoming video isn't ready yet.
+            // VideoTexture already has a fallback path; skipping here prevents stacked layers from appearing.
             elements.push(
               <VideoTexture
                 key={`video-only-${chainKey}-${idx}`}
                 video={v.video}
                 opacity={typeof v.opacity === 'number' ? Math.max(0, Math.min(1, v.opacity * opacity)) : opacity}
-                blendMode={'add'}
+                blendMode={v.blendMode || 'add'}
                 effects={undefined}
                 compositionWidth={compositionWidth}
                 compositionHeight={compositionHeight}
-                assetId={(activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === v.video)?.asset?.id) || undefined}
+                assetId={(activeClips.find((c: any) => c.asset && assets.videos.get(String(c.asset?.id ?? '')) === v.video)?.asset?.id) || undefined}
+                renderOrder={idx * 10}
               />
             );
             renderedBaseThisFrame = true;
           } else {
             // Propagate baseAssetId from the chain's video (if any) so EffectChain can seed correctly
             const baseVid = chainWithGlobals.find((it) => it.type === 'video') as any;
-            const baseAssetIdForChain = baseVid ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === baseVid.video)?.asset?.id) : undefined;
+            const baseAssetIdForChain = baseVid ? (activeClips.find((c: any) => c.asset && assets.videos.get(String(c.asset?.id ?? '')) === baseVid.video)?.asset?.id) : undefined;
             elements.push(
               <EffectChain
                 key={`chain-${chainKey}-${idx}`}
@@ -1119,7 +1257,7 @@ const TimelineScene: React.FC<{
               compositionWidth={compositionWidth}
               compositionHeight={compositionHeight}
               opacity={1}
-              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
+              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(String(c.asset?.id ?? '')) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
             />
           );
           appendedFallback = true;
@@ -1137,7 +1275,7 @@ const TimelineScene: React.FC<{
               compositionWidth={compositionWidth}
               compositionHeight={compositionHeight}
               opacity={1}
-              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(c.asset.id) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
+              baseAssetId={(chainWithGlobals.find((it: any) => it.type === 'video') ? (activeClips.find((c: any) => c.asset && assets.videos.get(String(c.asset?.id ?? '')) === (chainWithGlobals.find((it: any) => it.type === 'video') as any).video)?.asset?.id) : undefined)}
             />
           );
         }
@@ -1156,8 +1294,39 @@ const TimelineScene: React.FC<{
           (window as any).__vj_timeline_is_playing__ = Boolean(isPlaying);
           (window as any).__vj_timeline_active_layers__ = layersForEngine;
         } catch {}
+
+        // Debug snapshot (always-on; used by overlay in TimelineComposer)
+        try {
+          const st: any = (useVideoOptionsStore as any).getState?.();
+          const getOpts = st?.getVideoOptionsForLayer;
+          const clipDebug = (activeClips || []).map((c: any) => {
+            const assetId = c?.asset?.id != null ? String(c.asset.id) : '';
+            const v = assetId ? assets.videos.get(assetId) : undefined;
+            const opts = getOpts && c?.id ? getOpts(`timeline-layer-${c.id}`, true) : null;
+            return {
+              id: String(c?.id || ''),
+              trackId: String(c?.trackId || ''),
+              name: String(c?.name || c?.asset?.name || ''),
+              kind: classifyClip(c),
+              assetId,
+              assetType: String(c?.asset?.type || ''),
+              hasVideoEl: Boolean(v),
+              readyState: v ? (v as any).readyState : null,
+              paused: v ? Boolean((v as any).paused) : null,
+              cur: v ? Number((v as any).currentTime || 0) : null,
+              opacity: typeof opts?.opacity === 'number' ? opts.opacity : null,
+              blendMode: opts?.blendMode || null,
+            };
+          });
+          (window as any).__vj_timeline_debug__ = {
+            t: Number(currentTime || 0),
+            playing: Boolean(isPlaying),
+            clips: clipDebug,
+            videosLoaded: Array.from(assets.videos.keys()),
+          };
+        } catch {}
         return elements.map((el, i) => React.cloneElement(el, { key: `rendered-element-${i}` }));
-      }, [activeClips, assets.videos, currentTime, globalEffects, compositionWidth, compositionHeight])}
+      }, [activeClips, assets.videos, currentTime, globalEffects, compositionWidth, compositionHeight, timelineVideoOptions])}
     </>
   );
 };
@@ -1176,13 +1345,68 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
   globalEffects = [],
   tracks = []
 }) => {
+  try { (window as any).__vj_timeline_composer_loaded__ = true; } catch {}
+  try { console.log('[Sonomika][TimelineComposer] render', { activeClips: Array.isArray(activeClips) ? activeClips.length : null, t: currentTime, playing: isPlaying }); } catch {}
   const [maskVisible, setMaskVisible] = useState<boolean>(true);
+  const [debugText, setDebugText] = useState<string>('');
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const cutOverlayRef = useRef<HTMLDivElement | null>(null);
+
+  // Always-on debug overlay (inline styles so it can't be "invisible" due to CSS/Tailwind issues).
+  // Set window.__vj_timeline_debug_enabled__ = false to hide.
+  const showDebug = typeof window !== 'undefined' ? ((window as any).__vj_timeline_debug_enabled__ !== false) : false;
+  useEffect(() => {
+    if (!showDebug) return;
+    const tick = () => {
+      try {
+        const d: any = (window as any).__vj_timeline_debug__;
+        if (!d) {
+          setDebugText('timeline debug overlay active\n(waiting for __vj_timeline_debug__)');
+          return;
+        }
+        const lines: string[] = [];
+        lines.push(`t=${Number(d.t || 0).toFixed(2)} playing=${Boolean(d.playing)}`);
+        const clips = Array.isArray(d.clips) ? d.clips : [];
+        lines.push(`clips=${clips.length} videosLoaded=${Array.isArray(d.videosLoaded) ? d.videosLoaded.length : 0}`);
+        clips.forEach((c: any) => {
+          lines.push(
+            `${c.trackId} ${c.kind} ${c.name} ` +
+            `assetId=${c.assetId} type=${c.assetType} hasVideo=${c.hasVideoEl} ` +
+            `rs=${c.readyState} op=${c.opacity} bm=${c.blendMode}`
+          );
+        });
+        setDebugText(lines.join('\n'));
+      } catch {}
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [showDebug]);
+
   return (
     <div className="tw-w-full tw-h-full tw-relative" style={{ background: '#000' }}>
       {maskVisible && (
         <div className="tw-absolute tw-inset-0 tw-bg-black tw-z-[5] tw-pointer-events-none" />
+      )}
+      {showDebug && debugText && (
+        <pre style={{
+          position: 'absolute',
+          left: 8,
+          top: 8,
+          zIndex: 9999,
+          pointerEvents: 'none',
+          fontSize: 10,
+          lineHeight: 1.2,
+          color: '#86efac', // green-300
+          background: 'rgba(0,0,0,0.75)',
+          border: '1px solid rgba(34,197,94,0.35)',
+          borderRadius: 6,
+          padding: 8,
+          maxWidth: '95%',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {debugText}
+        </pre>
       )}
       <div className="tw-absolute tw-inset-0 tw-flex tw-items-center tw-justify-center">
         <div style={{ aspectRatio: `${width}/${height}`, width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} className="tw-flex tw-items-center tw-justify-center">
