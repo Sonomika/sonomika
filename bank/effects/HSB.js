@@ -21,6 +21,8 @@ export const metadata = {
 
 export default function HSBEffect({ hue = 0.0, saturation = 1.0, brightness = 1.0, videoTexture, isGlobal = false, compositionWidth, compositionHeight }) {
   if (!React || !THREE || !r3f) return null;
+  // If not global mode and no input texture yet, render nothing to avoid black flash
+  if (!isGlobal && !videoTexture) return null;
   const { useThree, useFrame } = r3f;
   const meshRef = useRef(null);
   const materialRef = useRef(null);
@@ -46,7 +48,8 @@ export default function HSBEffect({ hue = 0.0, saturation = 1.0, brightness = 1.
 
   const shaderMaterial = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
-      tDiffuse: { value: (isGlobal && renderTarget) ? renderTarget.texture : (videoTexture || new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat)) },
+      // If input isn't ready yet, use transparent (not opaque black) to avoid a one-frame black flash.
+      tDiffuse: { value: (isGlobal && renderTarget) ? renderTarget.texture : (videoTexture || new THREE.DataTexture(new Uint8Array([0,0,0,0]),1,1,THREE.RGBAFormat)) },
       uHue: { value: (Math.max(-180, Math.min(180, hue)) * Math.PI) / 180.0 },
       uSaturation: { value: Math.max(0.0, Math.min(2.0, saturation)) },
       uBrightness: { value: Math.max(0.0, Math.min(2.0, brightness)) },

@@ -449,8 +449,10 @@ export class MIDIProcessor {
           }
           case 'column': {
             if (velocity === 0) return; // trigger on note-on only
-            const idx = (mapping.target as any).index as number; // 1-based
             const state = useStore.getState() as any;
+            // Column shortcuts should only work in column mode (not timeline mode)
+            if (state.showTimeline) break;
+            const idx = (mapping.target as any).index as number; // 1-based
             const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
             const col = scene?.columns?.[Math.max(0, idx - 1)];
             if (col) this.tryTriggerColumn(col.id);
@@ -627,8 +629,10 @@ export class MIDIProcessor {
             break;
           }
           case 'column': {
-            const idx = (mapping.target as any).index as number; // 1-based
             const state = useStore.getState() as any;
+            // Column shortcuts should only work in column mode (not timeline mode)
+            if (state.showTimeline) break;
+            const idx = (mapping.target as any).index as number; // 1-based
             const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
             const col = scene?.columns?.[Math.max(0, idx - 1)];
             if (col) this.tryTriggerColumn(col.id);
@@ -727,8 +731,10 @@ export class MIDIProcessor {
             break;
           }
           case 'column': {
-            const idx = (mapping.target as any).index as number; // 1-based
             const state = useStore.getState() as any;
+            // Column shortcuts should only work in column mode (not timeline mode)
+            if (state.showTimeline) break;
+            const idx = (mapping.target as any).index as number; // 1-based
             const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId);
             const col = scene?.columns?.[Math.max(0, (idx || 1) - 1)];
             if (col) this.tryTriggerColumn(col.id);

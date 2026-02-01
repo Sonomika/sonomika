@@ -1224,15 +1224,28 @@ const TimelineScene: React.FC<{
               const isOutgoing = rel != null && dur != null && (dur - rel) <= fadeWindowSec;
               const sameStructureAsPrev = Boolean(lastStructureKeyRef.current) && lastStructureKeyRef.current === structureKey;
 
+              // Check if video source is unchanged (only effects changed) - avoid crossfade for effect-only changes
+              const sameVideoAsPrev = (() => {
+                const prevChain = lastChainRef.current as ChainItem[] | null;
+                if (!prevChain) return false;
+                const prevVideo = prevChain.find((it) => it.type === 'video') as any;
+                const currVideo = chainWithGlobals.find((it) => it.type === 'video') as any;
+                // Same video element means same source; effect changes shouldn't trigger crossfade
+                return prevVideo?.video && currVideo?.video && prevVideo.video === currVideo.video;
+              })();
+
               // For different videos at a cut, ensure we don't expose background by prioritizing outgoing until incoming is truly ready
-              if (!sameStructureAsPrev && isIncoming && !produced) {
+              if (sameVideoAsPrev) {
+                // Effect-only change (same video) - no crossfade, avoid black flash
+                opacity = 1;
+              } else if (!sameStructureAsPrev && isIncoming && !produced) {
                 opacity = 0; // hold off showing incoming until first frame exists
               } else if (!sameStructureAsPrev && isOutgoing && anyIncomingNotReady) {
                 opacity = 1; // keep outgoing fully visible until incoming is ready
               } else {
                 opacity = sameStructureAsPrev ? 1 : f; // keep full opacity for identical-effect cuts
               }
-              try { console.log('[TimelineScene] Crossfade', { idx, key: chainKey, f: Number(f.toFixed(2)), incoming: isIncoming, outgoing: isOutgoing, holdIncoming: isIncoming && !produced, anyIncomingNotReady }); } catch {}
+              try { console.log('[TimelineScene] Crossfade', { idx, key: chainKey, f: Number(f.toFixed(2)), incoming: isIncoming, outgoing: isOutgoing, holdIncoming: isIncoming && !produced, anyIncomingNotReady, sameVideoAsPrev }); } catch {}
 
               // Also render previous chain behind with 1 - f to avoid black at effect-only cuts
               const prevChain = lastChainRef.current as ChainItem[] | null;
@@ -1278,9 +1291,13 @@ const TimelineScene: React.FC<{
             // Propagate baseAssetId from the chain's video (if any) so EffectChain can seed correctly
             const baseVid = chainWithGlobals.find((it) => it.type === 'video') as any;
             const baseAssetIdForChain = baseVid ? (activeClips.find((c: any) => c.asset && assets.videos.get(String(c.asset?.id ?? '')) === baseVid.video)?.asset?.id) : undefined;
+            // Use stable key based on video asset (not chainKey which changes with effects)
+            // This prevents React from remounting EffectChain when effects are added/removed,
+            // which would cause finalTextureRef to reset and show a black frame.
+            const stableKey = baseAssetIdForChain ? `chain-video-${baseAssetIdForChain}-${idx}` : `chain-${chainKey}-${idx}`;
             elements.push(
               <EffectChain
-                key={`chain-${chainKey}-${idx}`}
+                key={stableKey}
                 items={chainWithGlobals}
                 compositionWidth={compositionWidth}
                 compositionHeight={compositionHeight}

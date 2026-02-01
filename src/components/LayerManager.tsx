@@ -3021,7 +3021,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   </div>
                 )}
               </div>
-
             </div>
 
             {/* Layer Options / Global - Bottom Center */}

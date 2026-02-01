@@ -160,6 +160,12 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       .join('|');
   }, [items]);
 
+  // Track structure changes to avoid black flash during transitions
+  const prevSceneSignatureRef = useRef(sceneSignature);
+  const framesSinceStructureChangeRef = useRef(0); // Start at 0 to skip clears on mount
+  const mountTimeRef = useRef(Date.now());
+  const lastStructureChangeTimeRef = useRef(Date.now());
+
   // Offscreen scenes for each non-video item (only recreate when structure changes)
   const offscreenScenes = useMemo(() => {
     return items.map(() => {
@@ -303,19 +309,39 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   useFrame(() => {
     // Ensure no automatic clears between passes
     try { (gl as any).autoClear = false; } catch {}
-    // Explicitly clear the default framebuffer once per frame to avoid trails
-    // when preserveDrawingBuffer is true and the canvas clear alpha is 0
-    try {
-      const prevTarget = gl.getRenderTarget();
-      const prevClear = new THREE.Color();
-      gl.getClearColor(prevClear);
-      const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
-      gl.setRenderTarget(null);
-      gl.setClearColor(0x000000, 0);
-      gl.clear(true, true, true);
-      gl.setRenderTarget(prevTarget);
-      gl.setClearColor(prevClear, prevAlpha);
-    } catch {}
+
+    // Track structure changes to avoid black flash during transitions
+    const now = Date.now();
+    if (prevSceneSignatureRef.current !== sceneSignature) {
+      prevSceneSignatureRef.current = sceneSignature;
+      framesSinceStructureChangeRef.current = 0;
+      lastStructureChangeTimeRef.current = now;
+    } else {
+      framesSinceStructureChangeRef.current++;
+    }
+
+    // Only clear the canvas if we're NOT in a transition.
+    // Use time since mount/change to be robust against component remounts.
+    // Skip clears for 250ms after mount OR 250ms after structure change.
+    const timeSinceMount = now - mountTimeRef.current;
+    const timeSinceStructureChange = now - lastStructureChangeTimeRef.current;
+    const inTransition = timeSinceMount < 250 || timeSinceStructureChange < 250;
+
+    if (!inTransition) {
+      // Explicitly clear the default framebuffer once per frame to avoid trails
+      // when preserveDrawingBuffer is true and the canvas clear alpha is 0
+      try {
+        const prevTarget = gl.getRenderTarget();
+        const prevClear = new THREE.Color();
+        gl.getClearColor(prevClear);
+        const prevAlpha = (gl as any).getClearAlpha ? (gl as any).getClearAlpha() : 1;
+        gl.setRenderTarget(null);
+        gl.setClearColor(0x000000, 0);
+        gl.clear(true, true, true);
+        gl.setRenderTarget(prevTarget);
+        gl.setClearColor(prevClear, prevAlpha);
+      } catch {}
+    }
     ensureRTs();
     // Shared scratch RT for per-stage opacity mixing
     try {
@@ -708,12 +734,14 @@ export const EffectChain: React.FC<EffectChainProps> = ({
             }
             bgMesh.visible = !!nextMap;
           }
-          // Guard: if this effect needs prior pass (overlay) but there's no input yet,
-          // skip writing a blank frame to RT so we keep showing the previous final texture
-          const needsInput = !replacesVideo;
-          const hasInput = Boolean(currentTexture);
-          if (needsInput && !hasInput) {
-            // do not update currentTexture; keep previous
+          // Guard: Effects are filters and must not render a blank/black frame when their
+          // `videoTexture` input hasn't propagated yet (common when toggling effects on/off).
+          // If we render without a valid input, many effects fall back to opaque black for 1 frame.
+          const stageInputCandidate = inputTextures[idx] || null;
+          const safeStageInput = (stageInputCandidate && stageInputCandidate !== rt.texture) ? stageInputCandidate : null;
+          if (!safeStageInput) {
+            // Skip writing this stage's RT; keep showing the previous texture.
+            // (This avoids a one-frame black flash at effect activation.)
           } else {
             const stageOpacityRaw = (item as any).opacity;
             const stageOpacity = Number.isFinite(Number(stageOpacityRaw)) ? Math.max(0, Math.min(1, Number(stageOpacityRaw))) : 1;
