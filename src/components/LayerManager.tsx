@@ -1692,6 +1692,40 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         // Get video options for this layer
         const layerId = `timeline-layer-${clip.id}`;
         const videoOptions = getVideoOptionsForLayer(layerId, true);
+
+        // Timeline fade envelope (per-clip): fade-in and fade-out can be controlled separately.
+        // Legacy: fadeEnabled + fadeDurationMs means both in/out enabled.
+        const getParamVal = (p: any) => (p && typeof p === 'object' && 'value' in p ? p.value : p);
+        const legacyEnabled = Boolean(getParamVal((resolvedParams as any)?.fadeEnabled));
+        const legacyMsRaw = getParamVal((resolvedParams as any)?.fadeDurationMs ?? (resolvedParams as any)?.fadeDuration);
+        const legacyMs = Number(legacyMsRaw);
+        const legacySec = (Number.isFinite(legacyMs) && legacyMs > 0) ? (legacyMs / 1000) : 0;
+
+        const inEnabledRaw = getParamVal((resolvedParams as any)?.fadeInEnabled);
+        const outEnabledRaw = getParamVal((resolvedParams as any)?.fadeOutEnabled);
+        const fadeInEnabled = (inEnabledRaw === undefined && outEnabledRaw === undefined) ? legacyEnabled : Boolean(inEnabledRaw);
+        const fadeOutEnabled = (inEnabledRaw === undefined && outEnabledRaw === undefined) ? legacyEnabled : Boolean(outEnabledRaw);
+
+        const inMsRaw = getParamVal((resolvedParams as any)?.fadeInDurationMs ?? (resolvedParams as any)?.fadeInDuration);
+        const outMsRaw = getParamVal((resolvedParams as any)?.fadeOutDurationMs ?? (resolvedParams as any)?.fadeOutDuration);
+        const inMs = Number(inMsRaw);
+        const outMs = Number(outMsRaw);
+        const inSec = (Number.isFinite(inMs) && inMs > 0) ? (inMs / 1000) : legacySec;
+        const outSec = (Number.isFinite(outMs) && outMs > 0) ? (outMs / 1000) : legacySec;
+
+        const rel = Number.isFinite(Number(clip.relativeTime)) ? Number(clip.relativeTime) : Math.max(0, Number(content.currentTime || 0) - Number(clip.startTime || 0));
+        const dur = Math.max(0.0001, Number(clip.duration || 0.0001));
+
+        const fdIn = (fadeInEnabled && inSec > 0) ? Math.min(inSec, dur) : 0;
+        const fdOut = (fadeOutEnabled && outSec > 0) ? Math.min(outSec, dur) : 0;
+        const inFactor = (fdIn > 0 && rel < fdIn) ? Math.max(0, Math.min(1, rel / fdIn)) : 1;
+        const outFactor = (fdOut > 0 && (dur - rel) < fdOut) ? Math.max(0, Math.min(1, (dur - rel) / fdOut)) : 1;
+        const fade = Math.max(0, Math.min(1, Math.min(inFactor, outFactor)));
+
+        const baseOpacity = (typeof videoOptions.opacity === 'number')
+          ? videoOptions.opacity
+          : (typeof getParamVal((resolvedParams as any)?.opacity) === 'number' ? Number(getParamVal((resolvedParams as any)?.opacity)) : 1);
+        const effectiveOpacity = Math.max(0, Math.min(1, Number(baseOpacity) * fade));
         
         return {
           id: layerId,
@@ -1699,7 +1733,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           layerNum: trackNumber,
           type: clip.type === 'effect' ? 'effect' : 'video',
           asset: clip.asset,
-          opacity: videoOptions.opacity || 1,
+          opacity: effectiveOpacity,
           params: resolvedParams,
           effects: clip.type === 'effect' ? [clip.asset] : undefined,
           ...(clip.type !== 'effect' ? { 
@@ -1732,6 +1766,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               width={compositionSettings.width}
               height={compositionSettings.height}
               isPlaying={Boolean(content.isPlaying)}
+              timelineTime={Number(content.currentTime || 0)}
               bpm={bpm}
               globalEffects={currentScene?.globalEffects || []}
               overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}

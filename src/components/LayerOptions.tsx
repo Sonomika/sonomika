@@ -31,7 +31,7 @@ const RandomIcon: React.FC<{ className?: string }> = ({ className }) => {
 };
 
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
-  const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip, bpm } = useStore() as any;
+  const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip, bpm, columnCrossfadeDuration } = useStore() as any;
   // Bank discovery is async; when effects finish loading we need to re-run lookups
   // so that effect metadata (name/parameters) is available even before the user
   // clicks a cell or opens dev tools after an Electron refresh.
@@ -86,6 +86,12 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const [layerOpacity, setLayerOpacity] = useState<number>(
     typeof videoOptions?.opacity === 'number' ? videoOptions.opacity : 1
   );
+  // Timeline fade settings (per-clip): fade-in and fade-out can be controlled separately
+  const defaultFadeMs = Math.max(100, Math.min(2000, Math.floor(Number(columnCrossfadeDuration ?? 400))));
+  const [fadeInEnabled, setFadeInEnabled] = useState<boolean>(false);
+  const [fadeOutEnabled, setFadeOutEnabled] = useState<boolean>(false);
+  const [fadeInDurationMs, setFadeInDurationMs] = useState<number>(defaultFadeMs);
+  const [fadeOutDurationMs, setFadeOutDurationMs] = useState<number>(defaultFadeMs);
   const [localParamValues, setLocalParamValues] = useState<Record<string, any>>({});
   const [lockedParams, setLockedParams] = useState<Record<string, boolean>>({});
   // Global randomization smoothing
@@ -416,6 +422,147 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       }
     }
   }, [selectedLayer?.id, selectedLayer?.params, hasEffect, effectMetadata?.parameters, showTimeline, ensureVideoOptionsForLayer, getVideoOptionsForLayer, setVideoOptionsForLayerMode]);
+
+  // Timeline-only: sync fade settings from selectedTimelineClip params so Layer Options stays in sync
+  React.useEffect(() => {
+    if (!showTimeline) return;
+    try {
+      const sel: any = selectedTimelineClip;
+      const p: any = sel?.data?.params || sel?.data?.data?.params || sel?.data?.clip?.params || sel?.data?.params || null;
+      const getVal = (v: any) => (v && typeof v === 'object' && 'value' in v ? v.value : v);
+
+      // New fields (preferred)
+      const inEnabledRaw = getVal(p?.fadeInEnabled);
+      const outEnabledRaw = getVal(p?.fadeOutEnabled);
+      const inDurRaw = getVal(p?.fadeInDurationMs ?? p?.fadeInDuration);
+      const outDurRaw = getVal(p?.fadeOutDurationMs ?? p?.fadeOutDuration);
+
+      // Legacy (fallback): fadeEnabled + fadeDurationMs means both in/out
+      const legacyEnabledRaw = getVal(p?.fadeEnabled);
+      const legacyDurRaw = getVal(p?.fadeDurationMs ?? p?.fadeDuration);
+
+      const legacyEnabled = Boolean(legacyEnabledRaw);
+      const legacyDur = Number(legacyDurRaw);
+      const legacyDurClamped = Number.isFinite(legacyDur) ? Math.max(100, Math.min(2000, Math.floor(legacyDur))) : defaultFadeMs;
+
+      const nextInEnabled = (inEnabledRaw === undefined && outEnabledRaw === undefined) ? legacyEnabled : Boolean(inEnabledRaw);
+      const nextOutEnabled = (inEnabledRaw === undefined && outEnabledRaw === undefined) ? legacyEnabled : Boolean(outEnabledRaw);
+
+      const inDurNum = Number(inDurRaw);
+      const outDurNum = Number(outDurRaw);
+      const nextInDur = Number.isFinite(inDurNum) ? Math.max(100, Math.min(2000, Math.floor(inDurNum))) : legacyDurClamped;
+      const nextOutDur = Number.isFinite(outDurNum) ? Math.max(100, Math.min(2000, Math.floor(outDurNum))) : legacyDurClamped;
+
+      setFadeInEnabled(nextInEnabled);
+      setFadeOutEnabled(nextOutEnabled);
+      setFadeInDurationMs(nextInDur);
+      setFadeOutDurationMs(nextOutDur);
+    } catch {
+      // keep previous
+    }
+  }, [showTimeline, selectedTimelineClip?.id, selectedTimelineClip?.data, columnCrossfadeDuration, defaultFadeMs]);
+
+  const handleFadeModeChange = (mode: 'off' | 'in' | 'out' | 'both') => {
+    const nextIn = mode === 'in' || mode === 'both';
+    const nextOut = mode === 'out' || mode === 'both';
+    setFadeInEnabled(nextIn);
+    setFadeOutEnabled(nextOut);
+
+    // If enabling fades, ensure durations exist so both rendering and the timeline fade indicators update immediately.
+    const getVal = (v: any) => (v && typeof v === 'object' && 'value' in v ? v.value : v);
+    const selParams: any = (() => {
+      try {
+        const sel: any = selectedTimelineClip;
+        return sel?.data?.params || sel?.data?.data?.params || sel?.data?.clip?.params || sel?.data?.params || {};
+      } catch {
+        return {};
+      }
+    })();
+    const existingInDurRaw = getVal(selParams?.fadeInDurationMs ?? selParams?.fadeInDuration);
+    const existingOutDurRaw = getVal(selParams?.fadeOutDurationMs ?? selParams?.fadeOutDuration);
+    const existingInDur = Number(existingInDurRaw);
+    const existingOutDur = Number(existingOutDurRaw);
+    const durIn = (nextIn && (!Number.isFinite(existingInDur) || existingInDur <= 0)) ? Number(fadeInDurationMs) : undefined;
+    const durOut = (nextOut && (!Number.isFinite(existingOutDur) || existingOutDur <= 0)) ? Number(fadeOutDurationMs) : undefined;
+
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        if (!nextData.params) nextData.params = {};
+        nextData.params.fadeInEnabled = { value: nextIn };
+        nextData.params.fadeOutEnabled = { value: nextOut };
+        if (durIn !== undefined) nextData.params.fadeInDurationMs = { value: Math.max(100, Math.min(2000, Math.floor(durIn))) };
+        if (durOut !== undefined) nextData.params.fadeOutDurationMs = { value: Math.max(100, Math.min(2000, Math.floor(durOut))) };
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
+    // Persist into the actual Timeline tracks state so it survives reselect/reload
+    try {
+      if (showTimeline && selectedTimelineClip?.id) {
+        const paramsPatch: Record<string, any> = {
+          fadeInEnabled: { value: nextIn },
+          fadeOutEnabled: { value: nextOut },
+        };
+        if (durIn !== undefined) paramsPatch.fadeInDurationMs = { value: Math.max(100, Math.min(2000, Math.floor(durIn))) };
+        if (durOut !== undefined) paramsPatch.fadeOutDurationMs = { value: Math.max(100, Math.min(2000, Math.floor(durOut))) };
+        document.dispatchEvent(new CustomEvent('timelineModulateBatch', {
+          detail: {
+            clipId: selectedTimelineClip.id,
+            params: paramsPatch
+          }
+        }));
+      }
+    } catch {}
+  };
+
+  const handleFadeInDurationChange = (ms: number) => {
+    const clamped = Math.max(100, Math.min(2000, Math.floor(Number(ms) || 0)));
+    setFadeInDurationMs(clamped);
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        if (!nextData.params) nextData.params = {};
+        nextData.params.fadeInDurationMs = { value: clamped };
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
+    try {
+      if (showTimeline && selectedTimelineClip?.id) {
+        document.dispatchEvent(new CustomEvent('timelineModulateBatch', {
+          detail: {
+            clipId: selectedTimelineClip.id,
+            params: { fadeInDurationMs: { value: clamped } }
+          }
+        }));
+      }
+    } catch {}
+  };
+
+  const handleFadeOutDurationChange = (ms: number) => {
+    const clamped = Math.max(100, Math.min(2000, Math.floor(Number(ms) || 0)));
+    setFadeOutDurationMs(clamped);
+    try {
+      if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
+        const prev = selectedTimelineClip as any;
+        const nextData = { ...(prev.data || {}) } as any;
+        if (!nextData.params) nextData.params = {};
+        nextData.params.fadeOutDurationMs = { value: clamped };
+        setSelectedTimelineClip({ ...prev, data: nextData });
+      }
+    } catch {}
+    try {
+      if (showTimeline && selectedTimelineClip?.id) {
+        document.dispatchEvent(new CustomEvent('timelineModulateBatch', {
+          detail: {
+            clipId: selectedTimelineClip.id,
+            params: { fadeOutDurationMs: { value: clamped } }
+          }
+        }));
+      }
+    } catch {}
+  };
 
   const handleOpacityChange = (value: number) => {
     if (!selectedLayer) return;
@@ -1088,6 +1235,64 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
             {hasEffect ? (effectMetadata?.description || 'No description available.') : 'Video layer'}
           </p>
         </div>
+
+        {/* Timeline Fade (per-clip) */}
+        {showTimeline && selectedTimelineClip && (selectedTimelineClip as any)?.data?.type !== 'audio' && (
+          <div className="tw-space-y-2">
+            <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Fade</h4>
+            <ButtonGroup
+              options={[
+                { value: 'off', label: 'Off' },
+                { value: 'in', label: 'In' },
+                { value: 'out', label: 'Out' },
+                { value: 'both', label: 'In+Out' },
+              ]}
+              value={fadeInEnabled && fadeOutEnabled ? 'both' : (fadeInEnabled ? 'in' : (fadeOutEnabled ? 'out' : 'off'))}
+              onChange={(v) => handleFadeModeChange(v as any)}
+              columns={4}
+              size="small"
+            />
+            {(fadeInEnabled || fadeOutEnabled) && (
+              <div className="tw-space-y-2">
+                {fadeInEnabled && (
+                  <div className="tw-w-full tw-min-w-0">
+                    <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Fade In Duration</label>
+                    <ParamRow
+                      label="Fade In Duration"
+                      value={Number(fadeInDurationMs)}
+                      min={100}
+                      max={2000}
+                      step={50}
+                      buttonsAfter
+                      showLabel={false}
+                      onChange={(value) => handleFadeInDurationChange(Number(value))}
+                      onIncrement={() => handleFadeInDurationChange(Number(fadeInDurationMs) + 50)}
+                      onDecrement={() => handleFadeInDurationChange(Number(fadeInDurationMs) - 50)}
+                    />
+                  </div>
+                )}
+                {fadeOutEnabled && (
+                  <div className="tw-w-full tw-min-w-0">
+                    <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Fade Out Duration</label>
+                    <ParamRow
+                      label="Fade Out Duration"
+                      value={Number(fadeOutDurationMs)}
+                      min={100}
+                      max={2000}
+                      step={50}
+                      buttonsAfter
+                      showLabel={false}
+                      onChange={(value) => handleFadeOutDurationChange(Number(value))}
+                      onIncrement={() => handleFadeOutDurationChange(Number(fadeOutDurationMs) + 50)}
+                      onDecrement={() => handleFadeOutDurationChange(Number(fadeOutDurationMs) - 50)}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            <p className="tw-text-xs tw-text-neutral-500">Fades opacity at the clip start/end</p>
+          </div>
+        )}
 
         {/* Opacity (always at bottom) */}
         <div className="tw-space-y-1">

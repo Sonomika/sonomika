@@ -397,6 +397,111 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
   const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
   const showWaveform = clip.type === 'audio' && Boolean(audioSrc);
 
+  // Fade indicator (timeline): show a curved line when fade in/out is active
+  const getParamVal = (v: any) => (v && typeof v === 'object' && 'value' in v ? v.value : v);
+  const fadeOverlay = (() => {
+    try {
+      const p: any = clip.params || {};
+      const legacyEnabled = Boolean(getParamVal(p.fadeEnabled));
+      const legacyMsRaw = getParamVal(p.fadeDurationMs ?? p.fadeDuration);
+      const legacyMs = Number(legacyMsRaw);
+      const legacySec = Number.isFinite(legacyMs) && legacyMs > 0 ? legacyMs / 1000 : 0;
+
+      const inEnabledRaw = getParamVal(p.fadeInEnabled);
+      const outEnabledRaw = getParamVal(p.fadeOutEnabled);
+      const fadeInEnabled = (inEnabledRaw === undefined && outEnabledRaw === undefined) ? legacyEnabled : Boolean(inEnabledRaw);
+      const fadeOutEnabled = (inEnabledRaw === undefined && outEnabledRaw === undefined) ? legacyEnabled : Boolean(outEnabledRaw);
+      if (!fadeInEnabled && !fadeOutEnabled) return null;
+
+      const inMsRaw = getParamVal(p.fadeInDurationMs ?? p.fadeInDuration);
+      const outMsRaw = getParamVal(p.fadeOutDurationMs ?? p.fadeOutDuration);
+      const inMs = Number(inMsRaw);
+      const outMs = Number(outMsRaw);
+      const inSec = (Number.isFinite(inMs) && inMs > 0) ? (inMs / 1000) : legacySec;
+      const outSec = (Number.isFinite(outMs) && outMs > 0) ? (outMs / 1000) : legacySec;
+
+      const dur = Math.max(0.0001, Number(clip.duration || 0.0001));
+
+      // Draw fade curves at the START/END of the clip (anchored),
+      // using the accent colour for visibility.
+      const vbW = 100;
+      const vbH = 16;
+      const yTop = 2;
+      const yBottom = vbH - 2;
+      const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+
+      // Fade length is proportional to duration, but clamped so it remains visible
+      const minLen = 6;   // %
+      const maxLen = 45;  // % (avoid overlapping middle too much)
+      const inLen = fadeInEnabled && inSec > 0 ? clamp((inSec / dur) * 100, minLen, maxLen) : 0;
+      const outLen = fadeOutEnabled && outSec > 0 ? clamp((outSec / dur) * 100, minLen, maxLen) : 0;
+      if (inLen <= 0 && outLen <= 0) return null;
+
+      const stroke = 'hsl(var(--accent))';
+
+      // Avoid drawing when the clip is extremely small (visual noise)
+      if (widthPx < 18) return null;
+
+      const mkCurve = (kind: 'in' | 'out', pct: number) => {
+        const wPct = Math.max(0, Math.min(100, pct));
+        // Convert percent-of-clip into pixels for the visual segment width.
+        // Keep it visible even on short clips, but never invade too far.
+        const px = Math.max(14, Math.min(Math.floor(widthPx * 0.5), Math.floor((wPct / 100) * widthPx)));
+        // Straight line indicators (requested): fade-in slopes up, fade-out slopes down.
+        const d = kind === 'in'
+          ? `M 0 ${yBottom} L ${vbW} ${yTop}`
+          : `M 0 ${yTop} L ${vbW} ${yBottom}`;
+        return { px, d };
+      };
+
+      const left = inLen > 0 ? mkCurve('in', inLen) : null;
+      const right = outLen > 0 ? mkCurve('out', outLen) : null;
+
+      return (
+        <>
+          {left && (
+            <svg
+              className="tw-absolute tw-left-[6px] tw-bottom-1 tw-h-4 tw-pointer-events-none tw-z-10"
+              viewBox={`0 0 ${vbW} ${vbH}`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              style={{ width: `${left.px}px` }}
+            >
+              <path
+                d={left.d}
+                stroke={stroke}
+                strokeOpacity={0.9}
+                strokeWidth={1.25}
+                fill="none"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+          )}
+          {right && (
+            <svg
+              className="tw-absolute tw-right-[6px] tw-bottom-1 tw-h-4 tw-pointer-events-none tw-z-10"
+              viewBox={`0 0 ${vbW} ${vbH}`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              style={{ width: `${right.px}px` }}
+            >
+              <path
+                d={right.d}
+                stroke={stroke}
+                strokeOpacity={0.9}
+                strokeWidth={1.25}
+                fill="none"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+          )}
+        </>
+      );
+    } catch {
+      return null;
+    }
+  })();
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -468,6 +573,9 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
           {clip.name}
         </span>
       )}
+
+      {/* Fade indicator overlay (if enabled) */}
+      {fadeOverlay}
       
       {/* Right resize handle */}
       <div

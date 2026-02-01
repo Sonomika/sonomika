@@ -1026,11 +1026,49 @@ const TimelineScene: React.FC<{
         // Resolve video options per clip for opacity/blend (timeline mode)
         const videoOptsState = (useVideoOptionsStore as any).getState?.();
         const getOpts = videoOptsState?.getVideoOptionsForLayer;
+        const getParamVal = (p: any) => (p && typeof p === 'object' && 'value' in p ? p.value : p);
+        const getFadeFactor = (c: any) => {
+          try {
+            // New: fadeIn/fadeOut can be controlled separately.
+            // Legacy: fadeEnabled + fadeDurationMs means both in/out enabled.
+            const legacyEnabled = Boolean(getParamVal(c?.params?.fadeEnabled));
+            const legacyMsRaw = getParamVal(c?.params?.fadeDurationMs ?? c?.params?.fadeDuration);
+            const legacyMs = Number(legacyMsRaw);
+            const legacyMsClamped = (Number.isFinite(legacyMs) && legacyMs > 0) ? legacyMs : 0;
+
+            const inEnabledRaw = getParamVal(c?.params?.fadeInEnabled);
+            const outEnabledRaw = getParamVal(c?.params?.fadeOutEnabled);
+            const inEnabled = (inEnabledRaw === undefined && outEnabledRaw === undefined) ? legacyEnabled : Boolean(inEnabledRaw);
+            const outEnabled = (inEnabledRaw === undefined && outEnabledRaw === undefined) ? legacyEnabled : Boolean(outEnabledRaw);
+            if (!inEnabled && !outEnabled) return 1;
+
+            const inMsRaw = getParamVal(c?.params?.fadeInDurationMs ?? c?.params?.fadeInDuration);
+            const outMsRaw = getParamVal(c?.params?.fadeOutDurationMs ?? c?.params?.fadeOutDuration);
+            const inMs = Number(inMsRaw);
+            const outMs = Number(outMsRaw);
+
+            const rel = Math.max(0, Number(c?.relativeTime || 0));
+            const dur = Math.max(0.0001, Number(c?.duration || 0.0001));
+
+            const inSec = (Number.isFinite(inMs) && inMs > 0) ? (inMs / 1000) : (legacyMsClamped > 0 ? legacyMsClamped / 1000 : 0);
+            const outSec = (Number.isFinite(outMs) && outMs > 0) ? (outMs / 1000) : (legacyMsClamped > 0 ? legacyMsClamped / 1000 : 0);
+
+            const fdIn = (inEnabled && inSec > 0) ? Math.min(inSec, dur) : 0;
+            const fdOut = (outEnabled && outSec > 0) ? Math.min(outSec, dur) : 0;
+
+            const inFactor = (fdIn > 0 && rel < fdIn) ? Math.max(0, Math.min(1, rel / fdIn)) : 1;
+            const outFactor = (fdOut > 0 && (dur - rel) < fdOut) ? Math.max(0, Math.min(1, (dur - rel) / fdOut)) : 1;
+            return Math.max(0, Math.min(1, Math.min(inFactor, outFactor)));
+          } catch {
+            return 1;
+          }
+        };
         const getClipOpacityAndBlend = (c: any) => {
           if (!getOpts || !c?.id) return { opacity: typeof c?.opacity === 'number' ? c.opacity : 1, blendMode: c?.blendMode || 'add' };
           const opts = getOpts(`timeline-layer-${c.id}`, true);
+          const fade = getFadeFactor(c);
           return {
-            opacity: typeof opts?.opacity === 'number' ? opts.opacity : (typeof c?.opacity === 'number' ? c.opacity : 1),
+            opacity: (typeof opts?.opacity === 'number' ? opts.opacity : (typeof c?.opacity === 'number' ? c.opacity : 1)) * fade,
             blendMode: opts?.blendMode || c?.blendMode || 'add',
           };
         };
@@ -1058,10 +1096,24 @@ const TimelineScene: React.FC<{
             currentChain.push({ type: 'video', video, opacity: clipOpacity, blendMode: clipBlend, assetId: clip.asset?.id });
           } else if (kind === 'source') {
             const eid = resolveEffectId(clip.asset);
-            if (eid) currentChain.push({ type: 'source', effectId: eid, params: mergeParams(clip), __uniqueKey: `timeline-${clip.id}` });
+            if (eid) {
+              const fade = getFadeFactor(clip);
+              const baseOpacity = (() => {
+                const v = getParamVal(clip?.params?.opacity);
+                return typeof v === 'number' ? v : 1;
+              })();
+              currentChain.push({ type: 'source', effectId: eid, params: mergeParams(clip), opacity: Math.max(0, Math.min(1, baseOpacity * fade)), __uniqueKey: `timeline-${clip.id}` });
+            }
           } else if (kind === 'effect') {
             const eid = resolveEffectId(clip.asset);
-            if (eid) currentChain.push({ type: 'effect', effectId: eid, params: mergeParams(clip), __uniqueKey: `timeline-${clip.id}` });
+            if (eid) {
+              const fade = getFadeFactor(clip);
+              const baseOpacity = (() => {
+                const v = getParamVal(clip?.params?.opacity);
+                return typeof v === 'number' ? v : 1;
+              })();
+              currentChain.push({ type: 'effect', effectId: eid, params: mergeParams(clip), opacity: Math.max(0, Math.min(1, baseOpacity * fade)), __uniqueKey: `timeline-${clip.id}` });
+            }
           } else {
             if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
           }
