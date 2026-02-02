@@ -171,18 +171,23 @@ export const EffectsBrowser: React.FC<EffectsBrowserProps> = ({ onClose }) => {
       } catch {}
 
       // Remove from EffectDiscovery registry so it disappears from the Library list
+      let registryRemoved = false;
       try {
         const { EffectDiscovery } = await import('../utils/EffectDiscovery');
         const discovery = EffectDiscovery.getInstance();
-        await discovery.removeUserEffect(String(e.id), String(e.fileKey || ''));
+        registryRemoved = await discovery.removeUserEffect(String(e.id), String(e.fileKey || ''));
       } catch {}
 
-      // Optimistically remove from current list and refresh to ensure consistency
+      // Remove from current list without forcing a full refresh (keeps scroll position / avoids flicker)
       try {
         const k = effectKey(e);
         setEffects((prev) => prev.filter((x) => effectKey(x) !== k));
       } catch {}
-      refreshEffects();
+
+      // Fallback: if registry removal failed for any reason, do a full refresh as a safety net.
+      if (!registryRemoved) {
+        try { refreshEffects(); } catch {}
+      }
     } catch {}
   };
 

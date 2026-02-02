@@ -57,6 +57,11 @@ export const AIEffectsLab: React.FC = () => {
   const [draggingOverEditor, setDraggingOverEditor] = useState<boolean>(false);
   const hiddenFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const notifyLibraryRefresh = React.useCallback(() => {
+    // EffectsBrowser refreshes its Library list on this event.
+    try { window.dispatchEvent(new Event('vj-bundled-updated')); } catch {}
+  }, []);
+
   // Editor interactions are minimal; controls live in effect parameters
 
   // Suggested prompt ideas
@@ -240,6 +245,11 @@ export const AIEffectsLab: React.FC = () => {
       if (!code.trim()) { setStatus('No code to load'); return; }
       const { EffectDiscovery } = await import('../utils/EffectDiscovery');
       const discovery = EffectDiscovery.getInstance();
+      // Only refresh the Library list if this load introduces a *new* id.
+      const beforeIds = new Set<string>();
+      try {
+        for (const e of discovery.getUserEffects?.() || []) beforeIds.add(String((e as any)?.id || ''));
+      } catch {}
       const effect = await discovery.loadUserEffectFromContent(code, `ai-generated-${Date.now()}.js`);
       if (effect) {
         try {
@@ -248,6 +258,7 @@ export const AIEffectsLab: React.FC = () => {
           localStorage.setItem(`vj-user-effect-code:${String(effect.id)}`, code);
         } catch {}
         setStatus(`Loaded user effect: ${effect.name}`);
+        if (!beforeIds.has(String(effect.id))) notifyLibraryRefresh();
       } else {
         setStatus('Failed to load effect. Ensure it exports default component and metadata.');
       }
@@ -263,6 +274,11 @@ export const AIEffectsLab: React.FC = () => {
       if (!selectedLayerId) { setStatus('Select a layer slot first'); return; }
       const { EffectDiscovery } = await import('../utils/EffectDiscovery');
       const discovery = EffectDiscovery.getInstance();
+      // Only refresh the Library list if this apply introduces a *new* id.
+      const beforeIds = new Set<string>();
+      try {
+        for (const e of discovery.getUserEffects?.() || []) beforeIds.add(String((e as any)?.id || ''));
+      } catch {}
       // Use a stable sourceName so repeated applies hot-replace the same effect id
       const effect = await discovery.loadUserEffectFromContent(code, 'ai-live-edit.js');
       if (!effect) { setStatus('Failed to load effect for apply'); return; }
@@ -284,6 +300,7 @@ export const AIEffectsLab: React.FC = () => {
         // reference selection removed
         lastLoadedForEffectRef.current = effect.id;
         setStatus(`Applied to selected slot: ${effect.name || id}`);
+        if (!beforeIds.has(String(effect.id))) notifyLibraryRefresh();
       } catch (e) {
         setStatus('Loaded effect, but failed to apply to the selected slot');
       }
