@@ -179,6 +179,10 @@ export const EffectChain: React.FC<EffectChainProps> = ({
   const [inputTextures, setInputTextures] = useState<Array<THREE.Texture | null>>(
     () => items.map(() => null)
   );
+  
+  // Ref to track last valid computed textures for fallback when state hasn't propagated yet
+  // This helps prevent flash when stacked effect layers are first rendered
+  const lastComputedTexturesRef = useRef<Array<THREE.Texture | null>>([]);
 
   // Managed background meshes per stage to composite previous pass without React state lag
   const bgMeshesRef = useRef<Array<THREE.Mesh | null>>([]);
@@ -737,7 +741,11 @@ export const EffectChain: React.FC<EffectChainProps> = ({
           // Guard: Effects are filters and must not render a blank/black frame when their
           // `videoTexture` input hasn't propagated yet (common when toggling effects on/off).
           // If we render without a valid input, many effects fall back to opaque black for 1 frame.
-          const stageInputCandidate = inputTextures[idx] || null;
+          // IMPORTANT: Use `currentTexture` (this frame's computed chain input) instead of
+          // `inputTextures[idx]` (previous frame's React state) to prevent flash when stacked
+          // effects are rendered - the state update has a one-frame delay that causes upper
+          // effect layers to skip rendering incorrectly.
+          const stageInputCandidate = currentTexture || inputTextures[idx] || null;
           const safeStageInput = (stageInputCandidate && stageInputCandidate !== rt.texture) ? stageInputCandidate : null;
           if (!safeStageInput) {
             // Skip writing this stage's RT; keep showing the previous texture.
@@ -780,6 +788,10 @@ export const EffectChain: React.FC<EffectChainProps> = ({
     if (currentTexture) {
       finalTextureRef.current = currentTexture;
     }
+    // Update the ref with computed textures for fallback use in portals
+    // This happens synchronously so portals can use it as a fallback when state is stale
+    lastComputedTexturesRef.current = nextInputTextures.slice();
+    
     // Push input textures to effect portals only when identity changes to avoid re-renders/glitches
     let changed = false;
     if (nextInputTextures.length !== inputTextures.length) {
@@ -841,7 +853,9 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       const extras: Record<string, any> = { compositionWidth, compositionHeight };
       if (item.type === 'effect') {
         const stageRT = rtRefs.current[idx]!;
-        const candidate = inputTextures[idx] || null;
+        // Use lastComputedTexturesRef as fallback when inputTextures state hasn't propagated yet
+        // This prevents flash when stacked effect layers are first rendered
+        const candidate = inputTextures[idx] || lastComputedTexturesRef.current[idx] || null;
         extras.videoTexture = stageRT && candidate === stageRT.texture ? null : candidate;
         extras.isGlobal = false;
         const src = extras.videoTexture as any;
@@ -852,7 +866,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
       const replacesVideo: boolean = md?.replacesVideo === true;
       const bgTex = ((): THREE.Texture | null => {
         const stageRT = rtRefs.current[idx]!;
-        const candidate = inputTextures[idx] || null;
+        // Use lastComputedTexturesRef as fallback for background texture as well
+        const candidate = inputTextures[idx] || lastComputedTexturesRef.current[idx] || null;
         if (stageRT && candidate === stageRT.texture) return null;
         return candidate as THREE.Texture | null;
       })();

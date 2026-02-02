@@ -367,12 +367,12 @@ const EffectLayer = React.memo<{
   layer: any; 
 }>(({ asset, layer }) => {
   const effectId = asset.asset.id;
-  console.log('🎨 EffectLayer: Rendering effect:', effectId, 'with params:', layer.params);
   
   const EffectComponent = useEffectComponent(effectId);
 
   if (!EffectComponent) {
-    console.warn('❌ EffectLayer: Effect component not found for:', effectId);
+    // Missing effect component should be rare; keep warning but avoid noisy per-frame logs.
+    if ((import.meta as any)?.env?.DEV) console.warn('Effect component not found for:', effectId);
     return null;
   }
 
@@ -380,9 +380,6 @@ const EffectLayer = React.memo<{
   let videoTexture = null;
   if (layer.params && layer.params.videoTexture) {
     videoTexture = layer.params.videoTexture;
-    console.log('✅ EffectLayer: Video texture available for effect:', effectId);
-  } else {
-    console.log('⚠️ EffectLayer: No video texture for effect:', effectId);
   }
 
   // Memoize flattened params to prevent object recreation on every render
@@ -418,7 +415,7 @@ const CanvasScene: React.FC<{
   isPlaying: boolean;
   backgroundColor: string;
 }> = ({ assets, isPlaying, backgroundColor }) => {
-  const { camera } = useThree();
+  const { camera, invalidate } = useThree();
   const [loadedAssets, setLoadedAssets] = useState<{
     images: Map<string, HTMLImageElement>;
     videos: Map<string, HTMLVideoElement>;
@@ -442,11 +439,30 @@ const CanvasScene: React.FC<{
     } catch {}
     return m;
   }, [assets]);
+
+  // Precompute the set of effect input video textures once per assets change.
+  // Avoid rebuilding this list every animation frame.
+  const effectVideoTextures = useMemo(() => {
+    const out: any[] = [];
+    try {
+      assets.forEach((a) => {
+        if (a.type !== 'effect') return;
+        const t = (a as any)?.layer?.params?.videoTexture;
+        if (t) out.push(t);
+      });
+    } catch {}
+    return out;
+  }, [assets]);
+  const effectVideoTexturesRef = useRef<any[]>(effectVideoTextures);
+  useEffect(() => {
+    effectVideoTexturesRef.current = effectVideoTextures;
+  }, [effectVideoTextures]);
   
   // Keep video textures updated
   useFrame((state) => {
-    // Update all video textures to ensure they're current
     if (!isPlaying) return;
+    // Update all video textures to ensure they're current
+    let anyReadyVideo = false;
     loadedAssets.videos.forEach((video, assetId) => {
       // Apply playback mode controls (loop / ping-pong / reverse / random)
       try {
@@ -460,34 +476,18 @@ const CanvasScene: React.FC<{
       } catch {}
 
       if (video && video.readyState >= 2) {
-        // Video is ready, ensure texture updates
-        const videoTextures = assets
-          .filter(a => a.type === 'effect')
-          .map(effectAsset => {
-            const effectLayer = effectAsset.layer;
-            if (effectLayer && effectLayer.params && effectLayer.params.videoTexture) {
-              return effectLayer.params.videoTexture;
-            }
-            return null;
-          })
-          .filter(Boolean);
-        
-        // Log texture updates every 60 frames
-        if (state.clock.elapsedTime % 1 < 0.016) {
-          console.log('🎬 Updating video textures:', {
-            count: videoTextures.length,
-            time: state.clock.elapsedTime,
-            readyState: video.readyState
-          });
-        }
-        
-        videoTextures.forEach(texture => {
-          if (texture && texture.needsUpdate !== undefined) {
-            texture.needsUpdate = true;
-          }
-        });
+        anyReadyVideo = true;
       }
     });
+
+    // Mark effect input textures as updated once per frame (not per-video and not via per-frame filtering).
+    if (anyReadyVideo) {
+      const texs = effectVideoTexturesRef.current;
+      for (let i = 0; i < texs.length; i++) {
+        const t = texs[i];
+        if (t && t.needsUpdate !== undefined) t.needsUpdate = true;
+      }
+    }
   });
 
   // Load assets
@@ -528,7 +528,6 @@ const CanvasScene: React.FC<{
               img.src = getAssetPath(asset);
             });
             newImages.set(asset.id, img);
-            console.log(`✅ Image loaded:`, asset.name);
           } catch (error) {
             console.error(`❌ Failed to load image:`, error);
           }
@@ -550,7 +549,6 @@ const CanvasScene: React.FC<{
             });
             
             newVideos.set(asset.id, video);
-            console.log(`✅ Video loaded:`, asset.name);
           } catch (error) {
             console.error(`❌ Failed to load video:`, error);
           }
@@ -599,6 +597,41 @@ const CanvasScene: React.FC<{
       }
     });
   }, [isPlaying, loadedAssets.videos]);
+
+  // Timeline preview scrubbing: if a video layer provides a desired time, seek the corresponding
+  // <video> element and invalidate one frame so the preview shows the correct frame.
+  useEffect(() => {
+    let didSeek = false;
+    try {
+      const desiredById = new Map<string, number>();
+      assets.forEach((a: any) => {
+        if (a?.type !== 'video') return;
+        const id = String(a?.asset?.id ?? '');
+        const desired = a?.layer?.params?.__timelineRelativeTime;
+        if (!id) return;
+        if (typeof desired === 'number' && Number.isFinite(desired)) {
+          desiredById.set(id, Math.max(0, desired));
+        }
+      });
+
+      if (desiredById.size === 0) return;
+
+      loadedAssets.videos.forEach((video, id) => {
+        const desired = desiredById.get(String(id));
+        if (desired == null) return;
+        // Seek only when drift is noticeable to avoid spamming seeks.
+        if (!Number.isFinite(video.currentTime) || Math.abs((video.currentTime || 0) - desired) > 0.033) {
+          try { video.currentTime = desired; didSeek = true; } catch {}
+        }
+        if (!isPlaying) {
+          try { video.pause(); } catch {}
+        }
+      });
+    } catch {}
+    if (didSeek) {
+      try { invalidate(); } catch {}
+    }
+  }, [assets, loadedAssets.videos, isPlaying, invalidate]);
 
   // Set up camera
   useEffect(() => {
@@ -662,7 +695,7 @@ const CanvasScene: React.FC<{
       const cache = videoTextureCacheRef.current;
       let vt = cache.get(firstVideo) || null;
       if (!vt) {
-        console.log('📹 Creating new VideoTexture for:', videoAssets[0].asset.id);
+        if ((import.meta as any)?.env?.DEV) console.log('Creating new VideoTexture for:', videoAssets[0].asset.id);
         vt = new THREE.VideoTexture(firstVideo);
         vt.minFilter = THREE.LinearFilter;
         vt.magFilter = THREE.LinearFilter;
@@ -670,13 +703,14 @@ const CanvasScene: React.FC<{
         vt.generateMipmaps = false;
         cache.set(firstVideo, vt);
       } else {
-        console.log('♻️ Reusing cached VideoTexture:', vt.uuid);
+        // Keep logs dev-only; this can be very chatty while editing.
+        if ((import.meta as any)?.env?.DEV) console.log('Reusing cached VideoTexture:', vt.uuid);
       }
       videoTexture = vt;
     }
   }
           
-                    console.log('🎨 EffectLayer: Creating effect with video texture:', !!videoTexture);
+          // Avoid noisy per-render logs in production.
           
           // Create stable params to prevent object recreation on every render
           const effectKey = `${assetData.asset.id}-${videoTexture?.uuid || 'no-video'}`;
@@ -710,57 +744,47 @@ const CanvasScene: React.FC<{
 // Helper function to get proper file path for Electron
   const getAssetPath = (asset: any, useForPlayback: boolean = false) => {
     if (!asset) return '';
-    console.log('getAssetPath called with asset:', asset, 'useForPlayback:', useForPlayback);
     
     // For video playback, prioritize file paths over blob URLs
     if (useForPlayback && asset.type === 'video') {
       if (asset.filePath) {
         const filePath = `file://${asset.filePath}`;
-        console.log('Using file path for video playback:', filePath);
         return filePath;
       }
       if (asset.path && asset.path.startsWith('file://')) {
-        console.log('Using existing file URL for video playback:', asset.path);
         return asset.path;
       }
       if (asset.path && asset.path.startsWith('local-file://')) {
         const filePath = asset.path.replace('local-file://', '');
         const standardPath = `file://${filePath}`;
-        console.log('Converting local-file to file for video playback:', standardPath);
         return standardPath;
       }
     }
     
     // For thumbnails and other uses, prioritize blob URLs
     if (asset.path && asset.path.startsWith('blob:')) {
-      console.log('Using blob URL:', asset.path);
       return asset.path;
     }
     
     if (asset.filePath) {
       const filePath = `file://${asset.filePath}`;
-      console.log('Using file protocol:', filePath);
       return filePath;
     }
     
     if (asset.path && asset.path.startsWith('file://')) {
-      console.log('Using existing file URL:', asset.path);
       return asset.path;
     }
     
     if (asset.path && asset.path.startsWith('local-file://')) {
       const filePath = asset.path.replace('local-file://', '');
       const standardPath = `file://${filePath}`;
-      console.log('Converting local-file to file:', standardPath);
       return standardPath;
     }
     
     if (asset.path && asset.path.startsWith('data:')) {
-      console.log('Using data URL:', asset.path);
       return asset.path;
     }
     
-    console.log('Using fallback path:', asset.path);
     return asset.path || '';
   };
 
@@ -787,20 +811,12 @@ export const CanvasRenderer: React.FC<CanvasRendererProps> = ({
   bpm = 120,
   isPlaying = false
 }) => {
-  console.log('🎬 CanvasRenderer props:', { assets, width, height, bpm, isPlaying });
-  console.log('🎬 Assets count:', assets.length);
-  assets.forEach((asset, index) => {
-    console.log(`🎬 Asset ${index}:`, asset);
-  });
-  
   const { compositionSettings } = useStore() as any;
   const backgroundColor = compositionSettings?.backgroundColor || '#000000';
 
   // Ensure we have valid dimensions
   const canvasWidth = Math.max(width, 640);
   const canvasHeight = Math.max(height, 480);
-  
-  console.log('🎬 Canvas dimensions - input:', { width, height }, 'calculated:', { canvasWidth, canvasHeight });
 
     return (
     <div className="canvas-renderer">

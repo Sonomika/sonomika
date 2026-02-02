@@ -52,34 +52,27 @@ const VideoThumbnailPreview: React.FC<{ src: string; assetName: string }> = Reac
     const video = videoRef.current;
     if (!video) return;
 
-    // Pause on mount
-    video.pause();
+    // Pause on mount (and reset to start if possible)
+    try { video.pause(); } catch {}
+    try { video.currentTime = 0; } catch {}
 
     // Prevent play attempts
     const handlePlay = (e: Event) => {
       e.preventDefault();
-      video.pause();
+      try { video.pause(); } catch {}
     };
 
     const handlePlaying = () => {
-      video.pause();
+      try { video.pause(); } catch {}
     };
 
     video.addEventListener('play', handlePlay);
     video.addEventListener('playing', handlePlaying);
 
-    // Also pause periodically to catch any edge cases
-    const intervalId = setInterval(() => {
-      if (video && !video.paused) {
-        video.pause();
-      }
-    }, 100);
-
     return () => {
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('playing', handlePlaying);
-      clearInterval(intervalId);
-      video.pause();
+      try { video.pause(); } catch {}
     };
   }, []);
 
@@ -113,7 +106,7 @@ const VideoThumbnailPreview: React.FC<{ src: string; assetName: string }> = Reac
         muted
         preload="metadata"
         playsInline
-        onLoadStart={() => console.log('Layer video loading:', assetName)}
+        // Avoid noisy logs in production; keep errors only.
         onLoadedMetadata={handleLoadedMetadata}
         onLoadedData={handleLoadedData}
         onError={(e) => console.error('Layer video error:', assetName, e)}
@@ -165,6 +158,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   
   // Debug logging for playingColumnId
   useEffect(() => {
+    if (!debugMode) return;
     console.log('🎵 LayerManager playingColumnId changed:', playingColumnId);
   }, [playingColumnId]);
 

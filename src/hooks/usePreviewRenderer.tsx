@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useStore } from '../store/store';
 import { CanvasRenderer } from '../components/CanvasRenderer';
 
@@ -21,29 +21,55 @@ export const usePreviewRenderer = () => {
   const [previewContent, setPreviewContent] = useState<PreviewContent | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const handleTimelinePreviewUpdate = useCallback((previewContent: PreviewContent) => {
-    setPreviewContent(previewContent);
-    
-    // Update isPlaying state based on previewContent.isPlaying
-    if (previewContent && typeof (previewContent as any).isPlaying === 'boolean') {
-      console.log('🎭 usePreviewRenderer updating isPlaying to:', (previewContent as any).isPlaying);
-      setIsPlaying((previewContent as any).isPlaying);
-    }
+  // Timeline preview can update very frequently while playing; batch updates to once per frame.
+  const pendingTimelinePreviewRef = useRef<PreviewContent | null>(null);
+  const pendingIsPlayingRef = useRef<boolean | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+
+  const flushPendingPreview = useCallback(() => {
+    rafIdRef.current = null;
+    const next = pendingTimelinePreviewRef.current;
+    const nextIsPlaying = pendingIsPlayingRef.current;
+    pendingTimelinePreviewRef.current = null;
+    pendingIsPlayingRef.current = null;
+    if (next) setPreviewContent(next);
+    if (typeof nextIsPlaying === 'boolean') setIsPlaying(nextIsPlaying);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current != null) {
+        try { cancelAnimationFrame(rafIdRef.current); } catch {}
+      }
+      rafIdRef.current = null;
+      pendingTimelinePreviewRef.current = null;
+      pendingIsPlayingRef.current = null;
+    };
+  }, []);
+
+  const handleTimelinePreviewUpdate = useCallback((nextPreview: PreviewContent) => {
+    pendingTimelinePreviewRef.current = nextPreview;
+    const maybeIsPlaying = (nextPreview as any)?.isPlaying;
+    if (typeof maybeIsPlaying === 'boolean') pendingIsPlayingRef.current = maybeIsPlaying;
+
+    if (rafIdRef.current == null) {
+      try {
+        rafIdRef.current = requestAnimationFrame(flushPendingPreview);
+      } catch {
+        // Fallback: flush synchronously if RAF isn't available for some reason.
+        flushPendingPreview();
+      }
+    }
+  }, [flushPendingPreview]);
+
   const handleColumnPlay = useCallback((columnId: string) => {
-    console.log('🎵 handleColumnPlay called with columnId:', columnId);
     const currentScene = scenes.find((scene: any) => scene.id === currentSceneId);
     const column = currentScene?.columns.find((col: any) => col.id === columnId);
-    console.log('🎵 Found column:', column);
     
     if (column) {
       const layersWithContent = column.layers.filter((layer: any) => layer.asset);
-      console.log('🎵 Column layers with content:', layersWithContent);
-      console.log('🎵 Total layers in column:', column.layers.length);
       
       if (layersWithContent.length === 0) {
-        console.log('❌ No layers with content in column:', columnId);
         // Show a helpful message in the preview
         setPreviewContent({
           type: 'column',
@@ -64,15 +90,11 @@ export const usePreviewRenderer = () => {
         layers: column.layers || []
       };
       
-      console.log('🎵 Setting preview content for column:', columnId);
-      console.log('🎵 Preview content will be:', newPreviewContent);
-      
       // Batch state updates to prevent flash
       setPreviewContent(newPreviewContent);
       setIsPlaying(true);
-      console.log('✅ Playing column:', columnId, column);
     } else {
-      console.error('❌ Column not found:', columnId);
+      console.error('Column not found:', columnId);
     }
   }, [scenes, currentSceneId]);
 
@@ -83,7 +105,6 @@ export const usePreviewRenderer = () => {
       .find((layer: any) => layer.id === layerId);
     
     if (layer && layer.asset) {
-      console.log('Playing layer:', layerId, layer.asset);
       setPreviewContent({
         type: 'layer',
         layerId: layerId,
@@ -95,18 +116,12 @@ export const usePreviewRenderer = () => {
   }, [scenes, currentSceneId]);
 
   const handleStop = useCallback(() => {
-    console.log('🛑 handleStop called');
     setIsPlaying(false);
     setPreviewContent(null);
   }, []);
 
   const renderPreviewContent = useCallback(() => {
-    console.log('🎨 renderPreviewContent called');
-    console.log('🎨 previewContent:', previewContent);
-    console.log('🎨 isPlaying:', isPlaying);
-    
     if (!previewContent) {
-      console.log('🎨 No preview content, showing placeholder');
       return (
         <div className="tw-w-full tw-h-full tw-flex tw-items-center tw-justify-center tw-text-neutral-300 tw-text-sm tw-py-4">
           <div className="tw-text-center">
@@ -118,14 +133,11 @@ export const usePreviewRenderer = () => {
     }
 
     if (previewContent.type === 'column') {
-      console.log('🎨 Rendering column preview');
       // Show the first layer with content as the main preview
       const layersWithContent = previewContent.layers?.filter((layer: any) => layer.asset) || [];
-      console.log('🎨 Layers with content:', layersWithContent);
       
       // Check if this is an empty column
       if (previewContent.isEmpty || layersWithContent.length === 0) {
-        console.log('🎨 No layers with content, showing empty column message');
         return (
           <div className="tw-flex tw-flex-col tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-hidden">
             <div className="tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2 tw-border-b tw-border-neutral-800">
@@ -150,10 +162,6 @@ export const usePreviewRenderer = () => {
       }
 
       // Use the new ColumnPreview component for combined layer rendering
-      console.log('🎨 Rendering combined column preview with p5.js');
-      console.log('🎨 Column data:', previewContent.column);
-      console.log('🎨 Composition settings:', compositionSettings);
-      
       // Calculate aspect ratio dynamically
       const aspectRatio = compositionSettings.width / compositionSettings.height;
       
@@ -183,7 +191,6 @@ export const usePreviewRenderer = () => {
         </div>
       );
       
-      console.log('🎨 Returning column preview element:', previewElement);
       return previewElement;
     }
 
@@ -220,10 +227,16 @@ export const usePreviewRenderer = () => {
           return typeof clip?.opacity === 'number' ? Math.max(0, Math.min(1, clip.opacity)) : 1;
         })();
         const blendMode = (clip && (clip as any).blendMode) || 'add';
+        // IMPORTANT: make each timeline clip a unique media instance so the renderer
+        // can seek it independently (otherwise multiple clips sharing the same asset.id
+        // will share the same <video> element and will appear "stuck" on frame 0).
+        const baseAsset = clip.asset || {};
+        const clipScopedAsset = { ...baseAsset, id: String(clip.id || baseAsset.id || baseAsset.path || baseAsset.filePath || Math.random()) };
+        const relativeTime = typeof clip?.relativeTime === 'number' ? Math.max(0, clip.relativeTime) : 0;
         return {
           type,
-          asset: clip.asset,
-          layer: { opacity, blendMode, params: clip.params || {} }
+          asset: clipScopedAsset,
+          layer: { opacity, blendMode, params: { ...(clip.params || {}), __timelineRelativeTime: relativeTime } }
         } as any;
       });
 

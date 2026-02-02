@@ -551,6 +551,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     switch (endAction) {
       case 'loop':
         console.log('🔄 Looping current scene');
+        // Reset both React state and the imperative runtime clock
+        try { currentTimeRef.current = 0; } catch {}
         setCurrentTime(0);
         try {
           // Ensure timeline videos are hard-reset to frame 0 before next loop playback
@@ -564,7 +566,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         } catch {}
         setTimeout(() => {
           console.log('🔄 Starting loop playback');
-          startPlayback();
+          try { startTimelinePlaybackRef.current?.(); } catch {}
         }, 100);
         break;
         
@@ -573,7 +575,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         playNextTimelineScene();
         setTimeout(() => {
           console.log('⏭️ Starting next scene playback - after:', store.currentTimelineSceneId);
-          startPlayback();
+          try { startTimelinePlaybackRef.current?.(); } catch {}
         }, 200);
         break;
         
@@ -582,7 +584,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         playRandomTimelineScene();
         setTimeout(() => {
           console.log('🎲 Starting random scene playback');
-          startPlayback();
+          try { startTimelinePlaybackRef.current?.(); } catch {}
         }, 200);
         break;
         
@@ -592,7 +594,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         // Timeline will stop automatically
         break;
     }
-  }, [playNextTimelineScene, playRandomTimelineScene, setCurrentTime, startPlayback]);
+  }, [playNextTimelineScene, playRandomTimelineScene, setCurrentTime]);
 
   // (removed unused clearAllTimelineData)
 
@@ -662,6 +664,15 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const [playbackInterval, setPlaybackInterval] = useState<NodeJS.Timeout | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number | null>(null);
+  // Keep an imperative time for smooth playback without forcing React re-render every frame.
+  const currentTimeRef = useRef<number>(0);
+  const lastUiUpdateTsRef = useRef<number>(0);
+  const lastTickDispatchTsRef = useRef<number>(0);
+  const tracksRef = useRef<TimelineTrack[]>(tracks);
+  const onPreviewUpdateRef = useRef<TimelineProps['onPreviewUpdate']>(onPreviewUpdate);
+  const showTimelineRef = useRef<boolean>(Boolean(showTimeline));
+  // Use a ref for starting playback so preloading/loop handlers don't depend on the legacy startPlayback().
+  const startTimelinePlaybackRef = useRef<(() => void) | null>(null);
   const [draggingClip, setDraggingClip] = useState<{ clipId: string; sourceTrackId: string } | null>(null);
   // Lasso selection state
   const [isLassoSelecting, setIsLassoSelecting] = useState(false);
@@ -676,6 +687,22 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const preloadRunIdRef = useRef(0);
   const pendingPlaybackRef = useRef(false);
   const lastPreloadSignatureRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  useEffect(() => {
+    tracksRef.current = tracks;
+  }, [tracks]);
+
+  useEffect(() => {
+    onPreviewUpdateRef.current = onPreviewUpdate;
+  }, [onPreviewUpdate]);
+
+  useEffect(() => {
+    showTimelineRef.current = Boolean(showTimeline);
+  }, [showTimeline]);
 
   useEffect(() => {
     preloadedVideoAssetsRef.current = new Set();
@@ -719,7 +746,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       setPreloadingMedia((prev) => (prev ? false : prev));
       if (pendingPlaybackRef.current && !isPlayingRef.current) {
         pendingPlaybackRef.current = false;
-        startPlayback();
+        try { startTimelinePlaybackRef.current?.(); } catch {}
       }
       return;
     }
@@ -746,7 +773,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       sortedKeys.forEach((key) => dispatchTimelineVideoPrimed(key));
       if (pendingPlaybackRef.current && !isPlayingRef.current) {
         pendingPlaybackRef.current = false;
-        startPlayback();
+        try { startTimelinePlaybackRef.current?.(); } catch {}
       }
       return;
     }
@@ -760,7 +787,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         setPreloadingMedia((prev) => (prev ? false : prev));
         if (pendingPlaybackRef.current && !isPlayingRef.current) {
           pendingPlaybackRef.current = false;
-          startPlayback();
+          try { startTimelinePlaybackRef.current?.(); } catch {}
         }
       }
     };
@@ -807,11 +834,15 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         markAssetLoaded(assetKey);
       }
     });
-  }, [showTimeline, currentTimelineSceneId, tracks, preloadInfo, startPlayback]);
+  }, [showTimeline, currentTimelineSceneId, tracks, preloadInfo]);
 
   useEffect(() => { durationRef.current = duration; }, [duration]);
   const PIXELS_PER_SECOND = 120;
   const pixelsPerSecond = useMemo(() => PIXELS_PER_SECOND * Math.max(0.05, zoom), [zoom]);
+  const pixelsPerSecondRef = useRef<number>(pixelsPerSecond);
+  useEffect(() => {
+    pixelsPerSecondRef.current = pixelsPerSecond;
+  }, [pixelsPerSecond]);
   const [viewportWidth, setViewportWidth] = useState(0);
   // Ensure the timeline canvas is always at least as wide as the viewport (and a sensible minimum)
   const timelinePixelWidth = useMemo(() => {
@@ -1014,6 +1045,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     }
   };
   const playheadRef = useRef<HTMLDivElement>(null);
+  const playheadHitRef = useRef<HTMLDivElement>(null);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const lastActiveAudioIdsRef = useRef<Set<string>>(new Set());
   const ensuredAudioTrackRef = useRef<boolean>(false);
@@ -1021,6 +1053,24 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   // Virtualization & scroll state
   const [scrollLeft, setScrollLeft] = useState(0);
   const scrollRafRef = useRef<number | null>(null);
+
+  const setPlayheadTimeImmediate = useCallback((rawTime: number) => {
+    const effectiveDuration = Number(durationRef.current || duration || 0);
+    const t = Math.max(0, Math.min(effectiveDuration, Number(rawTime) || 0));
+    // Keep the authoritative ref in sync immediately so Play starts from the visible playhead.
+    currentTimeRef.current = t;
+    setCurrentTime(t);
+    // When not playing, also move the DOM playhead immediately (avoids waiting for React render).
+    if (!isPlayingRef.current) {
+      try {
+        const pps = pixelsPerSecondRef.current || pixelsPerSecond;
+        const x = t * pps;
+        if (playheadRef.current) playheadRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
+        if (playheadHitRef.current) playheadHitRef.current.style.transform = `translate3d(${x - 19}px, 0, 0)`;
+      } catch {}
+    }
+    return t;
+  }, [duration, pixelsPerSecond]);
 
   const updateViewportMetrics = () => {
     const el = timelineRef.current;
@@ -2173,6 +2223,111 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     return activeClips;
   };
 
+  const computeActiveClipsAtTime = (time: number) => {
+    const activeClips: any[] = [];
+    const tks = tracksRef.current || [];
+    try {
+      tks.forEach((track: any) => {
+        (track?.clips || []).forEach((clip: any) => {
+          const start = Number(clip?.startTime || 0);
+          const dur = Number(clip?.duration || 0);
+          const clipEndTime = start + dur;
+          if (time >= start && time < clipEndTime) {
+            activeClips.push({
+              ...clip,
+              trackType: track.type,
+              trackId: track.id,
+              relativeTime: time - start,
+            });
+          }
+        });
+      });
+    } catch {}
+    return activeClips;
+  };
+
+  const publishTimelineRuntime = (time: number, playing: boolean, effectiveDuration: number) => {
+    const activeClips = computeActiveClipsAtTime(time);
+
+    // Expose timeline playing state and active layers for LFO engine
+    try {
+      (window as any).__vj_timeline_is_playing__ = playing === true;
+      if (playing) {
+        const layers = activeClips.map((clip: any) => ({
+          id: `timeline-layer-${clip.id}`,
+          type: clip.type,
+          name: clip.name,
+          opacity: (clip.params && clip.params.opacity && typeof clip.params.opacity.value === 'number') ? clip.params.opacity.value : undefined,
+          params: clip.params || {},
+          asset: clip.asset || {},
+          clipId: clip.id,
+        }));
+        ;(window as any).__vj_timeline_active_layers__ = layers;
+      } else {
+        ;(window as any).__vj_timeline_active_layers__ = [];
+      }
+    } catch {}
+
+    // AUDIO SYNC: ensure audio clips play/pause in sync with timeline
+    try {
+      const activeAudioClips = activeClips.filter((c: any) => c.type === 'audio');
+      const nextActiveIds = new Set<string>(activeAudioClips.map((c: any) => c.id));
+
+      // Pause any audio that is no longer active
+      lastActiveAudioIdsRef.current.forEach((clipId) => {
+        if (!nextActiveIds.has(clipId)) {
+          const audio = audioElementsRef.current.get(clipId);
+          if (audio) {
+            audio.pause();
+            audioContextManager.unregisterAudioElement(audio);
+          }
+        }
+      });
+
+      // For each active audio clip, play and seek to relative time
+      activeAudioClips.forEach((clip: any) => {
+        let audio = audioElementsRef.current.get(clip.id);
+        if (!audio) {
+          const src = getAudioSrc(clip.asset);
+          audio = new Audio(src);
+          audio.preload = 'auto';
+          audioElementsRef.current.set(clip.id, audio);
+          audioContextManager.initialize().then(() => {
+            if (audio) audioContextManager.registerAudioElement(audio);
+          }).catch(() => {});
+        }
+        if (playing) {
+          const desiredTime = Math.max(0, clip.relativeTime);
+          if (Math.abs((audio.currentTime || 0) - desiredTime) > 0.1) {
+            try { audio.currentTime = desiredTime; } catch {}
+          }
+          if (audio.paused) {
+            audio.play().catch(() => {});
+          }
+        } else {
+          audio.pause();
+        }
+      });
+
+      lastActiveAudioIdsRef.current = nextActiveIds;
+    } catch {}
+
+    // Preview bridge (layer manager / preview renderer)
+    try {
+      const cb = onPreviewUpdateRef.current;
+      if (cb && showTimelineRef.current) {
+        cb({
+          type: 'timeline',
+          tracks: tracksRef.current,
+          currentTime: time,
+          duration: effectiveDuration,
+          isPlaying: Boolean(playing),
+          activeClips,
+        });
+      }
+    } catch {}
+  };
+
   // (preview component removed)
 
   // Start timeline playback (requestAnimationFrame-driven)
@@ -2184,13 +2339,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       });
       lastActiveAudioIdsRef.current.clear();
     } catch {}
-    console.log('Starting timeline playback, current time:', currentTime, 'duration:', duration);
-    console.log('🎵 Timeline tracks:', tracks);
-    console.log('🎵 Earliest clip time:', getEarliestClipTime());
-    
     // Clear any existing interval/RAF first
     if (playbackInterval) {
-      console.log('Clearing existing interval');
       clearInterval(playbackInterval);
       setPlaybackInterval(null);
     }
@@ -2208,46 +2358,85 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     // Notify timeline listeners that playback started (timeline mode only)
     // IMPORTANT: do not emit global transport events here; those are for column mode.
 
+    // Ensure we start from the visible playhead position (React state),
+    // not a stale internal ref.
+    const startAt = Number(currentTimeRef.current || 0);
+    try { currentTimeRef.current = startAt; } catch {}
+    try { setCurrentTime(startAt); } catch {}
+    // Publish an initial runtime/tick at the exact start time so engines and preview
+    // do not "jump" on the first RAF delta.
+    try {
+      const effectiveDuration = durationRef.current || duration;
+      const pps = pixelsPerSecondRef.current || pixelsPerSecond;
+      const x = startAt * pps;
+      if (playheadRef.current) playheadRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
+      if (playheadHitRef.current) playheadHitRef.current.style.transform = `translate3d(${x - 19}px, 0, 0)`;
+      try { document.dispatchEvent(new CustomEvent('timelineTick', { detail: { time: startAt, duration: effectiveDuration } })); } catch {}
+      try { publishTimelineRuntime(startAt, true, effectiveDuration); } catch {}
+    } catch {}
+
     // RAF accumulator
     lastTsRef.current = null;
+    // Initialize imperative time and throttle gates
+    currentTimeRef.current = startAt;
+    lastUiUpdateTsRef.current = 0;
+    lastTickDispatchTsRef.current = 0;
     const loop = (ts: number) => {
       if (!isPlayingRef.current) return; // safety guard
       if (lastTsRef.current == null) lastTsRef.current = ts;
       const dt = (ts - (lastTsRef.current || ts)) / 1000; // seconds
       lastTsRef.current = ts;
-      setCurrentTime(prevTime => {
-        const newTime = prevTime + dt;
-        const effectiveDuration = durationRef.current || duration;
-        if (newTime >= effectiveDuration) {
-          setIsPlaying(false);
-          isPlayingRef.current = false;
-          try {
-            (window as any).__vj_timeline_is_playing__ = false;
-            (window as any).__vj_timeline_active_layers__ = [];
-          } catch {}
-          
-          // Execute scene end action
-          handleSceneEnd();
-          
-          const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
-          setCurrentTime(resetTime);
-          if (rafRef.current) cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-          return resetTime;
-        }
+
+      const effectiveDuration = durationRef.current || duration;
+      const nextTime = currentTimeRef.current + dt;
+
+      if (nextTime >= effectiveDuration) {
+        const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
+        currentTimeRef.current = resetTime;
+        setCurrentTime(resetTime);
+        setIsPlaying(false);
+        isPlayingRef.current = false;
         try {
-          const evt = new CustomEvent('timelineTick', { detail: { time: newTime, duration } });
-          document.dispatchEvent(evt);
+          (window as any).__vj_timeline_is_playing__ = false;
+          (window as any).__vj_timeline_active_layers__ = [];
         } catch {}
-        return newTime;
-      });
+        // Execute scene end action
+        handleSceneEnd();
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+        return;
+      }
+
+      currentTimeRef.current = nextTime;
+
+      // Smooth playhead movement without forcing full React tree re-render every frame
+      const pps = pixelsPerSecondRef.current || pixelsPerSecond;
+      const x = nextTime * pps;
+      try {
+        if (playheadRef.current) {
+          playheadRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
+        }
+        if (playheadHitRef.current) {
+          playheadHitRef.current.style.transform = `translate3d(${x - 19}px, 0, 0)`;
+        }
+      } catch {}
+
+      // Full-rate tick dispatch (match column-mode cadence)
+      try {
+        const evt = new CustomEvent('timelineTick', { detail: { time: nextTime, duration: effectiveDuration } });
+        document.dispatchEvent(evt);
+      } catch {}
+
+      // Publish preview/LFO/audio at full rate without forcing a React re-render.
+      try { publishTimelineRuntime(nextTime, true, effectiveDuration); } catch {}
+
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
     try { document.dispatchEvent(new Event('timelinePlay')); } catch {}
     try {
       // Immediately request an audio tick so active clips begin playing without waiting for next effect
-      const activeAudioClips = getClipsAtTime(0).filter((c: any) => c.type === 'audio');
+      const activeAudioClips = computeActiveClipsAtTime(startAt).filter((c: any) => c.type === 'audio');
       activeAudioClips.forEach((clip: any) => {
         const audio = audioElementsRef.current.get(clip.id);
         if (audio) {
@@ -2256,12 +2445,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         }
       });
     } catch {}
-    console.log('Timeline playback started, isPlaying set to true');
   };
+  // Keep ref pointing at latest implementation for loop/preload paths.
+  startTimelinePlaybackRef.current = startTimelinePlayback;
 
   // Stop timeline playback
   const stopTimelinePlayback = () => {
-    console.log('Stopping timeline playback');
     pendingPlaybackRef.current = false;
     if (playbackInterval) {
       clearInterval(playbackInterval);
@@ -2284,6 +2473,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       });
       lastActiveAudioIdsRef.current.clear();
     } catch {}
+    // Sync React state to the final imperative time so UI (labels, etc) snaps correctly on stop.
+    try { setCurrentTime(currentTimeRef.current); } catch {}
     setIsPlaying(false);
     try { document.dispatchEvent(new Event('timelineStop')); } catch {}
     // Ensure all playing media stops when timeline stops
@@ -2293,7 +2484,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     try {
       document.dispatchEvent(new CustomEvent('videoStop', { detail: { type: 'videoStop', allColumns: true, source: 'timeline' } }));
     } catch {}
-    console.log('Timeline playback stopped, isPlaying set to false');
   };
 
   // On mount, force timeline to be stopped (prevents "playing after refresh" cases).
@@ -2520,14 +2710,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   // Play-state observer: avoid forcing false while RAF-driven playback is active
   useEffect(() => {
     if (isPlaying && rafRef.current == null) {
-      try { console.log('isPlaying=true but no RAF handle; leaving state as-is'); } catch {}
+      // no-op
     }
   }, [isPlaying]);
-
-  // Debug currentTime changes
-  useEffect(() => {
-    console.log('🕒 currentTime changed to:', currentTime);
-  }, [currentTime]);
 
   // Listen for force audio registration event (for recording)
   useEffect(() => {
@@ -2555,99 +2740,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   // Update preview content for timeline
   useEffect(() => {
     if (onPreviewUpdate) {
-      const activeClips = getClipsAtTime(currentTime);
-      console.log('Timeline preview update - Time:', currentTime, 'Playing:', isPlaying, 'Active clips:', activeClips.length);
-      // Expose timeline playing state and active layers for LFO engine
-      try {
-        (window as any).__vj_timeline_is_playing__ = isPlaying === true;
-        if (isPlaying) {
-          const layers = activeClips.map((clip: any) => ({
-            id: `timeline-layer-${clip.id}`,
-            type: clip.type,
-            name: clip.name,
-            opacity: (clip.params && clip.params.opacity && typeof clip.params.opacity.value === 'number') ? clip.params.opacity.value : undefined,
-            params: clip.params || {},
-            asset: clip.asset || {},
-            clipId: clip.id,
-          }));
-          ;(window as any).__vj_timeline_active_layers__ = layers;
-        } else {
-          ;(window as any).__vj_timeline_active_layers__ = [];
-        }
-      } catch {}
-      
-      // AUDIO SYNC: ensure audio clips play/pause in sync with timeline
-      try {
-        const activeAudioClips = activeClips.filter((c: any) => c.type === 'audio');
-        const nextActiveIds = new Set<string>(activeAudioClips.map((c: any) => c.id));
-
-        // Pause any audio that is no longer active
-        lastActiveAudioIdsRef.current.forEach((clipId) => {
-          if (!nextActiveIds.has(clipId)) {
-            const audio = audioElementsRef.current.get(clipId);
-            if (audio) {
-              audio.pause();
-              // Unregister from app audio capture system
-              audioContextManager.unregisterAudioElement(audio);
-            }
-          }
-        });
-
-        // For each active audio clip, play and seek to relative time
-        activeAudioClips.forEach((clip: any) => {
-          let audio = audioElementsRef.current.get(clip.id);
-          if (!audio) {
-            const src = getAudioSrc(clip.asset);
-            try { console.log('[Timeline][audio] create element for clip', clip.id, 'src=', src); } catch {}
-            audio = new Audio(src);
-            audio.preload = 'auto';
-            // Keep volume as-is; could later be controllable via clip params
-            audioElementsRef.current.set(clip.id, audio);
-            
-            // Register with app audio capture system
-            audioContextManager.initialize().then(() => {
-              if (audio) audioContextManager.registerAudioElement(audio);
-            }).catch(console.warn);
-          }
-          if (isPlaying) {
-            const desiredTime = Math.max(0, clip.relativeTime);
-            try { console.log('[Timeline][audio] play check clip', clip.id, 'desiredTime=', desiredTime, 'current=', audio.currentTime, 'paused=', audio.paused); } catch {}
-            // Seek if drift is noticeable (>100ms)
-            if (Math.abs((audio.currentTime || 0) - desiredTime) > 0.1) {
-              try { audio.currentTime = desiredTime; } catch {}
-            }
-            if (audio.paused) {
-              // Best-effort play; Electron should allow without gesture issues
-              audio.play().then(() => { try { console.log('[Timeline][audio] playing', clip.id); } catch {} }).catch((e) => { try { console.warn('[Timeline][audio] play failed', e); } catch {} });
-            }
-          } else {
-            try { console.log('[Timeline][audio] pause clip', clip.id); } catch {}
-            audio.pause();
-          }
-        });
-
-        // Update last active set
-        lastActiveAudioIdsRef.current = nextActiveIds;
-      } catch (err) {
-        console.warn('Audio sync error:', err);
-      }
-
-       // Only send timeline preview when in timeline mode
-       // Check if we're in timeline mode by looking at the store
-       const store = useStore.getState() as any;
-       if (store.showTimeline) {
-         const timelinePreviewContent = {
-           type: 'timeline',
-           tracks: tracks,
-           currentTime: currentTime,
-           duration: duration,
-           // Use ref to avoid lag between RAF loop starting and state update
-           isPlaying: Boolean(isPlayingRef.current),
-           activeClips: activeClips
-         };
-         console.log('Sending timeline preview content:', timelinePreviewContent);
-         onPreviewUpdate(timelinePreviewContent);
-       }
+      // During playback, runtime publishing is handled inside the RAF loop at full frame-rate.
+      if (isPlayingRef.current) return;
+      // When not playing (scrubbing / edits), publish once per React update.
+      try { publishTimelineRuntime(currentTime, Boolean(isPlaying), duration); } catch {}
     }
   }, [currentTime, isPlaying, tracks, duration, onPreviewUpdate]);
 
@@ -2659,15 +2755,6 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     }
   }, [showTimeline, onPreviewUpdate]);
 
-  // Debug currentTime changes
-  useEffect(() => {
-    console.log('currentTime changed to:', currentTime);
-  }, [currentTime]);
-
-  // Debug isPlaying changes
-  useEffect(() => {
-    console.log('isPlaying changed to:', isPlaying);
-  }, [isPlaying]);
 
   // Cleanup interval/RAF on unmount
   useEffect(() => {
@@ -2817,7 +2904,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       if (rect) {
         const clickX = e.clientX - rect.left;
         const newTime = Math.max(0, Math.min(duration, (clickX + scrollLeft) / pixelsPerSecond));
-        setCurrentTime(newTime);
+        setPlayheadTimeImmediate(newTime);
       }
     }
   };
@@ -2832,7 +2919,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     if (!viewport) return;
     const clickX = e.clientX - viewport.left;
     const newTime = Math.max(0, Math.min(duration, (clickX + scrollLeft) / Math.max(1, pixelsPerSecond)));
-    setCurrentTime(newTime);
+    setPlayheadTimeImmediate(newTime);
   };
 
   // Global mouse event listeners for playhead dragging
@@ -2843,7 +2930,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         if (rect) {
           const clickX = e.clientX - rect.left;
           const newTime = Math.max(0, Math.min(duration, (clickX + scrollLeft) / pixelsPerSecond));
-          setCurrentTime(newTime);
+          setPlayheadTimeImmediate(newTime);
         }
       }
     };
@@ -2890,16 +2977,16 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         const { type, value } = (e as CustomEvent).detail || {};
         switch (type) {
           case 'goToStart':
-            setCurrentTime(0);
+            setPlayheadTimeImmediate(0);
             break;
           case 'goToEnd':
-            setCurrentTime(duration);
+            setPlayheadTimeImmediate(duration);
             break;
           case 'stepBackward':
-            setCurrentTime((t) => Math.max(0, t - (typeof value === 'number' ? value : 1)));
+            setPlayheadTimeImmediate(currentTimeRef.current - (typeof value === 'number' ? value : 1));
             break;
           case 'stepForward':
-            setCurrentTime((t) => Math.min(duration, t + (typeof value === 'number' ? value : 1)));
+            setPlayheadTimeImmediate(currentTimeRef.current + (typeof value === 'number' ? value : 1));
             break;
           case 'playPause':
             handlePlayButtonClick();
@@ -2911,7 +2998,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             } else {
               // Second stop while already stopped: return to start (or earliest clip)
               const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
-              setCurrentTime(resetTime);
+              setPlayheadTimeImmediate(resetTime);
               try {
                 document.dispatchEvent(new CustomEvent('timelineTick', { detail: { time: resetTime, duration } }));
               } catch {}
@@ -2928,12 +3015,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
               if (isPlaying) {
                 stopTimelinePlayback();
               }
-              setCurrentTime(Math.max(0, Math.min(duration, value)));
+              setPlayheadTimeImmediate(value);
             }
             break;
           case 'goToFirstClip': {
             const earliest = getEarliestClipTime();
-            if (earliest > 0) setCurrentTime(earliest);
+            if (earliest > 0) setPlayheadTimeImmediate(earliest);
             break;
           }
           case 'clearTimeline': {
@@ -2945,7 +3032,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                 { id: 'track-3', name: 'Track 3', type: 'effect', clips: [] },
                 { id: 'track-4', name: 'Audio', type: 'audio', clips: [] }
               ]);
-              setCurrentTime(0);
+              setPlayheadTimeImmediate(0);
               setSelectedClips(new Set());
             }
             break;
@@ -3573,7 +3660,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                   className="tw-relative tw-rounded-md tw-bg-neutral-900 tw-border tw-border-neutral-700 tw-mb-1"
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, track.id, currentTime)}
+                    onDrop={(e) => handleDrop(e, track.id, currentTimeRef.current)}
                   onClick={(e) => handleTrackClick(e, track.id)}
                   style={{ minHeight: TRACK_MIN_HEIGHT }}
                 >
@@ -3640,7 +3727,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             ref={playheadRef}
             className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[2px] tw-bg-red-500 tw-[will-change:transform] tw-pointer-events-auto tw-z-50 tw-cursor-ew-resize"
             style={{ 
-              transform: `translate3d(${currentTime * pixelsPerSecond}px, 0, 0)`,
+              // While playing we update this via RAF (imperative) to keep 60fps without React rerenders.
+              transform: isPlaying ? undefined : `translate3d(${currentTime * pixelsPerSecond}px, 0, 0)`,
               transition: isPlaying ? 'none' : 'transform 0.1s ease'
             }}
             title={`Time: ${formatTime(currentTime)}`}
@@ -3655,9 +3743,10 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           
           {/* Invisible full-height hit area for playhead right-click */}
           <div 
+            ref={playheadHitRef}
             className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[40px] tw-bg-transparent tw-pointer-events-auto tw-z-50 tw-cursor-ew-resize"
             style={{ 
-              transform: `translate3d(${currentTime * pixelsPerSecond - 19}px, 0, 0)`,
+              transform: isPlaying ? undefined : `translate3d(${currentTime * pixelsPerSecond - 19}px, 0, 0)`,
               transition: isPlaying ? 'none' : 'transform 0.1s ease',
               height: '100%' // Ensure it covers the full timeline height
             }}
