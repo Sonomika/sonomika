@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 
 type Props = {
@@ -8,6 +8,8 @@ type Props = {
   color?: string;
   secondaryColor?: string;
   backgroundColor?: string;
+  mediaOffset?: number; // Offset in seconds (for trimmed start)
+  clipDuration?: number; // Duration of the clip in seconds
 };
 
 const AudioWaveform: React.FC<Props> = ({
@@ -17,9 +19,20 @@ const AudioWaveform: React.FC<Props> = ({
   color = '#404040',
   secondaryColor = '#aaaaaa',
   backgroundColor = 'transparent',
+  mediaOffset = 0,
+  clipDuration,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const waveContainerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const [audioDuration, setAudioDuration] = useState<number>(0);
+
+  // Calculate the full waveform width and offset for trimmed display
+  const fullDuration = audioDuration > 0 ? audioDuration : (clipDuration || 0) + mediaOffset;
+  const visibleDuration = clipDuration || fullDuration - mediaOffset;
+  const pixelsPerSecond = visibleDuration > 0 ? width / visibleDuration : 0;
+  const fullWidth = fullDuration > 0 && pixelsPerSecond > 0 ? fullDuration * pixelsPerSecond : width;
+  const offsetPx = mediaOffset * pixelsPerSecond;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -30,7 +43,7 @@ const AudioWaveform: React.FC<Props> = ({
   }, [width, height, backgroundColor]);
 
   useEffect(() => {
-    const el = containerRef.current;
+    const el = waveContainerRef.current;
     if (!el) return;
     if (wavesurferRef.current) { try { wavesurferRef.current.destroy(); } catch {} wavesurferRef.current = null; }
     let destroyed = false;
@@ -55,6 +68,15 @@ const AudioWaveform: React.FC<Props> = ({
       barRadius: 1,
     });
     wavesurferRef.current = ws;
+    
+    // Get audio duration when ready
+    ws.on('ready', () => {
+      if (!destroyed) {
+        const dur = ws.getDuration();
+        if (dur > 0) setAudioDuration(dur);
+      }
+    });
+    
     const loadUrl = (u: string) => { if (!destroyed) try { ws.load(u); } catch {} };
     try {
       if (src) {
@@ -66,7 +88,24 @@ const AudioWaveform: React.FC<Props> = ({
     return () => { destroyed = true; try { ws.destroy(); } catch {}; if (wavesurferRef.current === ws) wavesurferRef.current = null; };
   }, [src, color, secondaryColor, backgroundColor, height]);
 
-  return <div ref={containerRef} className="tw-bg-transparent" style={{ width, height }} />;
+  // Use overflow hidden to clip the waveform at the container boundaries
+  return (
+    <div 
+      ref={containerRef} 
+      className="tw-bg-transparent tw-overflow-hidden tw-relative" 
+      style={{ width, height }}
+    >
+      <div 
+        ref={waveContainerRef}
+        className="tw-absolute tw-top-0"
+        style={{ 
+          width: Math.max(width, fullWidth),
+          height,
+          left: -offsetPx,
+        }} 
+      />
+    </div>
+  );
 };
 
 export default AudioWaveform;

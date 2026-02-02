@@ -9,6 +9,8 @@ interface TimelineClip {
   type: 'video' | 'effect' | 'audio';
   name: string;
   params?: any;
+  mediaOffset?: number; // Offset into source media (for trimming from start)
+  sourceDuration?: number; // Original media duration (for constraining resize)
 }
 
 interface SimpleTimelineClipProps {
@@ -51,12 +53,15 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number; startTime: number } | null>(null);
-  const [resizeStart, setResizeStart] = useState<{ x: number; duration: number; side: 'left' | 'right' } | null>(null);
+  const [resizeStart, setResizeStart] = useState<{ x: number; duration: number; side: 'left' | 'right'; startTime: number; mediaOffset: number } | null>(null);
   const [isSnapped, setIsSnapped] = useState(false);
   const [hoveredTrackId, setHoveredTrackId] = useState<string | null>(null);
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState<number>(20);
+  // Live preview state for trimming (mediaOffset and duration during left-resize)
+  const [liveMediaOffset, setLiveMediaOffset] = useState<number | null>(null);
+  const [liveDuration, setLiveDuration] = useState<number | null>(null);
 
   // Track detection helper
   const getTrackAtPosition = useCallback((x: number, y: number) => {
@@ -214,11 +219,13 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
     setResizeStart({
       x: e.clientX,
       duration: clip.duration,
-      side
+      side,
+      startTime: clip.startTime,
+      mediaOffset: clip.mediaOffset || 0
     });
     
     onSelect(clip.id, false);
-  }, [clip.id, clip.duration, onSelect]);
+  }, [clip.id, clip.duration, clip.startTime, clip.mediaOffset, onSelect]);
 
   // Global mouse move handler
   React.useEffect(() => {
@@ -279,23 +286,50 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
         const deltaX = e.clientX - resizeStart.x;
         const deltaTime = deltaX / pixelsPerSecond;
         
+        // Get source media duration to limit resizing (for audio clips)
+        // For audio clips, use sourceDuration if available, otherwise calculate from current state
+        // (duration + mediaOffset represents the known extent of the audio)
+        const sourceDuration = clip.sourceDuration || clip.asset?.duration || 
+          (clip.type === 'audio' ? (clip.duration + (clip.mediaOffset || 0)) : Infinity);
+        const currentMediaOffset = resizeStart.mediaOffset;
+        
         if (resizeStart.side === 'right') {
-          // Resize from right edge - change duration
-          const newDuration = Math.max(0.1, resizeStart.duration + deltaTime);
+          // Resize from right edge - change duration only
+          // Limit: mediaOffset + duration cannot exceed source duration
+          const maxDuration = Math.max(0.1, sourceDuration - currentMediaOffset);
+          const newDuration = Math.max(0.1, Math.min(maxDuration, resizeStart.duration + deltaTime));
           const snappedDuration = snapToGridValue(newDuration, 0.1);
-          const newWidth = snappedDuration * pixelsPerSecond;
+          const clampedDuration = Math.min(snappedDuration, maxDuration);
+          const newWidth = clampedDuration * pixelsPerSecond;
           element.style.width = `${newWidth}px`;
+          // Update live duration for real-time waveform preview
+          setLiveDuration(clampedDuration);
         } else if (resizeStart.side === 'left') {
-          // Resize from left edge - change start time and duration
-          const newStartTime = Math.max(0, clip.startTime + deltaTime);
-          const newDuration = Math.max(0.1, clip.duration - deltaTime);
+          // Resize from left edge - change start time, duration, and mediaOffset (trimming)
+          // When extending left (negative delta), limit so mediaOffset doesn't go below 0
+          const minDeltaTime = -resizeStart.mediaOffset; // Can't untrim past the original start
+          const clampedDeltaTime = Math.max(minDeltaTime, deltaTime);
+          
+          const newStartTime = Math.max(0, resizeStart.startTime + clampedDeltaTime);
+          const newDuration = Math.max(0.1, resizeStart.duration - clampedDeltaTime);
+          
+          // Calculate live mediaOffset for real-time waveform preview
+          const trimDelta = newStartTime - resizeStart.startTime;
+          const newMediaOffset = Math.max(0, resizeStart.mediaOffset + trimDelta);
           
           // Apply snapping to start time
           const newPosition = newStartTime * pixelsPerSecond;
           const clipWidth = newDuration * pixelsPerSecond;
           const snapped = snapToClips(newPosition, clipWidth);
-          const finalStartTime = snapped.left / pixelsPerSecond;
           const finalDuration = clipWidth / pixelsPerSecond;
+          
+          // Adjust mediaOffset based on snapping
+          const snapAdjustment = (snapped.left / pixelsPerSecond) - newStartTime;
+          const finalMediaOffset = Math.max(0, newMediaOffset + snapAdjustment);
+          
+          // Update live preview state for real-time waveform display
+          setLiveMediaOffset(finalMediaOffset);
+          setLiveDuration(finalDuration);
           
           // Update snapped state for visual feedback
           setIsSnapped(snapped.snapped);
@@ -342,16 +376,35 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
         const deltaX = e.clientX - resizeStart.x;
         const deltaTime = deltaX / pixelsPerSecond;
         
+        // Get source media duration to limit resizing (for audio clips)
+        // For audio clips, use sourceDuration if available, otherwise calculate from current state
+        // (duration + mediaOffset represents the known extent of the audio)
+        const sourceDuration = clip.sourceDuration || clip.asset?.duration || 
+          (clip.type === 'audio' ? (clip.duration + (clip.mediaOffset || 0)) : Infinity);
+        const currentMediaOffset = resizeStart.mediaOffset;
+        
         if (resizeStart.side === 'right') {
           // Resize from right edge - change duration
-          const newDuration = Math.max(0.1, resizeStart.duration + deltaTime);
+          // Limit: mediaOffset + duration cannot exceed source duration
+          const maxDuration = Math.max(0.1, sourceDuration - currentMediaOffset);
+          const newDuration = Math.max(0.1, Math.min(maxDuration, resizeStart.duration + deltaTime));
+          const snappedDuration = snapToGridValue(newDuration, 0.1);
+          const clampedDuration = Math.min(snappedDuration, maxDuration);
           onUpdate(clip.id, {
-            duration: snapToGridValue(newDuration, 0.1)
+            duration: clampedDuration
           });
         } else if (resizeStart.side === 'left') {
-          // Resize from left edge - change start time and duration
-          const newStartTime = Math.max(0, clip.startTime + deltaTime);
-          const newDuration = Math.max(0.1, clip.duration - deltaTime);
+          // Resize from left edge - change start time, duration, and mediaOffset (trimming)
+          // When extending left (negative delta), limit so mediaOffset doesn't go below 0
+          const minDeltaTime = -resizeStart.mediaOffset; // Can't untrim past the original start
+          const clampedDeltaTime = Math.max(minDeltaTime, deltaTime);
+          
+          const newStartTime = Math.max(0, resizeStart.startTime + clampedDeltaTime);
+          const newDuration = Math.max(0.1, resizeStart.duration - clampedDeltaTime);
+          
+          // Calculate how much the start was trimmed (positive = trimmed more, negative = untrimmed)
+          const trimDelta = newStartTime - resizeStart.startTime;
+          const newMediaOffset = Math.max(0, resizeStart.mediaOffset + trimDelta);
           
           // Apply final snapping
           const newPosition = newStartTime * pixelsPerSecond;
@@ -360,15 +413,23 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
           const finalStartTime = snapped.left / pixelsPerSecond;
           const finalDuration = clipWidth / pixelsPerSecond;
           
+          // Adjust mediaOffset based on snapping
+          const snapAdjustment = finalStartTime - newStartTime;
+          const finalMediaOffset = Math.max(0, newMediaOffset + snapAdjustment);
+          
           onUpdate(clip.id, {
             startTime: snapToGridValue(finalStartTime, 0.1),
-            duration: snapToGridValue(finalDuration, 0.1)
+            duration: snapToGridValue(finalDuration, 0.1),
+            mediaOffset: snapToGridValue(finalMediaOffset, 0.1)
           });
         }
         
         setIsResizing(false);
         setResizeStart(null);
         setIsSnapped(false);
+        // Reset live preview state
+        setLiveMediaOffset(null);
+        setLiveDuration(null);
       }
     };
 
@@ -394,7 +455,9 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
   }, [clip.id, trackId, onContextMenu]);
 
   const translateX = clip.startTime * pixelsPerSecond;
-  const widthPx = Math.max(1, clip.duration * pixelsPerSecond);
+  // Use live duration during resize for real-time waveform preview
+  const effectiveDuration = liveDuration !== null ? liveDuration : clip.duration;
+  const widthPx = Math.max(1, effectiveDuration * pixelsPerSecond);
   const showWaveform = clip.type === 'audio' && Boolean(audioSrc);
 
   // Fade indicator (timeline): show a curved line when fade in/out is active
@@ -566,6 +629,8 @@ export const SimpleTimelineClip: React.FC<SimpleTimelineClipProps> = ({
             color="#aaaaaa"
             secondaryColor="#aaaaaa"
             backgroundColor="transparent"
+            mediaOffset={liveMediaOffset !== null ? liveMediaOffset : (clip.mediaOffset || 0)}
+            clipDuration={liveDuration !== null ? liveDuration : clip.duration}
           />
         </div>
       ) : (

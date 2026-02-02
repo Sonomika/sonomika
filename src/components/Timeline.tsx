@@ -318,6 +318,8 @@ interface TimelineClip {
   type: 'video' | 'effect' | 'audio';
   name: string;
   params?: any;
+  mediaOffset?: number; // Offset into source media (for trimming from start)
+  sourceDuration?: number; // Original media duration (for constraining resize)
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreviewUpdate }) => {
@@ -1535,6 +1537,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             type: wantType,
             name: asset.name || (wantType === 'audio' ? 'Audio' : 'Video'),
             params: {},
+            sourceDuration: wantType === 'audio' ? clipDuration : undefined, // Store original audio duration
           });
 
           cursor = start + clipDuration;
@@ -1910,7 +1913,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                     clips: tr.clips.map(c => {
                       // Update the most recently added clip of this type
                       if (c.type === 'audio' && c.asset.id === assetRef.id) {
-                        return { ...c, duration: realDuration };
+                        return { ...c, duration: realDuration, sourceDuration: realDuration };
                       }
                       return c;
                     })
@@ -2177,7 +2180,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
                 if (tr.id !== trackId) return tr;
                 return {
                   ...tr,
-                  clips: tr.clips.map(c => c.id === newClip.id ? { ...c, duration: realDuration } : c)
+                  clips: tr.clips.map(c => c.id === newClip.id ? { ...c, duration: realDuration, sourceDuration: realDuration } : c)
                 };
               }));
             });
@@ -2297,7 +2300,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           }).catch(() => {});
         }
         if (playing) {
-          const desiredTime = Math.max(0, clip.relativeTime);
+          // Add mediaOffset to account for trimmed start
+          const desiredTime = Math.max(0, clip.relativeTime + (clip.mediaOffset || 0));
           if (Math.abs((audio.currentTime || 0) - desiredTime) > 0.1) {
             try { audio.currentTime = desiredTime; } catch {}
           }
@@ -2440,7 +2444,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       activeAudioClips.forEach((clip: any) => {
         const audio = audioElementsRef.current.get(clip.id);
         if (audio) {
-          try { audio.currentTime = Math.max(0, clip.relativeTime || 0); } catch {}
+          try { audio.currentTime = Math.max(0, (clip.relativeTime || 0) + (clip.mediaOffset || 0)); } catch {}
           audio.play().catch(() => {});
         }
       });
