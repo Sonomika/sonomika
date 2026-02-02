@@ -1051,6 +1051,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const lastActiveAudioIdsRef = useRef<Set<string>>(new Set());
   const ensuredAudioTrackRef = useRef<boolean>(false);
+  // Audio buffering state: tracks which clips are ready to play (buffered)
+  const audioReadyStateRef = useRef<Map<string, boolean>>(new Map());
+  // Last seek timestamp per audio to debounce seeking
+  const audioLastSeekRef = useRef<Map<string, number>>(new Map());
+  // Preloaded audio clips (clips loaded ahead of time)
+  const preloadedAudioRef = useRef<Set<string>>(new Set());
   const lassoRef = useRef<HTMLDivElement>(null);
   // Virtualization & scroll state
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -2272,9 +2278,17 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     } catch {}
 
     // AUDIO SYNC: ensure audio clips play/pause in sync with timeline
+    // Uses buffering-aware playback to prevent skipping
     try {
       const activeAudioClips = activeClips.filter((c: any) => c.type === 'audio');
       const nextActiveIds = new Set<string>(activeAudioClips.map((c: any) => c.id));
+      const now = performance.now();
+      
+      // Sync threshold: only seek if drift exceeds this (in seconds)
+      // Higher threshold reduces skipping from constant seeking
+      const SYNC_THRESHOLD = 0.3; // 300ms
+      // Minimum time between seeks to the same audio (in ms)
+      const SEEK_DEBOUNCE = 500;
 
       // Pause any audio that is no longer active
       lastActiveAudioIdsRef.current.forEach((clipId) => {
@@ -2287,31 +2301,105 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         }
       });
 
+      // Helper to create and setup audio element with buffering handlers
+      const createAudioElement = (clipId: string, src: string): HTMLAudioElement => {
+        const audio = new Audio(src);
+        audio.preload = 'auto';
+        
+        // Mark as not ready until buffered enough
+        audioReadyStateRef.current.set(clipId, false);
+        
+        // Listen for enough data to play without interruption
+        const handleCanPlayThrough = () => {
+          audioReadyStateRef.current.set(clipId, true);
+        };
+        audio.addEventListener('canplaythrough', handleCanPlayThrough);
+        
+        // Handle buffering/waiting states
+        audio.addEventListener('waiting', () => {
+          audioReadyStateRef.current.set(clipId, false);
+        });
+        audio.addEventListener('playing', () => {
+          audioReadyStateRef.current.set(clipId, true);
+        });
+        
+        // Cleanup listeners on element disposal (stored for later removal)
+        (audio as any).__cleanupListeners = () => {
+          audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+        };
+        
+        return audio;
+      };
+
       // For each active audio clip, play and seek to relative time
       activeAudioClips.forEach((clip: any) => {
         let audio = audioElementsRef.current.get(clip.id);
+        const src = getAudioSrc(clip.asset);
+        
         if (!audio) {
-          const src = getAudioSrc(clip.asset);
-          audio = new Audio(src);
-          audio.preload = 'auto';
+          audio = createAudioElement(clip.id, src);
           audioElementsRef.current.set(clip.id, audio);
           audioContextManager.initialize().then(() => {
             if (audio) audioContextManager.registerAudioElement(audio);
           }).catch(() => {});
         }
+        
         if (playing) {
           // Add mediaOffset to account for trimmed start
           const desiredTime = Math.max(0, clip.relativeTime + (clip.mediaOffset || 0));
-          if (Math.abs((audio.currentTime || 0) - desiredTime) > 0.1) {
-            try { audio.currentTime = desiredTime; } catch {}
+          const currentAudioTime = audio.currentTime || 0;
+          const drift = Math.abs(currentAudioTime - desiredTime);
+          const lastSeek = audioLastSeekRef.current.get(clip.id) || 0;
+          const timeSinceLastSeek = now - lastSeek;
+          
+          // Only seek if:
+          // 1. Drift exceeds threshold (significant desync)
+          // 2. Enough time has passed since last seek (debounce)
+          // 3. Audio is not currently seeking
+          if (drift > SYNC_THRESHOLD && timeSinceLastSeek > SEEK_DEBOUNCE && !audio.seeking) {
+            try {
+              audio.currentTime = desiredTime;
+              audioLastSeekRef.current.set(clip.id, now);
+            } catch {}
           }
-          if (audio.paused) {
+          
+          // Only play if audio is ready (has buffered enough data)
+          // readyState >= 3 means HAVE_FUTURE_DATA (enough to play)
+          const isReady = audio.readyState >= 3 || audioReadyStateRef.current.get(clip.id);
+          if (audio.paused && isReady && !audio.seeking) {
             audio.play().catch(() => {});
           }
         } else {
           audio.pause();
         }
       });
+
+      // Preload upcoming audio clips (look 3 seconds ahead)
+      const PRELOAD_AHEAD = 3; // seconds
+      try {
+        const allTracks = tracksRef.current || [];
+        allTracks.forEach((track: any) => {
+          (track.clips || []).forEach((clip: any) => {
+            if (clip.type !== 'audio') return;
+            const clipStart = clip.start;
+            const clipEnd = clipStart + clip.duration;
+            // If clip starts within preload window but isn't active yet
+            if (clipStart > time && clipStart <= time + PRELOAD_AHEAD && !nextActiveIds.has(clip.id)) {
+              // Preload if not already preloaded
+              if (!preloadedAudioRef.current.has(clip.id) && !audioElementsRef.current.has(clip.id)) {
+                const src = getAudioSrc(clip.asset);
+                const audio = createAudioElement(clip.id, src);
+                audioElementsRef.current.set(clip.id, audio);
+                preloadedAudioRef.current.add(clip.id);
+                // Register with audio context for capture
+                audioContextManager.initialize().then(() => {
+                  audioContextManager.registerAudioElement(audio);
+                }).catch(() => {});
+              }
+            }
+          });
+        });
+      } catch {}
 
       lastActiveAudioIdsRef.current = nextActiveIds;
     } catch {}
@@ -2342,6 +2430,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         audio.pause();
       });
       lastActiveAudioIdsRef.current.clear();
+      // Clear seek debounce refs so initial sync works properly
+      audioLastSeekRef.current.clear();
     } catch {}
     // Clear any existing interval/RAF first
     if (playbackInterval) {
@@ -2444,8 +2534,21 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       activeAudioClips.forEach((clip: any) => {
         const audio = audioElementsRef.current.get(clip.id);
         if (audio) {
-          try { audio.currentTime = Math.max(0, (clip.relativeTime || 0) + (clip.mediaOffset || 0)); } catch {}
-          audio.play().catch(() => {});
+          const desiredTime = Math.max(0, (clip.relativeTime || 0) + (clip.mediaOffset || 0));
+          try { audio.currentTime = desiredTime; } catch {}
+          audioLastSeekRef.current.set(clip.id, performance.now());
+          // Only play if audio is ready (buffered enough)
+          const isReady = audio.readyState >= 3 || audioReadyStateRef.current.get(clip.id);
+          if (isReady && !audio.seeking) {
+            audio.play().catch(() => {});
+          } else {
+            // Wait for audio to be ready, then play
+            const playWhenReady = () => {
+              audio.play().catch(() => {});
+              audio.removeEventListener('canplaythrough', playWhenReady);
+            };
+            audio.addEventListener('canplaythrough', playWhenReady);
+          }
         }
       });
     } catch {}
@@ -2476,6 +2579,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
         audio.pause();
       });
       lastActiveAudioIdsRef.current.clear();
+      // Clear seek debounce refs so next play starts fresh
+      audioLastSeekRef.current.clear();
     } catch {}
     // Sync React state to the final imperative time so UI (labels, etc) snaps correctly on stop.
     try { setCurrentTime(currentTimeRef.current); } catch {}
@@ -2779,11 +2884,18 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       try {
         audioElementsRef.current.forEach((audio) => {
           audio.pause();
+          // Call cleanup listeners if attached
+          if ((audio as any).__cleanupListeners) {
+            (audio as any).__cleanupListeners();
+          }
           // Unregister from app audio capture system
           audioContextManager.unregisterAudioElement(audio);
         });
         audioElementsRef.current.clear();
         lastActiveAudioIdsRef.current.clear();
+        audioReadyStateRef.current.clear();
+        audioLastSeekRef.current.clear();
+        preloadedAudioRef.current.clear();
       } catch {}
     };
   }, []);
