@@ -3728,8 +3728,9 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[2px] tw-bg-red-500 tw-[will-change:transform] tw-pointer-events-auto tw-z-50 tw-cursor-ew-resize"
             style={{ 
               // While playing we update this via RAF (imperative) to keep 60fps without React rerenders.
+              // Use a short linear transition during playback to smooth out frame skipping visually.
               transform: isPlaying ? undefined : `translate3d(${currentTime * pixelsPerSecond}px, 0, 0)`,
-              transition: isPlaying ? 'none' : 'transform 0.1s ease'
+              transition: isPlaying ? 'transform 60ms linear' : 'transform 0.1s ease'
             }}
             title={`Time: ${formatTime(currentTime)}`}
             data-current-time={currentTime}
@@ -3747,7 +3748,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
             className="tw-absolute tw-top-0 tw-bottom-0 tw-w-[40px] tw-bg-transparent tw-pointer-events-auto tw-z-50 tw-cursor-ew-resize"
             style={{ 
               transform: isPlaying ? undefined : `translate3d(${currentTime * pixelsPerSecond - 19}px, 0, 0)`,
-              transition: isPlaying ? 'none' : 'transform 0.1s ease',
+              transition: isPlaying ? 'transform 60ms linear' : 'transform 0.1s ease',
               height: '100%' // Ensure it covers the full timeline height
             }}
             onMouseDown={handlePlayheadMouseDown}
