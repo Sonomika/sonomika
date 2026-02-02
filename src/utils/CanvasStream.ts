@@ -15,9 +15,31 @@ export class CanvasStreamManager {
   private freezeMirror: boolean = false;
   private unfreezeHoldFrames: number = 0;
   private originalCanvasStyle: string | null = null;
+  // Cached temp canvas for frame capture - reused to avoid GC pressure
+  private tempCanvas: HTMLCanvasElement | null = null;
+  private tempCtx: CanvasRenderingContext2D | null = null;
+  private tempCanvasWidth: number = 0;
+  private tempCanvasHeight: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+  }
+
+  // Ensure temp canvas exists and is the right size - reuse to avoid GC pressure
+  private ensureTempCanvas(width: number, height: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null {
+    if (!this.tempCanvas || !this.tempCtx) {
+      this.tempCanvas = document.createElement('canvas');
+      this.tempCtx = this.tempCanvas.getContext('2d', { alpha: false });
+      if (!this.tempCtx) return null;
+    }
+    // Only resize if dimensions changed
+    if (this.tempCanvasWidth !== width || this.tempCanvasHeight !== height) {
+      this.tempCanvas.width = width;
+      this.tempCanvas.height = height;
+      this.tempCanvasWidth = width;
+      this.tempCanvasHeight = height;
+    }
+    return { canvas: this.tempCanvas, ctx: this.tempCtx };
   }
 
   // Method to update canvas reference when real canvas becomes available
@@ -599,11 +621,10 @@ export class CanvasStreamManager {
                 const upscale = longest < minLongestEdge ? (minLongestEdge / longest) : 1;
                 const targetWidth = Math.max(1, Math.round(compW * upscale));
                 const targetHeight = Math.max(1, Math.round(compH * upscale));
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = targetWidth;
-                tempCanvas.height = targetHeight;
-                const tempCtx = tempCanvas.getContext('2d');
-                if (tempCtx) {
+                // Use cached temp canvas to avoid GC pressure
+                const cached = this.ensureTempCanvas(targetWidth, targetHeight);
+                if (cached) {
+                  const { canvas: tempCanvas, ctx: tempCtx } = cached;
                   const bg = useStore.getState().compositionSettings?.backgroundColor || '#000000';
                   // Fill background
                   tempCtx.fillStyle = bg;
@@ -663,11 +684,10 @@ export class CanvasStreamManager {
                 const comp = (useStore.getState() as any).compositionSettings || {};
                 const compW = Math.max(1, Number(comp.width) || 1920);
                 const compH = Math.max(1, Number(comp.height) || 1080);
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = compW;
-                tempCanvas.height = compH;
-                const tctx = tempCanvas.getContext('2d');
-                if (tctx) {
+                // Use cached temp canvas to avoid GC pressure
+                const cached = this.ensureTempCanvas(compW, compH);
+                if (cached) {
+                  const { canvas: tempCanvas, ctx: tctx } = cached;
                   const bg = comp.backgroundColor || '#000000';
                   tctx.fillStyle = bg;
                   tctx.fillRect(0, 0, compW, compH);
@@ -771,6 +791,11 @@ export class CanvasStreamManager {
     this.mirrorCanvas = null;
     this.mirrorCtx = null;
     this.isWindowOpen = false;
+    // Clean up temp canvas to free memory
+    this.tempCanvas = null;
+    this.tempCtx = null;
+    this.tempCanvasWidth = 0;
+    this.tempCanvasHeight = 0;
   }
 
   isMirrorWindowOpen(): boolean {
