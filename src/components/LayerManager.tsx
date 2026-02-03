@@ -355,16 +355,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         crossfadeTimeoutRef.current = null;
       }
       
-      // When switching rapidly, use the CURRENT displayed content as the "old" content
-      // This makes the transition smooth even if interrupted mid-fade
-      const effectivePreviousContent = isCrossfading ? previewContent : previousPreviewContent;
+      // When switching rapidly, keep the existing "previous" slot as the old content.
+      //
+      // IMPORTANT:
+      // If we use `previewContent` here while `isCrossfading` is true, this effect has already
+      // re-rendered with the NEW `previewContent` (the target). That makes the crossfade
+      // degenerate into "new -> new" (no visible fade). This shows up most often in Sequence
+      // mode because row-override updates can start a crossfade right before a column switch.
+      const effectivePreviousContent = previousPreviewContent;
       const effectiveStartProgress = isCrossfading ? crossfadeProgress : 0;
       
       // Capture the target content at start of animation to avoid race conditions
       const targetContent = previewContent;
       
       // If we're interrupting a crossfade, immediately update previousContent
-      if (isCrossfading) {
+      if (isCrossfading && effectivePreviousContent) {
         setPreviousPreviewContent(effectivePreviousContent);
       }
       

@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react'
 import WaveSurfer from 'wavesurfer.js'
 import { useAppAudioCapture } from '../hooks/useAppAudioCapture'
 
 interface CustomWaveformProps {
   audioUrl: string
+  // Stable identifier for persisting view state (zoom/pan) across URL changes (e.g. blob: URLs)
+  storageKey?: string
   onTimeUpdate?: (currentTime: number) => void
   onDurationChange?: (duration: number) => void
   onPlay?: () => void
@@ -62,6 +64,7 @@ function clampPan(p: number, totalBars: number, zoom: number) {
 
 const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
   audioUrl,
+  storageKey,
   onTimeUpdate,
   onDurationChange,
   onPlay,
@@ -82,24 +85,63 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
   const [waveformData, setWaveformData] = useState<number[]>([])
   // Persist last successful bars so brief decode failures or re-mounts still draw something
   const lastGoodWaveformRef = useRef<number[] | null>(null)
+  // Initialize zoom/pan - will be loaded in effect to handle audioUrl properly
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, pan: 0 })
   const analysisAbortRef = useRef<{ url: string; aborted: boolean } | null>(null)
   const emptyDrawLoggedRef = useRef(false)
+  const drawRafRef = useRef<number | null>(null)
+  const drawFnRef = useRef<(() => void) | null>(null)
+  const lastStorageKeyRef = useRef<string>('')
 
   // Register audio element for app audio capture
   useAppAudioCapture(audioRef.current)
+
+  const stableStorageKey = String(storageKey || audioUrl || '')
+
+  // Helper to create a stable sessionStorage key
+  const getStorageKey = (baseKey: string, prefix: string) => {
+    try {
+      const safe = baseKey || 'default'
+      return `${prefix}_${safe}`
+    } catch {
+      return `${prefix}_default`
+    }
+  }
+
+  const requestDraw = useCallback(() => {
+    if (drawRafRef.current !== null) return
+    drawRafRef.current = requestAnimationFrame(() => {
+      drawRafRef.current = null
+      try { drawFnRef.current?.() } catch {}
+    })
+  }, [])
+
+  // Restore persisted zoom/pan when switching to a different audio (by stable key).
+  // This intentionally ignores `audioUrl` so view state survives blob URL regeneration.
+  useEffect(() => {
+    if (!stableStorageKey) return
+    if (lastStorageKeyRef.current === stableStorageKey) return
+    lastStorageKeyRef.current = stableStorageKey
+
+    try {
+      const savedZoom = sessionStorage.getItem(getStorageKey(stableStorageKey, 'waveform_zoom'))
+      const savedPan = sessionStorage.getItem(getStorageKey(stableStorageKey, 'waveform_pan'))
+      setZoom(savedZoom != null && Number.isFinite(parseFloat(savedZoom)) ? parseFloat(savedZoom) : 1)
+      setPan(savedPan != null && Number.isFinite(parseFloat(savedPan)) ? parseFloat(savedPan) : 0)
+    } catch {
+      setZoom(1)
+      setPan(0)
+    }
+  }, [stableStorageKey])
 
   useEffect(() => {
     if (!audioUrl) return
 
     setIsLoading(true)
     try { console.log('[CustomWaveform] init', { audioUrl, isElectron: !!(window as any).electron }) } catch {}
-    // Ensure full waveform is shown on new load
-    setZoom(1)
-    setPan(0)
 
     // Create audio element
     const audio = new Audio()
@@ -123,7 +165,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
 
     const handleTimeUpdate = () => {
       onTimeUpdate?.(audio.currentTime)
-      drawSimpleWaveform()
+      requestDraw()
     }
 
     const handlePlay = () => {
@@ -187,6 +229,12 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
       audio.removeEventListener('pause', handlePause)
       audio.removeEventListener('ended', handleEnded)
 
+      // Cancel any pending draw RAF
+      if (drawRafRef.current !== null) {
+        cancelAnimationFrame(drawRafRef.current)
+        drawRafRef.current = null
+      }
+
       // Clean up element and any blob URL
       try { audio.pause() } catch {}
       try {
@@ -221,7 +269,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     // Create new handlers
     const handleTimeUpdate = () => {
       onTimeUpdate?.(audio.currentTime)
-      drawSimpleWaveform()
+      requestDraw()
     }
 
     const handlePlay = () => {
@@ -550,7 +598,7 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     return bars
   }
 
-  const drawSimpleWaveform = () => {
+  const drawSimpleWaveform = useCallback(() => {
     const canvas = canvasRef.current
     const audio = audioRef.current
     if (!canvas || !audio) return
@@ -581,7 +629,12 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     const visibleBars = Math.max(1, Math.ceil(totalBars / Math.max(zoom, 1e-6)))
     const maxPan = Math.max(0, (totalBars - visibleBars) / totalBars)
     const clampedPan = Math.min(Math.max(pan, 0), maxPan)
-    if (clampedPan !== pan) setPan(clampedPan)
+    if (clampedPan !== pan) {
+      setPan(clampedPan)
+      try {
+        sessionStorage.setItem(getStorageKey(stableStorageKey, 'waveform_pan'), String(clampedPan))
+      } catch {}
+    }
 
     const startBar = Math.floor(clampedPan * totalBars)
     const endBar = Math.min(totalBars, startBar + visibleBars)
@@ -635,36 +688,58 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
         }
       })
     }
-  }
+  }, [waveformData, zoom, pan, triggerPoints, triggersEnabled, waveColor, progressColor])
 
+  // Keep a ref to the latest draw function so `requestDraw` can be defined early
+  useEffect(() => {
+    drawFnRef.current = drawSimpleWaveform
+  }, [drawSimpleWaveform])
+
+  // Redraw when waveform data or view settings change (currentTime is handled by timeupdate event)
   useEffect(() => {
     drawSimpleWaveform()
-  }, [currentTime, waveformData, zoom, pan, triggerPoints, triggersEnabled])
+  }, [drawSimpleWaveform, waveformData, zoom, pan, triggerPoints, triggersEnabled])
 
   // Add resize listener for canvas redraw (no data regeneration)
   useEffect(() => {
+    let resizeTimeout: number | null = null
+    
     const handler = () => {
+      // Debounce resize redraws to prevent flickering during window resize
+      if (resizeTimeout !== null) {
+        clearTimeout(resizeTimeout)
+      }
+      resizeTimeout = window.setTimeout(() => {
         drawSimpleWaveform()
+        resizeTimeout = null
+      }, 100)
     }
+    
     const visibilityHandler = () => {
-        // Redraw when app becomes visible again (after minimize/restore)
-        if (!document.hidden) {
-            requestAnimationFrame(() => {
-                drawSimpleWaveform()
-            })
-        }
+      // Redraw when app becomes visible again (after minimize/restore)
+      if (!document.hidden) {
+        requestAnimationFrame(() => {
+          drawSimpleWaveform()
+        })
+      }
     }
+    
     window.addEventListener('resize', handler)
     document.addEventListener('visibilitychange', visibilityHandler)
+    
     // Initial draw
     requestAnimationFrame(() => {
-        drawSimpleWaveform()
+      drawSimpleWaveform()
     })
+    
     return () => {
-        window.removeEventListener('resize', handler)
-        document.removeEventListener('visibilitychange', visibilityHandler)
+      if (resizeTimeout !== null) {
+        clearTimeout(resizeTimeout)
+      }
+      window.removeEventListener('resize', handler)
+      document.removeEventListener('visibilitychange', visibilityHandler)
     }
-  }, [])
+  }, [drawSimpleWaveform])
 
   // Basic peak picker using the generated waveformData
   const computePeaks = (count: number, minDistanceSec?: number): number[] => {
@@ -720,10 +795,16 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     const rect = canvas.getBoundingClientRect()
     const x = event.clientX - rect.left
     
-    // Calculate actual progress based on zoom and pan
-    const totalBars = waveformData.length
+    // Use the same bar source as drawing to keep mapping stable
+    const barsToUse = waveformData.length ? waveformData : (lastGoodWaveformRef.current || [])
+    const totalBars = barsToUse.length
+    if (!totalBars || !Number.isFinite(audioRef.current.duration) || audioRef.current.duration <= 0) return
+
+    // Calculate actual progress based on zoom and *clamped* pan (same as draw)
     const visibleBars = Math.max(1, Math.ceil(totalBars / Math.max(zoom, 1e-6)))
-    const startBar = Math.max(0, Math.floor(pan * totalBars))
+    const maxPan = Math.max(0, (totalBars - visibleBars) / totalBars)
+    const clampedPan = Math.min(Math.max(pan, 0), maxPan)
+    const startBar = Math.floor(clampedPan * totalBars)
     
     // Calculate progress to match the progress line calculation exactly
     // Progress line: progressX = (progressBarInVisibleRange / visibleBars) * cssWidth
@@ -739,12 +820,12 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
     } else {
       // Otherwise, seek to that time
       audioRef.current.currentTime = newTime
+      // Push UI update immediately (some browsers delay timeupdate on seek)
+      onTimeUpdate?.(newTime)
     }
-    
-    // Force redraw to ensure waveform stays visible
-    setTimeout(() => {
-      drawSimpleWaveform()
-    }, 0)
+
+    // Redraw next frame to prevent flashing from multiple immediate clears
+    requestDraw()
   }
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -762,7 +843,13 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
         const rect = canvas.getBoundingClientRect()
         const deltaPan = deltaX / (rect.width * zoom)
         const totalBars = waveformData.length
-        setPan(prev => clampPan(dragStart.pan + deltaPan, totalBars, zoom))
+        setPan(prev => {
+          const newPan = clampPan(dragStart.pan + deltaPan, totalBars, zoom)
+          try {
+            sessionStorage.setItem(getStorageKey(stableStorageKey, 'waveform_pan'), String(newPan))
+          } catch {}
+          return newPan
+        })
       }
     }
   }
@@ -806,16 +893,32 @@ const CustomWaveform = forwardRef<CustomWaveformRef, CustomWaveformProps>(({
   }
 
   const zoomIn = () => {
-    setZoom(prev => Math.min(10, prev * 1.5))
+    setZoom(prev => {
+      const newZoom = Math.min(10, prev * 1.5)
+      try {
+        sessionStorage.setItem(getStorageKey(stableStorageKey, 'waveform_zoom'), String(newZoom))
+      } catch {}
+      return newZoom
+    })
   }
 
   const zoomOut = () => {
-    setZoom(prev => Math.max(0.1, prev / 1.5))
+    setZoom(prev => {
+      const newZoom = Math.max(0.1, prev / 1.5)
+      try {
+        sessionStorage.setItem(getStorageKey(stableStorageKey, 'waveform_zoom'), String(newZoom))
+      } catch {}
+      return newZoom
+    })
   }
 
   const resetZoom = () => {
     setZoom(1)
     setPan(0)
+    try {
+      sessionStorage.setItem(getStorageKey(stableStorageKey, 'waveform_zoom'), '1')
+      sessionStorage.setItem(getStorageKey(stableStorageKey, 'waveform_pan'), '0')
+    } catch {}
     // Force a redraw to ensure the waveform updates immediately
     setTimeout(() => {
       drawSimpleWaveform()

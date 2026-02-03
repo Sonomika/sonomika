@@ -43,6 +43,8 @@ const SequenceTab: React.FC = () => {
   const lastFiredRef = useRef<Record<number, number>>({});
   // Previous time to detect seeks/backward jumps
   const prevTimeRef = useRef(0);
+  // `applyMarkersUpToTime` is declared later; keep a ref so early callbacks can use it safely.
+  const applyMarkersUpToTimeRef = useRef<(t: number) => void>(() => {});
 
   // Sequence enable/disable is now per-scene via scene.sequenceEnabled
   const [triggerPoints, setTriggerPoints] = useState<number[]>([]);
@@ -51,9 +53,9 @@ const SequenceTab: React.FC = () => {
   const [hasHydrated, setHasHydrated] = useState(false);
   const [editorDrafts, setEditorDrafts] = useState<Record<number, { columnIndex: number; rowCells: Record<number, number>; action: 'play' | 'stop' | 'toggle' }>>({});
   // Auto Fill options
-  const [autoFillCount, setAutoFillCount] = useState<number>(0); // 0 = auto
+  const [autoFillCount, setAutoFillCount] = useState<number>(50); // 0 = auto
   const [autoFillRandomize, setAutoFillRandomize] = useState<boolean>(false);
-  const [autoFillOverflowStrategy, setAutoFillOverflowStrategy] = useState<'repeat' | 'random' | 'no_adjacent'>('no_adjacent');
+  const [autoFillOverflowStrategy, setAutoFillOverflowStrategy] = useState<'random' | 'no_adjacent' | 'column_order_repeated'>('no_adjacent');
 
   // Fallback playhead ticker (when no audio is loaded)
   const fallbackRafRef = useRef<number | null>(null);
@@ -112,13 +114,14 @@ const SequenceTab: React.FC = () => {
         // Restore Auto Fill options
         try {
           const n = Number(data?.autoFillCount);
-          setAutoFillCount(Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0);
-        } catch { setAutoFillCount(0); }
+          setAutoFillCount(Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 50);
+        } catch { setAutoFillCount(50); }
         try { setAutoFillRandomize(Boolean(data?.autoFillRandomize)); } catch { setAutoFillRandomize(false); }
         try {
-          const s = String(data?.autoFillOverflowStrategy || 'repeat');
-          setAutoFillOverflowStrategy((s === 'random' || s === 'no_adjacent') ? (s as any) : 'repeat');
-        } catch { setAutoFillOverflowStrategy('repeat'); }
+          const sRaw = String(data?.autoFillOverflowStrategy || 'no_adjacent');
+          const s = sRaw === 'repeat' ? 'column_order_repeated' : sRaw; // backwards compat
+          setAutoFillOverflowStrategy((s === 'random' || s === 'no_adjacent' || s === 'column_order_repeated') ? (s as any) : 'no_adjacent');
+        } catch { setAutoFillOverflowStrategy('no_adjacent'); }
         // Restore global sequence toggle from saved payload if present
         try {
           if (typeof data?.triggersEnabled === 'boolean') {
@@ -135,9 +138,9 @@ const SequenceTab: React.FC = () => {
         setCurrentTime(0);
         setDuration(0);
         setIsPlaying(false);
-        setAutoFillCount(0);
+        setAutoFillCount(50);
         setAutoFillRandomize(false);
-        setAutoFillOverflowStrategy('repeat');
+        setAutoFillOverflowStrategy('no_adjacent');
       }
     } catch {}
     setHasHydrated(true);
@@ -285,7 +288,11 @@ const SequenceTab: React.FC = () => {
   const handleEnded = useCallback(() => {
     try {
       const scene = scenes.find((s: any) => s.id === currentSceneId);
-      const action = scene?.endOfSceneAction || 'stop';
+      // Keep default consistent with the UI (which defaults to "Next")
+      const raw = String(scene?.endOfSceneAction || 'play_next');
+      const normalized = raw.trim().toLowerCase();
+      const action = (normalized === 'next' || normalized === 'playnext' || normalized === 'play-next') ? 'play_next' : normalized;
+
       if (action === 'loop') {
         // Reset trigger one-shots and restart audio
         lastFiredRef.current = {};
@@ -294,7 +301,7 @@ const SequenceTab: React.FC = () => {
         try { waveformRef.current?.seekTo?.(0); } catch {}
         setCurrentTime(0);
         // Re-apply early markers to ensure 0.00 triggers fire on loop
-        try { applyMarkersUpToTime(0.15); } catch {}
+        try { applyMarkersUpToTimeRef.current(0.15); } catch {}
         setTimeout(() => {
           try { waveformRef.current?.play?.(); } catch {}
           // Notify transport listeners that playback resumed due to loop
@@ -318,7 +325,7 @@ const SequenceTab: React.FC = () => {
           
           if (hasAudio) {
             // If we have audio, apply markers and start playback
-            try { applyMarkersUpToTime(Math.max(0.15, Number(0))); } catch {}
+            try { applyMarkersUpToTimeRef.current(Math.max(0.15, Number(0))); } catch {}
             try { waveformRef.current?.play?.(); } catch {}
             // Also emit a globalPlay so other subsystems can react consistently
             try { document.dispatchEvent(new CustomEvent('globalPlay', { detail: { source: 'sequence:autoNext' } })); } catch {}
@@ -336,11 +343,14 @@ const SequenceTab: React.FC = () => {
         // Cancel fallback ticker if running
         try { if (fallbackRafRef.current != null) { cancelAnimationFrame(fallbackRafRef.current); fallbackRafRef.current = null; } } catch {}
         setIsPlaying(false);
-        // Broadcast a globalStop so listeners honor the stop state
-        try { document.dispatchEvent(new CustomEvent('globalStop', { detail: { source: 'sequence:endStop' } })); } catch {}
+        // Stop global playback (including video layers). Use force to bypass the
+        // sequenceEnabledGlobal guard in the store's globalStop implementation.
+        try { globalStop({ source: 'sequence:endStop', force: true } as any); } catch {}
       }
     } catch {}
-  }, [currentSceneId, scenes, playNextScene]);
+  // NOTE: `applyMarkersUpToTime` is declared later in this component, so we intentionally
+  // keep it out of the dependency list to avoid TDZ "used before declaration" errors.
+  }, [currentSceneId, scenes, playNextScene, showTimeline, playNextTimelineScene, selectedFile, audioUrl, globalStop]);
 
   // Controls
   const togglePlayPause = useCallback(() => {
@@ -691,6 +701,11 @@ const SequenceTab: React.FC = () => {
     } catch {}
   }, [triggerPoints, checkTriggers]);
 
+  // Keep ref in sync for callbacks declared earlier (e.g. onEnded)
+  useEffect(() => {
+    applyMarkersUpToTimeRef.current = applyMarkersUpToTime;
+  }, [applyMarkersUpToTime]);
+
   // Global transport integration: control audio and apply triggers immediately on Play
   useEffect(() => {
     const onGlobalPlay = () => {
@@ -952,11 +967,16 @@ const SequenceTab: React.FC = () => {
       const numRows = Math.min(6, Math.max(1, Number(scene.numRows) || 3));
       const baseCount = Math.max(cols.length, numRows);
       const count = Math.max(1, autoFillCount || baseCount);
-      const peaks = (waveformRef.current?.getPeaks?.(count, { minDistanceSec: Math.max(0.5, (duration || 0) / (count * 2)) }) || []) as number[];
-      const times = Array.isArray(peaks) ? peaks.slice() : [];
-      // Ensure a start marker with a small gap before the next to avoid duplicates like 0.00, 0.00
-      const startGap = Math.max(0.06, (duration || 0) / Math.max(50, count * 4));
-      times.unshift(0, startGap);
+      const dur = Number(duration) || 0;
+      if (!Number.isFinite(dur) || dur <= 0) return;
+
+      // Evenly-spaced markers across the timeline (includes 0.000).
+      // Use a half-open interval [0, dur) so we don't place a marker exactly at the end.
+      const step = dur / Math.max(1, count);
+      const times: number[] = [];
+      for (let i = 0; i < count; i++) {
+        times.push(i * step);
+      }
       // Normalize to ms precision and unique
       const norm = (t: number) => Number(Number(t).toFixed(3));
       let picked = Array.from(new Set(times.map(norm)));
@@ -990,8 +1010,10 @@ const SequenceTab: React.FC = () => {
       picked.forEach((t, idx) => {
         const key = norm(t);
         const actions: TriggerAction[] = [];
-        // Default: group peaks into blocks of numRows so pattern is 1,1,1,1 → 2,2,2,2.
-        // In 'no_adjacent' mode, we disable grouping so consecutive markers cycle columns.
+        // Column assignment strategies:
+        // - 'column_order_repeated': cycle columns in order and wrap (grouped by numRows → 1,1,1 → 2,2,2 ...)
+        // - 'no_adjacent': cycle per-marker to avoid same adjacent
+        // - 'random': deterministic-ish per block
         const blockSize = (autoFillOverflowStrategy === 'no_adjacent') ? 1 : Math.max(1, numRows);
         let baseColIdx = 0;
         if (colIds.length > 0) {
@@ -1005,8 +1027,8 @@ const SequenceTab: React.FC = () => {
             // Choose next column per marker, avoid same as previous marker
             const prev = previousBaseColIdx == null ? -1 : previousBaseColIdx;
             baseColIdx = (prev + 1) % colIds.length;
-          } else {
-            // repeat: wrap around
+          } else if (autoFillOverflowStrategy === 'column_order_repeated') {
+            // Cycle columns in order (grouped by blockSize) and wrap around.
             baseColIdx = (Math.floor(idx / blockSize) % colIds.length);
           }
         }
@@ -1016,7 +1038,8 @@ const SequenceTab: React.FC = () => {
         // rows using the same column as the column action, yielding 1,1,1,1 then 2,2,2,2.
         nextConfigs[key] = { id: `auto-${key.toFixed(3)}`, time: key, actions } as TriggerConfig;
         // Track previous column at the granularity in effect
-        if (autoFillOverflowStrategy === 'no_adjacent') previousBaseColIdx = baseColIdx; else if ((idx + 1) % blockSize === 0) previousBaseColIdx = baseColIdx;
+        if (autoFillOverflowStrategy === 'no_adjacent') previousBaseColIdx = baseColIdx;
+        else if ((idx + 1) % blockSize === 0) previousBaseColIdx = baseColIdx;
       });
 
       setTriggerPoints(nextPoints);
@@ -1159,9 +1182,10 @@ const SequenceTab: React.FC = () => {
                 </div>
 
                 <CustomWaveform
-                  key={audioUrl}
+                  key={selectedFile?.path || selectedFile?.id || audioUrl}
                   ref={waveformRef}
                   audioUrl={audioUrl}
+                  storageKey={selectedFile?.path || selectedFile?.id || audioUrl}
                   onTimeUpdate={handleTimeUpdate}
                   onDurationChange={handleDurationChange}
                   onPlay={handlePlay}
@@ -1247,11 +1271,11 @@ const SequenceTab: React.FC = () => {
               />
               <Select
                 value={autoFillOverflowStrategy}
-                onChange={(v) => setAutoFillOverflowStrategy((v === 'random' || v === 'no_adjacent') ? (v as any) : 'repeat')}
+                onChange={(v) => setAutoFillOverflowStrategy((v === 'random' || v === 'no_adjacent' || v === 'column_order_repeated') ? (v as any) : 'no_adjacent')}
                 options={[
-                  { value: 'repeat', label: 'Repeat' },
                   { value: 'random', label: 'Randomize' },
-                  { value: 'no_adjacent', label: 'No Adjacent Same' }
+                  { value: 'no_adjacent', label: 'No Adjacent Same' },
+                  { value: 'column_order_repeated', label: 'Column Order Repeated' }
                 ]}
                 className="tw-text-xs"
               />
