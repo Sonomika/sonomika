@@ -4,12 +4,10 @@ import * as THREE from 'three';
 import { useEffectComponent } from '../utils/EffectLoader';
 import { useStore } from '../store/store';
 import { WorkerFrameRenderer } from '../utils/WorkerFrameRenderer';
-import { FRAME_BUFFER_CONFIG, LOOP_MODES, VIDEO_PIPELINE_CONFIG } from '../constants/video';
-import { WorkerVideoPipeline } from '../utils/WorkerVideoPipeline';
-import { WorkerCanvasDrawer } from '../utils/WorkerCanvasDrawer';
-import { demuxWithMediaSource } from '../utils/Demuxers';
+import { FRAME_BUFFER_CONFIG, LOOP_MODES } from '../constants/video';
 import { EffectErrorBoundary } from './EffectErrorBoundary';
 import { VideoLoopManager } from '../utils/VideoLoopManager';
+import { getAssetPath } from '../utils/LayerManagerUtils';
 
 interface CanvasRendererProps {
   assets: Array<{
@@ -31,10 +29,8 @@ const WorkerVideoTexture: React.FC<{
 }> = ({ video, opacity, blendMode }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [texture, setTexture] = useState<THREE.CanvasTexture | THREE.Texture | null>(null);
+  const textureRef = useRef<THREE.CanvasTexture | THREE.Texture | null>(null);
   const rendererRef = useRef<WorkerFrameRenderer | null>(null);
-  const pipelineRef = useRef<WorkerVideoPipeline | null>(null);
-  const drawerRef = useRef<WorkerCanvasDrawer | null>(null);
-  const captureVideoRef = useRef<HTMLVideoElement | null>(null);
   const [fallback, setFallback] = useState<boolean>(false);
 
   useEffect(() => {
@@ -42,117 +38,58 @@ const WorkerVideoTexture: React.FC<{
     const w = Math.max(1, video.videoWidth || 640);
     const h = Math.max(1, video.videoHeight || 360);
 
-    // Prefer decode worker pipeline delivering ImageBitmap frames
-    const ensureCaptureVideo = async (): Promise<HTMLVideoElement> => {
-      let cap = captureVideoRef.current;
-      if (!cap) {
-        cap = document.createElement('video');
-        cap.src = video.currentSrc || video.src;
-        cap.muted = true;
-        cap.playsInline = true;
-        cap.preload = 'auto';
-        captureVideoRef.current = cap;
-      }
-      if (cap.readyState < 1) {
-        await new Promise<void>((resolve) => {
-          const onMeta = () => { resolve(); };
-          cap!.addEventListener('loadedmetadata', onMeta, { once: true });
-          try { cap!.load(); } catch {}
-        });
-      }
-      return cap;
-    };
-
-    const pipeline = new WorkerVideoPipeline({
-      src: video.currentSrc || video.src,
-      width: w,
-      height: h,
-      nbFramesToCheck: VIDEO_PIPELINE_CONFIG.NB_FRAMES_TO_CHECK,
-      requestMarginMs: VIDEO_PIPELINE_CONFIG.REQUEST_MARGIN_MS,
-      maxQueueSize: VIDEO_PIPELINE_CONFIG.MAX_QUEUE_SIZE,
-      clock: () => (video.currentTime || 0),
-      onQueueStats: ({ size }) => { try {
-        // Passively bubble queue size to overlay by updating registry meta
-        // The registry entry is already updated inside the pipeline, overlay reads from there.
-      } catch {} },
-      onFrame: (bitmap) => {
-        // Prefer worker canvas drawing for zero main-thread painting
-        let drawer = drawerRef.current;
-        if (!drawer) {
-          drawer = new WorkerCanvasDrawer({ width: w, height: h, onFrame: () => { try { const t: any = texture as any; if (t) t.needsUpdate = true; } catch {} } });
-          drawer.start();
-          drawerRef.current = drawer;
-          const canvas = drawer.canvas!;
-          const canvasTex = new THREE.CanvasTexture(canvas);
-          canvasTex.minFilter = THREE.LinearFilter;
-          canvasTex.magFilter = THREE.LinearFilter;
-          canvasTex.format = THREE.RGBAFormat;
-          canvasTex.generateMipmaps = false;
-          try {
-            (canvasTex as any).colorSpace = (THREE as any).SRGBColorSpace || (canvasTex as any).colorSpace;
-            if (!(canvasTex as any).colorSpace && (THREE as any).sRGBEncoding) {
-              (canvasTex as any).encoding = (THREE as any).sRGBEncoding;
-            }
-          } catch {}
-          setTexture(canvasTex);
-        }
-        try { drawer.draw(bitmap); } finally { try { bitmap.close?.(); } catch {} }
-      },
-      // Fallback capture path: createImageBitmap at a target time
-      fallbackCapture: async (timeSec: number) => {
-        try {
-          const cap = await ensureCaptureVideo();
-          await new Promise<void>((resolve, reject) => {
-            const onSeeked = () => resolve();
-            const onErr = () => reject(new Error('seek error'));
-            cap.addEventListener('seeked', onSeeked, { once: true });
-            cap.addEventListener('error', onErr, { once: true });
-            try { cap.currentTime = timeSec; } catch { resolve(); }
-          });
-          const bmp: ImageBitmap = await (window as any).createImageBitmap(cap);
-          return bmp;
-        } catch { return null; }
-      },
-      chunkFeeder: async (push) => {
-        try { await demuxWithMediaSource(video.currentSrc || video.src, push); } catch {}
-      }
-    });
-    pipeline.start();
-    pipelineRef.current = pipeline;
-
-    // If Offscreen worker-draw path is supported and preferred, we can still run it as fallback
-    let renderer: WorkerFrameRenderer | null = null;
-    if (WorkerFrameRenderer.isSupported()) {
-      try {
-        renderer = new WorkerFrameRenderer(video, {
-          width: w,
-          height: h,
-          maxInFlightFrames: FRAME_BUFFER_CONFIG.MAX_IN_FLIGHT_FRAMES,
-          onFrame: () => { try { if (texture) (texture as any).needsUpdate = true; } catch {} }
-        });
-        // Do not start by default; reserve as fallback if pipeline fails
-      } catch {}
+    // Use WorkerFrameRenderer directly. This avoids the current pipeline's "seek-a-hidden-video"
+    // fallback behavior (demux is not implemented), which becomes very expensive in Random mode.
+    if (!WorkerFrameRenderer.isSupported()) {
+      setFallback(true);
+      return;
     }
-    rendererRef.current = renderer;
 
-    // Event-driven flushing on seek/rate changes
-    const onSeeking = () => { try { pipeline.flush(); } catch {} };
-    const onRate = () => { try { pipeline.flush(); } catch {} };
-    try { video.addEventListener('seeking', onSeeking); } catch {}
-    try { video.addEventListener('ratechange', onRate); } catch {}
+    let renderer: WorkerFrameRenderer | null = null;
+    let canvasTex: THREE.CanvasTexture | null = null;
+    try {
+      renderer = new WorkerFrameRenderer(video, {
+        width: w,
+        height: h,
+        maxInFlightFrames: FRAME_BUFFER_CONFIG.MAX_IN_FLIGHT_FRAMES,
+        onFrame: () => {
+          try {
+            const t: any = textureRef.current as any;
+            if (t) t.needsUpdate = true;
+          } catch {}
+        }
+      });
+      renderer.start();
+      rendererRef.current = renderer;
+
+      const canvas = renderer.canvas;
+      if (canvas) {
+        canvasTex = new THREE.CanvasTexture(canvas);
+        canvasTex.minFilter = THREE.LinearFilter;
+        canvasTex.magFilter = THREE.LinearFilter;
+        canvasTex.format = THREE.RGBAFormat;
+        canvasTex.generateMipmaps = false;
+        try {
+          (canvasTex as any).colorSpace = (THREE as any).SRGBColorSpace || (canvasTex as any).colorSpace;
+          if (!(canvasTex as any).colorSpace && (THREE as any).sRGBEncoding) {
+            (canvasTex as any).encoding = (THREE as any).sRGBEncoding;
+          }
+        } catch {}
+        textureRef.current = canvasTex;
+        setTexture(canvasTex);
+      } else {
+        setFallback(true);
+      }
+    } catch {
+      setFallback(true);
+    }
 
     return () => {
-      try { pipeline.stop(); } catch {}
-      pipelineRef.current = null;
-      try { (texture as any)?.dispose?.(); } catch {}
-      setTexture(null);
-      try { drawerRef.current?.stop?.(); } catch {}
-      drawerRef.current = null;
       try { renderer?.stop?.(); } catch {}
       rendererRef.current = null;
-      try { video.removeEventListener('seeking', onSeeking); } catch {}
-      try { video.removeEventListener('ratechange', onRate); } catch {}
-      captureVideoRef.current = null;
+      try { (canvasTex as any)?.dispose?.(); } catch {}
+      textureRef.current = null;
+      setTexture(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video]);
@@ -540,6 +477,10 @@ const CanvasScene: React.FC<{
             video.loop = false;
             video.autoplay = true;
             video.playsInline = true;
+            video.preload = 'auto';
+            video.crossOrigin = 'anonymous';
+            try { (video as any).disablePictureInPicture = true; } catch {}
+            try { (video as any).disableRemotePlayback = true; } catch {}
             video.style.backgroundColor = backgroundColor || '#000000';
             
             await new Promise((resolve, reject) => {
@@ -740,53 +681,6 @@ const CanvasScene: React.FC<{
     </>
   );
 };
-
-// Helper function to get proper file path for Electron
-  const getAssetPath = (asset: any, useForPlayback: boolean = false) => {
-    if (!asset) return '';
-    
-    // For video playback, prioritize file paths over blob URLs
-    if (useForPlayback && asset.type === 'video') {
-      if (asset.filePath) {
-        const filePath = `file://${asset.filePath}`;
-        return filePath;
-      }
-      if (asset.path && asset.path.startsWith('file://')) {
-        return asset.path;
-      }
-      if (asset.path && asset.path.startsWith('local-file://')) {
-        const filePath = asset.path.replace('local-file://', '');
-        const standardPath = `file://${filePath}`;
-        return standardPath;
-      }
-    }
-    
-    // For thumbnails and other uses, prioritize blob URLs
-    if (asset.path && asset.path.startsWith('blob:')) {
-      return asset.path;
-    }
-    
-    if (asset.filePath) {
-      const filePath = `file://${asset.filePath}`;
-      return filePath;
-    }
-    
-    if (asset.path && asset.path.startsWith('file://')) {
-      return asset.path;
-    }
-    
-    if (asset.path && asset.path.startsWith('local-file://')) {
-      const filePath = asset.path.replace('local-file://', '');
-      const standardPath = `file://${filePath}`;
-      return standardPath;
-    }
-    
-    if (asset.path && asset.path.startsWith('data:')) {
-      return asset.path;
-    }
-    
-    return asset.path || '';
-  };
 
 // Helper function to convert blend modes
 const getBlendMode = (blendMode: string): THREE.Blending => {

@@ -11,6 +11,7 @@ export class VideoAssetManager {
   private static instance: VideoAssetManager;
   private idToVideo: Map<string, ManagedVideo> = new Map();
   private inflight: Map<string, Promise<ManagedVideo>> = new Map();
+  private readonly MAX_CACHED_VIDEOS = 50; // Prevent unbounded growth
 
   static getInstance(): VideoAssetManager {
     if (!VideoAssetManager.instance) {
@@ -25,6 +26,15 @@ export class VideoAssetManager {
     const existing = this.idToVideo.get(id);
     if (existing) return existing;
     if (this.inflight.has(id)) return this.inflight.get(id)!;
+
+    // Limit cache size to prevent memory leaks
+    if (this.idToVideo.size >= this.MAX_CACHED_VIDEOS) {
+      // Remove oldest entry (first in Map)
+      const firstKey = this.idToVideo.keys().next().value;
+      if (firstKey) {
+        this.dispose(firstKey);
+      }
+    }
 
     const promise = new Promise<ManagedVideo>(async (resolve, reject) => {
       try {
@@ -104,8 +114,23 @@ export class VideoAssetManager {
     const mv = this.idToVideo.get(String(assetId));
     if (!mv) return;
     try { mv.element.pause(); } catch {}
+    try { mv.element.removeAttribute('src'); } catch {}
+    try { mv.element.load(); } catch {} // Release video memory
     try { mv.element.src = ''; } catch {}
     this.idToVideo.delete(String(assetId));
+  }
+
+  /**
+   * Cleanup unused videos to free memory
+   */
+  cleanupUnused(activeAssetIds: Set<string>) {
+    const toRemove: string[] = [];
+    for (const [id] of this.idToVideo) {
+      if (!activeAssetIds.has(id)) {
+        toRemove.push(id);
+      }
+    }
+    toRemove.forEach(id => this.dispose(id));
   }
 }
 

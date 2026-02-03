@@ -86,6 +86,11 @@ const getTimelineClipRandomBpm = (clip: any, fallbackBpm: number): number => {
     const layerId = `timeline-layer-${clipId}`;
     const st: any = (useVideoOptionsStore as any).getState?.();
     const opts = st?.getVideoOptionsForLayer ? st.getVideoOptionsForLayer(layerId, true) : null;
+    const speed = String(opts?.randomSpeed || '').toLowerCase();
+    if (speed === 'slow') return 30;
+    if (speed === 'medium') return 60;
+    if (speed === 'fast') return 120;
+    if (speed === 'insane') return 240;
     const v = Number(opts?.randomBpm);
     return Number.isFinite(v) && v > 0 ? v : fallbackBpm;
   } catch {
@@ -155,7 +160,31 @@ interface TimelineComposerProps {
 }
 
 // Cache last frame canvases per asset to avoid flashes across mounts
+// Limit cache size to prevent memory leaks during extended playback
+const MAX_CANVAS_CACHE_SIZE = 50;
 const lastFrameCanvasCache: Map<string, HTMLCanvasElement> = new Map();
+
+// Helper to maintain cache size limit (LRU-style)
+const addToCanvasCache = (key: string, canvas: HTMLCanvasElement) => {
+  if (lastFrameCanvasCache.size >= MAX_CANVAS_CACHE_SIZE) {
+    // Remove oldest entry (first in Map)
+    const firstKey = lastFrameCanvasCache.keys().next().value;
+    if (firstKey) {
+      const oldCanvas = lastFrameCanvasCache.get(firstKey);
+      if (oldCanvas) {
+        // Clear canvas memory
+        try {
+          oldCanvas.width = 1;
+          oldCanvas.height = 1;
+          const ctx = oldCanvas.getContext('2d');
+          if (ctx) ctx.clearRect(0, 0, 1, 1);
+        } catch {}
+      }
+      lastFrameCanvasCache.delete(firstKey);
+    }
+  }
+  lastFrameCanvasCache.set(key, canvas);
+};
 
 const clearTimelineFallbackCache = (assetId: string) => {
   if (!assetId) return;
@@ -389,7 +418,7 @@ const VideoTexture: React.FC<{
             if (ctx) {
               ctx.drawImage(seeded, 0, 0, canvas.width, canvas.height);
               if (fallbackTexture) fallbackTexture.needsUpdate = true;
-              if (assetId) lastFrameCanvasCache.set(assetId, canvas);
+              if (assetId) addToCanvasCache(assetId, canvas);
             }
           }
         } catch {}
@@ -447,7 +476,7 @@ const VideoTexture: React.FC<{
           if (ctx) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             fallbackTexture.needsUpdate = true;
-            if (assetId) lastFrameCanvasCache.set(assetId, canvas);
+            if (assetId) addToCanvasCache(assetId, canvas);
           }
         } catch {}
       }

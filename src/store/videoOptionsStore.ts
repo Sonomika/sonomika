@@ -6,6 +6,8 @@ export interface VideoLayerOptions {
   loopMode?: 'none' | 'loop' | 'reverse' | 'ping-pong' | 'random';
   // For Random playback: BPM used to determine jump interval (defaults to app BPM)
   randomBpm?: number;
+  // New: simplified Random speed levels (preferred over BPM)
+  randomSpeed?: 'slow' | 'medium' | 'fast' | 'insane';
   loopCount?: number;
   reverseEnabled?: boolean;
   pingPongEnabled?: boolean;
@@ -37,6 +39,7 @@ const DEFAULT_VIDEO_OPTIONS: VideoLayerOptions = {
   fitMode: 'cover',
   loopMode: 'none',
   randomBpm: undefined,
+  randomSpeed: undefined,
   loopCount: 1,
   reverseEnabled: false,
   pingPongEnabled: false,

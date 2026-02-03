@@ -87,7 +87,31 @@ interface ColumnPreviewProps {
 }
 
 // Cache last frame canvases per asset to avoid flashes across mounts
+// Limit cache size to prevent memory leaks during extended playback
+const MAX_CANVAS_CACHE_SIZE = 50;
 const lastFrameCanvasCache: Map<string, HTMLCanvasElement> = new Map();
+
+// Helper to maintain cache size limit (LRU-style)
+const addToCanvasCache = (key: string, canvas: HTMLCanvasElement) => {
+  if (lastFrameCanvasCache.size >= MAX_CANVAS_CACHE_SIZE) {
+    // Remove oldest entry (first in Map)
+    const firstKey = lastFrameCanvasCache.keys().next().value;
+    if (firstKey) {
+      const oldCanvas = lastFrameCanvasCache.get(firstKey);
+      if (oldCanvas) {
+        // Clear canvas memory
+        try {
+          oldCanvas.width = 1;
+          oldCanvas.height = 1;
+          const ctx = oldCanvas.getContext('2d');
+          if (ctx) ctx.clearRect(0, 0, 1, 1);
+        } catch {}
+      }
+      lastFrameCanvasCache.delete(firstKey);
+    }
+  }
+  lastFrameCanvasCache.set(key, canvas);
+};
 
 // Video texture component for R3F
 const VideoTexture: React.FC<{ 
@@ -256,7 +280,7 @@ const VideoTexture: React.FC<{
             if (ctx) {
               ctx.drawImage(seeded, 0, 0, canvas.width, canvas.height);
               if (fallbackTexture) fallbackTexture.needsUpdate = true;
-              if (cacheKey) lastFrameCanvasCache.set(cacheKey, canvas);
+              if (cacheKey) addToCanvasCache(cacheKey, canvas);
             }
           }
         } catch {}
@@ -268,7 +292,7 @@ const VideoTexture: React.FC<{
               try {
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 if (fallbackTexture) fallbackTexture.needsUpdate = true;
-                if (cacheKey) lastFrameCanvasCache.set(cacheKey, canvas);
+                if (cacheKey) addToCanvasCache(cacheKey, canvas);
               } catch {}
             };
             // Prefer requestVideoFrameCallback if available for accurate timing
@@ -304,28 +328,36 @@ const VideoTexture: React.FC<{
   }, [video, fallbackTexture, cacheKey]);
 
   // Update fallback only on real video frames when supported to reduce CPU/GPU work
+  // Throttle updates to reduce memory pressure during random playback
   useEffect(() => {
     if (!video || !fallbackTexture) return;
     const anyVideo: any = video as any;
     if (typeof anyVideo.requestVideoFrameCallback !== 'function') return;
 
     let stop = false;
+    let lastDrawTime = 0;
+    const THROTTLE_MS = 100; // Limit canvas updates to ~10fps to reduce memory pressure
     const canvas = offscreenCanvasRef.current;
     const ctx = canvas ? canvas.getContext('2d') : null;
 
-    const tick = () => {
+    const tick = (now: number) => {
       if (stop || !ctx || !canvas) return;
-      try {
-        if (video.videoWidth && video.videoHeight) {
-          if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+      
+      // Throttle: only update if enough time has passed
+      if (now - lastDrawTime >= THROTTLE_MS) {
+        try {
+          if (video.videoWidth && video.videoHeight) {
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+            }
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            fallbackTexture.needsUpdate = true;
+            if (cacheKey) addToCanvasCache(cacheKey, canvas);
+            lastDrawTime = now;
           }
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          fallbackTexture.needsUpdate = true;
-          if (cacheKey) lastFrameCanvasCache.set(cacheKey, canvas);
-        }
-      } catch {}
+        } catch {}
+      }
       anyVideo.requestVideoFrameCallback(tick);
     };
     const handle = anyVideo.requestVideoFrameCallback(tick);
@@ -377,7 +409,7 @@ const VideoTexture: React.FC<{
           if (ctx) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             fallbackTexture.needsUpdate = true;
-            if (cacheKey) lastFrameCanvasCache.set(cacheKey, canvas);
+            if (cacheKey) addToCanvasCache(cacheKey, canvas);
           }
         } catch {}
       }
@@ -745,6 +777,31 @@ const ColumnScene: React.FC<{
   const prevIsPlayingRef = useRef<boolean>(false);
   const pauseVideosTimeoutRef = useRef<number | null>(null);
   const suppressResumeRef = useRef<boolean>(false);
+  const debugSpamGuardRef = useRef<{ lastMsg: string; lastAt: number }>({ lastMsg: '', lastAt: 0 });
+
+  const isPreviewDebugEnabled = (): boolean => {
+    try {
+      const g: any = globalThis as any;
+      if (g && g.__VJ_PREVIEW_DEBUG === true) return true;
+      const v = String(window.localStorage.getItem('VJ_PREVIEW_DEBUG') || '').trim().toLowerCase();
+      return v === '1' || v === 'true' || v === 'on';
+    } catch {
+      return false;
+    }
+  };
+
+  const emitPreviewDebug = (msg: string, opts?: { throttleMs?: number }) => {
+    try {
+      if (!isPreviewDebugEnabled()) return;
+      const now = Date.now();
+      const throttleMs = Math.max(0, Number(opts?.throttleMs ?? 250) || 0);
+      const g = debugSpamGuardRef.current;
+      if (g.lastMsg === msg && now - g.lastAt < throttleMs) return;
+      g.lastMsg = msg;
+      g.lastAt = now;
+      window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg } }));
+    } catch {}
+  };
 
   // If suppressPause is enabled (360 transition), ensure videos resume once.
   useEffect(() => {
@@ -755,7 +812,7 @@ const ColumnScene: React.FC<{
     if (suppressResumeRef.current) return;
     suppressResumeRef.current = true;
 
-    try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: `[ColumnPreview] resumeAll videos=${assets.videos.size}` } })); } catch {}
+    emitPreviewDebug(`[ColumnPreview] resumeAll videos=${assets.videos.size}`, { throttleMs: 1000 });
     
     try {
       assets.videos.forEach((v) => {
@@ -772,7 +829,8 @@ const ColumnScene: React.FC<{
   useEffect(() => {
     const isTimelinePreview = column?.id === 'timeline-preview';
     if (isPlaying) {
-      try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: `[ColumnPreview] play branch videos=${assets.videos.size}` } })); } catch {}
+      // This was noisy; keep it debug-only and throttled.
+      emitPreviewDebug(`[ColumnPreview] play branch videos=${assets.videos.size}`, { throttleMs: 1500 });
       
       // Cancel any pending pause (prevents gesture-breaking pause/resume during UI transitions)
       if (pauseVideosTimeoutRef.current != null) {
@@ -798,7 +856,7 @@ const ColumnScene: React.FC<{
       prevIsPlayingRef.current = true;
     } else {
       if (suppressPause) {
-        try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: `[ColumnPreview] skip pause videos=${assets.videos.size}` } })); } catch {}
+        emitPreviewDebug(`[ColumnPreview] skip pause videos=${assets.videos.size}`, { throttleMs: 1500 });
         
         if (pauseVideosTimeoutRef.current != null) {
           try { window.clearTimeout(pauseVideosTimeoutRef.current); } catch {}
@@ -809,7 +867,7 @@ const ColumnScene: React.FC<{
       // Debounce pausing videos. During 360/fullscreen toggles we can briefly see isPlaying=false;
       // immediately pausing causes the browser to require a new user gesture to resume.
 
-      try { window.dispatchEvent(new CustomEvent('vjDebug', { detail: { msg: `[ColumnPreview] pause schedule videos=${assets.videos.size}` } })); } catch {}
+      emitPreviewDebug(`[ColumnPreview] pause schedule videos=${assets.videos.size}`, { throttleMs: 1500 });
       
       if (pauseVideosTimeoutRef.current != null) {
         try { window.clearTimeout(pauseVideosTimeoutRef.current); } catch {}
@@ -832,6 +890,65 @@ const ColumnScene: React.FC<{
   }, [isPlaying, suppressPause, assets.videos, column.layers, column?.id]);
 
   // Apply per-layer playback modes (Random / Ping Pong / Reverse)
+  const videoStatsRef = useRef<Map<string, { lastAt: number; lastTotal: number; lastDropped: number }>>(new Map());
+  // Double-buffer Random seeks: keep a hidden alternate <video> per assetId, seek it, then swap.
+  const randomAltByAssetRef = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const ensureRandomAltVideo = (assetId: string, active: HTMLVideoElement): HTMLVideoElement | null => {
+    try {
+      const src = String(active?.currentSrc || active?.src || '');
+      if (!src) return null;
+      const existing = randomAltByAssetRef.current.get(assetId) || null;
+      if (existing) {
+        // Keep src in sync (in case asset was replaced)
+        try {
+          if (String(existing.currentSrc || existing.src || '') !== src) {
+            existing.src = src;
+            try { existing.load(); } catch {}
+          }
+        } catch {}
+        return existing;
+      }
+      const alt = document.createElement('video');
+      alt.src = src;
+      alt.muted = true;
+      alt.playsInline = true;
+      alt.preload = 'auto';
+      alt.loop = false;
+      alt.crossOrigin = 'anonymous';
+      try { (alt as any).disablePictureInPicture = true; } catch {}
+      try { (alt as any).disableRemotePlayback = true; } catch {}
+      try { (alt as any).__isRandomAlt = true; (alt as any).__assetId = assetId; } catch {}
+      try { alt.load(); } catch {}
+      randomAltByAssetRef.current.set(assetId, alt);
+      return alt;
+    } catch {
+      return null;
+    }
+  };
+
+  const swapVideoForAsset = (assetId: string, nextActive: HTMLVideoElement, prevActive: HTMLVideoElement): { active: HTMLVideoElement } => {
+    try {
+      // Pause old active to save CPU; we'll reuse it as the next alt.
+      try { prevActive.pause(); } catch {}
+      randomAltByAssetRef.current.set(assetId, prevActive);
+
+      // Update state + refs so render chain uses nextActive immediately.
+      try {
+        loadedAssetsRef.current?.videos?.set?.(assetId, nextActive);
+      } catch {}
+      try {
+        globalAssetCacheRef.current?.videos?.set?.(assetId, nextActive);
+      } catch {}
+      try {
+        setAssets((prev) => {
+          const nextVideos = new Map(prev.videos);
+          nextVideos.set(assetId, nextActive);
+          return { ...prev, videos: nextVideos };
+        });
+      } catch {}
+    } catch {}
+    return { active: nextActive };
+  };
   useFrame(() => {
     if (!isPlaying) return;
     try {
@@ -839,7 +956,8 @@ const ColumnScene: React.FC<{
       const getOpts = st?.getVideoOptionsForLayer;
       column.layers.forEach((layer: any) => {
         if (!layer?.asset || layer.asset.type !== 'video') return;
-        const v = assets.videos.get(layer.asset.id);
+        const assetId = String(layer.asset.id);
+        const v = assets.videos.get(assetId);
         if (!v || v.readyState < 2) return;
 
         // Use isTimelineMode to read from correct store section
@@ -849,8 +967,57 @@ const ColumnScene: React.FC<{
         // Preserve legacy behavior unless a non-native mode is selected
         if (mode === LOOP_MODES.RANDOM || mode === LOOP_MODES.PING_PONG || mode === LOOP_MODES.REVERSE) {
           try { v.loop = false; } catch {}
-          const rbpm = Number(opts?.randomBpm ?? bpm);
-          VideoLoopManager.handleLoopMode(v, { ...(layer || {}), loopMode: mode, randomBpm: rbpm } as any, String(layer.id));
+          // Random speed levels (preferred), with fallback to legacy randomBpm.
+          // Some projects/columns can end up with duplicated or regenerated layer ids, which
+          // makes the options-store lookup miss for certain columns.
+          const speed = String((opts as any)?.randomSpeed ?? (layer as any)?.randomSpeed ?? '').toLowerCase();
+          const speedToBpm = (s: string): number | null => {
+            if (s === 'slow') return 30;
+            if (s === 'medium') return 60;
+            if (s === 'fast') return 120;
+            if (s === 'insane') return 240;
+            return null;
+          };
+          const rbpm = Number(speedToBpm(speed) ?? (opts as any)?.randomBpm ?? (layer as any)?.randomBpm ?? bpm);
+          if (mode === LOOP_MODES.RANDOM) {
+            const alt = ensureRandomAltVideo(assetId, v);
+            const swapFn = (readyAlt: HTMLVideoElement) => swapVideoForAsset(assetId, readyAlt, v);
+            VideoLoopManager.handleLoopMode(
+              v,
+              { ...(layer || {}), loopMode: mode, randomBpm: rbpm, randomSpeed: (speed || undefined), __vjRandomPrefetch: true, __vjRandomAltVideo: alt, __vjRandomSwap: swapFn } as any,
+              String(layer.id)
+            );
+          } else {
+            VideoLoopManager.handleLoopMode(v, { ...(layer || {}), loopMode: mode, randomBpm: rbpm, randomSpeed: (speed || undefined) } as any, String(layer.id));
+          }
+
+          // Preview debug sampling (low rate): dropped frames + seek/ready state.
+          try {
+            if (mode === LOOP_MODES.RANDOM && isPreviewDebugEnabled()) {
+              const id = String(layer.id);
+              const now = Date.now();
+              const rec = videoStatsRef.current.get(id) || { lastAt: 0, lastTotal: 0, lastDropped: 0 };
+              if (now - rec.lastAt >= 1000) {
+                rec.lastAt = now;
+                let total = 0;
+                let dropped = 0;
+                try {
+                  const q = (v as any).getVideoPlaybackQuality?.();
+                  total = Number(q?.totalVideoFrames ?? 0) || 0;
+                  dropped = Number(q?.droppedVideoFrames ?? 0) || 0;
+                } catch {}
+                const dTotal = Math.max(0, total - rec.lastTotal);
+                const dDropped = Math.max(0, dropped - rec.lastDropped);
+                rec.lastTotal = total;
+                rec.lastDropped = dropped;
+                videoStatsRef.current.set(id, rec);
+                emitPreviewDebug(
+                  `📺 [Video] layer=${id} mode=random speed=${speed || '∅'} rbpm=${Math.floor(Number(rbpm||0))} (optsSpeed=${String((opts as any)?.randomSpeed ?? '') || '∅'} layerSpeed=${String((layer as any)?.randomSpeed ?? '') || '∅'}) ct=${Number(v.currentTime||0).toFixed(3)} rs=${Number(v.readyState)} seeking=${String((v as any).seeking)} dropped+${dDropped}/${dTotal} (tot ${dropped}/${total})`,
+                  { throttleMs: 0 }
+                );
+              }
+            }
+          } catch {}
           
           // Random mode: let video play continuously (same behavior in both timeline and column mode)
           // The video plays normally and jumps to random positions at BPM intervals

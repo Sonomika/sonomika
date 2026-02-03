@@ -284,7 +284,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [debugLines, setDebugLines] = useState<string[]>([]);
   const [, setRefreshTrigger] = useState(0);
   const [isBeatPulse, setIsBeatPulse] = useState(false);
   const beatPulseTimeoutRef = React.useRef<number | null>(null);
@@ -491,27 +490,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     return () => {
       try { document.removeEventListener('timelinePlay', onTimelinePlay as any); } catch {}
       try { document.removeEventListener('timelineStop', onTimelineStop as any); } catch {}
-    };
-  }, []);
-
-  const pushDebug = (msg: string) => {
-    try {
-      setDebugLines((prev) => {
-        const next = [...prev, msg];
-        return next.length > 8 ? next.slice(next.length - 8) : next;
-      });
-    } catch {}
-  };
-
-  useEffect(() => {
-    const onDebug = (evt: any) => {
-      const msg = evt?.detail?.msg;
-      if (!msg) return;
-      pushDebug(String(msg));
-    };
-    try { window.addEventListener('vjDebug', onDebug as any); } catch {}
-    return () => {
-      try { window.removeEventListener('vjDebug', onDebug as any); } catch {}
     };
   }, []);
 
@@ -979,6 +957,33 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const currentScene = getCurrentScene();
   console.log('Current scene:', currentScene);
 
+  const selectDefaultLayerForColumn = (columnId: string) => {
+    try {
+      if (!columnId) return;
+      const scene = getCurrentScene();
+      if (!scene) return;
+      const col = (scene.columns || []).find((c: any) => c?.id === columnId);
+      if (!col) return;
+      const layers: any[] = Array.isArray(col.layers) ? col.layers : [];
+      if (layers.length === 0) return;
+
+      // If the currently selected layer already belongs to this column, keep it.
+      try {
+        const currentId = persistedSelectedLayerId;
+        if (currentId && layers.some((l: any) => l?.id === currentId)) return;
+      } catch {}
+
+      // Prefer the first layer with an asset; otherwise the lowest layerNum; otherwise first.
+      const withAsset = layers.filter((l: any) => l && l.asset);
+      const pickFrom = withAsset.length > 0 ? withAsset : layers;
+      const picked = [...pickFrom].sort((a: any, b: any) => Number(a?.layerNum ?? 999) - Number(b?.layerNum ?? 999))[0] || pickFrom[0];
+      if (!picked?.id) return;
+
+      try { setSelectedLayerId(picked.id); } catch {}
+      try { setSelectedLayer(picked); } catch {}
+    } catch {}
+  };
+
   const handleLayerClickWrapper = (layer: any, columnId: string) => {
     // Clear any timeline selection when directly interacting with grid layers
     try { setSelectedTimelineClip(null); } catch {}
@@ -1102,6 +1107,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     // Use playColumn directly (like keyboard/MIDI path) so the useEffect handles preview update
     // This ensures crossfade works properly by only calling setPreviewContent once
     try { playColumn(columnId); } catch {}
+    // Make the layer options panel follow the active column so per-layer controls (like Random BPM)
+    // apply to the column the user just played.
+    try { selectDefaultLayerForColumn(columnId); } catch {}
     setTimeout(() => { (handleColumnPlayWrapper as any).__lock = false; }, 300);
   };
 
@@ -1110,6 +1118,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     try {
       handleColumnPlay(columnId, currentScene, setPreviewContent, setIsPlaying, ((_id: string) => {}) as any);
     } catch {}
+    // Also keep selection in sync so controls target the active column.
+    try { selectDefaultLayerForColumn(columnId); } catch {}
   };
 
   // Keep preview content in sync when playback changes programmatically (e.g., via MIDI)

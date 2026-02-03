@@ -29,6 +29,8 @@ export interface VideoLayer extends BaseLayer {
   loopMode?: LoopMode;
   // For Random playback: BPM used to determine jump interval (defaults to app BPM)
   randomBpm?: number;
+  // New: simplified Random speed levels (preferred over BPM)
+  randomSpeed?: 'slow' | 'medium' | 'fast' | 'insane';
   loopCount?: number;
   reverseEnabled?: boolean;
   pingPongEnabled?: boolean;

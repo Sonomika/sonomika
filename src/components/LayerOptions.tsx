@@ -73,9 +73,35 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const [loopMode, setLoopMode] = useState<LoopMode>(
     videoOptions?.loopMode || LOOP_MODES.NONE
   );
-  const [randomBpm, setRandomBpm] = useState<number>(
-    Math.max(1, Math.min(500, Math.floor(Number(videoOptions?.randomBpm ?? bpm ?? 120))))
-  );
+  type RandomSpeed = 'slow' | 'medium' | 'fast' | 'insane';
+  const speedToIntervalMs = (s: RandomSpeed): number => {
+    switch (s) {
+      case 'slow': return 2000;
+      case 'medium': return 1000;
+      case 'fast': return 500;
+      case 'insane': return 250;
+    }
+  };
+  const speedToBpm = (s: RandomSpeed): number => Math.round(60000 / speedToIntervalMs(s));
+  const inferSpeedFromBpm = (n: number): RandomSpeed => {
+    const bpmN = Number(n || 0);
+    // Closest preset to existing values; keep simple/robust.
+    if (bpmN >= 200) return 'insane';
+    if (bpmN >= 90) return 'fast';
+    if (bpmN >= 45) return 'medium';
+    return 'slow';
+  };
+  const inferRandomSpeed = (): RandomSpeed => {
+    try {
+      const s = String((videoOptions as any)?.randomSpeed || '').toLowerCase();
+      if (s === 'slow' || s === 'medium' || s === 'fast' || s === 'insane') return s as RandomSpeed;
+      const bpmFallback = Number((videoOptions as any)?.randomBpm ?? bpm ?? 120);
+      return inferSpeedFromBpm(bpmFallback);
+    } catch {
+      return 'fast';
+    }
+  };
+  const [randomSpeed, setRandomSpeed] = useState<RandomSpeed>(inferRandomSpeed());
   const [loopCount, setLoopCount] = useState(
     videoOptions?.loopCount || 1
   );
@@ -368,7 +394,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       
       setLoopMode(options.loopMode || LOOP_MODES.NONE);
       setLoopCount(options.loopCount || 1);
-      setRandomBpm(Math.max(1, Math.min(500, Math.floor(Number(options.randomBpm ?? bpm ?? 120)))));
+      try { setRandomSpeed(inferRandomSpeed()); } catch {}
       setLayerOpacity(typeof options.opacity === 'number' ? options.opacity : 1);
       
       if (hasEffect && effectMetadata?.parameters) {
@@ -583,11 +609,11 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const handleLoopModeChange = (mode: LoopMode) => {
     setLoopMode(mode);
     if (selectedLayer) {
-      const defaultRandBpm = Math.max(1, Math.min(500, Math.floor(Number(videoOptions?.randomBpm ?? bpm ?? 120))));
-      if (mode === LOOP_MODES.RANDOM) setRandomBpm(defaultRandBpm);
+      const defaultSpeed = inferRandomSpeed();
+      if (mode === LOOP_MODES.RANDOM) setRandomSpeed(defaultSpeed);
       setVideoOptionsForLayerMode(selectedLayer.id, {
         loopMode: mode,
-        ...(mode === LOOP_MODES.RANDOM ? { randomBpm: defaultRandBpm } : {}),
+        ...(mode === LOOP_MODES.RANDOM ? { randomSpeed: defaultSpeed, randomBpm: undefined } : {}),
         loopCount: mode === LOOP_MODES.NONE ? 1 : loopCount,
         reverseEnabled: mode === LOOP_MODES.REVERSE,
         pingPongEnabled: mode === LOOP_MODES.PING_PONG
@@ -596,7 +622,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       // Also update the layer data in the main store for immediate rendering
       onUpdateLayer(selectedLayer.id, {
         loopMode: mode,
-        ...(mode === LOOP_MODES.RANDOM ? { randomBpm: defaultRandBpm } : {}),
+        ...(mode === LOOP_MODES.RANDOM ? { randomSpeed: defaultSpeed, randomBpm: undefined } : {}),
         loopCount: mode === LOOP_MODES.NONE ? 1 : loopCount,
         reverseEnabled: mode === LOOP_MODES.REVERSE,
         pingPongEnabled: mode === LOOP_MODES.PING_PONG
@@ -617,12 +643,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     } catch {}
   };
 
-  const handleRandomBpmChange = (value: number) => {
+  const handleRandomSpeedChange = (value: RandomSpeed) => {
     if (!selectedLayer) return;
-    const clamped = Math.max(1, Math.min(500, Math.floor(Number(value) || 120)));
-    setRandomBpm(clamped);
-    setVideoOptionsForLayerMode(selectedLayer.id, { randomBpm: clamped }, showTimeline);
-    onUpdateLayer(selectedLayer.id, { randomBpm: clamped } as any);
+    const next = (value === 'slow' || value === 'medium' || value === 'fast' || value === 'insane') ? value : 'fast';
+    setRandomSpeed(next);
+    // Persist the speed. Clear BPM so the UI stays “speed-based”.
+    // (Timeline composer still supports bpm; we translate speed -> bpm where needed.)
+    setVideoOptionsForLayerMode(selectedLayer.id, { randomSpeed: next, randomBpm: undefined }, showTimeline);
+    onUpdateLayer(selectedLayer.id, { randomSpeed: next, randomBpm: undefined } as any);
   };
 
   const handleLoopCountChange = (count: number) => {
@@ -1187,27 +1215,22 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   />
                 </div>
 
-                {/* Random BPM (only when Random is selected) */}
+                {/* Random Speed (only when Random is selected) */}
                 {loopMode === LOOP_MODES.RANDOM && (
                   <div className="tw-col-span-2">
-                    <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Random BPM</label>
-                    <div className="tw-w-full tw-min-w-0">
-                      <ParamRow
-                        label="Random BPM"
-                        value={Number(randomBpm)}
-                        min={30}
-                        max={500}
-                        step={1}
-                        buttonsAfter
-                        showLabel={false}
-                        onChange={(value) => handleRandomBpmChange(Number(value))}
-                        onIncrement={() => handleRandomBpmChange(Number(randomBpm) + 1)}
-                        onDecrement={() => handleRandomBpmChange(Number(randomBpm) - 1)}
-                      />
-                    </div>
-                    <div className="tw-mt-1 tw-text-xs tw-text-neutral-400">
-                      Default: {Number(bpm || 120)}
-                    </div>
+                    <label className="tw-block tw-text-xs tw-uppercase tw-text-neutral-400 tw-mb-1">Random interval</label>
+                    <ButtonGroup
+                      options={[
+                        { value: 'slow', label: '2000ms' },
+                        { value: 'medium', label: '1000ms' },
+                        { value: 'fast', label: '500ms' },
+                        { value: 'insane', label: '250ms' },
+                      ]}
+                      value={randomSpeed as any}
+                      onChange={(v) => handleRandomSpeedChange(v as any)}
+                      columns={4}
+                      size="small"
+                    />
                   </div>
                 )}
 
