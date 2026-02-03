@@ -612,6 +612,14 @@ export const ImprovedTimeline: React.FC<TimelineProps> = ({ onClose: _onClose, o
       });
     } else {
       setSelectedClips(new Set([clipId]));
+      
+      // Mark this as a manual selection to prevent Focus Mode from overriding it
+      try {
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        (window as any).__vj_last_manual_timeline_selection_ms = now;
+        (window as any).__vj_focus_mode_hold_until = now + 2000;
+      } catch {}
+      
       try {
         const state = (useStore as any).getState();
         const { setSelectedTimelineClip } = state;

@@ -52,11 +52,28 @@ export const useFocusMode = () => {
             ...clip,
             trackId: track.id,
             trackNum,
+            trackType: track.type,
+            trackIndex,
           });
         }
       });
     });
     return activeClips;
+  };
+
+  // In the Timeline UI, non-audio tracks are rendered in reverse order (top = highest track number),
+  // then audio tracks come after. Focus Mode "Row" should follow that visual order (Row 1 = top).
+  const computeTimelineVisualRowMap = (tracks: any[]) => {
+    const map = new Map<string, number>();
+    try {
+      const nonAudio = (tracks || []).filter((t: any) => t && t.type !== 'audio');
+      const audio = (tracks || []).filter((t: any) => t && t.type === 'audio');
+      const display = [...nonAudio].reverse().concat(audio);
+      display.forEach((t: any, idx: number) => {
+        if (t?.id) map.set(String(t.id), idx + 1); // 1-based visual row
+      });
+    } catch {}
+    return map;
   };
 
   // Track previous column/clip to detect changes
@@ -79,6 +96,21 @@ export const useFocusMode = () => {
     }
   };
 
+  // Check if a manual timeline clip selection happened recently (within last 5 seconds).
+  // If so, disable all Focus Mode auto-selection to avoid fighting user intent.
+  const isRecentManualSelection = () => {
+    try {
+      if (typeof window === 'undefined') return false;
+      const w: any = window as any;
+      const lastManual = w.__vj_last_manual_timeline_selection_ms;
+      if (typeof lastManual !== 'number') return false;
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      return (now - lastManual) < 5000; // 5 seconds
+    } catch {
+      return false;
+    }
+  };
+
   useEffect(() => {
     const focusMode = getFocusMode();
     if (!focusMode) {
@@ -95,20 +127,32 @@ export const useFocusMode = () => {
       const prevClipId = prevTimelineClipIdRef.current;
       
       if (currentClipId && currentClipId !== prevClipId) {
+        // Mark this as a manual selection so Focus Mode won't override it during playback.
+        try {
+          const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+          (window as any).__vj_last_manual_timeline_selection_ms = now;
+          (window as any).__vj_focus_mode_hold_until = now + 2000;
+        } catch {}
+
         // If the user is interacting with UI controls, don't yank selection mid-interaction.
-        if (isFocusHoldActive()) {
+        if (isFocusHoldActive() && currentClipId === prevActiveClipIdRef.current) {
           prevTimelineClipIdRef.current = currentClipId;
           prevActiveClipIdRef.current = currentClipId;
         } else {
         // Treat manual clip selection as intent to change the focus row.
-        // This prevents Focus Mode from snapping back to the default (row 2)
-        // while the timeline is playing.
+        // Use visual row numbering (Row 1 = top) to match the Timeline UI.
         try {
-          const tn =
-            Number((selectedTimelineClip as any)?.trackNum) ||
-            parseInt(String((selectedTimelineClip as any)?.trackId || 'track-1').split('-')[1] || '2', 10);
-          const safeTn = Math.max(1, Math.min(10, Number.isFinite(tn) ? tn : 2));
-          localStorage.setItem('vj-focus-row', String(safeTn));
+          const state = (useStore as any).getState?.();
+          const sceneId = state?.currentTimelineSceneId || currentTimelineSceneId;
+          const trackId = String((selectedTimelineClip as any)?.trackId || '');
+          if (sceneId && trackId) {
+            const raw = localStorage.getItem(`timeline-tracks-${sceneId}`);
+            const tks = raw ? JSON.parse(raw) : null;
+            const rowMap = computeTimelineVisualRowMap(Array.isArray(tks) ? tks : []);
+            const visualRow = rowMap.get(trackId);
+            const safeRow = Math.max(1, Math.min(10, Number.isFinite(Number(visualRow)) ? Number(visualRow) : 2));
+            localStorage.setItem('vj-focus-row', String(safeRow));
+          }
         } catch {}
 
         // Manual clip selection
@@ -135,6 +179,8 @@ export const useFocusMode = () => {
         if (!getFocusMode()) return;
         // Don't override selection while user is actively interacting with controls.
         if (isFocusHoldActive()) return;
+        // Don't override if the user manually selected a clip in the last 5 seconds.
+        if (isRecentManualSelection()) return;
         
         // Throttle updates
         const now = Date.now();
@@ -155,12 +201,24 @@ export const useFocusMode = () => {
           
           const tracks = JSON.parse(tracksData);
           const activeClips = getClipsAtTime(time, tracks || []);
+          const visualRowMap = computeTimelineVisualRowMap(tracks || []);
           
           if (activeClips.length > 0) {
             const focusRow = getFocusRow();
-            // Focus row corresponds to track number (1-based)
-            // Find clip on the track matching focusRow, or use first active clip
-            const targetClip = activeClips.find((clip: any) => clip.trackNum === focusRow) || activeClips[0];
+            // Focus row corresponds to track number (1-based).
+            // IMPORTANT: do NOT fall back to "first active clip" when the focus row has no active clip.
+            // That fallback causes selection to jump to other rows (e.g. clicking row 1 jumps to row 4)
+            // whenever track 1 has a gap at the current time.
+            const clipOnFocusRow = activeClips.find((clip: any) => {
+              const row = clip?.trackId ? visualRowMap.get(String(clip.trackId)) : undefined;
+              return Number(row) === Number(focusRow);
+            });
+            if (!clipOnFocusRow) {
+              // If we have no active clip on the focus row, keep current manual/previous selection.
+              // This allows editing any row/clip during playback without being yanked to another row.
+              return;
+            }
+            const targetClip = clipOnFocusRow;
             const activeClipId = targetClip?.id;
             
             if (activeClipId && activeClipId !== prevActiveClipIdRef.current) {

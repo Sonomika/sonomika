@@ -1014,7 +1014,10 @@ const SequenceTab: React.FC = () => {
         // - 'column_order_repeated': cycle columns in order and wrap (grouped by numRows → 1,1,1 → 2,2,2 ...)
         // - 'no_adjacent': cycle per-marker to avoid same adjacent
         // - 'random': deterministic-ish per block
-        const blockSize = (autoFillOverflowStrategy === 'no_adjacent') ? 1 : Math.max(1, numRows);
+        const blockSize =
+          (autoFillOverflowStrategy === 'no_adjacent' || autoFillOverflowStrategy === 'column_order_repeated')
+            ? 1
+            : Math.max(1, numRows);
         let baseColIdx = 0;
         if (colIds.length > 0) {
           if (autoFillOverflowStrategy === 'random') {
@@ -1028,8 +1031,8 @@ const SequenceTab: React.FC = () => {
             const prev = previousBaseColIdx == null ? -1 : previousBaseColIdx;
             baseColIdx = (prev + 1) % colIds.length;
           } else if (autoFillOverflowStrategy === 'column_order_repeated') {
-            // Cycle columns in order (grouped by blockSize) and wrap around.
-            baseColIdx = (Math.floor(idx / blockSize) % colIds.length);
+            // Cycle columns in order per marker and wrap around: 1,2,3,1,2,3...
+            baseColIdx = (idx % colIds.length);
           }
         }
         const baseIndex1 = Math.max(1, baseColIdx + 1);
