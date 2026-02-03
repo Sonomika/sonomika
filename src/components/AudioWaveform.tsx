@@ -77,7 +77,19 @@ const AudioWaveform: React.FC<Props> = ({
       }
     });
     
-    const loadUrl = (u: string) => { if (!destroyed) try { ws.load(u); } catch {} };
+    const loadUrl = (u: string) => {
+      if (destroyed) return;
+      try {
+        void ws.load(u).catch((err: any) => {
+          // When we unmount, `ws.destroy()` aborts any in-flight load.
+          // Swallow that expected AbortError to avoid unhandled promise rejections.
+          if (destroyed) return;
+          if (err?.name === 'AbortError') return;
+          // eslint-disable-next-line no-console
+          console.error('WaveSurfer load failed', err);
+        });
+      } catch {}
+    };
     try {
       if (src) {
         // Always load the URL directly; let Chromium stream from disk
@@ -86,7 +98,7 @@ const AudioWaveform: React.FC<Props> = ({
       }
     } catch {}
     return () => { destroyed = true; try { ws.destroy(); } catch {}; if (wavesurferRef.current === ws) wavesurferRef.current = null; };
-  }, [src, color, secondaryColor, backgroundColor, height]);
+  }, [src, color, secondaryColor, height]);
 
   // Use overflow hidden to clip the waveform at the container boundaries
   return (

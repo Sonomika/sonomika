@@ -2218,56 +2218,64 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     columns.push(newCol);
     columnsAdded++;
   }
-  // Persist newly-added columns once
-  if (columnsAdded > 0) {
-    console.log('➕ Added', columnsAdded, 'columns to scene', getCurrentSceneId());
-    const { updateScene: updateSceneFn } = getSceneManagementFunctions();
-    updateSceneFn(getCurrentSceneId(), { columns });
-  }
+  // Persist newly-added columns after render (avoid setState during render warnings)
+  useEffect(() => {
+    if (columnsAdded <= 0) return;
+    try {
+      console.log('➕ Added', columnsAdded, 'columns to scene', getCurrentSceneId());
+      const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+      updateSceneFn(getCurrentSceneId(), { columns });
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnsAdded]);
 
-  // Migrate global effects to new format if needed
-  if (currentScene.globalEffects) {
-    let effectsMigrated = false;
-    const migratedEffects = (currentScene.globalEffects as any[])
-      .map((effect: any) => {
-        // Drop null/undefined entries safely
-        if (effect == null) {
-          effectsMigrated = true;
-          return null;
-        }
-        // Old format: just a string ID
-        if (typeof effect === 'string') {
-          effectsMigrated = true;
-          return {
-            id: uuidv4(),
-            effectId: effect,
-            enabled: true,
-            params: {}
-          };
-        }
-        // New format object but missing id
-        if (typeof effect === 'object') {
-          if (!('id' in effect) || !effect.id) {
+  // Migrate global effects to new format if needed (do it after render)
+  useEffect(() => {
+    try {
+      if (!currentScene?.globalEffects) return;
+
+      let effectsMigrated = false;
+      const migratedEffects = (currentScene.globalEffects as any[])
+        .map((effect: any) => {
+          // Drop null/undefined entries safely
+          if (effect == null) {
+            effectsMigrated = true;
+            return null;
+          }
+          // Old format: just a string ID
+          if (typeof effect === 'string') {
             effectsMigrated = true;
             return {
-              ...effect,
-              id: uuidv4()
+              id: uuidv4(),
+              effectId: effect,
+              enabled: true,
+              params: {}
             };
           }
-          return effect;
-        }
-        // Unknown type, drop it
-        effectsMigrated = true;
-        return null;
-      })
-      .filter((e: any) => e != null);
+          // New format object but missing id
+          if (typeof effect === 'object') {
+            if (!('id' in effect) || !effect.id) {
+              effectsMigrated = true;
+              return {
+                ...effect,
+                id: uuidv4()
+              };
+            }
+            return effect;
+          }
+          // Unknown type, drop it
+          effectsMigrated = true;
+          return null;
+        })
+        .filter((e: any) => e != null);
 
-    if (effectsMigrated) {
+      if (!effectsMigrated) return;
       console.log('🔄 Migrating global effects to new format');
       const { updateScene: updateSceneFn } = getSceneManagementFunctions();
       updateSceneFn(getCurrentSceneId(), { globalEffects: migratedEffects });
-    }
-  }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentScene?.globalEffects]);
 
   try {
     console.log('LayerManager about to render main content');
