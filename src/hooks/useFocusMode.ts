@@ -64,6 +64,21 @@ export const useFocusMode = () => {
   const prevTimelineClipIdRef = useRef<string | null>(null);
   const prevActiveClipIdRef = useRef<string | null>(null);
 
+  // When the user is actively interacting with Layer Options / UI controls,
+  // temporarily pause auto-focus updates so the selection doesn't "fight" the UI.
+  const isFocusHoldActive = () => {
+    try {
+      if (typeof window === 'undefined') return false;
+      const w: any = window as any;
+      const until = w.__vj_focus_mode_hold_until;
+      if (typeof until !== 'number') return false;
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      return now < until;
+    } catch {
+      return false;
+    }
+  };
+
   useEffect(() => {
     const focusMode = getFocusMode();
     if (!focusMode) {
@@ -80,6 +95,22 @@ export const useFocusMode = () => {
       const prevClipId = prevTimelineClipIdRef.current;
       
       if (currentClipId && currentClipId !== prevClipId) {
+        // If the user is interacting with UI controls, don't yank selection mid-interaction.
+        if (isFocusHoldActive()) {
+          prevTimelineClipIdRef.current = currentClipId;
+          prevActiveClipIdRef.current = currentClipId;
+        } else {
+        // Treat manual clip selection as intent to change the focus row.
+        // This prevents Focus Mode from snapping back to the default (row 2)
+        // while the timeline is playing.
+        try {
+          const tn =
+            Number((selectedTimelineClip as any)?.trackNum) ||
+            parseInt(String((selectedTimelineClip as any)?.trackId || 'track-1').split('-')[1] || '2', 10);
+          const safeTn = Math.max(1, Math.min(10, Number.isFinite(tn) ? tn : 2));
+          localStorage.setItem('vj-focus-row', String(safeTn));
+        } catch {}
+
         // Manual clip selection
         const pseudoLayerId = `timeline-layer-${currentClipId}`;
         if (typeof setSelectedLayer === 'function') {
@@ -89,6 +120,7 @@ export const useFocusMode = () => {
         }
         prevTimelineClipIdRef.current = currentClipId;
         prevActiveClipIdRef.current = currentClipId;
+        }
       } else if (!currentClipId) {
         prevTimelineClipIdRef.current = null;
       }
@@ -101,6 +133,8 @@ export const useFocusMode = () => {
       const handleTimelineTick = (e: any) => {
         // Check focus mode each time (not captured value)
         if (!getFocusMode()) return;
+        // Don't override selection while user is actively interacting with controls.
+        if (isFocusHoldActive()) return;
         
         // Throttle updates
         const now = Date.now();

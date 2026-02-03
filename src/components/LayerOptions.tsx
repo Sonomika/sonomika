@@ -734,7 +734,23 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   }
 
   return (
-    <div className="tw-text-neutral-200 tw-pt-2 tw-pr-4 sm:tw-pr-8">
+    <div
+      className="tw-text-neutral-200 tw-pt-2 tw-pr-4 sm:tw-pr-8"
+      // Signal Focus Mode to pause while the user is interacting with controls in this panel.
+      // This prevents auto-selection (timeline focus mode) from stealing focus during playback.
+      onPointerDownCapture={() => {
+        try {
+          const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+          (window as any).__vj_focus_mode_hold_until = now + 1500;
+        } catch {}
+      }}
+      onKeyDownCapture={() => {
+        try {
+          const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+          (window as any).__vj_focus_mode_hold_until = now + 1500;
+        } catch {}
+      }}
+    >
       <div className="tw-space-y-4">
         {hasEffect && (
           <div className="tw-space-y-2">
