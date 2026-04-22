@@ -12,6 +12,7 @@ import { EffectErrorBoundary } from './EffectErrorBoundary';
 import { VideoLoopManager } from '../utils/VideoLoopManager';
 import { LOOP_MODES } from '../constants/video';
 import { useVideoOptionsStore } from '../store/videoOptionsStore';
+import { audioContextManager } from '../utils/AudioContextManager';
 
 // Drives rendering while the document is hidden (minimized) to avoid rAF throttling
 const HiddenRenderDriver: React.FC = () => {
@@ -1077,7 +1078,11 @@ const ColumnScene: React.FC<{
         });
       } catch {}
     };
-    const onGlobalPlay = () => resumeAll();
+    const onGlobalPlay = () => {
+      // Unlock app audio context and Tone.js (for source audio e.g. Abstract Drum Machine)
+      audioContextManager.initialize().then(() => audioContextManager.resumeContext()).catch(() => {});
+      resumeAll();
+    };
     const onVideoResume = () => resumeAll();
     try { document.addEventListener('globalPlay', onGlobalPlay as any); } catch {}
     try { document.addEventListener('videoResume', onVideoResume as any); } catch {}

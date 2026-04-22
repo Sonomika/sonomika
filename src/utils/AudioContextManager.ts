@@ -42,6 +42,7 @@ export class AudioContextManager {
       this.appAudioStream = this.destinationNode.stream;
       
       this.isInitialized = true;
+      this.resumeToneContext();
       console.log('[AudioContextManager] Initialized successfully');
     } catch (error) {
       console.error('[AudioContextManager] Failed to initialize:', error);
@@ -137,12 +138,28 @@ export class AudioContextManager {
   }
 
   /**
+   * Resume Tone.js context if loaded (used by source audio e.g. Abstract Drum Machine).
+   * Call from a user gesture (e.g. Play) so the context can start.
+   */
+  resumeToneContext(): void {
+    try {
+      const Tone = (typeof globalThis !== 'undefined' && (globalThis as any).Tone) || (typeof window !== 'undefined' && (window as any).Tone);
+      if (!Tone || typeof Tone.getContext !== 'function') return;
+      const ctx = Tone.getContext();
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().then(() => console.log('[AudioContextManager] Tone.js context resumed')).catch(() => {});
+      }
+    } catch (_) {}
+  }
+
+  /**
    * Resume audio context if suspended
    */
   async resumeContext(): Promise<void> {
     if (this.audioContext && this.audioContext.state === 'suspended') {
       await this.audioContext.resume();
     }
+    this.resumeToneContext();
   }
 
   /**

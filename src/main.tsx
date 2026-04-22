@@ -5,6 +5,7 @@ import App from './App';
 import { preloadInterFonts } from './lib/fontLoader';
 import { initGLTFLoaderGlobal } from './lib/initGLTFLoader';
 import { initThreeAddonsGlobal } from './lib/initThreeAddons';
+import { loadExternalLibraries, readExternalLibraryUrls } from './utils/externalLibraryLoader';
 import './index.css';
 import './tw.css';
 
@@ -34,6 +35,7 @@ const mount = async () => {
       // Expose ConvexGeometry and BufferGeometryUtils for external convex source
       initThreeAddonsGlobal();
     } catch {}
+    try { await loadExternalLibraries(readExternalLibraryUrls()); } catch {}
     // Electron: run app without Supabase/AuthGate
     root.render(
       <React.StrictMode>
@@ -49,6 +51,7 @@ const mount = async () => {
       const r3f = await import('@react-three/fiber');
       (window as any).r3f = r3f;
     } catch {}
+    try { await loadExternalLibraries(readExternalLibraryUrls()); } catch {}
     const { AuthGate } = await import('./components/AuthGate');
     root.render(
       <React.StrictMode>

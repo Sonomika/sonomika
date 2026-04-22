@@ -8,11 +8,25 @@ import { getSupabase } from '../lib/supabaseClient';
 import { AITemplateLoader } from '../utils/AITemplateLoader';
 import { AITemplate } from '../types/aiTemplate';
 import { trackFeature } from '../utils/analytics';
+import {
+  DEFAULT_EXTERNAL_LIBRARY_ENTRIES,
+  ExternalLibraryEntry,
+  isAllowedExternalLibraryUrl,
+  loadExternalLibraries,
+  normalizeExternalLibraryEntries,
+  readExternalLibraryEntries,
+  saveExternalLibraryEntries,
+} from '../utils/externalLibraryLoader';
 
 interface SettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const createEmptyExternalLibraryEntry = (): ExternalLibraryEntry => ({
+  url: '',
+  enabled: true,
+});
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose }) => {
   const { accessibilityEnabled, setAccessibilityEnabled, accentColor, setAccentColor, defaultVideoRenderScale, setDefaultVideoRenderScale, mirrorQuality, setMirrorQuality, neutralContrast, setNeutralContrast, fontColor, setFontColor } = useStore() as any;
@@ -30,6 +44,14 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   });
   const [autoloadUserFx, setAutoloadUserFx] = useState<boolean>(() => {
     try { return localStorage.getItem('vj-autoload-user-effects-enabled') === '1'; } catch { return false; }
+  });
+  const [externalLibraryEntries, setExternalLibraryEntries] = useState<ExternalLibraryEntry[]>(() => {
+    try {
+      const entries = readExternalLibraryEntries();
+      return entries.length > 0 ? entries : [createEmptyExternalLibraryEntry()];
+    } catch {
+      return DEFAULT_EXTERNAL_LIBRARY_ENTRIES.map((entry) => ({ ...entry }));
+    }
   });
 
   // Initialize with Documents folder on first install if not set
@@ -89,6 +111,16 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     return () => {
       cancelled = true;
     };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const entries = readExternalLibraryEntries();
+      setExternalLibraryEntries(entries.length > 0 ? entries : [createEmptyExternalLibraryEntry()]);
+    } catch {
+      setExternalLibraryEntries(DEFAULT_EXTERNAL_LIBRARY_ENTRIES.map((entry) => ({ ...entry })));
+    }
   }, [isOpen]);
 
   // AI Provider template settings
@@ -230,6 +262,35 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     if (!apiKey) return '';
     if (apiKey.length <= 8) return '*'.repeat(apiKey.length);
     return apiKey.slice(0, 4) + '*'.repeat(apiKey.length - 8) + apiKey.slice(-4);
+  };
+
+  const handleSaveExternalLibraries = async () => {
+    const normalizedEntries = normalizeExternalLibraryEntries(externalLibraryEntries);
+    const invalidUrls = normalizedEntries
+      .map((entry) => entry.url)
+      .filter((url) => !isAllowedExternalLibraryUrl(url));
+
+    if (invalidUrls.length > 0) {
+      toast({ description: 'Each library row needs a valid HTTPS script URL.' });
+      return;
+    }
+
+    try {
+      saveExternalLibraryEntries(normalizedEntries);
+      setExternalLibraryEntries(normalizedEntries.length > 0 ? normalizedEntries : [createEmptyExternalLibraryEntry()]);
+      const results = await loadExternalLibraries(normalizedEntries);
+      const enabledCount = normalizedEntries.filter((entry) => entry.enabled).length;
+      const failedCount = results.filter((result) => result.status === 'failed').length;
+
+      if (failedCount > 0) {
+        toast({ description: `Saved ${normalizedEntries.length} library row(s). ${failedCount} enabled script load(s) failed.` });
+        return;
+      }
+
+      toast({ description: normalizedEntries.length > 0 ? `Saved ${normalizedEntries.length} library row(s). ${enabledCount} enabled.` : 'Cleared startup library rows.' });
+    } catch {
+      toast({ description: 'Failed to save custom library URLs.' });
+    }
   };
 
   return (
@@ -543,6 +604,83 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
               </div>
             </>
           )}
+
+          <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
+          <div className="tw-space-y-2">
+            <div className="tw-text-sm tw-text-neutral-200">Custom JS Libraries</div>
+            <div className="tw-space-y-2">
+              {externalLibraryEntries.map((entry, index) => (
+                <div key={`${index}-${entry.url}`} className="tw-flex tw-items-center tw-gap-2">
+                  <Switch
+                    checked={entry.enabled}
+                    onCheckedChange={(checked) => {
+                      setExternalLibraryEntries((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, enabled: checked === true } : item
+                        )
+                      );
+                    }}
+                    aria-label={`Enable library row ${index + 1}`}
+                  />
+                  <Input
+                    value={entry.url}
+                    onChange={(e) => {
+                      const nextUrl = e.target.value;
+                      setExternalLibraryEntries((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, url: nextUrl } : item
+                        )
+                      );
+                    }}
+                    className="tw-flex-1 tw-text-xs"
+                    spellCheck={false}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setExternalLibraryEntries((current) => {
+                        const next = current.filter((_, itemIndex) => itemIndex !== index);
+                        return next.length > 0 ? next : [createEmptyExternalLibraryEntry()];
+                      });
+                    }}
+                    className="tw-text-xs"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="tw-flex tw-items-center tw-justify-between tw-gap-3">
+              <div className="tw-text-xs tw-text-neutral-400">
+                Refresh or restart app to apply.
+              </div>
+              <div className="tw-flex tw-items-center tw-gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setExternalLibraryEntries((current) => [
+                      ...current,
+                      createEmptyExternalLibraryEntry(),
+                    ])
+                  }
+                  className="tw-text-xs"
+                >
+                  Add Row
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setExternalLibraryEntries(DEFAULT_EXTERNAL_LIBRARY_ENTRIES.map((entry) => ({ ...entry })))}
+                  className="tw-text-xs"
+                >
+                  Restore Defaults
+                </Button>
+                <Button onClick={handleSaveExternalLibraries} className="tw-text-xs">
+                  Save
+                </Button>
+              </div>
+            </div>
+          </div>
 
           {/* Debug toggle at the bottom */}
           <div className="tw-border-t tw-border-neutral-800 tw-my-2" />
