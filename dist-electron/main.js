@@ -719,6 +719,20 @@ if (shouldMuteConsole) {
   console.info = noop;
 }
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
+try {
+  if (process.platform === "win32") {
+    const existing = electron.app.commandLine.getSwitchValue("disable-features");
+    const extra = "MidiManagerWinrt";
+    if (existing && existing.length > 0) {
+      if (!existing.split(",").includes(extra)) {
+        electron.app.commandLine.appendSwitch("disable-features", `${existing},${extra}`);
+      }
+    } else {
+      electron.app.commandLine.appendSwitch("disable-features", extra);
+    }
+  }
+} catch {
+}
 const gotTheLock = electron.app.requestSingleInstanceLock();
 if (!gotTheLock) {
   console.log("Another instance is already running, quitting...");

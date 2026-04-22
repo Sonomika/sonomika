@@ -41,6 +41,30 @@ if (shouldMuteConsole) {
 
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
+// ---------------------------------------------------------------------------
+// Chromium command-line switches that MUST be set before app.whenReady().
+// These are read during Chromium startup; setting them inside whenReady() is
+// too late (MIDI backend selection in particular is resolved very early).
+// ---------------------------------------------------------------------------
+try {
+  // Windows: Chromium's default Web MIDI backend is WinRT MIDI, which does NOT
+  // see legacy WinMM virtual ports like loopMIDI, LoopBe1, or TouchOSC Bridge.
+  // Disabling MidiManagerWinrt forces the legacy WinMM backend so those ports
+  // show up in navigator.requestMIDIAccess() and WebMidi.outputs.
+  //   https://chromium.googlesource.com/chromium/src/+/main/media/midi/
+  if (process.platform === 'win32') {
+    const existing = app.commandLine.getSwitchValue('disable-features');
+    const extra = 'MidiManagerWinrt';
+    if (existing && existing.length > 0) {
+      if (!existing.split(',').includes(extra)) {
+        app.commandLine.appendSwitch('disable-features', `${existing},${extra}`);
+      }
+    } else {
+      app.commandLine.appendSwitch('disable-features', extra);
+    }
+  }
+} catch {}
+
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
 

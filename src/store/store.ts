@@ -209,6 +209,9 @@ const initialState: AppState = {
   midiMappings: createDefaultKeyToColumnMappings(),
   midiForceChannel1: false,
   selectedMIDIDevices: [], // Empty array means no devices - MIDI disabled
+  selectedMIDIOutput: null, // null means no output device - MIDI send disabled
+  midiSendClock: false,
+  midiSendTransport: false,
   midiCCOffset: 0,
   midiAutoDetectOffset: false,
   midiAutoDetectOffsetPrimed: false,
@@ -816,6 +819,11 @@ export const useStore = createWithEqualityFn<AppState & {
         const deviceArray = Array.isArray(devices) ? devices : [];
         set({ selectedMIDIDevices: deviceArray });
       },
+      setSelectedMIDIOutput: (name: string | null) => {
+        set({ selectedMIDIOutput: name && typeof name === 'string' ? name : null });
+      },
+      setMidiSendClock: (enabled: boolean) => set({ midiSendClock: !!enabled }),
+      setMidiSendTransport: (enabled: boolean) => set({ midiSendTransport: !!enabled }),
       setMidiCCOffset: (offset: number) => set({ midiCCOffset: Math.max(0, Math.min(127, Number(offset) || 0)) }),
       setMidiAutoDetectOffset: (enabled: boolean) => set({
         midiAutoDetectOffset: !!enabled,
@@ -1530,6 +1538,9 @@ export const useStore = createWithEqualityFn<AppState & {
            midiMappings: state.midiMappings,
            midiForceChannel1: (state as any).midiForceChannel1,
            selectedMIDIDevices: Array.isArray((state as any).selectedMIDIDevices) ? (state as any).selectedMIDIDevices : [],
+           selectedMIDIOutput: typeof (state as any).selectedMIDIOutput === 'string' ? (state as any).selectedMIDIOutput : null,
+           midiSendClock: !!(state as any).midiSendClock,
+           midiSendTransport: !!(state as any).midiSendTransport,
           midiCCOffset: state.midiCCOffset,
           midiAutoDetectOffset: (state as any).midiAutoDetectOffset,
            selectedLayerId: state.selectedLayerId,

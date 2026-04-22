@@ -12,9 +12,10 @@ import GlobalCCMapper from './GlobalCCMapper';
 interface MIDIDeviceOption { value: string; label?: string }
 
 export const MIDIMapper: React.FC = () => {
-  const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1, selectedMIDIDevices, setSelectedMIDIDevices, scenes, currentSceneId } = useStore() as any;
+  const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1, selectedMIDIDevices, setSelectedMIDIDevices, selectedMIDIOutput, setSelectedMIDIOutput, midiSendClock, setMidiSendClock, midiSendTransport, setMidiSendTransport, scenes, currentSceneId } = useStore() as any;
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'mappings' | 'layer-cc' | 'global-cc'>('mappings');
+  const [outputOptions, setOutputOptions] = useState<MIDIDeviceOption[]>([]);
   // Track if we've initialized from persisted state to prevent clearing on mount
   const hasInitializedRef = useRef(false);
   const mappings = midiMappings as MIDIMapping[];
@@ -23,6 +24,20 @@ export const MIDIMapper: React.FC = () => {
   const [monitorEnabled, setMonitorEnabled] = useState(true);
   const [lastEventAt, setLastEventAt] = useState<number | null>(null);
   const [lastEvent, setLastEvent] = useState<{ type: 'note' | 'cc'; channel: number; effChannel?: number; forced?: boolean; number: number; value: number; ts: number } | null>(null);
+  const [isRefreshingMidi, setIsRefreshingMidi] = useState(false);
+
+  const refreshMidiOutputs = async () => {
+    if (isRefreshingMidi) return;
+    setIsRefreshingMidi(true);
+    try {
+      await MIDIManager.getInstance().refreshDevices();
+      trackFeature('midi_refresh_devices', { ok: true });
+    } catch {
+      trackFeature('midi_refresh_devices', { ok: false });
+    } finally {
+      setIsRefreshingMidi(false);
+    }
+  };
 
   // Dynamic device options from WebMIDI
   const [deviceOptions, setDeviceOptions] = useState<MIDIDeviceOption[]>([]);
@@ -96,6 +111,51 @@ export const MIDIMapper: React.FC = () => {
       }
     } catch {}
   }, [selectedMIDIDevices]);
+
+  // Keep MIDI output device list in sync with WebMidi
+  useEffect(() => {
+    try {
+      const mgr = MIDIManager.getInstance();
+      const update = () => {
+        const list = mgr.getOutputSummaries().map((d) => ({ value: d.name }));
+        setOutputOptions(list);
+      };
+      const timeout = setTimeout(update, 200);
+      mgr.onOutputsChanged(update);
+      return () => {
+        clearTimeout(timeout);
+        try { mgr.removeOutputsChanged(update); } catch {}
+      };
+    } catch {}
+  }, []);
+
+  // Push persisted selected output into MIDIManager (on mount + whenever it changes)
+  useEffect(() => {
+    try {
+      const mgr = MIDIManager.getInstance();
+      const apply = () => {
+        try { mgr.setSelectedOutput(selectedMIDIOutput || null); } catch {}
+      };
+      if (mgr.isInitialized()) apply();
+      else {
+        const t = setTimeout(apply, 500);
+        return () => clearTimeout(t);
+      }
+    } catch {}
+  }, [selectedMIDIOutput]);
+
+  // Start/stop 24 PPQN MIDI clock based on the toggle + whether an output is selected
+  useEffect(() => {
+    try {
+      const mgr = MIDIManager.getInstance();
+      if (midiSendClock && selectedMIDIOutput) {
+        mgr.startClock({ sendStart: !!midiSendTransport });
+      } else {
+        mgr.stopClock({ sendStop: !!midiSendTransport });
+      }
+      return () => { try { mgr.stopClock(); } catch {} };
+    } catch {}
+  }, [midiSendClock, selectedMIDIOutput, midiSendTransport]);
 
   const noteOptions = [
     'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
@@ -337,6 +397,50 @@ export const MIDIMapper: React.FC = () => {
           <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
             <Label className="tw-text-xs">Force Channel 1</Label>
             <Switch checked={!!midiForceChannel1} onCheckedChange={(val: boolean) => setMIDIForceChannel1(!!val)} />
+          </div>
+
+          <div className="tw-flex tw-flex-col tw-gap-2 tw-pt-2 tw-mt-2 tw-border-t tw-border-neutral-800">
+            <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+              <Label className="tw-text-xs">MIDI Output (send to DAW)</Label>
+              <Button
+                variant="secondary"
+                title="Rescan OS MIDI ports (use after creating a new virtual port in loopMIDI / IAC)"
+                onClick={refreshMidiOutputs}
+                disabled={isRefreshingMidi}
+              >
+                {isRefreshingMidi ? 'Rescanning…' : 'Refresh'}
+              </Button>
+            </div>
+            <Select
+              value={selectedMIDIOutput || ''}
+              onChange={(v: string) => setSelectedMIDIOutput(v || null)}
+              options={[
+                { value: '', label: outputOptions.length === 0 ? 'No MIDI outputs detected' : 'None (disabled)' },
+                ...outputOptions.map((o) => ({ value: o.value, label: o.value })),
+              ]}
+            />
+            {outputOptions.length === 0 && (
+              <div className="tw-text-xs tw-text-neutral-400">
+                Install a virtual MIDI port (e.g. loopMIDI) and create one, then click Refresh to route audio sources into Ableton.
+              </div>
+            )}
+            <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+              <Label className="tw-text-xs">Send MIDI Clock (24 PPQN)</Label>
+              <Switch checked={!!midiSendClock} onCheckedChange={(val: boolean) => setMidiSendClock(!!val)} />
+            </div>
+            <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+              <Label className="tw-text-xs">Send Start / Stop with transport</Label>
+              <Switch checked={!!midiSendTransport} onCheckedChange={(val: boolean) => setMidiSendTransport(!!val)} />
+            </div>
+            <div className="tw-flex tw-gap-2">
+              <Button
+                variant="secondary"
+                title="Send all-notes-off on every channel to the selected output"
+                onClick={() => { try { MIDIManager.getInstance().allNotesOff(); } catch {} }}
+              >
+                Panic (All Notes Off)
+              </Button>
+            </div>
           </div>
           <div className="tw-flex tw-flex-wrap tw-gap-2">
             <Button title="Add a new mapping" onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>

@@ -161,6 +161,12 @@ export interface AppState {
   midiForceChannel1?: boolean; // If true, remap incoming MIDI events to channel 1
   // Selected MIDI input devices (empty array means no devices - MIDI disabled)
   selectedMIDIDevices?: string[]; // Array of device names/IDs to listen to
+  // Selected MIDI output device name (null means no output - MIDI send disabled)
+  selectedMIDIOutput?: string | null;
+  // When true, stream 24 PPQN MIDI clock to the selected output
+  midiSendClock?: boolean;
+  // When true, send MIDI Start / Stop messages with the app's transport
+  midiSendTransport?: boolean;
   // Normalize incoming CC numbers by subtracting this offset (e.g., 31 makes CC32 behave like CC1)
   midiCCOffset?: number;
   // When true, learn CC offset automatically from the next incoming CC message
