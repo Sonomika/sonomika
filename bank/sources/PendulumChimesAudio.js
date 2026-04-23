@@ -17,20 +17,17 @@ export const metadata = {
     { name: 'basePeriod', type: 'number', value: 7.0, min: 2.0, max: 18.0, step: 0.5 },
     { name: 'periodSpread', type: 'number', value: 0.16, min: 0.02, max: 0.5, step: 0.01 },
     { name: 'swingWidth', type: 'number', value: 0.85, min: 0.2, max: 1.1, step: 0.05 },
-    { name: 'rootMidi', type: 'number', value: 48, min: 24, max: 72, step: 1 },
+    { name: 'rootMidi', type: 'number', value: 36, min: 24, max: 72, step: 1, lockDefault: true },
     { name: 'bobSize', type: 'number', value: 0.05, min: 0.02, max: 0.15, step: 0.005 },
     { name: 'rowOpacity', type: 'number', value: 0.18, min: 0, max: 0.6, step: 0.02 },
     { name: 'tone', type: 'number', value: 0, min: 0, max: 2, step: 1, description: '0 bell, 1 pluck, 2 soft sine' },
     { name: 'volume', type: 'number', value: -14, min: -32, max: 0, step: 1 },
     { name: 'decay', type: 'number', value: 1.4, min: 0.2, max: 4.0, step: 0.1 },
     { name: 'soundOn', type: 'boolean', value: true },
-    { name: 'sendMidi', type: 'boolean', value: false, description: 'send MIDI notes to the selected MIDI output (pitch matches each pendulum)' },
-    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1 },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (pitch matches each pendulum)' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
-
-// Major pentatonic: gives endlessly consonant combinations
-const PENTATONIC = [0, 2, 4, 7, 9];
 
 function midiToNote(midi) {
   const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -39,15 +36,11 @@ function midiToNote(midi) {
 }
 
 function pitchForIndex(i, rootMidi) {
-  const step = PENTATONIC[i % PENTATONIC.length];
-  const octaveOffset = Math.floor(i / PENTATONIC.length) * 12;
-  return midiToNote(Math.round(rootMidi) + step + octaveOffset);
+  return midiToNote(Math.round(rootMidi) + i);
 }
 
 function midiForIndex(i, rootMidi) {
-  const step = PENTATONIC[i % PENTATONIC.length];
-  const octaveOffset = Math.floor(i / PENTATONIC.length) * 12;
-  return Math.round(rootMidi) + step + octaveOffset;
+  return Math.round(rootMidi) + i;
 }
 
 function buildVoice(Tone, mode) {

@@ -23,8 +23,8 @@ export const metadata = {
     { name: 'showBeats', type: 'boolean', value: true },
     { name: 'volume', type: 'number', value: -10, min: -30, max: 0, step: 1 },
     { name: 'soundOn', type: 'boolean', value: true },
-    { name: 'sendMidi', type: 'boolean', value: false, description: 'send MIDI notes to the selected MIDI output (e.g. Ableton via loopMIDI)' },
-    { name: 'midiChannel', type: 'number', value: 10, min: 1, max: 16, step: 1, description: '10 = standard GM drum channel' },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (e.g. Ableton via loopMIDI)' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true, description: 'defaults to channel 1 unless you change it' },
   ],
 };
 
@@ -348,9 +348,8 @@ export default function DrumMatrixAudioSource({
     const k = kitRef.current;
 
     // Compute scan rate from BPM
-    const bpmRaw = bpmSync
-      ? (Number.isFinite(globalThis && globalThis.VJ_BPM) ? globalThis.VJ_BPM : 120)
-      : manualBpm;
+    const setBpm = (globalThis && Number.isFinite(globalThis.VJ_BPM)) ? Number(globalThis.VJ_BPM) : 120;
+    const bpmRaw = bpmSync ? setBpm : manualBpm;
     const bpm = Math.max(30, Math.min(260, bpmRaw));
     const scanRate = (bpm * Math.max(1, stepsPerBeat)) / 60;
 

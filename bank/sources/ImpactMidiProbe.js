@@ -14,10 +14,10 @@ export const metadata = {
   parameters: [
     { name: 'gravity', type: 'number', value: 2.8, min: 0.5, max: 8.0, step: 0.1 },
     { name: 'bounce', type: 'number', value: 0.72, min: 0.2, max: 0.95, step: 0.01 },
-    { name: 'rootMidi', type: 'number', value: 60, min: 24, max: 84, step: 1 },
+    { name: 'rootMidi', type: 'number', value: 36, min: 24, max: 84, step: 1, lockDefault: true },
     { name: 'noteLength', type: 'number', value: 0.25, min: 0.03, max: 2.0, step: 0.01 },
-    { name: 'sendMidi', type: 'boolean', value: true, description: 'send one MIDI note on each visible impact' },
-    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1 },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send one MIDI note on each visible impact' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
     { name: 'ballColor', type: 'color', value: '#ffd166' },
     { name: 'impactColor', type: 'color', value: '#ffffff' },
   ],

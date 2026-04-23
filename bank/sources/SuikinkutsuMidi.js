@@ -19,25 +19,17 @@ export const metadata = {
   parameters: [
     { name: 'dropRate', type: 'number', value: 1.5, min: 0.2, max: 8.0, step: 0.1, description: 'average drops per second' },
     { name: 'randomness', type: 'number', value: 0.6, min: 0, max: 1, step: 0.05, description: 'timing jitter (0 = metronomic)' },
-    { name: 'scaleMode', type: 'number', value: 1, min: 0, max: 3, step: 1, description: '0 pentatonic, 1 hirajoshi, 2 in-sen, 3 iwato' },
     { name: 'numTones', type: 'number', value: 9, min: 3, max: 16, step: 1 },
-    { name: 'rootMidi', type: 'number', value: 57, min: 24, max: 72, step: 1 },
+    { name: 'rootMidi', type: 'number', value: 36, min: 24, max: 72, step: 1, lockDefault: true },
     { name: 'noteLength', type: 'number', value: 2.4, min: 0.05, max: 6.0, step: 0.05, description: 'MIDI note duration in seconds' },
     { name: 'rippleLife', type: 'number', value: 2.0, min: 0.4, max: 5.0, step: 0.1 },
     { name: 'rippleMaxScale', type: 'number', value: 1.4, min: 0.3, max: 3.0, step: 0.1 },
     { name: 'dropColor', type: 'color', value: '#9fe9ff' },
     { name: 'rippleColor', type: 'color', value: '#6dd4ff' },
-    { name: 'sendMidi', type: 'boolean', value: true, description: 'send MIDI notes to the selected MIDI output (pitch matches each drop)' },
-    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1 },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (pitch matches each drop)' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
-
-const SCALES = [
-  [0, 2, 4, 7, 9],
-  [0, 2, 3, 7, 8],
-  [0, 1, 5, 7, 10],
-  [0, 1, 5, 6, 10],
-];
 
 const WATER_Y = -0.75;
 const TOP_Y = 1.1;
@@ -46,10 +38,8 @@ const RIPPLE_COUNT = 8;
 const OWNER_SLOT = '__VJ_SUIKINKUTSU_MIDI_OWNER__';
 const OWNER_LEASE_MS = 250;
 
-function midiForToneIndex(i, rootMidi, scale) {
-  const step = scale[i % scale.length];
-  const octaveOffset = Math.floor(i / scale.length) * 12;
-  return Math.round(rootMidi) + step + octaveOffset;
+function midiForToneIndex(i, rootMidi) {
+  return Math.round(rootMidi) + i;
 }
 
 function shouldSendMidi() {
@@ -77,7 +67,6 @@ function nextSpawnDelay(dropRate, randomness) {
 export default function SuikinkutsuMidiSource({
   dropRate = 1.5,
   randomness = 0.6,
-  scaleMode = 1,
   numTones = 9,
   rootMidi = 57,
   noteLength = 2.4,
@@ -107,7 +96,6 @@ export default function SuikinkutsuMidiSource({
   });
   const rippleStateRef = useRef([]);
 
-  const scale = SCALES[Math.max(0, Math.min(SCALES.length - 1, Math.round(scaleMode)))] || SCALES[0];
   const toneCount = Math.max(3, Math.floor(numTones));
 
   if (ringRefs.current.length !== RIPPLE_COUNT) {
@@ -218,7 +206,7 @@ export default function SuikinkutsuMidiSource({
         s.dropActive = false;
         s.timeUntilNextDrop = nextSpawnDelay(dropRate, randomness);
         triggerRipple(s.x);
-        const midiNote = midiForToneIndex(s.toneIndex, rootMidi, scale);
+        const midiNote = midiForToneIndex(s.toneIndex, rootMidi);
         const clampedMidi = Math.max(0, Math.min(127, Math.round(midiNote)));
         const vel = Math.max(0.15, Math.min(1, s.velocity));
         const dur = Math.max(0.05, noteLength * (0.6 + Math.random() * 0.4));

@@ -30,6 +30,13 @@ const RandomIcon: React.FC<{ className?: string }> = ({ className }) => {
   return <DiceIcon className={cls} />;
 };
 
+function midiToNoteLabel(value: number): string {
+  const midi = Math.round(value);
+  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const octave = Math.floor(midi / 12) - 1;
+  return `${names[((midi % 12) + 12) % 12]}${octave}`;
+}
+
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
   const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip, bpm, columnCrossfadeDuration } = useStore() as any;
   // Bank discovery is async; when effects finish loading we need to re-run lookups
@@ -866,6 +873,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               key={param.name}
                               label={param.description || param.name}
                               value={Number.isFinite(Number(uiValue)) ? Number(uiValue) : (typeof param.min === 'number' ? param.min : 0)}
+                              valueDisplay={param.name === 'rootMidi' ? midiToNoteLabel(Number(uiValue)) : undefined}
                               min={param.min || 0}
                               max={param.max || 1}
                               step={param.step || 0.1}

@@ -4,6 +4,13 @@ import { getEffect } from '../utils/effectRegistry';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
 import { LockClosedIcon, LockOpen1Icon } from '@radix-ui/react-icons';
 
+function midiToNoteLabel(value: number): string {
+  const midi = Math.round(value);
+  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const octave = Math.floor(midi / 12) - 1;
+  return `${names[((midi % 12) + 12) % 12]}${octave}`;
+}
+
 interface EffectParamsEditorProps {
   effectId: string;
   params: Record<string, any> | undefined;
@@ -351,6 +358,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                     key={param.name}
                     label={param.description || param.name}
                     value={Number(uiValue)}
+                    valueDisplay={param.name === 'rootMidi' ? midiToNoteLabel(Number(uiValue)) : undefined}
                     min={param.min || 0}
                     max={param.max || 1}
                     step={param.step || 0.1}

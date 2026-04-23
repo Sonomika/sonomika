@@ -25,8 +25,8 @@ export const metadata = {
     { name: 'accent', type: 'color', value: '#ffffff' },
     { name: 'volume', type: 'number', value: -20, min: -40, max: 0, step: 1 },
     { name: 'soundOn', type: 'boolean', value: true },
-    { name: 'sendMidi', type: 'boolean', value: false, description: 'send MIDI notes to the selected MIDI output (notes match each row frequency)' },
-    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1 },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (notes match each row frequency)' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
 

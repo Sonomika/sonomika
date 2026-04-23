@@ -23,8 +23,8 @@ export const metadata = {
     { name: 'crush', type: 'number', value: 0.55, min: 0, max: 1, step: 0.05, description: 'bit-crush amount on clicks/ring' },
     { name: 'volume', type: 'number', value: -10, min: -30, max: 0, step: 1 },
     { name: 'soundOn', type: 'boolean', value: true },
-    { name: 'sendMidi', type: 'boolean', value: false, description: 'send MIDI notes to the selected MIDI output (route a virtual port into Ableton)' },
-    { name: 'midiChannel', type: 'number', value: 10, min: 1, max: 16, step: 1 },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (route a virtual port into Ableton)' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
     { name: 'midiNoteBase', type: 'number', value: 36, min: 0, max: 108, step: 1, description: 'lowest voice note (ascending chromatically per row)' },
   ],
 };
@@ -457,9 +457,8 @@ export default function GlitchCodexAudioSource({
     const k = kitRef.current;
     const pos = posRef.current;
 
-    const bpmRaw = bpmSync
-      ? (Number.isFinite(globalThis && globalThis.VJ_BPM) ? globalThis.VJ_BPM : 128)
-      : manualBpm;
+    const setBpm = (globalThis && Number.isFinite(globalThis.VJ_BPM)) ? Number(globalThis.VJ_BPM) : 128;
+    const bpmRaw = bpmSync ? setBpm : manualBpm;
     const bpm = Math.max(30, Math.min(260, bpmRaw));
     const stepRate = (bpm * Math.max(1, stepsPerBeat)) / 60;
 
