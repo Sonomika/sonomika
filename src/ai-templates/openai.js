@@ -6,10 +6,11 @@
 const openaiTemplate = {
   id: 'openai',
   name: 'OpenAI (GPT)',
-  description: 'OpenAI GPT models including GPT-4, GPT-3.5, and GPT-5',
+  description: 'OpenAI GPT models including GPT-4, GPT-5, and GPT-5.5',
   apiEndpoint: 'https://api.openai.com/v1/chat/completions',
   defaultModel: 'gpt-5-mini',
   models: [
+    { value: 'gpt-5.5', label: 'gpt-5.5' },
     { value: 'gpt-5', label: 'gpt-5' },
     { value: 'gpt-5-mini', label: 'gpt-5-mini' },
     { value: 'gpt-4o', label: 'gpt-4o' },

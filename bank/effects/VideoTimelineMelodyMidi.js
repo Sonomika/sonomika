@@ -88,7 +88,7 @@ function scorePixel(buf, idx, targetColor) {
 }
 
 function midiForY(yNorm, rootMidi, scaleName, rangeSteps) {
-  const intervals = SCALES[scaleName] || SCALES.minorPentatonic;
+  const intervals = SCALES[scaleName] || SCALES.chromatic;
   const topAmount = clamp01(1 - yNorm);
   const degree = Math.max(0, Math.min(Math.max(1, rangeSteps) - 1, Math.round(topAmount * (Math.max(1, rangeSteps) - 1))));
   const octave = Math.floor(degree / intervals.length) * 12;

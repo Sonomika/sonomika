@@ -18,21 +18,12 @@ export const metadata = {
     { name: 'particleSize', type: 'number', value: 0.04, min: 0.01, max: 0.12, step: 0.005 },
     { name: 'speed', type: 'number', value: 1.2, min: 0.3, max: 4.0, step: 0.1 },
     { name: 'color', type: 'color', value: '#88ddff' },
-    { name: 'scale', type: 'select', value: 'pentatonic', options: ['pentatonic', 'major', 'minor', 'blues', 'chromatic', 'dorian'] },
     { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected output' },
     { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
 
-// Scale definitions: note names across a couple octaves
-const SCALES = {
-  pentatonic: ['C3', 'D3', 'E3', 'G3', 'A3', 'C4', 'D4', 'E4', 'G4', 'A4', 'C5'],
-  major: ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'],
-  minor: ['C3', 'D3', 'Eb3', 'F3', 'G3', 'Ab3', 'Bb3', 'C4', 'D4', 'Eb4', 'F4', 'G4', 'Ab4', 'Bb4', 'C5'],
-  blues: ['C3', 'Eb3', 'F3', 'Gb3', 'G3', 'Bb3', 'C4', 'Eb4', 'F4', 'Gb4', 'G4', 'Bb4', 'C5'],
-  chromatic: ['C3', 'Db3', 'D3', 'Eb3', 'E3', 'F3', 'Gb3', 'G3', 'Ab3', 'A3', 'Bb3', 'B3', 'C4', 'Db4', 'D4', 'Eb4', 'E4', 'F4', 'Gb4', 'G4', 'Ab4', 'A4', 'Bb4', 'B4', 'C5'],
-  dorian: ['C3', 'D3', 'Eb3', 'F3', 'G3', 'A3', 'Bb3', 'C4', 'D4', 'Eb4', 'F4', 'G4', 'A4', 'Bb4', 'C5'],
-};
+const CHROMATIC_NOTES = ['C3', 'Db3', 'D3', 'Eb3', 'E3', 'F3', 'Gb3', 'G3', 'Ab3', 'A3', 'Bb3', 'B3', 'C4', 'Db4', 'D4', 'Eb4', 'E4', 'F4', 'Gb4', 'G4', 'Ab4', 'A4', 'Bb4', 'B4', 'C5'];
 
 function noteNameToMidi(note) {
   const match = String(note || '').match(/^([A-G])([#b]?)(-?\d+)$/);
@@ -43,17 +34,11 @@ function noteNameToMidi(note) {
   return Math.max(0, Math.min(127, Math.round((octave + 1) * 12 + base + accidental)));
 }
 
-function randomNote(scaleKey) {
-  const notes = SCALES[scaleKey] || SCALES.pentatonic;
-  return notes[Math.floor(Math.random() * notes.length)];
-}
-
 export default function BouncingNoteParticlesSource({
   numParticles = 24,
   particleSize = 0.04,
   speed = 1.2,
   color = '#88ddff',
-  scale = 'pentatonic',
   sendMidi = true,
   midiChannel = 1,
 }) {
@@ -70,7 +55,6 @@ export default function BouncingNoteParticlesSource({
   const overlappingPairsRef = useRef(new Set());
   const flashRef = useRef([]);
   const frameCountRef = useRef(0);
-  const scaleNotesRef = useRef(null); // cache scale notes array
   const soundTriggeredThisFrameRef = useRef(false); // only one sound per frame
   const normalVecRef = useRef(new THREE.Vector2()); // reuse vector to avoid allocations
 
@@ -78,12 +62,6 @@ export default function BouncingNoteParticlesSource({
     const n = Math.max(1, Math.min(80, Math.floor(Number(numParticles) || 24)));
     return n;
   }, [numParticles]);
-
-
-  // Cache scale notes when scale changes
-  useEffect(() => {
-    scaleNotesRef.current = SCALES[scale] || SCALES.pentatonic;
-  }, [scale]);
 
   const geometry = useMemo(() => new THREE.CircleGeometry(particleSize * 0.5, 16), [particleSize]);
   const material = useMemo(
@@ -163,7 +141,7 @@ export default function BouncingNoteParticlesSource({
 
     // Particle–particle collision (sound only on impact)
     const n = normalVecRef.current;
-    const scaleNotes = scaleNotesRef.current || SCALES.pentatonic;
+    const scaleNotes = CHROMATIC_NOTES;
     for (let i = 0; i < positions.length; i++) {
       for (let j = i + 1; j < positions.length; j++) {
         const a = positions[i];

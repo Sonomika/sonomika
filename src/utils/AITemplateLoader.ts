@@ -148,6 +148,8 @@ export class AITemplateLoader {
         // or from extraResources. If no templates found, user needs to check their setup.
       }
       
+      this.ensureOpenAIModels();
+
       if (this.templates.size === 0) {
         console.error('❌ No AI templates loaded! Checked:');
         console.error('  - Bundled modules (via import)');
@@ -469,6 +471,23 @@ export class AITemplateLoader {
       typeof template.buildRequestHeaders === 'function' &&
       typeof template.extractResponseText === 'function'
     );
+  }
+
+  private ensureOpenAIModels(): void {
+    const openai = this.templates.get('openai');
+    if (!openai || !Array.isArray(openai.models)) return;
+
+    const hasGpt55 = openai.models.some((model) => model.value === 'gpt-5.5');
+    if (!hasGpt55) {
+      openai.models = [
+        { value: 'gpt-5.5', label: 'gpt-5.5' },
+        ...openai.models,
+      ];
+    }
+
+    if (typeof openai.description === 'string' && !openai.description.includes('GPT-5.5')) {
+      openai.description = openai.description.replace('GPT-5', 'GPT-5, and GPT-5.5');
+    }
   }
 
 

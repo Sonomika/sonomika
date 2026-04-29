@@ -78,7 +78,7 @@ function scorePixel(buf, idx, targetColor) {
 }
 
 function midiForLane(lane, laneCount, rootMidi, scaleName) {
-  const intervals = SCALES[scaleName] || SCALES.minorPentatonic;
+  const intervals = SCALES[scaleName] || SCALES.chromatic;
   const bottomToTop = Math.max(0, laneCount - 1 - lane);
   const interval = intervals[bottomToTop % intervals.length] + Math.floor(bottomToTop / intervals.length) * 12;
   return Math.max(0, Math.min(127, Math.round(rootMidi + interval)));

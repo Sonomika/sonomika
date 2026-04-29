@@ -30,22 +30,13 @@ export const metadata = {
     { name: 'foodColor', type: 'color', value: '#ffffff' },
     { name: 'fishSize', type: 'number', value: 0.025, min: 0.02, max: 0.09, step: 0.005 },
     { name: 'foodSize', type: 'number', value: 0.055, min: 0.01, max: 0.06, step: 0.005 },
-    { name: 'scale', type: 'select', value: 'pentatonic', options: ['pentatonic', 'major', 'minor', 'dorian', 'mixolydian', 'chromatic'] },
     { name: 'rootMidi', type: 'number', value: 48, min: 24, max: 72, step: 1, lockDefault: true },
     { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected output when fish eat food' },
     { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
 
-// ---- musical scales (MIDI intervals) ----------------------------------------
-const SCALES = {
-  pentatonic: [0, 2, 4, 7, 9],
-  major: [0, 2, 4, 5, 7, 9, 11],
-  minor: [0, 2, 3, 5, 7, 8, 10],
-  dorian: [0, 2, 3, 5, 7, 9, 10],
-  mixolydian: [0, 2, 4, 5, 7, 9, 10],
-  chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-};
+const CHROMATIC_DEGREES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
 const FOOD_TYPE_COUNT = 5;
 
@@ -68,10 +59,9 @@ function flowField(x, y, t) {
   return { fx: b * 0.5 - a * 0.25, fy: a * 0.5 + b * 0.25 };
 }
 
-function pickScaleDegree(scaleName, index) {
-  const degrees = SCALES[scaleName] || SCALES.pentatonic;
-  const i = ((index % degrees.length) + degrees.length) % degrees.length;
-  return degrees[i];
+function pickChromaticDegree(index) {
+  const i = ((index % CHROMATIC_DEGREES.length) + CHROMATIC_DEGREES.length) % CHROMATIC_DEGREES.length;
+  return CHROMATIC_DEGREES[i];
 }
 
 export default function FishChaseFoodMidiEffect({
@@ -90,7 +80,6 @@ export default function FishChaseFoodMidiEffect({
   foodColor = '#ffffff',
   fishSize = 0.025,
   foodSize = 0.055,
-  scale = 'pentatonic',
   rootMidi = 48,
   sendMidi = true,
   midiChannel = 1,
@@ -113,9 +102,6 @@ export default function FishChaseFoodMidiEffect({
 
   const spawnAccRef = useRef(0);
   const lastSoundAtRef = useRef(0);
-
-  const scaleRef = useRef(scale);
-  scaleRef.current = scale;
 
   const dummyFish = useMemo(() => new THREE.Object3D(), []);
   const dummyFood = useMemo(() => new THREE.Object3D(), []);
@@ -221,7 +207,7 @@ export default function FishChaseFoodMidiEffect({
     lastSoundAtRef.current = now;
 
     const base = Math.max(0, Math.min(108, Math.round(rootMidi)));
-    const degree = pickScaleDegree(scaleRef.current, Math.floor((foodType * 3 + fishIndex) % 16));
+    const degree = pickChromaticDegree(Math.floor((foodType * 3 + fishIndex) % 16));
     const octave = foodType === 3 ? 24 : foodType === 2 ? 12 : 0;
     const note = Math.max(0, Math.min(127, base + degree + octave + Math.floor(lerp(-2, 3, clamp01(energy)))));
     const velocity = lerp(0.25, 0.95, clamp01(energy)) * lerp(0.7, 1.0, clamp01(hunger));
