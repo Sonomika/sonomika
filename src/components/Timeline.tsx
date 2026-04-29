@@ -11,6 +11,14 @@ import { videoAssetManager } from '../utils/VideoAssetManager';
 import { importSystemFileAsPersistentAsset, isSupportedAudioFile, isSupportedVideoFile } from '../utils/SystemFileAsset';
 // EffectLoader import removed - using dynamic loading instead
 
+const isTimelineDebugEnabled = () => {
+  try { return !!(globalThis as any).__vj_timeline_debug_enabled__; } catch { return false; }
+};
+
+const timelineDebugLog = (...args: any[]) => {
+  try { if (isTimelineDebugEnabled()) console.log(...args); } catch {}
+};
+
 const toFileURL = (absPath: string) => {
   try {
     let normalized = String(absPath || '');
@@ -670,6 +678,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   const currentTimeRef = useRef<number>(0);
   const lastUiUpdateTsRef = useRef<number>(0);
   const lastTickDispatchTsRef = useRef<number>(0);
+  const lastPreviewPublishTsRef = useRef<number>(0);
+  const lastPreviewSignatureRef = useRef<string>('');
   const tracksRef = useRef<TimelineTrack[]>(tracks);
   const onPreviewUpdateRef = useRef<TimelineProps['onPreviewUpdate']>(onPreviewUpdate);
   const showTimelineRef = useRef<boolean>(Boolean(showTimeline));
@@ -991,21 +1001,21 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     try {
       if (asset.filePath) {
         const src = toFileURL(asset.filePath);
-        try { console.log('[Timeline][audio] filePath ->', asset.filePath, '=>', src); } catch {}
+        timelineDebugLog('[Timeline][audio] filePath ->', asset.filePath, '=>', src);
         return src;
       }
       const p: string = asset.path || '';
       if (p.startsWith('file://')) {
-        try { console.log('[Timeline][audio] path(file://) ->', p); } catch {}
+        timelineDebugLog('[Timeline][audio] path(file://) ->', p);
         return p;
       }
       if (p.startsWith('local-file://')) {
         const fp = p.replace('local-file://', '');
         const src = toFileURL(fp);
-        try { console.log('[Timeline][audio] path(local-file://) ->', p, '=>', src); } catch {}
+        timelineDebugLog('[Timeline][audio] path(local-file://) ->', p, '=>', src);
         return src;
       }
-      try { console.log('[Timeline][audio] path(raw) ->', p); } catch {}
+      timelineDebugLog('[Timeline][audio] path(raw) ->', p);
       return p;
     } catch {
       return String(asset?.path || '');
@@ -2416,14 +2426,27 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     try {
       const cb = onPreviewUpdateRef.current;
       if (cb && showTimelineRef.current) {
-        cb({
-          type: 'timeline',
-          tracks: tracksRef.current,
-          currentTime: time,
-          duration: effectiveDuration,
-          isPlaying: Boolean(playing),
-          activeClips,
-        });
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const activeSignature = activeClips
+          .map((clip: any) => `${clip.id}:${clip.trackId}:${clip.type}:${clip.asset?.id || ''}:${clip.startTime}:${clip.duration}`)
+          .join('|');
+        const previewSignature = `${Boolean(playing)}|${activeSignature}`;
+        const shouldPublishPreview = !playing
+          || previewSignature !== lastPreviewSignatureRef.current
+          || (now - lastPreviewPublishTsRef.current) >= 250;
+
+        if (shouldPublishPreview) {
+          lastPreviewPublishTsRef.current = now;
+          lastPreviewSignatureRef.current = previewSignature;
+          cb({
+            type: 'timeline',
+            tracks: tracksRef.current,
+            currentTime: time,
+            duration: effectiveDuration,
+            isPlaying: Boolean(playing),
+            activeClips,
+          });
+        }
       }
     } catch {}
   };
@@ -2483,6 +2506,8 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     currentTimeRef.current = startAt;
     lastUiUpdateTsRef.current = 0;
     lastTickDispatchTsRef.current = 0;
+    lastPreviewPublishTsRef.current = 0;
+    lastPreviewSignatureRef.current = '';
     const loop = (ts: number) => {
       if (!isPlayingRef.current) return; // safety guard
       if (lastTsRef.current == null) lastTsRef.current = ts;
@@ -2601,6 +2626,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     try {
       document.dispatchEvent(new CustomEvent('videoStop', { detail: { type: 'videoStop', allColumns: true, source: 'timeline' } }));
     } catch {}
+    try { publishTimelineRuntime(currentTimeRef.current, false, durationRef.current || duration); } catch {}
   };
 
   // On mount, force timeline to be stopped (prevents "playing after refresh" cases).
@@ -2611,7 +2637,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
 
   // Handle play button click
   const handlePlayButtonClick = async () => {
-    console.log('Play button clicked, current isPlaying:', isPlaying);
+    timelineDebugLog('Play button clicked, current isPlaying:', isPlaying);
     
     // Force a small delay to ensure state is properly updated
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -2624,18 +2650,18 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     }
 
     if (isPlaying) {
-      console.log('Stopping timeline playback');
+      timelineDebugLog('Stopping timeline playback');
       stopTimelinePlayback();
       
       // Don't automatically pause WaveSurfer - let our timeline control it
-      console.log('Timeline playback stopped - WaveSurfer will be synced to timeline');
+      timelineDebugLog('Timeline playback stopped - WaveSurfer will be synced to timeline');
     } else {
-      console.log('Starting timeline playback');
+      timelineDebugLog('Starting timeline playback');
       startTimelinePlayback();
       
       // Don't automatically start WaveSurfer playback - let our timeline control it
       // WaveSurfer will be synced to our timeline position instead
-      console.log('Timeline playback started - WaveSurfer will be synced to timeline');
+      timelineDebugLog('Timeline playback started - WaveSurfer will be synced to timeline');
     }
   };
 

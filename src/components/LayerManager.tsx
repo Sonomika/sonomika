@@ -209,7 +209,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   useEffect(() => {
     if (window.electron) {
       const handleMirrorWindowClosed = () => {
-        console.log('LayerManager: Mirror window closed event received, updating state');
+        if (debugMode) console.log('LayerManager: Mirror window closed event received, updating state');
         setIsPreviewMirrorOpen(false);
         // Clean up stream manager
         if (mirrorStreamRef.current) {
@@ -292,6 +292,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const prevShowTimelineRef = useRef<boolean>(Boolean(showTimeline));
   const timelineStopOnFirstUpdateRef = useRef<boolean>(Boolean(showTimeline));
   const timelineAllowPlayRef = useRef<boolean>(false);
+  const pendingTimelinePreviewRef = useRef<any>(null);
+  const pendingTimelineIsPlayingRef = useRef<boolean | null>(null);
+  const timelinePreviewRafRef = useRef<number | null>(null);
   
   // Crossfade state management
   const [previousPreviewContent, setPreviousPreviewContent] = useState<any>(null);
@@ -307,7 +310,17 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   useEffect(() => {
     // Skip if no content change
     if (!previewContent || previewContent === previousPreviewContent) {
-      console.log('🎨 Crossfade check: no content change', { previewContent, previousPreviewContent });
+      if (debugMode) console.log('Crossfade check: no content change', { previewContent, previousPreviewContent });
+      return;
+    }
+
+    if (previewContent?.type === 'timeline') {
+      setCrossfadeProgress(1);
+      setIsCrossfading(false);
+      setShowPreviousContent(false);
+      if (previousPreviewContent?.type === 'timeline') {
+        setPreviousPreviewContent(null);
+      }
       return;
     }
     
@@ -328,7 +341,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       (previewContent as any)?.overrideVersion !== (previousPreviewContent as any)?.overrideVersion;
     const shouldCrossfade = isColumnSwitch || isCellOverrideSwitch;
     
-    console.log('🎨 Crossfade check:', { 
+    if (debugMode) console.log('Crossfade check:', { 
       shouldCrossfade,
       enabled: columnCrossfadeEnabled,
       isTimeline: showTimeline,
@@ -339,11 +352,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     });
     
     if (shouldCrossfade) {
-      console.log('✅ Starting crossfade transition', { from: previousPreviewContent?.columnId, to: previewContent?.columnId });
+      if (debugMode) console.log('Starting crossfade transition', { from: previousPreviewContent?.columnId, to: previewContent?.columnId });
       
       // Cancel any active crossfade animation
       if (cancelCrossfadeRef.current) {
-        console.log('⚡ Canceling previous crossfade to start new one');
+        if (debugMode) console.log('Canceling previous crossfade to start new one');
         cancelCrossfadeRef.current();
         cancelCrossfadeRef.current = null;
       }
@@ -390,7 +403,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       // Store cancel function
       cancelCrossfadeRef.current = () => {
         cancelled = true;
-        console.log('🛑 Crossfade cancelled');
+        if (debugMode) console.log('Crossfade cancelled');
       };
       
       const animate = () => {
@@ -415,7 +428,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           // Wait one more frame before updating state
           requestAnimationFrame(() => {
             if (cancelled) return;
-            console.log('✅ Crossfade complete, updating previous content to:', targetContent?.columnId);
+            if (debugMode) console.log('Crossfade complete, updating previous content to:', targetContent?.columnId);
             // Mark crossfade as complete
             setIsCrossfading(false);
             cancelCrossfadeRef.current = null;
@@ -428,13 +441,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       requestAnimationFrame(animate);
     } else {
       // No crossfade - just update previous content immediately for next potential transition
-      console.log('⏭️ No crossfade, updating previous content to:', previewContent?.columnId);
+      if (debugMode) console.log('No crossfade, updating previous content to:', previewContent?.columnId);
       setPreviousPreviewContent(previewContent);
       setCrossfadeProgress(1);
       setIsCrossfading(false);
       setShowPreviousContent(false);
     }
-  }, [previewContent, columnCrossfadeEnabled, cellCrossfadeEnabled, showTimeline, columnCrossfadeDuration]);
+  }, [previewContent, previousPreviewContent, columnCrossfadeEnabled, cellCrossfadeEnabled, showTimeline, columnCrossfadeDuration, debugMode]);
 
   // Crossfade when selecting cells in other columns (row override changes).
   // This preserves the ability to select any cell, but fades the preview between the old and new override state.
@@ -480,6 +493,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     const onTimelinePlay = () => { timelineAllowPlayRef.current = true; };
     const onTimelineStop = () => {
       timelineAllowPlayRef.current = false;
+      if (timelinePreviewRafRef.current != null) {
+        try { cancelAnimationFrame(timelinePreviewRafRef.current); } catch {}
+        timelinePreviewRafRef.current = null;
+      }
+      pendingTimelinePreviewRef.current = null;
+      pendingTimelineIsPlayingRef.current = null;
       try { setIsPlaying(false); } catch {}
       try {
         setPreviewContent((prev: any) => (prev && prev.type === 'timeline' ? { ...prev, isPlaying: false } : prev));
@@ -490,6 +509,17 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     return () => {
       try { document.removeEventListener('timelinePlay', onTimelinePlay as any); } catch {}
       try { document.removeEventListener('timelineStop', onTimelineStop as any); } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timelinePreviewRafRef.current != null) {
+        try { cancelAnimationFrame(timelinePreviewRafRef.current); } catch {}
+      }
+      timelinePreviewRafRef.current = null;
+      pendingTimelinePreviewRef.current = null;
+      pendingTimelineIsPlayingRef.current = null;
     };
   }, []);
 
@@ -914,6 +944,12 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   // Memoized callback for timeline preview updates
   const handleTimelinePreviewUpdate = useCallback((previewContent: any) => {
     if (!previewContent) {
+      if (timelinePreviewRafRef.current != null) {
+        try { cancelAnimationFrame(timelinePreviewRafRef.current); } catch {}
+        timelinePreviewRafRef.current = null;
+      }
+      pendingTimelinePreviewRef.current = null;
+      pendingTimelineIsPlayingRef.current = null;
       setPreviewContent(null);
       setIsPlaying(false);
       return;
@@ -931,11 +967,24 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       return;
     }
 
-    setPreviewContent(previewContent);
+    pendingTimelinePreviewRef.current = previewContent;
+    if (typeof previewContent.isPlaying === 'boolean') {
+      pendingTimelineIsPlayingRef.current = previewContent.isPlaying;
+    }
 
-    // Update isPlaying state based on previewContent.isPlaying
-    if (previewContent && typeof previewContent.isPlaying === 'boolean') {
-      setIsPlaying(previewContent.isPlaying);
+    if (timelinePreviewRafRef.current == null) {
+      timelinePreviewRafRef.current = requestAnimationFrame(() => {
+        timelinePreviewRafRef.current = null;
+        const nextPreview = pendingTimelinePreviewRef.current;
+        const nextIsPlaying = pendingTimelineIsPlayingRef.current;
+        pendingTimelinePreviewRef.current = null;
+        pendingTimelineIsPlayingRef.current = null;
+
+        if (nextPreview) setPreviewContent(nextPreview);
+        if (typeof nextIsPlaying === 'boolean') {
+          setIsPlaying((prev) => (prev === nextIsPlaying ? prev : nextIsPlaying));
+        }
+      });
     }
   }, [showTimeline, isGlobalPlaying]);
 
@@ -943,19 +992,19 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   useEffect(() => {
     if (!showTimeline) {
       // When switching to column mode, clear any lingering timeline preview
-      console.log('🎭 Switched to column mode - clearing timeline preview');
+      if (debugMode) console.log('Switched to column mode - clearing timeline preview');
       setPreviewContent(null);
       setIsPlaying(false);
     }
   }, [showTimeline]);
 
-  console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);
-  console.log('🎭 Preview state - previewContent:', previewContent, 'isPlaying:', isPlaying);
+  if (debugMode) console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);
+  if (debugMode) console.log('Preview state - previewContent:', previewContent, 'isPlaying:', isPlaying);
 
 
 
   const currentScene = getCurrentScene();
-  console.log('Current scene:', currentScene);
+  if (debugMode) console.log('Current scene:', currentScene);
 
   const selectDefaultLayerForColumn = (columnId: string) => {
     try {
@@ -994,41 +1043,41 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   // Function to move asset between columns on double-click
   const handleDoubleClickMove = (sourceLayer: any, sourceColumnId: string, targetColumnId: string, targetLayerNum: number) => {
-    console.log('handleDoubleClickMove called with:', { sourceLayer, sourceColumnId, targetColumnId, targetLayerNum });
+    if (debugMode) console.log('handleDoubleClickMove called with:', { sourceLayer, sourceColumnId, targetColumnId, targetLayerNum });
     try {
       if (!sourceLayer || !sourceLayer.asset) {
-        console.log('No source layer or asset');
+        if (debugMode) console.log('No source layer or asset');
         return;
       }
       
       const currentScene = getCurrentScene();
       if (!currentScene) {
-        console.log('No current scene found');
+        if (debugMode) console.log('No current scene found');
         return;
       }
 
       const sourceColumn = currentScene.columns.find((col: any) => col.id === sourceColumnId);
       const targetColumn = currentScene.columns.find((col: any) => col.id === targetColumnId);
       
-      console.log('Source column:', sourceColumn);
-      console.log('Target column:', targetColumn);
+      if (debugMode) console.log('Source column:', sourceColumn);
+      if (debugMode) console.log('Target column:', targetColumn);
       
       if (!sourceColumn || !targetColumn) {
-        console.log('Source or target column not found');
+        if (debugMode) console.log('Source or target column not found');
         return;
       }
 
       // Find the source layer index
       const sourceLayerIndex = sourceColumn.layers.findIndex((layer: any) => layer.id === sourceLayer.id);
-      console.log('Source layer index:', sourceLayerIndex);
+      if (debugMode) console.log('Source layer index:', sourceLayerIndex);
       if (sourceLayerIndex === -1) {
-        console.log('Source layer not found in source column');
+        if (debugMode) console.log('Source layer not found in source column');
         return;
       }
 
       // Find the target layer index (or create a new layer if none exists)
       let targetLayerIndex = targetColumn.layers.findIndex((layer: any) => layer.layerNum === targetLayerNum);
-      console.log('Target layer index:', targetLayerIndex);
+      if (debugMode) console.log('Target layer index:', targetLayerIndex);
       
       if (targetLayerIndex === -1) {
         // Create a new layer at the target position
@@ -1042,7 +1091,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         // Insert at the correct position based on layerNum
         const insertIndex = targetColumn.layers.filter((l: any) => l.layerNum < targetLayerNum).length;
         targetColumn.layers.splice(insertIndex, 0, newLayer);
-        console.log('Created new layer at index:', insertIndex);
+        if (debugMode) console.log('Created new layer at index:', insertIndex);
       } else {
         // Replace existing layer
         const newLayer = {
@@ -1052,18 +1101,18 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           layerNum: targetLayerNum
         };
         targetColumn.layers[targetLayerIndex] = newLayer;
-        console.log('Replaced existing layer at index:', targetLayerIndex);
+        if (debugMode) console.log('Replaced existing layer at index:', targetLayerIndex);
       }
 
       // Remove the source layer
       sourceColumn.layers.splice(sourceLayerIndex, 1);
-      console.log('Removed source layer from index:', sourceLayerIndex);
+      if (debugMode) console.log('Removed source layer from index:', sourceLayerIndex);
 
       // Update the scene
       const { updateScene: updateSceneFn } = getSceneManagementFunctions();
       updateSceneFn(getCurrentSceneId(), currentScene);
       
-      console.log(`Successfully moved asset from column ${sourceColumnId} to column ${targetColumnId} at layer ${targetLayerNum}`);
+      if (debugMode) console.log(`Successfully moved asset from column ${sourceColumnId} to column ${targetColumnId} at layer ${targetLayerNum}`);
     } catch (error) {
       console.error('Error in handleDoubleClickMove:', error);
     }
@@ -1244,7 +1293,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   const handleDropWrapper = (e: React.DragEvent, columnId: string, layerNum: number) => {
     const wasPlayingThisColumn = playingColumnId === columnId;
-    console.log('🎵 Before drop - Column playing state:', { columnId, wasPlayingThisColumn, playingColumnId });
+    if (debugMode) console.log('Before drop - Column playing state:', { columnId, wasPlayingThisColumn, playingColumnId });
     
     // Snapshot sequence/global play state
     let seqOn = false;
@@ -1281,14 +1330,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     
     // Keep playback running if this column was already playing
     if (wasPlayingThisColumn) {
-      console.log('🎵 Restoring playback for column:', columnId);
+      if (debugMode) console.log('Restoring playback for column:', columnId);
       // Use multiple attempts to ensure playback restoration
       const restorePlayback = (attempts = 0) => {
         const maxAttempts = 3;
         try {
           setIsPlaying(true);
           playColumn(columnId);
-          console.log('🎵 Playback restored successfully for column:', columnId);
+          if (debugMode) console.log('Playback restored successfully for column:', columnId);
         } catch (err) {
           console.warn(`Failed to reassert play after drop (attempt ${attempts + 1}):`, err);
           if (attempts < maxAttempts - 1) {
@@ -1438,7 +1487,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
         const { updateScene: updateSceneFn } = getSceneManagementFunctions();
         updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
-        console.log(`Deleted layer ${contextMenu.layerId} from column ${contextMenu.columnId}`);
+        if (debugMode) console.log(`Deleted layer ${contextMenu.layerId} from column ${contextMenu.columnId}`);
       }
     }
     handleContextMenuClose();
@@ -1485,7 +1534,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
     const { updateScene: updateSceneFn } = getSceneManagementFunctions();
     updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
-    console.log(`Deleted column ${targetId}`);
+    if (debugMode) console.log(`Deleted column ${targetId}`);
 
     handleContextMenuClose();
   };
@@ -1502,7 +1551,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             data: { ...columnToCopy },
             sourceSceneId: currentSceneId
           });
-          console.log(`Copied column ${columnToCopy.name} to clipboard`);
+          if (debugMode) console.log(`Copied column ${columnToCopy.name} to clipboard`);
         }
       }
     }
@@ -1543,7 +1592,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     updatedColumns.splice(insertIndex, 0, pastedColumn);
     const { updateScene: updateSceneFn } = getSceneManagementFunctions();
     updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
-    console.log(`Pasted column ${pastedColumn.name} at column index ${insertIndex}`);
+    if (debugMode) console.log(`Pasted column ${pastedColumn.name} at column index ${insertIndex}`);
 
     handleContextMenuClose();
   };
@@ -1562,7 +1611,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               data: { ...cellToCopy },
               sourceSceneId: currentSceneId
             });
-            console.log(`Copied cell ${cellToCopy.name} to clipboard`);
+            if (debugMode) console.log(`Copied cell ${cellToCopy.name} to clipboard`);
           }
         }
       }
@@ -1612,7 +1661,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
           const { updateScene: updateSceneFn } = getSceneManagementFunctions();
           updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
-          console.log(`Pasted cell ${pastedCell.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
+          if (debugMode) console.log(`Pasted cell ${pastedCell.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
         }
       }
     }
@@ -1633,7 +1682,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               data: { ...layerToCopy },
               sourceSceneId: currentSceneId
             });
-            console.log(`Copied clip ${layerToCopy.asset.name} to clipboard`);
+            if (debugMode) console.log(`Copied clip ${layerToCopy.asset.name} to clipboard`);
           }
         }
       }
@@ -1683,7 +1732,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
         const { updateScene: updateSceneFn } = getSceneManagementFunctions();
         updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
-        console.log(`Pasted clip ${pastedClip.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
+        if (debugMode) console.log(`Pasted clip ${pastedClip.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
         }
       }
     }
@@ -1887,7 +1936,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     }
 
     if (content.type === 'column') {
-      console.log('🎨 Rendering column preview');
+      if (debugMode) console.log('Rendering column preview');
       // Always resolve the latest column from the store so updates are live
       const baseColumn = currentScene?.columns?.find((col: any) => col.id === content.columnId) || content.column;
       // Apply Resolume-style per-layer overrides from store (row-wise),
@@ -1933,14 +1982,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
       // Show the first layer with content as the main preview
       const layersWithContent = (liveColumn?.layers || []).filter((layer: any) => layer.asset);
-      console.log('🎨 Layers with content (live):', layersWithContent);
+      if (debugMode) console.log('Layers with content (live):', layersWithContent);
       
       // If empty, still render the preview canvas area (no instructional text)
 
         // Use the ColumnPreview component with the live column for combined layer rendering
-      console.log('🎨 Rendering combined column preview with p5.js');
-        console.log('🎨 Column data (live):', liveColumn);
-      console.log('🎨 Composition settings:', compositionSettings);
+      if (debugMode) console.log('Rendering combined column preview with p5.js');
+        if (debugMode) console.log('Column data (live):', liveColumn);
+      if (debugMode) console.log('Composition settings:', compositionSettings);
       
               // Calculate aspect ratio dynamically
         const aspectRatio = compositionSettings.width / compositionSettings.height;
@@ -1989,7 +2038,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           </div>
         );
       
-      console.log('🎨 Returning column preview element:', previewElement);
+      if (debugMode) console.log('Returning column preview element:', previewElement);
       return previewElement;
     }
 
@@ -2054,7 +2103,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <TimelineComposer
                     key={`timeline-${compositionSettings.width}x${compositionSettings.height}`}
                     activeClips={activeClips}
-                    isPlaying={isPlaying}
+                    isPlaying={Boolean(content.isPlaying)}
                     currentTime={content.currentTime}
                     width={compositionSettings.width}
                     height={compositionSettings.height}
@@ -2232,7 +2281,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   useEffect(() => {
     if (columnsAdded <= 0) return;
     try {
-      console.log('➕ Added', columnsAdded, 'columns to scene', getCurrentSceneId());
+      if (debugMode) console.log('Added', columnsAdded, 'columns to scene', getCurrentSceneId());
       const { updateScene: updateSceneFn } = getSceneManagementFunctions();
       updateSceneFn(getCurrentSceneId(), { columns });
     } catch {}
@@ -2280,7 +2329,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         .filter((e: any) => e != null);
 
       if (!effectsMigrated) return;
-      console.log('🔄 Migrating global effects to new format');
+      if (debugMode) console.log('Migrating global effects to new format');
       const { updateScene: updateSceneFn } = getSceneManagementFunctions();
       updateSceneFn(getCurrentSceneId(), { globalEffects: migratedEffects });
     } catch {}
@@ -2288,7 +2337,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   }, [currentScene?.globalEffects]);
 
   try {
-    console.log('LayerManager about to render main content');
+    if (debugMode) console.log('LayerManager about to render main content');
     
     // Spacebar play/pause in column mode (match timeline behavior)
     useEffect(() => {
@@ -2460,9 +2509,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       })()}
                       onChange={(e) => {
                         const action = e.target.value as 'loop' | 'play_next' | 'random' | 'stop';
-                        console.log('🎛️ Updating timeline scene end action:', { sceneId: currentTimelineSceneId, action });
+                        if (debugMode) console.log('Updating timeline scene end action:', { sceneId: currentTimelineSceneId, action });
                         updateTimelineScene(currentTimelineSceneId, { endOfSceneAction: action });
-                        console.log('🎛️ Timeline scene updated. Current scenes:', timelineScenes.map((s: any) => ({ id: s.id, name: s.name, endOfSceneAction: s.endOfSceneAction })));
+                        if (debugMode) console.log('Timeline scene updated. Current scenes:', timelineScenes.map((s: any) => ({ id: s.id, name: s.name, endOfSceneAction: s.endOfSceneAction })));
                       }}
                       className="tw-text-xs tw-bg-neutral-800 tw-text-neutral-200 tw-border tw-border-neutral-700 tw-rounded tw-px-2 tw-py-1 tw-min-w-0 tw-flex-shrink-0"
                       title="Action when scene ends"
@@ -2669,8 +2718,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       onClick={() => {
                         // Only allow play functionality if column has clips
                         if (hasClips) {
-                          console.log('Column header clicked for column:', column.id);
-                          console.log('Starting/restarting column playback from header');
+                          if (debugMode) console.log('Column header clicked for column:', column.id);
+                          if (debugMode) console.log('Starting/restarting column playback from header');
                           handleColumnPlayWrapper(column.id);
                         }
                       }}
@@ -2720,7 +2769,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
  
                    // Debug logging
                    if (hasAsset && isCellActive) {
-                     console.log('🎯 Active cell detected:', { cellId, columnId: column.id, playingColumnId, isColumnPlaying, isOverriddenActive });
+                     if (debugMode) console.log('Active cell detected:', { cellId, columnId: column.id, playingColumnId, isColumnPlaying, isOverriddenActive });
                    }
  
                    return (
@@ -2744,28 +2793,28 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                          }
                        }}
                        onDoubleClick={() => {
-                         console.log('Double-click detected!', { hasAsset, layer, columnId: column.id, layerNum });
+                         if (debugMode) console.log('Double-click detected!', { hasAsset, layer, columnId: column.id, layerNum });
                          if (hasAsset && layer) {
                            // Find the source column ID by searching through all columns
                            const currentScene = getCurrentScene();
-                           console.log('Current scene:', currentScene);
+                           if (debugMode) console.log('Current scene:', currentScene);
                            if (currentScene) {
                              const sourceColumn = currentScene.columns.find((col: any) => 
                                col.id !== column.id && col.layers.some((l: any) => l.id === layer.id)
                              );
-                             console.log('Source column found:', sourceColumn);
+                             if (debugMode) console.log('Source column found:', sourceColumn);
                              if (sourceColumn) {
-                               console.log('Moving asset from', sourceColumn.id, 'to', column.id, 'at layer', layerNum);
+                               if (debugMode) console.log('Moving asset from', sourceColumn.id, 'to', column.id, 'at layer', layerNum);
                                // Move asset to the target column and layer
                                handleDoubleClickMove(layer, sourceColumn.id, column.id, layerNum);
                              } else {
-                               console.log('No source column found - layer might already be in target column');
+                               if (debugMode) console.log('No source column found - layer might already be in target column');
                                // If no source found, try to move within the same column to a different layer
                                if (layerNum !== layer.layerNum) {
-                                 console.log('Moving within same column to different layer');
+                                 if (debugMode) console.log('Moving within same column to different layer');
                                  handleDoubleClickMove(layer, column.id, column.id, layerNum);
                                } else {
-                                 console.log('Layer is already in the target position - no move needed');
+                                 if (debugMode) console.log('Layer is already in the target position - no move needed');
                                  // For occupied cells, just set the active layer override to switch focus
                                  try {
                                    const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
@@ -2777,7 +2826,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              }
                            }
                          } else {
-                           console.log('Empty cell - setting active layer override');
+                           if (debugMode) console.log('Empty cell - setting active layer override');
                            // For empty cells, just set the active layer override
                            try {
                              const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
@@ -2861,7 +2910,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                                  draggable={false}
                                  className="tw-w-full tw-aspect-video tw-object-cover tw-rounded"
                                  onLoad={() => {
-                                   console.log('Image loaded successfully:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
+                                   if (debugMode) console.log('Image loaded successfully:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
                                  }}
                                  onError={(e) => {
                                    console.error('Failed to load image:', layer.asset.name, 'Path:', getAssetPath(layer.asset));
@@ -3098,7 +3147,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   }}
                 >
                   {(() => {
-                    console.log('🎭 Rendering preview content in preview window');
+                    if (debugMode) console.log('Rendering preview content in preview window');
                     
                     // Always use crossfade-compatible structure to preserve component instances
                     // This prevents black flash when transitioning from normal to crossfade rendering
@@ -3108,7 +3157,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     const forcePlaying = isCrossfading && isGlobalPlaying;
                     
                     if (isActivelyCrossfading) {
-                      console.log('🎨 Rendering crossfade', { progress: crossfadeProgress, isCrossfading, showPreviousContent });
+                      if (debugMode) console.log('Rendering crossfade', { progress: crossfadeProgress, isCrossfading, showPreviousContent });
                     }
                     
                     return (
@@ -3138,8 +3187,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                             zIndex: 2
                           }}
                         >
-                          {/* Only render previous content if we have it, to avoid unnecessary component creation */}
-                          {previousPreviewContent && renderSpecificPreviewContent(previousPreviewContent, forcePlaying, 'previous')}
+                          {/* Only render previous content during an actual crossfade. Hidden timelines should not keep videos mounted. */}
+                          {isActivelyCrossfading && previousPreviewContent && renderSpecificPreviewContent(previousPreviewContent, forcePlaying, 'previous')}
                         </div>
                       </div>
                     );
@@ -3414,7 +3463,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
         {/* Context Menu for Column Clips */}
         {(() => {
-          console.log('🖱️ Rendering context menu:', contextMenu);
+          if (debugMode) console.log('Rendering context menu:', contextMenu);
           return null;
         })()}
         {contextMenu.visible && (

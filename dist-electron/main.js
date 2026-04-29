@@ -1306,7 +1306,6 @@ npm run dev:electron</pre>
       console.log(`Trying dev server URL: ${url} (attempt ${nextAttempt})`);
       mainWindow.loadURL(url).then(() => {
         console.log(`Electron loaded renderer from ${url}`);
-        mainWindow?.webContents.openDevTools({ mode: "detach" });
       }).catch((error) => {
         console.warn(`Failed to load ${url}: ${error?.message || error}`);
         const backoff = Math.min(5e3, 1e3 * Math.pow(2, attempt));

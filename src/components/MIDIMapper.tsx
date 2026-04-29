@@ -12,7 +12,7 @@ import GlobalCCMapper from './GlobalCCMapper';
 interface MIDIDeviceOption { value: string; label?: string }
 
 export const MIDIMapper: React.FC = () => {
-  const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1, selectedMIDIDevices, setSelectedMIDIDevices, selectedMIDIOutput, setSelectedMIDIOutput, midiSendClock, setMidiSendClock, midiSendTransport, setMidiSendTransport, scenes, currentSceneId } = useStore() as any;
+  const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1, selectedMIDIDevices, setSelectedMIDIDevices, selectedMIDIOutput, setSelectedMIDIOutput, scenes, currentSceneId } = useStore() as any;
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'mappings' | 'layer-cc' | 'global-cc'>('mappings');
   const [outputOptions, setOutputOptions] = useState<MIDIDeviceOption[]>([]);
@@ -143,19 +143,6 @@ export const MIDIMapper: React.FC = () => {
       }
     } catch {}
   }, [selectedMIDIOutput]);
-
-  // Start/stop 24 PPQN MIDI clock based on the toggle + whether an output is selected
-  useEffect(() => {
-    try {
-      const mgr = MIDIManager.getInstance();
-      if (midiSendClock && selectedMIDIOutput) {
-        mgr.startClock({ sendStart: !!midiSendTransport });
-      } else {
-        mgr.stopClock({ sendStop: !!midiSendTransport });
-      }
-      return () => { try { mgr.stopClock(); } catch {} };
-    } catch {}
-  }, [midiSendClock, selectedMIDIOutput, midiSendTransport]);
 
   const noteOptions = [
     'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
@@ -424,14 +411,6 @@ export const MIDIMapper: React.FC = () => {
                 Install a virtual MIDI port (e.g. loopMIDI) and create one, then click Refresh to route audio sources into Ableton.
               </div>
             )}
-            <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
-              <Label className="tw-text-xs">Send MIDI Clock (24 PPQN)</Label>
-              <Switch checked={!!midiSendClock} onCheckedChange={(val: boolean) => setMidiSendClock(!!val)} />
-            </div>
-            <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
-              <Label className="tw-text-xs">Send Start / Stop with transport</Label>
-              <Switch checked={!!midiSendTransport} onCheckedChange={(val: boolean) => setMidiSendTransport(!!val)} />
-            </div>
             <div className="tw-flex tw-gap-2">
               <Button
                 variant="secondary"

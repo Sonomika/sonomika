@@ -10,8 +10,16 @@ import { debounce } from '../utils/debounce';
 import { LOOP_MODES } from '../constants/video';
 import { useVideoOptionsStore } from '../store/videoOptionsStore';
 
-// If you don't see this in DevTools Console, you're not running the updated code.
-try { console.log('[Sonomika][TimelineComposer] loaded (timeline opacity/blend debug v3)'); } catch {}
+const isTimelineDebugEnabled = () => {
+  try { return !!(globalThis as any).__vj_timeline_debug_enabled__; } catch { return false; }
+};
+
+const timelineDebugLog = (...args: any[]) => {
+  try { if (isTimelineDebugEnabled()) console.log(...args); } catch {}
+};
+
+// Set window.__vj_timeline_debug_enabled__ = true when inspecting timeline rendering.
+timelineDebugLog('[Sonomika][TimelineComposer] loaded (timeline opacity/blend debug v3)');
 
 // Deterministic PRNG for timeline "Random" playback (stable per loop)
 const hashStringToUint32 = (s: string): number => {
@@ -639,6 +647,11 @@ const TimelineScene: React.FC<{
 
   const firstFrameReadyRef = useRef<boolean>(false);
   const frameCounterRef = useRef<number>(0);
+  const activeClipsRef = useRef<any[]>(activeClips);
+
+  useEffect(() => {
+    activeClipsRef.current = activeClips;
+  }, [activeClips]);
 
   // Memoize asset key extraction to avoid recalculating on every render
   const activeAssetKeys = useMemo(() => {
@@ -681,7 +694,7 @@ const TimelineScene: React.FC<{
               img.src = asset.path;
             });
             newImages.set(key, img);
-            console.log(`✅ Image loaded for clip ${clip.name}:`, asset.name);
+            timelineDebugLog(`Image loaded for clip ${clip.name}:`, asset.name);
           } catch (error) {
             console.error(`❌ Failed to load image for clip ${clip.name}:`, error);
           }
@@ -715,7 +728,7 @@ const TimelineScene: React.FC<{
             } catch {}
             globalAssetCacheRef.current.videos.set(key, video);
             newVideos.set(key, video);
-            console.log(`✅ Video manager provided element for clip ${clip.name}:`, asset.name);
+            timelineDebugLog(`Video manager provided element for clip ${clip.name}:`, asset.name);
           } catch (error) {
             console.error(`❌ Failed to load video for clip ${clip.name}:`, error);
           }
@@ -725,7 +738,7 @@ const TimelineScene: React.FC<{
       // Performance optimization: limit to 5 concurrent videos to prevent memory issues
       const MAX_CONCURRENT_VIDEOS = 5;
       if (newVideos.size > MAX_CONCURRENT_VIDEOS) {
-        console.log(`Limiting videos to ${MAX_CONCURRENT_VIDEOS} for better performance`);
+        timelineDebugLog(`Limiting videos to ${MAX_CONCURRENT_VIDEOS} for better performance`);
         const videoArray = Array.from(newVideos.entries());
         const limitedVideos = new Map(videoArray.slice(0, MAX_CONCURRENT_VIDEOS));
         
@@ -826,6 +839,7 @@ const TimelineScene: React.FC<{
 
   // Ensure paused timeline seeks reflect the current playhead position
   useEffect(() => {
+    if (isPlaying) return;
     try {
       assets.videos.forEach((video, assetId) => {
         const activeClip = activeClips.find((clip) => {
@@ -845,7 +859,7 @@ const TimelineScene: React.FC<{
         }
       });
     } catch {}
-  }, [currentTime, activeClips, assets.videos, bpm]);
+  }, [isPlaying, currentTime, activeClips, assets.videos, bpm]);
 
   // Additional video sync check during playback to prevent drift - optimized to reduce overhead
   useEffect(() => {
@@ -853,8 +867,9 @@ const TimelineScene: React.FC<{
 
     // Reduce sync frequency when not actively playing to save CPU
     const syncInterval = setInterval(() => {
+      const latestActiveClips = activeClipsRef.current || [];
       assets.videos.forEach((video, assetId) => {
-        const activeClip = activeClips.find((clip) => {
+        const activeClip = latestActiveClips.find((clip) => {
           const clipAssetId = clip?.asset?.id;
           return clipAssetId != null && String(clipAssetId) === String(assetId);
         });
@@ -920,57 +935,57 @@ const TimelineScene: React.FC<{
   // Helper function to get proper file path for Electron
   const getAssetPath = (asset: any, useForPlayback: boolean = false) => {
     if (!asset) return '';
-    console.log('getAssetPath called with asset:', asset, 'useForPlayback:', useForPlayback);
+    timelineDebugLog('getAssetPath called with asset:', asset, 'useForPlayback:', useForPlayback);
     
     // For video playback, prioritize file paths over blob URLs
     if (useForPlayback && asset.type === 'video') {
       if (asset.filePath) {
         const filePath = toFileURL(asset.filePath);
-        console.log('Using file path for video playback:', filePath);
+        timelineDebugLog('Using file path for video playback:', filePath);
         return filePath;
       }
       if (asset.path && asset.path.startsWith('file://')) {
-        console.log('Using existing file URL for video playback:', asset.path);
+        timelineDebugLog('Using existing file URL for video playback:', asset.path);
         return asset.path;
       }
       if (asset.path && asset.path.startsWith('local-file://')) {
         const filePath = asset.path.replace('local-file://', '');
         const standardPath = toFileURL(filePath);
-        console.log('Converting local-file to file for video playback:', standardPath);
+        timelineDebugLog('Converting local-file to file for video playback:', standardPath);
         return standardPath;
       }
     }
     
     // For thumbnails and other uses, prioritize blob URLs
     if (asset.path && asset.path.startsWith('blob:')) {
-      console.log('Using blob URL:', asset.path);
+      timelineDebugLog('Using blob URL:', asset.path);
       return asset.path;
     }
     
     if (asset.filePath) {
       const filePath = toFileURL(asset.filePath);
-      console.log('Using file protocol:', filePath);
+      timelineDebugLog('Using file protocol:', filePath);
       return filePath;
     }
     
     if (asset.path && asset.path.startsWith('file://')) {
-      console.log('Using existing file URL:', asset.path);
+      timelineDebugLog('Using existing file URL:', asset.path);
       return asset.path;
     }
     
     if (asset.path && asset.path.startsWith('local-file://')) {
       const filePath = asset.path.replace('local-file://', '');
       const standardPath = `file://${filePath}`;
-      console.log('Converting local-file to file:', standardPath);
+      timelineDebugLog('Converting local-file to file:', standardPath);
       return standardPath;
     }
     
     if (asset.path && asset.path.startsWith('data:')) {
-      console.log('Using data URL:', asset.path);
+      timelineDebugLog('Using data URL:', asset.path);
       return asset.path;
     }
     
-    console.log('Using fallback path:', asset.path);
+    timelineDebugLog('Using fallback path:', asset.path);
     return asset.path || '';
   };
 
@@ -1221,7 +1236,7 @@ const TimelineScene: React.FC<{
           const chainWithGlobals: ChainItem[] = enabledGlobals.length > 0
             ? ([...chain, ...enabledGlobals.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {} }))] as ChainItem[])
             : chain;
-          try { console.log('[TimelineScene] Chain', { idx, key: chainKey, items: chainWithGlobals.length }); } catch {}
+          timelineDebugLog('[TimelineScene] Chain', { idx, key: chainKey, items: chainWithGlobals.length });
 
           // Determine crossfade factor based on currentTime proximity to neighboring clip boundaries
           let opacity = 1;
@@ -1274,14 +1289,14 @@ const TimelineScene: React.FC<{
               } else {
                 opacity = sameStructureAsPrev ? 1 : f; // keep full opacity for identical-effect cuts
               }
-              try { console.log('[TimelineScene] Crossfade', { idx, key: chainKey, f: Number(f.toFixed(2)), incoming: isIncoming, outgoing: isOutgoing, holdIncoming: isIncoming && !produced, anyIncomingNotReady, sameVideoAsPrev }); } catch {}
+              timelineDebugLog('[TimelineScene] Crossfade', { idx, key: chainKey, f: Number(f.toFixed(2)), incoming: isIncoming, outgoing: isOutgoing, holdIncoming: isIncoming && !produced, anyIncomingNotReady, sameVideoAsPrev });
 
               // Also render previous chain behind with 1 - f to avoid black at effect-only cuts
               const prevChain = lastChainRef.current as ChainItem[] | null;
               const prevKey = lastChainKeyRef.current;
               const outOpacity = 1 - f;
               if (!sameStructureAsPrev && prevChain && prevKey && prevKey !== chainKey && outOpacity > 0) {
-                try { console.log('[TimelineScene] Prev overlay', { prevKey, key: chainKey, outOpacity: Number(outOpacity.toFixed(2)) }); } catch {}
+                timelineDebugLog('[TimelineScene] Prev overlay', { prevKey, key: chainKey, outOpacity: Number(outOpacity.toFixed(2)) });
                 elements.push(
                   <EffectChain
                     key={`chain-prev-${prevKey}-${idx}`}
@@ -1341,7 +1356,7 @@ const TimelineScene: React.FC<{
           lastChainRef.current = chainWithGlobals;
           lastChainKeyRef.current = chainKey;
           lastStructureKeyRef.current = structureKey;
-          try { console.log('[TimelineScene] Last chain updated', { key: chainKey }); } catch {}
+          timelineDebugLog('[TimelineScene] Last chain updated', { key: chainKey });
         });
 
         // If incoming isn't ready, re-append the last chain so it continues to display beneath overlays
@@ -1444,15 +1459,14 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
   tracks = []
 }) => {
   try { (window as any).__vj_timeline_composer_loaded__ = true; } catch {}
-  try { console.log('[Sonomika][TimelineComposer] render', { activeClips: Array.isArray(activeClips) ? activeClips.length : null, t: currentTime, playing: isPlaying }); } catch {}
+  timelineDebugLog('[Sonomika][TimelineComposer] render', { activeClips: Array.isArray(activeClips) ? activeClips.length : null, t: currentTime, playing: isPlaying });
   const [maskVisible, setMaskVisible] = useState<boolean>(true);
   const [debugText, setDebugText] = useState<string>('');
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const cutOverlayRef = useRef<HTMLDivElement | null>(null);
 
-  // Always-on debug overlay (inline styles so it can't be "invisible" due to CSS/Tailwind issues).
-  // Set window.__vj_timeline_debug_enabled__ = false to hide.
-  const showDebug = typeof window !== 'undefined' ? ((window as any).__vj_timeline_debug_enabled__ !== false) : false;
+  // Opt-in debug overlay for timeline diagnostics.
+  const showDebug = typeof window !== 'undefined' ? ((window as any).__vj_timeline_debug_enabled__ === true) : false;
   useEffect(() => {
     if (!showDebug) return;
     const tick = () => {
@@ -1520,7 +1534,7 @@ const TimelineComposer: React.FC<TimelineComposerProps> = ({
           powerPreference: 'high-performance'
         }}
         onCreated={({ gl, camera }) => {
-          console.log('Timeline R3F Canvas created successfully');
+          timelineDebugLog('Timeline R3F Canvas created successfully');
           try { (gl as any).autoClear = false; } catch {}
           // Keep alpha to let the black container show through and avoid red flashes
           try { (gl as any).setClearColor?.(0x000000, 0); } catch {}

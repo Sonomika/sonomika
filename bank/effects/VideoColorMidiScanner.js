@@ -19,8 +19,10 @@ export const metadata = {
     { name: 'threshold', type: 'number', value: 0.62, min: 0.0, max: 1.0, step: 0.01, description: 'Trigger threshold' },
     { name: 'trackColor', type: 'color', value: '#ffffff', description: 'Color to track; white uses brightness' },
     { name: 'bpmSync', type: 'boolean', value: true, description: 'Use project BPM for scan speed' },
-    { name: 'manualBpm', type: 'number', value: 120, min: 40, max: 220, step: 1, description: 'BPM when sync is off' },
+    { name: 'manualBpm', type: 'number', value: 120, min: 1, max: 220, step: 1, description: 'BPM when sync is off' },
     { name: 'beatsPerSweep', type: 'number', value: 4, min: 1, max: 32, step: 1, description: 'Beats for one left-to-right pass' },
+    { name: 'timelineDirection', type: 'select', value: 'forward', options: ['forward', 'reverse', 'bounce', 'random'], description: 'Timeline scan direction' },
+    { name: 'timelineGlitch', type: 'number', value: 0, min: 0, max: 1, step: 0.01, description: 'Chance of timeline jumps, holds, and reverses' },
     { name: 'rootMidi', type: 'number', value: 48, min: 0, max: 120, step: 1, lockDefault: true },
     { name: 'noteLength', type: 'number', value: 0.12, min: 0.02, max: 2.0, step: 0.01, description: 'MIDI note duration in seconds' },
     { name: 'velocityBoost', type: 'number', value: 1.0, min: 0.1, max: 2.0, step: 0.05, description: 'Velocity multiplier' },
@@ -36,7 +38,6 @@ const OWNER_SLOT = '__VJ_VIDEO_COLOR_MIDI_SCANNER_OWNER__';
 const OWNER_LEASE_MS = 250;
 const LAST_EVENT_SLOT = '__VJ_VIDEO_COLOR_MIDI_SCANNER_LAST__';
 const MIN_EVENT_GAP_MS = 55;
-const MAX_EVENTS_PER_FRAME = 16;
 
 const SCALES = {
   minorPentatonic: [0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24, 27, 29, 31, 34, 36],
@@ -145,6 +146,17 @@ function shouldSendMidiEvent(eventKey) {
   }
 }
 
+function reflectedPhase(phase) {
+  const wrapped = ((phase % 2) + 2) % 2;
+  return wrapped <= 1 ? wrapped : 2 - wrapped;
+}
+
+function displayPhaseForDirection(phase, direction) {
+  if (direction === 'reverse') return 1 - (((phase % 1) + 1) % 1);
+  if (direction === 'bounce') return reflectedPhase(phase);
+  return ((phase % 1) + 1) % 1;
+}
+
 export default function VideoColorMidiScanner({
   lanes = 8,
   steps = 64,
@@ -154,6 +166,8 @@ export default function VideoColorMidiScanner({
   bpmSync = true,
   manualBpm = 120,
   beatsPerSweep = 4,
+  timelineDirection = 'forward',
+  timelineGlitch = 0,
   rootMidi = 48,
   noteLength = 0.12,
   velocityBoost = 1.0,
@@ -176,7 +190,11 @@ export default function VideoColorMidiScanner({
   const labelRefs = useRef([]);
   const ownerKeyRef = useRef(null);
   const scanPhaseRef = useRef(0);
+  const glitchPhaseRef = useRef(null);
+  const glitchHoldRef = useRef(0);
+  const glitchReverseRef = useRef(false);
   const previousStepRef = useRef(-1);
+  const lastTriggeredNoteRef = useRef(null);
   const pulsesRef = useRef([]);
   const labelStatesRef = useRef([]);
 
@@ -221,7 +239,11 @@ export default function VideoColorMidiScanner({
     const key = `video-color-midi-scanner-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     ownerKeyRef.current = key;
     previousStepRef.current = -1;
+    lastTriggeredNoteRef.current = null;
     scanPhaseRef.current = 0;
+    glitchPhaseRef.current = null;
+    glitchHoldRef.current = 0;
+    glitchReverseRef.current = false;
     pulsesRef.current = new Array(laneCount).fill(0);
     labelStatesRef.current = new Array(laneCount).fill(0).map(() => ({ x: 0, y: 0, pulse: 0, flash: 0 }));
     try {
@@ -353,11 +375,39 @@ export default function VideoColorMidiScanner({
     const setBpm = (globalThis && Number.isFinite(globalThis.VJ_BPM)) ? Number(globalThis.VJ_BPM) : 120;
     const bpm = Math.max(1, bpmSync ? setBpm : Number(manualBpm || 120));
     const sweepBeats = Math.max(1, Math.floor(beatsPerSweep || 4));
-    scanPhaseRef.current = (scanPhaseRef.current + dt * (bpm / 60) / sweepBeats) % 1;
+    const glitchAmount = clamp01(timelineGlitch);
+    const phaseSpan = timelineDirection === 'bounce' ? 2 : 1;
+    const directionSign = glitchReverseRef.current ? -1 : 1;
 
-    const scanStep = Math.max(0, Math.min(stepCount - 1, Math.floor(scanPhaseRef.current * stepCount)));
+    if (glitchHoldRef.current > 0) {
+      glitchHoldRef.current = Math.max(0, glitchHoldRef.current - dt);
+    } else {
+      scanPhaseRef.current = (scanPhaseRef.current + directionSign * dt * (bpm / 60) / sweepBeats + phaseSpan) % phaseSpan;
+    }
+
+    if (glitchAmount > 0 && Math.random() < glitchAmount * dt * 2.2) {
+      const roll = Math.random();
+      if (roll < 0.38) {
+        glitchPhaseRef.current = Math.random();
+      } else if (roll < 0.68) {
+        glitchHoldRef.current = 0.035 + Math.random() * 0.18 * glitchAmount;
+      } else {
+        glitchReverseRef.current = !glitchReverseRef.current;
+      }
+    }
+
+    if (glitchAmount > 0 && glitchPhaseRef.current !== null) {
+      glitchPhaseRef.current += (Math.random() - 0.5) * glitchAmount * 0.08;
+      if (Math.random() < 0.12) glitchPhaseRef.current = null;
+    }
+
+    const baseDisplayPhase = timelineDirection === 'random'
+      ? (glitchPhaseRef.current !== null ? glitchPhaseRef.current : Math.random())
+      : displayPhaseForDirection(scanPhaseRef.current, timelineDirection);
+    const displayPhase = clamp01(glitchPhaseRef.current !== null ? glitchPhaseRef.current : baseDisplayPhase);
+    const scanStep = Math.max(0, Math.min(stepCount - 1, Math.floor(displayPhase * stepCount)));
     if (playheadRef.current) {
-      const x = -aspect + scanPhaseRef.current * aspect * 2;
+      const x = -aspect + displayPhase * aspect * 2;
       playheadRef.current.visible = !!showOverlay;
       playheadRef.current.position.set(x, 0, 0.2);
       playheadRef.current.scale.set(worldPerPixelX * overlayLinePixels, 2, 1);
@@ -410,7 +460,7 @@ export default function VideoColorMidiScanner({
     const targetColor = parseColor(trackColor);
     const triggerThreshold = clamp01(threshold);
     const eventBase = `${ownerKeyRef.current || 'scanner'}:${scanStep}`;
-    let sentCount = 0;
+    let bestHit = null;
 
     for (let lane = 0; lane < laneCount; lane++) {
       const row = laneCount - 1 - lane;
@@ -418,37 +468,51 @@ export default function VideoColorMidiScanner({
       const score = clamp01(scorePixel(pixelBufferRef.current, idx, targetColor));
       if (score < triggerThreshold) continue;
 
+      if (!bestHit || score > bestHit.score) {
+        bestHit = { lane, idx, score };
+      }
+    }
+
+    if (!bestHit) {
+      lastTriggeredNoteRef.current = null;
+    } else {
+      const lane = bestHit.lane;
+      const score = bestHit.score;
+      const idx = bestHit.idx;
       const note = midiForLane(lane, laneCount, rootMidi, 'chromatic');
       const velocity = clamp01(0.25 + ((score - triggerThreshold) / Math.max(0.001, 1 - triggerThreshold)) * 0.75) * Math.max(0.1, velocityBoost);
       const eventKey = `${eventBase}:${lane}:${note}`;
       const sampleColor = pixelHex(pixelBufferRef.current, idx);
+      const isRepeat = lastTriggeredNoteRef.current === note;
 
-      if (midi && midi.sendNote && shouldSendMidiEvent(eventKey) && sentCount < MAX_EVENTS_PER_FRAME) {
-        try {
-          midi.sendNote(note, clamp01(velocity), channel, durMs);
-          sentCount++;
-        } catch (_) {}
-      }
+      if (!isRepeat) {
+        lastTriggeredNoteRef.current = note;
+        if (midi && midi.sendNote && shouldSendMidiEvent(eventKey)) {
+          try {
+            midi.sendNote(note, clamp01(velocity), channel, durMs);
+          } catch (_) {}
+        }
 
-      pulsesRef.current[lane] = Math.max(pulsesRef.current[lane] || 0, clamp01(score));
-      const labelState = labelStatesRef.current[lane];
-      if (labelState) {
-        const tLane = laneCount > 1 ? lane / (laneCount - 1) : 0.5;
-        const labelHalfWidth = worldPerPixelX * 56;
-        const labelGap = worldPerPixelX * 10;
-        const scanX = -aspect + (scanStep + 0.5) / stepCount * aspect * 2;
-        labelState.x = Math.max(-aspect + labelHalfWidth, Math.min(aspect - labelHalfWidth, scanX + labelHalfWidth + labelGap));
-        labelState.y = Math.max(-0.92, Math.min(0.92, 1 - tLane * 2 + 0.07));
-        labelState.pulse = 1;
-        labelState.flash = 1;
-      }
-      if (labelResources && labelResources.canvases && labelResources.textures) {
-        updateLabelTexture(
-          labelResources.canvases[lane],
-          labelResources.textures[lane],
-          `${sampleColor} ${midiToNoteLabel(note)}`,
-          sampleColor
-        );
+        pulsesRef.current[lane] = Math.max(pulsesRef.current[lane] || 0, clamp01(score));
+        const labelState = labelStatesRef.current[lane];
+        if (labelState) {
+          const tLane = laneCount > 1 ? lane / (laneCount - 1) : 0.5;
+          const labelHalfWidth = worldPerPixelX * 56;
+          const labelGap = worldPerPixelX * 10;
+          const scanX = -aspect + displayPhase * aspect * 2;
+          labelState.x = Math.max(-aspect + labelHalfWidth, Math.min(aspect - labelHalfWidth, scanX + labelHalfWidth + labelGap));
+          labelState.y = Math.max(-0.92, Math.min(0.92, 1 - tLane * 2 + 0.07));
+          labelState.pulse = 1;
+          labelState.flash = 1;
+        }
+        if (labelResources && labelResources.canvases && labelResources.textures) {
+          updateLabelTexture(
+            labelResources.canvases[lane],
+            labelResources.textures[lane],
+            `${sampleColor} ${midiToNoteLabel(note)}`,
+            sampleColor
+          );
+        }
       }
     }
 
