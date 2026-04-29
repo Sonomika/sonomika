@@ -5,13 +5,14 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Data Matrix (Audio)',
+  name: 'Data Matrix (MIDI)',
   description: 'Scanning binary grid in the tradition of Ryoji Ikeda test-pattern works. A vertical playhead sweeps left to right; every lit cell it crosses fires a precisely pitched sine pulse (row = frequency).',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'gridCols', type: 'number', value: 48, min: 12, max: 96, step: 1 },
     { name: 'gridRows', type: 'number', value: 12, min: 4, max: 24, step: 1 },
@@ -23,8 +24,6 @@ export const metadata = {
     { name: 'evolveSec', type: 'number', value: 0, min: 0, max: 30, step: 0.5, description: 're-randomize pattern every N seconds (0 = static)' },
     { name: 'jitter', type: 'number', value: 0, min: 0, max: 1, step: 0.02, description: 'pitch jitter (cents scatter per strike)' },
     { name: 'accent', type: 'color', value: '#ffffff' },
-    { name: 'volume', type: 'number', value: -20, min: -40, max: 0, step: 1 },
-    { name: 'soundOn', type: 'boolean', value: true },
     { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (notes match each row frequency)' },
     { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
@@ -60,9 +59,7 @@ export default function DataMatrixAudioSource({
   evolveSec = 0,
   jitter = 0,
   accent = '#ffffff',
-  volume = -20,
-  soundOn = true,
-  sendMidi = false,
+  sendMidi = true,
   midiChannel = 1,
 }) {
   if (!React || !THREE || !r3f) return null;
@@ -78,7 +75,6 @@ export default function DataMatrixAudioSource({
   const instRef = useRef(null);
   const scanRef = useRef(null);
   const bgRef = useRef(null);
-  const toneRef = useRef(null);
 
   const scanPosRef = useRef(0);
   const lastColRef = useRef(-1);
@@ -93,48 +89,6 @@ export default function DataMatrixAudioSource({
     lastColRef.current = -1;
     evolveTimerRef.current = 0;
   }, [cols, rows, density]);
-
-  // --- Tone setup: one sine voice per row, straight to destination ---
-  useEffect(() => {
-    const Tone = globalThis.Tone;
-    if (!Tone) return;
-    const voices = [];
-    try {
-      const dur = Math.max(0.008, Math.min(0.25, pulseMs / 1000));
-      for (let r = 0; r < rows; r++) {
-        const v = new Tone.Synth({
-          oscillator: { type: 'sine' },
-          envelope: {
-            attack: 0.001,
-            decay: dur * 0.8,
-            sustain: 0,
-            release: Math.max(0.005, dur * 0.2),
-          },
-        });
-        try { v.toDestination(); } catch (_) {}
-        try { v.volume.value = soundOn ? volume : -60; } catch (_) {}
-        voices.push(v);
-      }
-      toneRef.current = { Tone, voices };
-    } catch (e) {
-      try { console.warn('DataMatrix Tone init failed:', e); } catch (_) {}
-    }
-    return () => {
-      voices.forEach((v) => {
-        try { v.triggerRelease && v.triggerRelease(); } catch (_) {}
-        try { v.dispose(); } catch (_) {}
-      });
-      toneRef.current = null;
-    };
-  }, [rows, pulseMs]);
-
-  useEffect(() => {
-    const t = toneRef.current;
-    if (!t) return;
-    (t.voices || []).forEach((v) => {
-      try { v.volume.value = soundOn ? volume : -60; } catch (_) {}
-    });
-  }, [volume, soundOn]);
 
   // --- Instance geometry / material ---
   const cellW = (2 * halfW) / cols;
@@ -188,8 +142,6 @@ export default function DataMatrixAudioSource({
     const pulse = pulseRef.current;
     if (!mesh || !pattern || !pulse) return;
 
-    const t = toneRef.current;
-
     // Advance scan
     scanPosRef.current += delta * scanRate;
     while (scanPosRef.current >= cols) scanPosRef.current -= cols;
@@ -208,15 +160,6 @@ export default function DataMatrixAudioSource({
     // When the scan crosses a new integer column, fire pulses for lit cells in that column
     if (curCol !== lastColRef.current) {
       lastColRef.current = curCol;
-      let ready = false;
-      let now = 0;
-      if (t && soundOn) {
-        try {
-          if (t.Tone.context.state === 'suspended') t.Tone.context.resume();
-        } catch (_) {}
-        ready = (() => { try { return t.Tone.context.state !== 'suspended'; } catch (_) { return false; } })();
-        now = ready ? t.Tone.now() : 0;
-      }
       const dur = Math.max(0.005, pulseMs / 1000);
       const midi = sendMidi ? (globalThis && globalThis.VJ_MIDI) : null;
       const ch = Math.max(1, Math.min(16, Math.round(midiChannel)));
@@ -229,12 +172,6 @@ export default function DataMatrixAudioSource({
           if (jitter > 0) {
             const cents = (Math.random() * 2 - 1) * 100 * jitter;
             f *= Math.pow(2, cents / 1200);
-          }
-          if (t && soundOn && ready) {
-            const voice = t.voices && t.voices[r];
-            if (voice) {
-              try { voice.triggerAttackRelease(f, dur, now); } catch (_) {}
-            }
           }
           if (midi && midi.sendNote) {
             try {
@@ -292,6 +229,8 @@ export default function DataMatrixAudioSource({
       React.createElement('planeGeometry', { args: [halfW * 2 + 0.2, halfH * 2 + 0.2] }),
       React.createElement('meshBasicMaterial', {
         color: '#000000',
+        transparent: true,
+        opacity: 0,
         depthTest: false,
         depthWrite: false,
       })

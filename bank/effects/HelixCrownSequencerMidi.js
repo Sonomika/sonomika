@@ -6,11 +6,12 @@ const { useRef, useMemo, useEffect } = React || {};
 export const metadata = {
   name: 'Helix Crown Sequencer (MIDI)',
   description: 'A 3D orbital sequencer: glowing note nodes spiral around stacked rings while a rotating light blade sweeps the crown and fires MIDI notes.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'lanes', type: 'number', value: 6, min: 3, max: 10, step: 1 },
     { name: 'steps', type: 'number', value: 12, min: 6, max: 24, step: 1 },

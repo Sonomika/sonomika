@@ -5,25 +5,35 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Musical Rain (Audio)',
+  name: 'Musical Rain (MIDI)',
   description: 'Particles fall from top; when they hit bottom, play a note based on their X position (pitch).',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'numParticles', type: 'number', value: 30, min: 5, max: 100, step: 5 },
     { name: 'fallSpeed', type: 'number', value: 1.5, min: 0.5, max: 5.0, step: 0.1 },
     { name: 'spawnRate', type: 'number', value: 2.0, min: 0.5, max: 10.0, step: 0.5 },
     { name: 'color', type: 'color', value: '#66aaff' },
     { name: 'particleSize', type: 'number', value: 0.03, min: 0.01, max: 0.1, step: 0.005 },
-    { name: 'volume', type: 'number', value: -12, min: -24, max: 0, step: 1 },
-    { name: 'soundOn', type: 'boolean', value: true },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected output' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
 
 // Map X position (-1 to 1) to note (C3 to C6)
+function noteNameToMidi(note) {
+  const match = String(note || '').match(/^([A-G])([#b]?)(-?\d+)$/);
+  if (!match) return 60;
+  const base = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[match[1]];
+  const accidental = match[2] === '#' ? 1 : match[2] === 'b' ? -1 : 0;
+  const octave = Number(match[3]);
+  return Math.max(0, Math.min(127, Math.round((octave + 1) * 12 + base + accidental)));
+}
+
 function positionToNote(x, minX, maxX) {
   const normalized = (x - minX) / (maxX - minX); // 0 to 1
   const octave = 3 + Math.floor(normalized * 3); // 3, 4, or 5
@@ -32,14 +42,14 @@ function positionToNote(x, minX, maxX) {
   return notes[noteInOctave] + octave;
 }
 
-export default function MusicalRainAudioSource({
+export default function MusicalRainMidiEffect({
   numParticles = 30,
   fallSpeed = 1.5,
   spawnRate = 2.0,
   color = '#66aaff',
   particleSize = 0.03,
-  volume = -12,
-  soundOn = true,
+  sendMidi = true,
+  midiChannel = 1,
 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
@@ -50,31 +60,10 @@ export default function MusicalRainAudioSource({
 
   const instancedRef = useRef(null);
   const particlesRef = useRef([]);
-  const toneRef = useRef(null);
   const spawnTimerRef = useRef(0);
   const soundTriggeredThisFrameRef = useRef(false);
   const dummy = useMemo(() => THREE ? new THREE.Object3D() : null, []);
 
-  useEffect(() => {
-    const Tone = globalThis.Tone;
-    if (!Tone) return;
-    try {
-      const synth = new Tone.Synth({
-        oscillator: { type: 'sine' },
-        envelope: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.4 },
-      }).toDestination();
-      synth.volume.value = volume;
-      toneRef.current = { Tone, synth };
-    } catch (e) {
-      try { console.warn('MusicalRain Tone init failed:', e); } catch (_) {}
-    }
-    return () => {
-      if (toneRef.current) {
-        try { toneRef.current.synth.dispose(); } catch (_) {}
-        toneRef.current = null;
-      }
-    };
-  }, []);
 
   const geometry = useMemo(() => new THREE.CircleGeometry(particleSize * 0.5, 12), [particleSize]);
   const material = useMemo(
@@ -101,7 +90,6 @@ export default function MusicalRainAudioSource({
   useFrame((state, delta) => {
     if (!instancedRef.current) return;
     const particles = particlesRef.current;
-    const t = toneRef.current;
     soundTriggeredThisFrameRef.current = false;
 
     spawnTimerRef.current += delta * spawnRate;
@@ -122,15 +110,16 @@ export default function MusicalRainAudioSource({
       if (p.y <= bottomY) {
         p.y = bottomY;
         p.active = false;
-        if (soundOn && t && !soundTriggeredThisFrameRef.current) {
-          try {
-            if (t.Tone.context.state === 'suspended') t.Tone.context.resume();
-            if (t.Tone.context.state !== 'suspended') {
+        if (sendMidi && !soundTriggeredThisFrameRef.current) {
+          const midi = globalThis && globalThis.VJ_MIDI;
+          if (midi && midi.sendNote) {
+            try {
               const note = positionToNote(p.x, leftX, rightX);
-              t.synth.triggerAttackRelease(note, '8n');
+              const channel = Math.max(1, Math.min(16, Math.round(midiChannel)));
+              midi.sendNote(noteNameToMidi(note), 0.8, channel, 240);
               soundTriggeredThisFrameRef.current = true;
-            }
-          } catch (_) {}
+            } catch (_) {}
+          }
         }
         particles.splice(i, 1);
       }

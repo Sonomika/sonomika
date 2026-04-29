@@ -5,21 +5,22 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Bouncing Note Particles (Audio)',
+  name: 'Bouncing Note Particles (MIDI)',
   description: 'Circles bounce off each other and the walls; a note plays only when two circles hit (not on wall bounce).',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'numParticles', type: 'number', value: 24, min: 1, max: 80, step: 2 },
     { name: 'particleSize', type: 'number', value: 0.04, min: 0.01, max: 0.12, step: 0.005 },
     { name: 'speed', type: 'number', value: 1.2, min: 0.3, max: 4.0, step: 0.1 },
     { name: 'color', type: 'color', value: '#88ddff' },
     { name: 'scale', type: 'select', value: 'pentatonic', options: ['pentatonic', 'major', 'minor', 'blues', 'chromatic', 'dorian'] },
-    { name: 'soundOn', type: 'boolean', value: true },
-    { name: 'volume', type: 'number', value: -10, min: -24, max: 0, step: 1 },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected output' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
 
@@ -33,6 +34,15 @@ const SCALES = {
   dorian: ['C3', 'D3', 'Eb3', 'F3', 'G3', 'A3', 'Bb3', 'C4', 'D4', 'Eb4', 'F4', 'G4', 'A4', 'Bb4', 'C5'],
 };
 
+function noteNameToMidi(note) {
+  const match = String(note || '').match(/^([A-G])([#b]?)(-?\d+)$/);
+  if (!match) return 60;
+  const base = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[match[1]];
+  const accidental = match[2] === '#' ? 1 : match[2] === 'b' ? -1 : 0;
+  const octave = Number(match[3]);
+  return Math.max(0, Math.min(127, Math.round((octave + 1) * 12 + base + accidental)));
+}
+
 function randomNote(scaleKey) {
   const notes = SCALES[scaleKey] || SCALES.pentatonic;
   return notes[Math.floor(Math.random() * notes.length)];
@@ -44,8 +54,8 @@ export default function BouncingNoteParticlesSource({
   speed = 1.2,
   color = '#88ddff',
   scale = 'pentatonic',
-  soundOn = true,
-  volume = -10,
+  sendMidi = true,
+  midiChannel = 1,
 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
@@ -60,7 +70,6 @@ export default function BouncingNoteParticlesSource({
   const overlappingPairsRef = useRef(new Set());
   const flashRef = useRef([]);
   const frameCountRef = useRef(0);
-  const toneRef = useRef(null);
   const scaleNotesRef = useRef(null); // cache scale notes array
   const soundTriggeredThisFrameRef = useRef(false); // only one sound per frame
   const normalVecRef = useRef(new THREE.Vector2()); // reuse vector to avoid allocations
@@ -70,25 +79,6 @@ export default function BouncingNoteParticlesSource({
     return n;
   }, [numParticles]);
 
-  useEffect(() => {
-    const Tone = globalThis.Tone;
-    if (!Tone) return;
-    try {
-      const synth = new Tone.Synth({
-        envelope: { attack: 0.01, decay: 0.15, sustain: 0.2, release: 0.3 },
-      }).toDestination();
-      synth.volume.value = volume;
-      toneRef.current = { Tone, synth };
-    } catch (e) {
-      try { console.warn('BouncingNoteParticles Tone init failed:', e); } catch (_) {}
-    }
-    return () => {
-      if (toneRef.current) {
-        try { toneRef.current.synth.dispose(); } catch (_) {}
-        toneRef.current = null;
-      }
-    };
-  }, []);
 
   // Cache scale notes when scale changes
   useEffect(() => {
@@ -154,7 +144,6 @@ export default function BouncingNoteParticlesSource({
 
     frameCountRef.current += 1;
     const dt = delta * speed;
-    const t = toneRef.current;
     const prevOverlapping = overlappingPairsRef.current;
     const overlappingNow = new Set();
     soundTriggeredThisFrameRef.current = false; // reset sound flag each frame
@@ -203,15 +192,16 @@ export default function BouncingNoteParticlesSource({
           v2.y += dv * n.y;
           const isNewCollision = !prevOverlapping.has(key);
           const wasApproaching = approach > 0.02;
-          if (isNewCollision && wasApproaching && frameCountRef.current > 30 && soundOn && t && !soundTriggeredThisFrameRef.current) {
-            try {
-              if (t.Tone.context.state === 'suspended') t.Tone.context.resume();
-              if (t.Tone.context.state !== 'suspended') {
+          if (isNewCollision && wasApproaching && frameCountRef.current > 30 && sendMidi && !soundTriggeredThisFrameRef.current) {
+            const midi = globalThis && globalThis.VJ_MIDI;
+            if (midi && midi.sendNote) {
+              try {
                 const note = scaleNotes[Math.floor(Math.random() * scaleNotes.length)];
-                t.synth.triggerAttackRelease(note, '16n');
-                soundTriggeredThisFrameRef.current = true; // only one sound per frame
-              }
-            } catch (_) {}
+                const channel = Math.max(1, Math.min(16, Math.round(midiChannel)));
+                midi.sendNote(noteNameToMidi(note), 0.8, channel, 120);
+                soundTriggeredThisFrameRef.current = true; // only one MIDI note per frame
+              } catch (_) {}
+            }
           }
           if (isNewCollision && wasApproaching) {
             if (flashRef.current.length > i) flashRef.current[i] = 1;

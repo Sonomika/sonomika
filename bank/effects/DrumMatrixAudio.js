@@ -5,13 +5,14 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Drum Matrix (Audio)',
+  name: 'Drum Matrix (MIDI)',
   description: '16-step drum-machine grid locked to the project BPM. Rows are fixed drum voices (kick, snare, toms, rim, clap, closed hat, open hat). A playhead sweeps left to right and triggers every lit cell.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'steps', type: 'number', value: 16, min: 4, max: 32, step: 1 },
     { name: 'density', type: 'number', value: 0.2, min: 0, max: 0.8, step: 0.02, description: 'random fills on top of base pattern' },
@@ -21,8 +22,6 @@ export const metadata = {
     { name: 'swing', type: 'number', value: 0.0, min: 0, max: 0.5, step: 0.02 },
     { name: 'evolveBars', type: 'number', value: 0, min: 0, max: 16, step: 1, description: 're-randomize every N bars (0 = static)' },
     { name: 'showBeats', type: 'boolean', value: true },
-    { name: 'volume', type: 'number', value: -10, min: -30, max: 0, step: 1 },
-    { name: 'soundOn', type: 'boolean', value: true },
     { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (e.g. Ableton via loopMIDI)' },
     { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true, description: 'defaults to channel 1 unless you change it' },
   ],
@@ -85,125 +84,6 @@ function buildPattern(steps, density) {
   return pat;
 }
 
-function buildKit(Tone) {
-  // All voices connect directly to destination via a shared master gain.
-  const master = new Tone.Gain(1).toDestination();
-
-  // 0: Kick
-  const kick = new Tone.MembraneSynth({
-    pitchDecay: 0.04,
-    octaves: 6,
-    envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.4 },
-  });
-  kick.volume.value = -3;
-  kick.connect(master);
-
-  // 1: Snare (body + noise)
-  const snBody = new Tone.Synth({
-    oscillator: { type: 'triangle' },
-    envelope: { attack: 0.001, decay: 0.09, sustain: 0, release: 0.02 },
-  });
-  snBody.volume.value = -16;
-  snBody.connect(master);
-  const snNoise = new Tone.NoiseSynth({
-    noise: { type: 'white' },
-    envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.02 },
-  });
-  const snHP = new Tone.Filter(1800, 'highpass');
-  snNoise.connect(snHP);
-  snHP.connect(master);
-  snNoise.volume.value = -8;
-
-  // 2: Low tom
-  const loTom = new Tone.MembraneSynth({
-    pitchDecay: 0.08,
-    octaves: 3,
-    envelope: { attack: 0.001, decay: 0.45, sustain: 0, release: 0.2 },
-  });
-  loTom.volume.value = -6;
-  loTom.connect(master);
-
-  // 3: Hi tom
-  const hiTom = new Tone.MembraneSynth({
-    pitchDecay: 0.05,
-    octaves: 2.5,
-    envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.15 },
-  });
-  hiTom.volume.value = -6;
-  hiTom.connect(master);
-
-  // 4: Rim / click
-  const rim = new Tone.Synth({
-    oscillator: { type: 'square' },
-    envelope: { attack: 0.001, decay: 0.02, sustain: 0, release: 0.005 },
-  });
-  rim.volume.value = -10;
-  rim.connect(master);
-
-  // 5: Clap (two very close noise bursts)
-  const clNoise = new Tone.NoiseSynth({
-    noise: { type: 'white' },
-    envelope: { attack: 0.001, decay: 0.13, sustain: 0, release: 0.02 },
-  });
-  const clBP = new Tone.Filter(1100, 'bandpass');
-  clBP.Q.value = 1.2;
-  clNoise.connect(clBP);
-  clBP.connect(master);
-  clNoise.volume.value = -6;
-
-  // 6: Closed hat (short filtered noise)
-  const chNoise = new Tone.NoiseSynth({
-    noise: { type: 'white' },
-    envelope: { attack: 0.001, decay: 0.035, sustain: 0, release: 0.01 },
-  });
-  const chHP = new Tone.Filter(7000, 'highpass');
-  chNoise.connect(chHP);
-  chHP.connect(master);
-  chNoise.volume.value = -14;
-
-  // 7: Open hat (long filtered noise)
-  const ohNoise = new Tone.NoiseSynth({
-    noise: { type: 'white' },
-    envelope: { attack: 0.001, decay: 0.28, sustain: 0, release: 0.06 },
-  });
-  const ohHP = new Tone.Filter(6000, 'highpass');
-  ohNoise.connect(ohHP);
-  ohHP.connect(master);
-  ohNoise.volume.value = -16;
-
-  const triggers = [
-    (now, vel) => kick.triggerAttackRelease('C1', '8n', now, vel),
-    (now, vel) => {
-      snBody.triggerAttackRelease(220, 0.02, now, vel);
-      snNoise.triggerAttackRelease(0.08, now, vel);
-    },
-    (now, vel) => loTom.triggerAttackRelease('F1', '8n', now, vel),
-    (now, vel) => hiTom.triggerAttackRelease('A2', '8n', now, vel),
-    (now, vel) => rim.triggerAttackRelease(1600, 0.015, now, vel),
-    (now, vel) => {
-      clNoise.triggerAttackRelease(0.04, now, vel);
-      clNoise.triggerAttackRelease(0.04, now + 0.015, vel * 0.9);
-      clNoise.triggerAttackRelease(0.04, now + 0.03, vel * 0.8);
-    },
-    (now, vel) => chNoise.triggerAttackRelease(0.03, now, vel * 0.6),
-    (now, vel) => ohNoise.triggerAttackRelease(0.26, now, vel * 0.55),
-  ];
-
-  const nodes = [
-    kick,
-    snBody, snNoise, snHP,
-    loTom,
-    hiTom,
-    rim,
-    clNoise, clBP,
-    chNoise, chHP,
-    ohNoise, ohHP,
-    master,
-  ];
-
-  return { triggers, nodes, master };
-}
-
 export default function DrumMatrixAudioSource({
   steps = 16,
   density = 0.2,
@@ -213,9 +93,7 @@ export default function DrumMatrixAudioSource({
   swing = 0.0,
   evolveBars = 0,
   showBeats = true,
-  volume = -10,
-  soundOn = true,
-  sendMidi = false,
+  sendMidi = true,
   midiChannel = 10,
 }) {
   if (!React || !THREE || !r3f) return null;
@@ -231,7 +109,6 @@ export default function DrumMatrixAudioSource({
   const scanRef = useRef(null);
   const bgRef = useRef(null);
   const beatMarkersRef = useRef(null);
-  const kitRef = useRef(null);
 
   const scanPosRef = useRef(0);
   const lastColRef = useRef(-1);
@@ -246,40 +123,6 @@ export default function DrumMatrixAudioSource({
     lastColRef.current = -1;
     barsSinceEvolveRef.current = 0;
   }, [S, density]);
-
-  // --- Tone kit setup ---
-  useEffect(() => {
-    const Tone = globalThis.Tone;
-    if (!Tone) return;
-    let kit = null;
-    try {
-      kit = buildKit(Tone);
-      try { kit.master.gain.value = soundOn ? Tone.dbToGain(volume) : 0.0001; } catch (_) {}
-      kitRef.current = { Tone, kit };
-    } catch (e) {
-      try { console.warn('DrumMatrix Tone init failed:', e); } catch (_) {}
-    }
-    return () => {
-      if (kit && kit.nodes) {
-        kit.nodes.forEach((n) => {
-          try { n.triggerRelease && n.triggerRelease(); } catch (_) {}
-          try { n.dispose && n.dispose(); } catch (_) {}
-        });
-      }
-      kitRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const k = kitRef.current;
-    if (!k || !k.kit) return;
-    try {
-      k.kit.master.gain.rampTo(
-        soundOn ? k.Tone.dbToGain(volume) : 0.0001,
-        0.08
-      );
-    } catch (_) {}
-  }, [volume, soundOn]);
 
   // --- Grid visuals: instanced cells ---
   const cellW = (2 * halfW) / S;
@@ -345,7 +188,6 @@ export default function DrumMatrixAudioSource({
     const pulse = pulseRef.current;
     if (!mesh || !pattern || !pulse) return;
 
-    const k = kitRef.current;
 
     // Compute scan rate from BPM
     const setBpm = (globalThis && Number.isFinite(globalThis.VJ_BPM)) ? Number(globalThis.VJ_BPM) : 120;
@@ -380,15 +222,6 @@ export default function DrumMatrixAudioSource({
     // Trigger drums on column boundary crossing
     if (curCol !== lastColRef.current) {
       lastColRef.current = curCol;
-      let ready = false;
-      let now = 0;
-      if (k && k.Tone) {
-        try {
-          if (k.Tone.context.state === 'suspended') k.Tone.context.resume();
-          ready = k.Tone.context.state !== 'suspended';
-          if (ready) now = k.Tone.now();
-        } catch (_) {}
-      }
       const midi = sendMidi ? (globalThis && globalThis.VJ_MIDI) : null;
       const ch = Math.max(1, Math.min(16, Math.round(midiChannel)));
       for (let r = 0; r < ROWS; r++) {
@@ -396,12 +229,6 @@ export default function DrumMatrixAudioSource({
         if (pattern[idx] === 1) {
           pulse[idx] = 1.0;
           const vel = 0.7 + Math.random() * 0.3;
-          if (soundOn && ready && k && k.kit) {
-            try {
-              const trig = k.kit.triggers[r];
-              if (trig) trig(now, vel);
-            } catch (_) {}
-          }
           if (midi && midi.sendNote) {
             try { midi.sendNote(ROW_MIDI_NOTES[r], vel, ch, 40); } catch (_) {}
           }
@@ -448,6 +275,8 @@ export default function DrumMatrixAudioSource({
       React.createElement('planeGeometry', { args: [halfW * 2 + 0.2, halfH * 2 + 0.2] }),
       React.createElement('meshBasicMaterial', {
         color: '#000000',
+        transparent: true,
+        opacity: 0,
         depthTest: false,
         depthWrite: false,
       })

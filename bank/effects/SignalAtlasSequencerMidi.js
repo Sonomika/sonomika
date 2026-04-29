@@ -6,11 +6,12 @@ const { useMemo, useRef, useEffect } = React || {};
 export const metadata = {
   name: 'Signal Atlas Sequencer (MIDI)',
   description: 'A hyper-dense technical sequencer made of numbered nodes, scan rows, grid lines, and cross-linked signal webs. A descending scan band triggers nodes and sends MIDI.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'lanes', type: 'number', value: 6, min: 3, max: 10, step: 1 },
     { name: 'steps', type: 'number', value: 14, min: 6, max: 24, step: 1 },

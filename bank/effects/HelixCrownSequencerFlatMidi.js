@@ -5,12 +5,13 @@ const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
   name: 'Helix Crown Sequencer Flat (MIDI)',
-  description: 'A flat minimal version of the crown sequencer: concentric rings of note dots with a clean radial sweep that fires MIDI notes.',
-  category: 'Sources',
+  description: 'A flat minimal overlay sequencer: concentric rings of note dots with a clean radial sweep that fires MIDI notes.',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'lanes', type: 'number', value: 6, min: 3, max: 10, step: 1 },
     { name: 'steps', type: 'number', value: 12, min: 6, max: 24, step: 1 },
@@ -22,7 +23,9 @@ export const metadata = {
     { name: 'rootMidi', type: 'number', value: 36, min: 24, max: 72, step: 1, lockDefault: true },
     { name: 'noteLength', type: 'number', value: 0.22, min: 0.03, max: 2.0, step: 0.01 },
     { name: 'rotateOffset', type: 'number', value: 0.18, min: -1.5, max: 1.5, step: 0.05, description: 'angular offset between rings' },
-    { name: 'dotColor', type: 'color', value: '#7ce7ff' },
+    { name: 'overallScale', type: 'number', value: 0.72, min: 0.2, max: 1.5, step: 0.01, description: 'overall overlay size' },
+    { name: 'lineThickness', type: 'number', value: 0.5, min: 0.15, max: 3.0, step: 0.05, description: 'thickness multiplier for rings and sweep line' },
+    { name: 'dotColor', type: 'color', value: '#ffffff' },
     { name: 'sweepColor', type: 'color', value: '#ffffff' },
     { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output' },
     { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
@@ -86,7 +89,7 @@ function buildPattern(stepCount, laneCount, density) {
   return pat;
 }
 
-export default function HelixCrownSequencerFlatMidiSource({
+export default function HelixCrownSequencerFlatMidiEffect({
   lanes = 6,
   steps = 12,
   density = 0.34,
@@ -97,7 +100,9 @@ export default function HelixCrownSequencerFlatMidiSource({
   rootMidi = 48,
   noteLength = 0.22,
   rotateOffset = 0.18,
-  dotColor = '#7ce7ff',
+  overallScale = 0.72,
+  lineThickness = 0.5,
+  dotColor = '#ffffff',
   sweepColor = '#ffffff',
   sendMidi = true,
   midiChannel = 1,
@@ -108,6 +113,8 @@ export default function HelixCrownSequencerFlatMidiSource({
   const laneCount = Math.max(3, Math.floor(lanes));
   const stepCount = Math.max(6, Math.floor(steps));
   const totalNodes = laneCount * stepCount;
+  const scaleValue = Math.max(0.2, Math.min(1.5, Number(overallScale) || 0.72));
+  const thicknessValue = Math.max(0.15, Math.min(3, Number(lineThickness) || 0.5));
 
   const sweepPivotRef = useRef(null);
   const sweepRef = useRef(null);
@@ -198,16 +205,22 @@ export default function HelixCrownSequencerFlatMidiSource({
   }), []);
   useEffect(() => () => { try { dotMat.dispose(); } catch (_) {} }, [dotMat]);
 
-  const ringGeom = useMemo(() => new THREE.RingGeometry(0.985, 1.0, 96), []);
+  const ringGeom = useMemo(() => {
+    const width = 0.015 * thicknessValue;
+    return new THREE.RingGeometry(Math.max(0.001, 1 - width), 1.0, 96);
+  }, [thicknessValue]);
   useEffect(() => () => { try { ringGeom.dispose(); } catch (_) {} }, [ringGeom]);
 
-  const sweepGeom = useMemo(() => new THREE.PlaneGeometry(1.65, 0.035), []);
+  const sweepGeom = useMemo(() => new THREE.PlaneGeometry(1.65, 0.035 * thicknessValue), [thicknessValue]);
   useEffect(() => () => { try { sweepGeom.dispose(); } catch (_) {} }, [sweepGeom]);
 
-  const coreGeom = useMemo(() => new THREE.CircleGeometry(0.05, 24), []);
+  const coreGeom = useMemo(() => new THREE.CircleGeometry(0.05 * thicknessValue, 24), [thicknessValue]);
   useEffect(() => () => { try { coreGeom.dispose(); } catch (_) {} }, [coreGeom]);
 
-  const flashGeom = useMemo(() => new THREE.RingGeometry(0.92, 1.0, 48), []);
+  const flashGeom = useMemo(() => {
+    const width = 0.08 * thicknessValue;
+    return new THREE.RingGeometry(Math.max(0.001, 1 - width), 1.0, 48);
+  }, [thicknessValue]);
   useEffect(() => () => { try { flashGeom.dispose(); } catch (_) {} }, [flashGeom]);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -217,6 +230,15 @@ export default function HelixCrownSequencerFlatMidiSource({
   const tmpColor = useMemo(() => new THREE.Color(), []);
 
   useFrame((state, delta) => {
+    try {
+      if (state && state.scene) state.scene.background = null;
+      if (state && state.gl) {
+        state.gl.setClearColor(0x000000, 0);
+        if (typeof state.gl.setClearAlpha === 'function') state.gl.setClearAlpha(0);
+        if (state.gl.domElement) state.gl.domElement.style.background = 'transparent';
+      }
+    } catch (_) {}
+
     const dt = Math.min(0.1, Math.max(0, delta || 0));
     const mesh = nodesRef.current;
     const pattern = patternRef.current;
@@ -316,9 +338,9 @@ export default function HelixCrownSequencerFlatMidiSource({
         const p = pulse[i];
         const stepDistance = Math.abs(((angle - sweepAngle + Math.PI) % TAU) - Math.PI);
         const sweepGlow = Math.max(0, 1 - stepDistance / 0.24);
-        const scaleValue = (active ? 0.34 : 0.12) + p * 0.4 + sweepGlow * (active ? 0.08 : 0.02);
+        const nodeScale = (active ? 0.34 : 0.12) + p * 0.4 + sweepGlow * (active ? 0.08 : 0.02);
         dummy.position.set(x, y, 0);
-        dummy.scale.setScalar(scaleValue);
+        dummy.scale.setScalar(nodeScale);
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
 
@@ -356,7 +378,7 @@ export default function HelixCrownSequencerFlatMidiSource({
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
-  return React.createElement('group', null,
+  return React.createElement('group', { scale: [scaleValue, scaleValue, scaleValue] },
     React.createElement('group', { ref: sweepPivotRef },
       React.createElement('mesh', { ref: sweepRef, position: [0.82, 0, 0] },
         React.createElement('primitive', { object: sweepGeom, attach: 'geometry' }),

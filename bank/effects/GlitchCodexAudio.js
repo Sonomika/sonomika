@@ -5,13 +5,14 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Glitch Codex (Audio)',
+  name: 'Glitch Codex (MIDI)',
   description: 'Auto-composing glitch drum machine in the spirit of Ryoji Ikeda. A bank of 8 polyrhythmic voices (sub, click, blip, noise burst, stutter, metal, ring, grain) is arranged into multi-section songs that re-generate automatically. Rhythms are built from Euclidean patterns with per-section moods (null / grid / poly / wall / signal / reduction).',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'steps', type: 'number', value: 16, min: 8, max: 32, step: 1, description: 'steps per bar' },
     { name: 'barsPerSection', type: 'number', value: 8, min: 2, max: 32, step: 1 },
@@ -20,9 +21,6 @@ export const metadata = {
     { name: 'bpmSync', type: 'boolean', value: true },
     { name: 'manualBpm', type: 'number', value: 128, min: 60, max: 220, step: 1 },
     { name: 'intensity', type: 'number', value: 1.0, min: 0, max: 1.0, step: 0.05, description: 'hit probability multiplier' },
-    { name: 'crush', type: 'number', value: 0.55, min: 0, max: 1, step: 0.05, description: 'bit-crush amount on clicks/ring' },
-    { name: 'volume', type: 'number', value: -10, min: -30, max: 0, step: 1 },
-    { name: 'soundOn', type: 'boolean', value: true },
     { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (route a virtual port into Ableton)' },
     { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
     { name: 'midiNoteBase', type: 'number', value: 36, min: 0, max: 108, step: 1, description: 'lowest voice note (ascending chromatically per row)' },
@@ -167,118 +165,6 @@ function genSong(steps, sectionsPerSong) {
   return { sections };
 }
 
-function buildVoices(Tone) {
-  const master = new Tone.Gain(1);
-  const limiter = new Tone.Limiter(-2);
-  master.connect(limiter);
-  limiter.toDestination();
-
-  const crushA = new Tone.BitCrusher(4);
-  crushA.connect(master);
-  const crushB = new Tone.BitCrusher(3);
-  crushB.connect(master);
-
-  // 0: SUB — low sine thud
-  const sub = new Tone.Synth({
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.001, decay: 0.22, sustain: 0, release: 0.1 },
-  });
-  sub.volume.value = -2;
-  sub.connect(master);
-
-  // 1: CLK — bitcrushed noise click
-  const clk = new Tone.NoiseSynth({
-    noise: { type: 'white' },
-    envelope: { attack: 0.0001, decay: 0.004, sustain: 0 },
-  });
-  const clkHP = new Tone.Filter(3500, 'highpass');
-  clk.connect(clkHP);
-  clkHP.connect(crushA);
-  clk.volume.value = -6;
-
-  // 2: BLP — high sine blip
-  const blp = new Tone.Synth({
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.0003, decay: 0.02, sustain: 0, release: 0.005 },
-  });
-  blp.volume.value = -10;
-  blp.connect(master);
-
-  // 3: NZB — bandpass pink noise burst
-  const nzb = new Tone.NoiseSynth({
-    noise: { type: 'pink' },
-    envelope: { attack: 0.003, decay: 0.08, sustain: 0 },
-  });
-  const nzbBP = new Tone.Filter(800, 'bandpass');
-  nzbBP.Q.value = 3;
-  nzb.connect(nzbBP);
-  nzbBP.connect(master);
-  nzb.volume.value = -4;
-
-  // 4: STR — stuttering membrane repeats
-  const str = new Tone.MembraneSynth({
-    pitchDecay: 0.01,
-    octaves: 2,
-    envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.02 },
-  });
-  str.volume.value = -6;
-  str.connect(master);
-
-  // 5: MTL — inharmonic FM ping
-  const mtl = new Tone.FMSynth({
-    harmonicity: 3.3,
-    modulationIndex: 12,
-    oscillator: { type: 'sine' },
-    modulation: { type: 'square' },
-    envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.02 },
-    modulationEnvelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.01 },
-  });
-  mtl.volume.value = -10;
-  mtl.connect(master);
-
-  // 6: RNG — pitched square through heavy bitcrush
-  const rng = new Tone.Synth({
-    oscillator: { type: 'square' },
-    envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.02 },
-  });
-  rng.volume.value = -14;
-  rng.connect(crushB);
-
-  // 7: GRN — ultra-short white noise grain
-  const grn = new Tone.NoiseSynth({
-    noise: { type: 'white' },
-    envelope: { attack: 0.0001, decay: 0.003, sustain: 0 },
-  });
-  grn.volume.value = -14;
-  grn.connect(master);
-
-  const triggers = [
-    (now, vel) => {
-      try { sub.triggerAttackRelease(44 + randInt(0, 28), 0.12, now, Math.min(1, vel * 1.1)); } catch (_) {}
-    },
-    (now, vel) => { try { clk.triggerAttackRelease(0.006, now, vel); } catch (_) {} },
-    (now, vel) => { try { blp.triggerAttackRelease(3500 + randInt(0, 5000), 0.012, now, vel); } catch (_) {} },
-    (now, vel) => { try { nzb.triggerAttackRelease(0.04 + Math.random() * 0.06, now, vel); } catch (_) {} },
-    (now, vel) => {
-      const reps = 2 + randInt(0, 3);
-      const stepDur = 0.02 + Math.random() * 0.015;
-      for (let i = 0; i < reps; i++) {
-        try { str.triggerAttackRelease(70 + randInt(0, 140), 0.02, now + i * stepDur, vel * Math.pow(0.76, i)); } catch (_) {}
-      }
-    },
-    (now, vel) => { try { mtl.triggerAttackRelease(400 + randInt(0, 1800), 0.05, now, vel); } catch (_) {} },
-    (now, vel) => { try { rng.triggerAttackRelease(randInt(180, 900), 0.08, now, vel); } catch (_) {} },
-    (now, vel) => { try { grn.triggerAttackRelease(0.004, now, vel); } catch (_) {} },
-  ];
-
-  const nodes = [
-    sub, clk, clkHP, blp, nzb, nzbBP, str, mtl, rng, grn,
-    crushA, crushB, master, limiter,
-  ];
-
-  return { triggers, nodes, master, crushA, crushB };
-}
-
 export default function GlitchCodexAudioSource({
   steps = 16,
   barsPerSection = 8,
@@ -287,10 +173,7 @@ export default function GlitchCodexAudioSource({
   bpmSync = true,
   manualBpm = 128,
   intensity = 1.0,
-  crush = 0.55,
-  volume = -10,
-  soundOn = true,
-  sendMidi = false,
+  sendMidi = true,
   midiChannel = 10,
   midiNoteBase = 36,
 }) {
@@ -305,58 +188,10 @@ export default function GlitchCodexAudioSource({
   const BPS = Math.max(1, Math.floor(barsPerSection));
   const SPS = Math.max(1, Math.floor(sectionsPerSong));
 
-  const kitRef = useRef(null);
   const songRef = useRef(null);
   const posRef = useRef({ step: 0, bar: 0, section: 0, fractional: 0 });
   const lastStepRef = useRef(-1);
   const pulseRef = useRef(null);
-
-  // Tone kit
-  useEffect(() => {
-    const Tone = globalThis.Tone;
-    if (!Tone) return;
-    let kit = null;
-    try {
-      kit = buildVoices(Tone);
-      try { kit.master.gain.value = soundOn ? Tone.dbToGain(volume) : 0.0001; } catch (_) {}
-      kitRef.current = { Tone, kit };
-    } catch (e) {
-      try { console.warn('GlitchCodex init failed:', e); } catch (_) {}
-    }
-    return () => {
-      if (kit && kit.nodes) {
-        kit.nodes.forEach((n) => {
-          try { n.triggerRelease && n.triggerRelease(); } catch (_) {}
-          try { n.dispose && n.dispose(); } catch (_) {}
-        });
-      }
-      kitRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const k = kitRef.current;
-    if (!k || !k.kit) return;
-    try {
-      k.kit.master.gain.rampTo(soundOn ? k.Tone.dbToGain(volume) : 0.0001, 0.1);
-    } catch (_) {}
-  }, [volume, soundOn]);
-
-  useEffect(() => {
-    const k = kitRef.current;
-    if (!k || !k.kit) return;
-    try {
-      const bitsA = Math.max(1, Math.round(16 - crush * 12));
-      const bitsB = Math.max(1, Math.round(16 - crush * 14));
-      if (k.kit.crushA.bits && typeof k.kit.crushA.bits.value !== 'undefined') {
-        k.kit.crushA.bits.value = bitsA;
-        k.kit.crushB.bits.value = bitsB;
-      } else {
-        k.kit.crushA.bits = bitsA;
-        k.kit.crushB.bits = bitsB;
-      }
-    } catch (_) {}
-  }, [crush]);
 
   // Song init / regen when layout changes
   useEffect(() => {
@@ -454,7 +289,6 @@ export default function GlitchCodexAudioSource({
     const song = songRef.current;
     if (!mesh || !pulse || !song) return;
 
-    const k = kitRef.current;
     const pos = posRef.current;
 
     const setBpm = (globalThis && Number.isFinite(globalThis.VJ_BPM)) ? Number(globalThis.VJ_BPM) : 128;
@@ -486,15 +320,6 @@ export default function GlitchCodexAudioSource({
 
       const section = songRef.current && songRef.current.sections[pos.section];
       if (section) {
-        let ready = false;
-        let now = 0;
-        if (k && k.Tone) {
-          try {
-            if (k.Tone.context.state === 'suspended') k.Tone.context.resume();
-            ready = k.Tone.context.state !== 'suspended';
-            if (ready) now = k.Tone.now();
-          } catch (_) {}
-        }
         const midi = sendMidi ? (globalThis && globalThis.VJ_MIDI) : null;
         const ch = Math.max(1, Math.min(16, Math.round(midiChannel)));
         const baseNote = Math.max(0, Math.min(108, Math.round(midiNoteBase)));
@@ -504,12 +329,6 @@ export default function GlitchCodexAudioSource({
             const cellIdx = v * S + curStep;
             pulse[cellIdx] = 1.0;
             const vel = 0.5 + Math.random() * 0.5;
-            if (soundOn && ready && k && k.kit) {
-              try {
-                const trig = k.kit.triggers[v];
-                if (trig) trig(now, vel);
-              } catch (_) {}
-            }
             if (midi && midi.sendNote) {
               try { midi.sendNote(baseNote + v, vel, ch, 40); } catch (_) {}
             }
@@ -565,6 +384,8 @@ export default function GlitchCodexAudioSource({
       React.createElement('planeGeometry', { args: [halfW * 2 + 0.2, halfH * 2 + 0.2] }),
       React.createElement('meshBasicMaterial', {
         color: '#000000',
+        transparent: true,
+        opacity: 0,
         depthTest: false,
         depthWrite: false,
       })

@@ -6,11 +6,12 @@ const { useMemo, useRef, useState, useEffect } = React || {};
 export const metadata = {
   name: 'Snake Note Hunter (MIDI)',
   description: 'A snake patrols a board and eats glowing note pellets. Every pellet eaten sends one MIDI note.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'lanes', type: 'number', value: 6, min: 3, max: 10, step: 1, description: 'number of pitch lanes / pellet colors' },
     { name: 'boardCols', type: 'number', value: 18, min: 8, max: 32, step: 1 },

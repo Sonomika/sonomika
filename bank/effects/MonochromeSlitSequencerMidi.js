@@ -6,11 +6,12 @@ const { useMemo, useRef, useEffect } = React || {};
 export const metadata = {
   name: 'Monochrome Slit Sequencer (MIDI)',
   description: 'A minimal black-and-white glitch sequencer made of barcode slits, scan beams, and jump-cut motion.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'lanes', type: 'number', value: 7, min: 3, max: 12, step: 1 },
     { name: 'steps', type: 'number', value: 24, min: 8, max: 48, step: 1 },

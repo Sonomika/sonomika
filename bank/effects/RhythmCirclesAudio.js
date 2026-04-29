@@ -5,65 +5,48 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Rhythm Circles (Audio)',
+  name: 'Rhythm Circles (MIDI)',
   description: 'Concentric circles pulse with BPM; each ring plays a note when it pulses.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'numRings', type: 'number', value: 5, min: 2, max: 12, step: 1 },
     { name: 'color', type: 'color', value: '#ff88cc' },
     { name: 'intensity', type: 'number', value: 0.8, min: 0.2, max: 1.5, step: 0.1 },
-    { name: 'volume', type: 'number', value: -10, min: -24, max: 0, step: 1 },
-    { name: 'soundOn', type: 'boolean', value: true },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected output' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
+
+function noteNameToMidi(note) {
+  const match = String(note || '').match(/^([A-G])([#b]?)(-?\d+)$/);
+  if (!match) return 60;
+  const base = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[match[1]];
+  const accidental = match[2] === '#' ? 1 : match[2] === 'b' ? -1 : 0;
+  const octave = Number(match[3]);
+  return Math.max(0, Math.min(127, Math.round((octave + 1) * 12 + base + accidental)));
+}
 
 // Notes for each ring (pentatonic scale)
 const RING_NOTES = ['C3', 'E3', 'G3', 'C4', 'E4', 'G4', 'C5', 'E5', 'G5', 'C6', 'E6', 'G6'];
 
-export default function RhythmCirclesAudioSource({
+export default function RhythmCirclesMidiEffect({
   numRings = 5,
   color = '#ff88cc',
   intensity = 0.8,
-  volume = -10,
-  soundOn = true,
+  sendMidi = true,
+  midiChannel = 1,
 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
   const groupRef = useRef(null);
   const ringRefs = useRef([]);
-  const toneRef = useRef(null);
   const lastBeatRef = useRef(-1);
 
-  useEffect(() => {
-    const Tone = globalThis.Tone;
-    if (!Tone) return;
-    try {
-      const synths = [];
-      for (let i = 0; i < numRings; i++) {
-        const synth = new Tone.Synth({
-          oscillator: { type: 'sine' },
-          envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.3 },
-        }).toDestination();
-        synth.volume.value = volume - i * 2;
-        synths.push(synth);
-      }
-      toneRef.current = { Tone, synths };
-    } catch (e) {
-      try { console.warn('RhythmCircles Tone init failed:', e); } catch (_) {}
-    }
-    return () => {
-      if (toneRef.current) {
-        toneRef.current.synths.forEach(s => {
-          try { s.dispose(); } catch (_) {}
-        });
-        toneRef.current = null;
-      }
-    };
-  }, [numRings, volume]);
 
   if (ringRefs.current.length < numRings) {
     while (ringRefs.current.length < numRings) {
@@ -79,16 +62,16 @@ export default function RhythmCirclesAudioSource({
     const currentBeat = Math.floor(beatTime);
     const beatPhase = beatTime % 1;
 
-    const t = toneRef.current;
-    if (t && soundOn && currentBeat !== lastBeatRef.current) {
+    if (currentBeat !== lastBeatRef.current) {
       lastBeatRef.current = currentBeat;
       const ringIndex = currentBeat % numRings;
-      try {
-        if (t.Tone.context.state === 'suspended') t.Tone.context.resume();
-        if (t.Tone.context.state !== 'suspended' && t.synths[ringIndex]) {
-          t.synths[ringIndex].triggerAttackRelease(RING_NOTES[ringIndex] || 'C4', '8n');
-        }
-      } catch (_) {}
+      const midi = sendMidi ? (globalThis && globalThis.VJ_MIDI) : null;
+      if (midi && midi.sendNote) {
+        try {
+          const channel = Math.max(1, Math.min(16, Math.round(midiChannel)));
+          midi.sendNote(noteNameToMidi(RING_NOTES[ringIndex] || 'C4'), 0.8, channel, 240);
+        } catch (_) {}
+      }
     }
 
     const baseRadius = 0.3;

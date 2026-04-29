@@ -6,11 +6,12 @@ const { useMemo, useRef, useEffect } = React || {};
 export const metadata = {
   name: 'Wireframe Mountain Sequencer (MIDI)',
   description: 'A rotating layered contour mountain where a vertical scan slice lights ridge points and sends MIDI.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'lanes', type: 'number', value: 7, min: 3, max: 12, step: 1 },
     { name: 'steps', type: 'number', value: 18, min: 8, max: 32, step: 1 },

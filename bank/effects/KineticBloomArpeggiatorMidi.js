@@ -6,11 +6,12 @@ const { useMemo, useRef, useEffect } = React || {};
 export const metadata = {
   name: 'Kinetic Bloom Arpeggiator (MIDI)',
   description: 'An arpeggiator visualized as a clear flat note chart with a moving playhead.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'notes', type: 'number', value: 4, min: 2, max: 8, step: 1, description: 'notes per octave in the arpeggio pool' },
     { name: 'octaves', type: 'number', value: 2, min: 1, max: 4, step: 1, description: 'how many octaves the arpeggio spans' },

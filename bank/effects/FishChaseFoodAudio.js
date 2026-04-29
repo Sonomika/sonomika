@@ -1,18 +1,19 @@
-// sonomika template – fish chase and eat morphing food with complex layered audio
+// sonomika template – fish chase and eat morphing food with complex layered MIDI
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Fish Chase Food (Complex Audio)',
+  name: 'Fish Chase Food (MIDI)',
   description:
-    'Boids-style fish chase morphing food particles. Food changes type/color near fish; layered spatial audio triggers on EAT events with ambience.',
-  category: 'Sources',
+    'Boids-style fish chase morphing food particles. Food changes type/color near fish; layered MIDI triggers on EAT events with ambience.',
+  category: 'Effects',
   author: 'VJ',
   version: '2.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'numFish', type: 'number', value: 50, min: 3, max: 50, step: 1 },
     { name: 'maxFood', type: 'number', value: 25, min: 10, max: 160, step: 5 },
@@ -30,10 +31,9 @@ export const metadata = {
     { name: 'fishSize', type: 'number', value: 0.025, min: 0.02, max: 0.09, step: 0.005 },
     { name: 'foodSize', type: 'number', value: 0.055, min: 0.01, max: 0.06, step: 0.005 },
     { name: 'scale', type: 'select', value: 'pentatonic', options: ['pentatonic', 'major', 'minor', 'dorian', 'mixolydian', 'chromatic'] },
-    { name: 'soundOn', type: 'boolean', value: true },
-    { name: 'volume', type: 'number', value: -10, min: -24, max: 0, step: 1 },
-    { name: 'reverbWet', type: 'number', value: 0.25, min: 0.0, max: 0.85, step: 0.05 },
-    { name: 'delayMix', type: 'number', value: 0.18, min: 0.0, max: 0.7, step: 0.02 },
+    { name: 'rootMidi', type: 'number', value: 48, min: 24, max: 72, step: 1, lockDefault: true },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected output when fish eat food' },
+    { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
 
@@ -74,7 +74,7 @@ function pickScaleDegree(scaleName, index) {
   return degrees[i];
 }
 
-export default function FishChaseFoodAudioSource({
+export default function FishChaseFoodMidiEffect({
   numFish = 50,
   maxFood = 25,
   foodSpawnRate = 2.2,
@@ -91,10 +91,9 @@ export default function FishChaseFoodAudioSource({
   fishSize = 0.025,
   foodSize = 0.055,
   scale = 'pentatonic',
-  soundOn = true,
-  volume = -10,
-  reverbWet = 0.25,
-  delayMix = 0.18,
+  rootMidi = 48,
+  sendMidi = true,
+  midiChannel = 1,
 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
@@ -115,133 +114,12 @@ export default function FishChaseFoodAudioSource({
   const spawnAccRef = useRef(0);
   const lastSoundAtRef = useRef(0);
 
-  const toneRef = useRef(null);
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
 
   const dummyFish = useMemo(() => new THREE.Object3D(), []);
   const dummyFood = useMemo(() => new THREE.Object3D(), []);
   const dummyBubble = useMemo(() => new THREE.Object3D(), []);
-
-  // ---- audio graph setup -----------------------------------------------------
-  useEffect(() => {
-    const Tone = globalThis.Tone;
-    if (!Tone) return;
-    try {
-      const master = new Tone.Gain(1);
-      const limiter = new Tone.Limiter(-1);
-      const reverb = new Tone.Reverb({ decay: 3.2, preDelay: 0.02, wet: reverbWet });
-      const delay = new Tone.FeedbackDelay({ delayTime: '8n', feedback: 0.25, wet: delayMix });
-      master.connect(delay);
-      delay.connect(reverb);
-      reverb.connect(limiter);
-      limiter.toDestination();
-
-      const makeVoice = (kind) => {
-        const panner = new Tone.Panner(0);
-        const filter = new Tone.Filter({ type: 'lowpass', frequency: 1800, Q: 0.9 });
-        const chan = new Tone.Gain(1);
-        panner.connect(filter);
-        filter.connect(chan);
-        chan.connect(master);
-        let synth;
-        if (kind === 'pluck') {
-          synth = new Tone.PluckSynth({ attackNoise: 0.8, dampening: 2500, resonance: 0.88 });
-        } else if (kind === 'fm') {
-          synth = new Tone.FMSynth({
-            harmonicity: 2,
-            modulationIndex: 8,
-            oscillator: { type: 'triangle' },
-            envelope: { attack: 0.005, decay: 0.12, sustain: 0.15, release: 0.22 },
-            modulation: { type: 'sine' },
-            modulationEnvelope: { attack: 0.01, decay: 0.08, sustain: 0.0, release: 0.15 },
-          });
-        } else if (kind === 'drum') {
-          synth = new Tone.MembraneSynth({
-            pitchDecay: 0.02,
-            octaves: 4,
-            envelope: { attack: 0.001, decay: 0.12, sustain: 0.0, release: 0.08 },
-          });
-        } else if (kind === 'metal') {
-          synth = new Tone.MetalSynth({
-            frequency: 220,
-            envelope: { attack: 0.001, decay: 0.14, release: 0.05 },
-            harmonicity: 3.1,
-            modulationIndex: 32,
-            resonance: 3500,
-            octaves: 1.2,
-          });
-        } else if (kind === 'noise') {
-          synth = new Tone.NoiseSynth({
-            noise: { type: 'pink' },
-            envelope: { attack: 0.001, decay: 0.12, sustain: 0.0, release: 0.05 },
-          });
-        } else {
-          synth = new Tone.Synth({
-            oscillator: { type: 'sine' },
-            envelope: { attack: 0.01, decay: 0.15, sustain: 0.2, release: 0.25 },
-          });
-        }
-        synth.connect(panner);
-        return { kind, panner, filter, chan, synth };
-      };
-
-      const voices = [
-        makeVoice('pluck'),
-        makeVoice('fm'),
-        makeVoice('pluck'),
-        makeVoice('drum'),
-        makeVoice('metal'),
-        makeVoice('noise'),
-      ];
-      let voiceIndex = 0;
-
-      const volT = clamp01((Number(volume) + 24) / 24);
-      const voiceMul = lerp(0.35, 1.0, volT);
-      for (const v of voices) v.chan.gain.value = voiceMul;
-
-      toneRef.current = {
-        Tone,
-        master,
-        limiter,
-        reverb,
-        delay,
-        voices,
-        nextVoice: () => {
-          const v = voices[voiceIndex % voices.length];
-          voiceIndex = (voiceIndex + 1) % voices.length;
-          return v;
-        },
-      };
-    } catch (e) {
-      try { console.warn('FishChaseFood complex Tone init failed:', e); } catch (_) {}
-      toneRef.current = null;
-    }
-
-    return () => {
-      const t = toneRef.current;
-      toneRef.current = null;
-      if (!t) return;
-      try {
-        for (const v of (t.voices || [])) {
-          try { v.synth.dispose(); v.panner.dispose(); v.filter.dispose(); v.chan.dispose(); } catch (_) {}
-        }
-        try { t.delay.dispose(); t.reverb.dispose(); t.limiter.dispose(); t.master.dispose(); } catch (_) {}
-      } catch (_) {}
-    };
-  }, []);
-
-  useEffect(() => {
-    const t = toneRef.current;
-    if (!t) return;
-    try { t.reverb.wet.value = clamp(Number(reverbWet) || 0, 0, 1); } catch (_) {}
-    try { t.delay.wet.value = clamp(Number(delayMix) || 0, 0, 1); } catch (_) {}
-    try {
-      const volT = clamp01((Number(volume) + 24) / 24);
-      const voiceMul = lerp(0.35, 1.0, volT);
-      for (const v of t.voices) v.chan.gain.value = voiceMul;
-    } catch (_) {}
-  }, [reverbWet, delayMix, volume]);
 
   // ---- geometry/material -----------------------------------------------------
   const fishGeometry = useMemo(() => new THREE.CircleGeometry(fishSize * 0.5, 14), [fishSize]);
@@ -331,62 +209,25 @@ export default function FishChaseFoodAudioSource({
   const maxFoodClamped = Math.max(10, Math.min(200, Math.floor(Number(maxFood) || 70)));
   const maxBubbles = 120;
 
-  function maybeResumeAudio(t) {
-    if (!t) return false;
-    try {
-      if (t.Tone.context.state === 'suspended') t.Tone.context.resume();
-      return t.Tone.context.state !== 'suspended';
-    } catch (_) {
-      return false;
-    }
-  }
 
-  function triggerEatSound({ x, y, fishIndex, foodType, energy, hunger }) {
-    if (!soundOn) return;
-    const t = toneRef.current;
-    if (!t) return;
+  function triggerEatSound({ fishIndex, foodType, energy, hunger }) {
+    if (!sendMidi) return;
+    const midiOut = globalThis && globalThis.VJ_MIDI;
+    if (!midiOut || !midiOut.sendNote) return;
 
     const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     const minGapMs = 34;
     if (now - lastSoundAtRef.current < minGapMs) return;
     lastSoundAtRef.current = now;
 
-    if (!maybeResumeAudio(t)) return;
-
-    const pan = clamp(x / (halfWidth || 1), -1, 1);
-    const yN = clamp01((y - bottomBound) / ((topBound - bottomBound) || 1));
-
-    const rootMidi = 48 + Math.floor(hash01(fishIndex * 9.91) * 7);
+    const base = Math.max(0, Math.min(108, Math.round(rootMidi)));
     const degree = pickScaleDegree(scaleRef.current, Math.floor((foodType * 3 + fishIndex) % 16));
     const octave = foodType === 3 ? 24 : foodType === 2 ? 12 : 0;
-    const midi = rootMidi + degree + octave + Math.floor(lerp(-2, 3, clamp01(energy)));
-
-    const v = t.nextVoice();
-    try {
-      v.panner.pan.value = pan;
-      const cutoff = lerp(520, 5200, smoothstep(0.05, 0.95, yN));
-      v.filter.frequency.value = cutoff;
-      v.filter.Q.value = lerp(0.6, 2.2, clamp01(hunger));
-    } catch (_) {}
-
-    const vel = lerp(0.25, 0.95, clamp01(energy)) * lerp(0.7, 1.0, clamp01(hunger));
-    const dur = foodType === 0 ? '16n' : foodType === 1 ? '8n' : foodType === 2 ? '16n' : foodType === 3 ? '8n' : '32n';
-
-    try {
-      if (v.kind === 'noise') {
-        v.synth.triggerAttackRelease(dur, undefined, vel);
-      } else if (v.kind === 'metal') {
-        v.synth.frequency.value = t.Tone.Frequency(midi, 'midi').toFrequency();
-        v.synth.triggerAttackRelease(dur, undefined, vel);
-      } else if (v.kind === 'drum') {
-        const drumMidi = 36 + (foodType * 3);
-        v.synth.triggerAttackRelease(t.Tone.Frequency(drumMidi, 'midi').toNote(), dur, undefined, vel);
-      } else if (v.kind === 'pluck') {
-        v.synth.triggerAttackRelease(t.Tone.Frequency(midi, 'midi').toNote(), dur, undefined, vel);
-      } else {
-        v.synth.triggerAttackRelease(t.Tone.Frequency(midi, 'midi').toNote(), dur, undefined, vel);
-      }
-    } catch (_) {}
+    const note = Math.max(0, Math.min(127, base + degree + octave + Math.floor(lerp(-2, 3, clamp01(energy)))));
+    const velocity = lerp(0.25, 0.95, clamp01(energy)) * lerp(0.7, 1.0, clamp01(hunger));
+    const channel = Math.max(1, Math.min(16, Math.round(midiChannel)));
+    const duration = foodType === 0 ? 120 : foodType === 1 ? 240 : foodType === 2 ? 120 : foodType === 3 ? 240 : 80;
+    try { midiOut.sendNote(note, velocity, channel, duration); } catch (_) {}
   }
 
   function spawnBubbles(x, y, n, baseType) {

@@ -5,13 +5,14 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Pendulum Chimes (Audio)',
+  name: 'Pendulum Chimes (MIDI)',
   description: 'Rows of swinging bobs at harmonic frequencies. Each bob plays its own note when it crosses the center strike line, so every visible element is one voice.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'numChimes', type: 'number', value: 16, min: 4, max: 32, step: 1 },
     { name: 'basePeriod', type: 'number', value: 7.0, min: 2.0, max: 18.0, step: 0.5 },
@@ -20,10 +21,7 @@ export const metadata = {
     { name: 'rootMidi', type: 'number', value: 36, min: 24, max: 72, step: 1, lockDefault: true },
     { name: 'bobSize', type: 'number', value: 0.05, min: 0.02, max: 0.15, step: 0.005 },
     { name: 'rowOpacity', type: 'number', value: 0.18, min: 0, max: 0.6, step: 0.02 },
-    { name: 'tone', type: 'number', value: 0, min: 0, max: 2, step: 1, description: '0 bell, 1 pluck, 2 soft sine' },
-    { name: 'volume', type: 'number', value: -14, min: -32, max: 0, step: 1 },
     { name: 'decay', type: 'number', value: 1.4, min: 0.2, max: 4.0, step: 0.1 },
-    { name: 'soundOn', type: 'boolean', value: true },
     { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (pitch matches each pendulum)' },
     { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
@@ -43,28 +41,6 @@ function midiForIndex(i, rootMidi) {
   return Math.round(rootMidi) + i;
 }
 
-function buildVoice(Tone, mode) {
-  // Per-chime monophonic voice. Cheap, retriggers naturally without voice-stealing overhead.
-  if (mode === 1 && Tone.PluckSynth) {
-    return new Tone.PluckSynth({
-      attackNoise: 0.5,
-      dampening: 3500,
-      resonance: 0.92,
-    });
-  }
-  if (mode === 2) {
-    return new Tone.Synth({
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.005, decay: 0.3, sustain: 0.35, release: 2.4 },
-    });
-  }
-  // Bell-ish: triangle is much lighter than FMSynth and still musical
-  return new Tone.Synth({
-    oscillator: { type: 'triangle' },
-    envelope: { attack: 0.002, decay: 0.35, sustain: 0.3, release: 2.0 },
-  });
-}
-
 export default function PendulumChimesAudioSource({
   numChimes = 16,
   basePeriod = 7.0,
@@ -73,11 +49,8 @@ export default function PendulumChimesAudioSource({
   rootMidi = 48,
   bobSize = 0.05,
   rowOpacity = 0.18,
-  tone = 0,
-  volume = -14,
   decay = 1.4,
-  soundOn = true,
-  sendMidi = false,
+  sendMidi = true,
   midiChannel = 1,
 }) {
   if (!React || !THREE || !r3f) return null;
@@ -93,7 +66,6 @@ export default function PendulumChimesAudioSource({
   const ringStateRef = useRef([]); // {t, x, y, colorHex, active}
   const prevSignRef = useRef([]);
   const pulseRef = useRef([]);
-  const toneRef = useRef(null);
 
   const N = Math.max(2, Math.floor(numChimes));
 
@@ -128,43 +100,8 @@ export default function PendulumChimesAudioSource({
     pulseRef.current = new Array(N).fill(0);
   }
 
-  // --- Tone setup: one dedicated voice per chime, each straight to destination ---
-  useEffect(() => {
-    const Tone = globalThis.Tone;
-    if (!Tone) return;
-    const voices = [];
-    try {
-      for (let i = 0; i < N; i++) {
-        const v = buildVoice(Tone, tone);
-        try { v.toDestination(); } catch (_) {}
-        try { v.volume.value = soundOn ? volume : -60; } catch (_) {}
-        voices.push(v);
-      }
-      toneRef.current = { Tone, voices };
-    } catch (e) {
-      try { console.warn('PendulumChimes Tone init failed:', e); } catch (_) {}
-    }
-    return () => {
-      voices.forEach((v) => {
-        try { v.triggerRelease && v.triggerRelease(); } catch (_) {}
-        try { v.dispose(); } catch (_) {}
-      });
-      toneRef.current = null;
-    };
-  }, [tone, N]);
-
-  // Live updates – voice volumes follow volume + soundOn
-  useEffect(() => {
-    const t = toneRef.current;
-    if (!t) return;
-    (t.voices || []).forEach((v) => {
-      try { v.volume.value = soundOn ? volume : -60; } catch (_) {}
-    });
-  }, [volume, soundOn]);
-
   useFrame((state, delta) => {
     const time = state.clock.elapsedTime;
-    const t = toneRef.current;
     const midi = sendMidi ? (globalThis && globalThis.VJ_MIDI) : null;
     const ch = Math.max(1, Math.min(16, Math.round(midiChannel)));
 
@@ -205,18 +142,6 @@ export default function PendulumChimesAudioSource({
         if (ring) { ring.t = 0; ring.x = 0; ring.y = c.y; ring.active = true; }
         const vel = 0.5 + Math.min(0.5, c.omega * 0.1);
         const dur = Math.max(0.2, decay * (0.5 + Math.random() * 0.5));
-        if (t && soundOn) {
-          try {
-            if (t.Tone.context.state === 'suspended') t.Tone.context.resume();
-            if (t.Tone.context.state !== 'suspended') {
-              const voice = t.voices && t.voices[i];
-              if (voice) {
-                const now = t.Tone.now();
-                voice.triggerAttackRelease(c.note, dur, now, vel);
-              }
-            }
-          } catch (_) {}
-        }
         if (midi && midi.sendNote) {
           try {
             midi.sendNote(

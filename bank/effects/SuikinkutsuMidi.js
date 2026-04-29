@@ -11,11 +11,12 @@ const { useRef, useMemo, useEffect } = React || {};
 export const metadata = {
   name: 'Suikinkutsu (MIDI)',
   description: 'Japanese "water koto cave" as a MIDI source. Drops fall onto a still water surface; each impact sends a note from a Japanese scale to the selected MIDI output. Horizontal position maps to pitch.',
-  category: 'Sources',
+  category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
-  folder: 'sources',
-  isSource: true,
+  folder: 'effects',
+  replacesVideo: false,
+  canBeGlobal: true,
   parameters: [
     { name: 'dropRate', type: 'number', value: 1.5, min: 0.2, max: 8.0, step: 0.1, description: 'average drops per second' },
     { name: 'randomness', type: 'number', value: 0.6, min: 0, max: 1, step: 0.05, description: 'timing jitter (0 = metronomic)' },

@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Video Color MIDI Scanner',
+  name: 'Video Color MIDI Scanner (MIDI)',
   description: 'Scans the video underneath from left to right and fires MIDI notes from detected color or brightness bands.',
   category: 'Effects',
   author: 'VJ',
