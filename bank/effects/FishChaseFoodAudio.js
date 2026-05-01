@@ -15,16 +15,16 @@ export const metadata = {
   replacesVideo: false,
   canBeGlobal: true,
   parameters: [
-    { name: 'numFish', type: 'number', value: 50, min: 3, max: 50, step: 1 },
-    { name: 'maxFood', type: 'number', value: 25, min: 10, max: 160, step: 5 },
-    { name: 'foodSpawnRate', type: 'number', value: 2.2, min: 0.2, max: 8.0, step: 0.1 },
+    { name: 'numFish', type: 'number', value: 44, min: 3, max: 50, step: 1 },
+    { name: 'maxFood', type: 'number', value: 42, min: 10, max: 160, step: 5 },
+    { name: 'foodSpawnRate', type: 'number', value: 3.4, min: 0.2, max: 8.0, step: 0.1 },
     { name: 'fishSpeed', type: 'number', value: 1.95, min: 0.3, max: 2.5, step: 0.05 },
     { name: 'fishTurn', type: 'number', value: 7.2, min: 0.5, max: 8.0, step: 0.1 },
     { name: 'vision', type: 'number', value: 1.25, min: 0.2, max: 1.4, step: 0.05 },
     { name: 'eatRadius', type: 'number', value: 0.085, min: 0.02, max: 0.12, step: 0.005 },
     { name: 'mutateRadius', type: 'number', value: 0.59, min: 0.05, max: 0.6, step: 0.01 },
-    { name: 'schooling', type: 'number', value: 1.65, min: 0.0, max: 2.0, step: 0.05 },
-    { name: 'separation', type: 'number', value: 2.95, min: 0.0, max: 3.0, step: 0.05 },
+    { name: 'schooling', type: 'number', value: 0.65, min: 0.0, max: 2.0, step: 0.05 },
+    { name: 'separation', type: 'number', value: 2.35, min: 0.0, max: 3.0, step: 0.05 },
     { name: 'current', type: 'number', value: 1.90, min: 0.0, max: 2.0, step: 0.05 },
     { name: 'fishColor', type: 'color', value: '#4a9d8f' },
     { name: 'foodColor', type: 'color', value: '#ffffff' },
@@ -65,16 +65,16 @@ function pickChromaticDegree(index) {
 }
 
 export default function FishChaseFoodMidiEffect({
-  numFish = 50,
-  maxFood = 25,
-  foodSpawnRate = 2.2,
+  numFish = 44,
+  maxFood = 42,
+  foodSpawnRate = 3.4,
   fishSpeed = 1.95,
   fishTurn = 7.2,
   vision = 1.25,
   eatRadius = 0.085,
   mutateRadius = 0.59,
-  schooling = 1.65,
-  separation = 2.95,
+  schooling = 0.65,
+  separation = 2.35,
   current = 1.90,
   fishColor = '#4a9d8f',
   foodColor = '#ffffff',
@@ -93,24 +93,30 @@ export default function FishChaseFoodMidiEffect({
   const halfHeight = 2 / 2;
 
   const fishInstancedRef = useRef(null);
+  const fishFlashInstancedRef = useRef(null);
   const foodInstancedRef = useRef(null);
   const bubbleInstancedRef = useRef(null);
+  const midiRingInstancedRef = useRef(null);
 
   const fishRef = useRef([]);
   const foodRef = useRef([]);
   const bubblesRef = useRef([]);
+  const midiRingsRef = useRef([]);
 
   const spawnAccRef = useRef(0);
   const lastSoundAtRef = useRef(0);
 
   const dummyFish = useMemo(() => new THREE.Object3D(), []);
+  const dummyFishFlash = useMemo(() => new THREE.Object3D(), []);
   const dummyFood = useMemo(() => new THREE.Object3D(), []);
   const dummyBubble = useMemo(() => new THREE.Object3D(), []);
+  const dummyMidiRing = useMemo(() => new THREE.Object3D(), []);
 
   // ---- geometry/material -----------------------------------------------------
   const fishGeometry = useMemo(() => new THREE.CircleGeometry(fishSize * 0.5, 14), [fishSize]);
   const foodGeometry = useMemo(() => new THREE.CircleGeometry(foodSize * 0.5, 10), [foodSize]);
   const bubbleGeometry = useMemo(() => new THREE.CircleGeometry(foodSize * 0.3, 8), [foodSize]);
+  const midiRingGeometry = useMemo(() => new THREE.RingGeometry(foodSize * 0.55, foodSize * 0.78, 24), [foodSize]);
 
   const fishMaterial = useMemo(() => {
     const m = new THREE.MeshBasicMaterial({
@@ -138,11 +144,37 @@ export default function FishChaseFoodMidiEffect({
     return m;
   }, [foodColor]);
 
+  const fishFlashMaterial = useMemo(() => {
+    const m = new THREE.MeshBasicMaterial({
+      color: new THREE.Color('#ffffff'),
+      transparent: true,
+      opacity: 0.95,
+      side: THREE.DoubleSide,
+    });
+    m.depthTest = false;
+    m.depthWrite = false;
+    m.blending = THREE.AdditiveBlending;
+    return m;
+  }, []);
+
   const bubbleMaterial = useMemo(() => {
     const m = new THREE.MeshBasicMaterial({
       color: new THREE.Color('#a8e6ff'),
       transparent: true,
       opacity: 0.55,
+      side: THREE.DoubleSide,
+    });
+    m.depthTest = false;
+    m.depthWrite = false;
+    m.blending = THREE.AdditiveBlending;
+    return m;
+  }, []);
+
+  const midiRingMaterial = useMemo(() => {
+    const m = new THREE.MeshBasicMaterial({
+      color: new THREE.Color('#ffffff'),
+      transparent: true,
+      opacity: 0.9,
       side: THREE.DoubleSide,
     });
     m.depthTest = false;
@@ -159,19 +191,14 @@ export default function FishChaseFoodMidiEffect({
     const right = halfWidth - pad;
     const bottom = -halfHeight + pad;
     const top = halfHeight - pad;
-    // Spread fish more evenly across the space
+    // Spread fish across the full viewport so the MIDI action covers the whole layer.
     for (let i = 0; i < numFish; i++) {
       const seed = hash01((i + 1) * 13.17);
-      // Start fish in center area, not edges
-      const xRange = (right - left) * 0.6;
-      const yRange = (top - bottom) * 0.6;
-      const centerX = (left + right) / 2;
-      const centerY = (bottom + top) / 2;
       fish.push({
-        x: centerX + (Math.random() - 0.5) * xRange,
-        y: centerY + (Math.random() - 0.5) * yRange,
-        vx: (Math.random() - 0.5) * 0.6,
-        vy: (Math.random() - 0.5) * 0.6,
+        x: lerp(left, right, hash01((i + 1) * 41.7)),
+        y: lerp(bottom, top, hash01((i + 1) * 73.3)),
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: (Math.random() - 0.5) * 1.2,
         phase: Math.random() * Math.PI * 2,
         swim: 0.7 + Math.random() * 0.7,
         hunger: 0.3 + seed * 0.6,
@@ -182,6 +209,7 @@ export default function FishChaseFoodMidiEffect({
     fishRef.current = fish;
     foodRef.current = [];
     bubblesRef.current = [];
+    midiRingsRef.current = [];
     spawnAccRef.current = 0;
     lastSoundAtRef.current = 0;
   }, [numFish, halfWidth, halfHeight, fishSize]);
@@ -197,15 +225,6 @@ export default function FishChaseFoodMidiEffect({
 
 
   function triggerEatSound({ fishIndex, foodType, energy, hunger }) {
-    if (!sendMidi) return;
-    const midiOut = globalThis && globalThis.VJ_MIDI;
-    if (!midiOut || !midiOut.sendNote) return;
-
-    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-    const minGapMs = 34;
-    if (now - lastSoundAtRef.current < minGapMs) return;
-    lastSoundAtRef.current = now;
-
     const base = Math.max(0, Math.min(108, Math.round(rootMidi)));
     const degree = pickChromaticDegree(Math.floor((foodType * 3 + fishIndex) % 16));
     const octave = foodType === 3 ? 24 : foodType === 2 ? 12 : 0;
@@ -213,7 +232,39 @@ export default function FishChaseFoodMidiEffect({
     const velocity = lerp(0.25, 0.95, clamp01(energy)) * lerp(0.7, 1.0, clamp01(hunger));
     const channel = Math.max(1, Math.min(16, Math.round(midiChannel)));
     const duration = foodType === 0 ? 120 : foodType === 1 ? 240 : foodType === 2 ? 120 : foodType === 3 ? 240 : 80;
+    const event = { note, velocity, channel, duration };
+
+    if (!sendMidi) return event;
+    const midiOut = globalThis && globalThis.VJ_MIDI;
+    if (!midiOut || !midiOut.sendNote) return event;
+
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const minGapMs = 34;
+    if (now - lastSoundAtRef.current < minGapMs) return event;
+    lastSoundAtRef.current = now;
+
     try { midiOut.sendNote(note, velocity, channel, duration); } catch (_) {}
+    return event;
+  }
+
+  function spawnMidiRings(x, y, midiEvent, foodType) {
+    const rings = midiRingsRef.current;
+    const note = midiEvent && Number.isFinite(midiEvent.note) ? midiEvent.note : rootMidi;
+    const velocity = midiEvent && Number.isFinite(midiEvent.velocity) ? midiEvent.velocity : 0.6;
+    const octaveBand = clamp01((note - rootMidi) / 36);
+
+    rings.push({
+      x,
+      y,
+      age: 0,
+      life: 0.75,
+      note,
+      velocity,
+      type: foodType,
+      scale: 0.55 + velocity * 1.4 + octaveBand * 0.8,
+    });
+
+    if (rings.length > 96) rings.splice(0, rings.length - 96);
   }
 
   function spawnBubbles(x, y, n, baseType) {
@@ -257,9 +308,9 @@ export default function FishChaseFoodMidiEffect({
       const energy = 0.35 + hash01(s * 11.7) * 0.75;
       food.push({
         x: lerp(leftBound, rightBound, Math.random()),
-        y: lerp(bottomBound, topBound, 0.92 + Math.random() * 0.08),
-        vx: (Math.random() - 0.5) * 0.08,
-        vy: -0.06 - Math.random() * 0.12,
+        y: lerp(bottomBound, topBound, Math.random()),
+        vx: (Math.random() - 0.5) * 0.18,
+        vy: (Math.random() - 0.5) * 0.18,
         type,
         baseType: type,
         energy,
@@ -396,7 +447,7 @@ export default function FishChaseFoodMidiEffect({
           f.bite = 0.18 + hash01(i * 17.7) * 0.12;
           if (Math.random() < 0.35) f.pref = eaten.type;
           spawnBubbles(f.x, f.y, 5 + Math.floor(eaten.type * 2), eaten.type);
-          triggerEatSound({
+          const midiEvent = triggerEatSound({
             x: f.x,
             y: f.y,
             fishIndex: i,
@@ -404,6 +455,7 @@ export default function FishChaseFoodMidiEffect({
             energy: eaten.energy,
             hunger: f.hunger,
           });
+          spawnMidiRings(f.x, f.y, midiEvent, eaten.type);
         }
       } else {
         const flow = flowField(f.x, f.y, tSec);
@@ -413,11 +465,15 @@ export default function FishChaseFoodMidiEffect({
         ay += (hash01((i + 1) * 33.7 + tSec * 1.9) - 0.5) * 0.6;
       }
 
-      // Softer boundary steering to avoid corners
+      // Only steer near edges; avoid a constant drift that pins fish into corners.
       const bx = clamp((f.x - leftBound) / (rightBound - leftBound + 1e-6), 0, 1);
       const by = clamp((f.y - bottomBound) / (topBound - bottomBound + 1e-6), 0, 1);
-      ax += (smoothstep(0.0, 0.15, bx) - smoothstep(0.85, 1.0, bx)) * 2.5;
-      ay += (smoothstep(0.0, 0.15, by) - smoothstep(0.85, 1.0, by)) * 2.5;
+      const pushRight = 1 - smoothstep(0.0, 0.18, bx);
+      const pushLeft = smoothstep(0.82, 1.0, bx);
+      const pushUp = 1 - smoothstep(0.0, 0.18, by);
+      const pushDown = smoothstep(0.82, 1.0, by);
+      ax += (pushRight - pushLeft) * 3.2;
+      ay += (pushUp - pushDown) * 3.2;
 
       const aLen = Math.sqrt(ax * ax + ay * ay) + 1e-6;
       const aMax = 3.5 * turn;
@@ -436,8 +492,20 @@ export default function FishChaseFoodMidiEffect({
 
       f.x += f.vx * dt;
       f.y += f.vy * dt;
-      f.x = clamp(f.x, leftBound, rightBound);
-      f.y = clamp(f.y, bottomBound, topBound);
+      if (f.x < leftBound) {
+        f.x = leftBound;
+        f.vx = Math.abs(f.vx) * 0.85 + 0.08;
+      } else if (f.x > rightBound) {
+        f.x = rightBound;
+        f.vx = -Math.abs(f.vx) * 0.85 - 0.08;
+      }
+      if (f.y < bottomBound) {
+        f.y = bottomBound;
+        f.vy = Math.abs(f.vy) * 0.85 + 0.08;
+      } else if (f.y > topBound) {
+        f.y = topBound;
+        f.vy = -Math.abs(f.vy) * 0.85 - 0.08;
+      }
     }
 
     // update bubbles
@@ -453,7 +521,16 @@ export default function FishChaseFoodMidiEffect({
       if (k >= 1 || b.y > topBound + 0.2) bubbles.splice(i, 1);
     }
 
+    const midiRings = midiRingsRef.current;
+    for (let i = midiRings.length - 1; i >= 0; i--) {
+      const ring = midiRings[i];
+      ring.age += dt;
+      if (ring.age >= ring.life) midiRings.splice(i, 1);
+    }
+
     // render fish instances
+    const fishFlashMesh = fishFlashInstancedRef.current;
+    let flashCount = 0;
     for (let i = 0; i < fish.length; i++) {
       const f = fish[i];
       const angle = Math.atan2(f.vy, f.vx);
@@ -469,9 +546,24 @@ export default function FishChaseFoodMidiEffect({
       dummyFish.scale.set(stretch, squash, 1);
       dummyFish.updateMatrix();
       fishMesh.setMatrixAt(i, dummyFish.matrix);
+
+      if (fishFlashMesh && dummyFishFlash && f.bite > 0) {
+        const flash = clamp01(f.bite / 0.3);
+        dummyFishFlash.position.set(f.x, f.y, 0.03);
+        dummyFishFlash.rotation.z = angle + swimWiggle;
+        dummyFishFlash.scale.set(stretch * (1.25 + flash * 0.9), squash * (1.4 + flash * 1.1), 1);
+        dummyFishFlash.updateMatrix();
+        fishFlashMesh.setMatrixAt(flashCount, dummyFishFlash.matrix);
+        flashCount++;
+      }
     }
     fishMesh.instanceMatrix.needsUpdate = true;
     fishMesh.count = fish.length;
+    if (fishFlashMesh) {
+      fishFlashMesh.instanceMatrix.needsUpdate = true;
+      fishFlashMesh.count = flashCount;
+      fishFlashMesh.material.opacity = flashCount > 0 ? 0.95 : 0;
+    }
 
     // render food instances
     for (let i = 0; i < food.length; i++) {
@@ -502,6 +594,26 @@ export default function FishChaseFoodMidiEffect({
       bubbleMesh.instanceMatrix.needsUpdate = true;
       bubbleMesh.count = bubbles.length;
     }
+
+    const midiRingMesh = midiRingInstancedRef.current;
+    if (midiRingMesh && dummyMidiRing) {
+      for (let i = 0; i < midiRings.length; i++) {
+        const ring = midiRings[i];
+        const k = clamp01(ring.age / (ring.life || 1));
+        const pulse = 1 - k;
+        const noteStep = ((ring.note - rootMidi) % 12 + 12) % 12;
+        const wobble = 1 + Math.sin(tSec * 12 + noteStep) * 0.05;
+        const s = (0.7 + k * 3.2) * ring.scale * wobble;
+        dummyMidiRing.position.set(ring.x, ring.y, 0.02);
+        dummyMidiRing.rotation.z = tSec * 0.8 + noteStep * 0.16;
+        dummyMidiRing.scale.set(s, s * (0.82 + pulse * 0.28), 1);
+        dummyMidiRing.updateMatrix();
+        midiRingMesh.setMatrixAt(i, dummyMidiRing.matrix);
+      }
+      midiRingMesh.instanceMatrix.needsUpdate = true;
+      midiRingMesh.count = midiRings.length;
+      midiRingMesh.material.opacity = midiRings.length > 0 ? 0.92 : 0;
+    }
   });
 
   return React.createElement(
@@ -513,14 +625,24 @@ export default function FishChaseFoodMidiEffect({
       renderOrder: 9998,
     }),
     React.createElement('instancedMesh', {
+      ref: fishFlashInstancedRef,
+      args: [fishGeometry, fishFlashMaterial, Math.max(1, numFish)],
+      renderOrder: 9999,
+    }),
+    React.createElement('instancedMesh', {
       ref: foodInstancedRef,
       args: [foodGeometry, foodMaterial, Math.max(1, maxFoodClamped)],
-      renderOrder: 9999,
+      renderOrder: 10000,
     }),
     React.createElement('instancedMesh', {
       ref: bubbleInstancedRef,
       args: [bubbleGeometry, bubbleMaterial, maxBubbles],
-      renderOrder: 10000,
+      renderOrder: 10001,
+    }),
+    React.createElement('instancedMesh', {
+      ref: midiRingInstancedRef,
+      args: [midiRingGeometry, midiRingMaterial, 96],
+      renderOrder: 10002,
     })
   );
 }

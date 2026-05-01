@@ -24,7 +24,8 @@ export const metadata = {
     { name: 'evolveSec', type: 'number', value: 0, min: 0, max: 30, step: 0.5, description: 're-randomize pattern every N seconds (0 = static)' },
     { name: 'jitter', type: 'number', value: 0, min: 0, max: 1, step: 0.02, description: 'pitch jitter (cents scatter per strike)' },
     { name: 'accent', type: 'color', value: '#ffffff' },
-    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (notes match each row frequency)' },
+    { name: 'rootMidi', type: 'number', value: 48, min: 0, max: 108, step: 1, lockDefault: true },
+    { name: 'sendMidi', type: 'boolean', value: true, lockDefault: true, description: 'send MIDI notes to the selected MIDI output (bottom row = root note)' },
     { name: 'midiChannel', type: 'number', value: 1, min: 1, max: 16, step: 1, lockDefault: true },
   ],
 };
@@ -48,6 +49,11 @@ function rowFreq(r, rows, low, high) {
   return low * Math.pow(Math.max(1, high) / Math.max(1, low), t);
 }
 
+function midiForRowFreq(freq, baseFreq, rootMidi) {
+  const interval = hzToMidi(freq) - hzToMidi(baseFreq);
+  return Math.max(0, Math.min(127, Math.round(rootMidi + interval)));
+}
+
 export default function DataMatrixAudioSource({
   gridCols = 48,
   gridRows = 12,
@@ -59,6 +65,7 @@ export default function DataMatrixAudioSource({
   evolveSec = 0,
   jitter = 0,
   accent = '#ffffff',
+  rootMidi = 48,
   sendMidi = true,
   midiChannel = 1,
 }) {
@@ -175,7 +182,7 @@ export default function DataMatrixAudioSource({
           }
           if (midi && midi.sendNote) {
             try {
-              const midiNote = Math.max(0, Math.min(127, Math.round(hzToMidi(f))));
+              const midiNote = midiForRowFreq(f, Math.max(1, freqLow), rootMidi);
               midi.sendNote(midiNote, 0.9, ch, midiDurMs);
             } catch (_) {}
           }
