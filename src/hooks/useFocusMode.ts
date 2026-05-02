@@ -262,6 +262,7 @@ export const useFocusMode = () => {
       const currentColumnId = playingColumnId;
       const prevColumnId = prevPlayingColumnIdRef.current;
       const focusRow = getFocusRow();
+      const targetLayerNum = Math.max(1, focusRow - 1);
       
       // Trigger when column changes (including initial selection when prevColumnId is null)
       if (currentColumnId && currentColumnId !== prevColumnId) {
@@ -271,10 +272,11 @@ export const useFocusMode = () => {
             const column = (scene.columns || []).find((c: any) => c.id === currentColumnId);
             if (column) {
               const layers = column.layers || [];
-              // Find layer by layerNum (focusRow is 1-based and corresponds to layerNum)
+              // Find layer by layerNum. Column rows render bottom-up, so adjust the stored focus row
+              // down one visual row to keep Layer Options aligned with the highlighted focus cell.
               // Match by layerNum first, then fallback to name pattern, then fallback to array index
-              const targetLayer = layers.find((l: any) => l.layerNum === focusRow || l.name === `Layer ${focusRow}`) 
-                || layers[Math.max(0, Math.min(layers.length - 1, focusRow - 1))];
+              const targetLayer = layers.find((l: any) => l.layerNum === targetLayerNum || l.name === `Layer ${targetLayerNum}`) 
+                || layers[Math.max(0, Math.min(layers.length - 1, targetLayerNum - 1))];
               if (targetLayer && typeof setSelectedLayer === 'function') {
                 setSelectedLayer(targetLayer.id);
               }

@@ -1016,6 +1016,33 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       const layers: any[] = Array.isArray(col.layers) ? col.layers : [];
       if (layers.length === 0) return;
 
+      const focusModeActive = (() => {
+        try {
+          const v = localStorage.getItem('vj-focus-mode');
+          return v === null ? false : v === '1';
+        } catch {
+          return false;
+        }
+      })();
+      if (focusModeActive) {
+        const focusRow = (() => {
+          try {
+            const v = parseInt(localStorage.getItem('vj-focus-row') || '2', 10);
+            return Math.max(1, Math.min(10, Number.isFinite(v) ? v : 2));
+          } catch {
+            return 2;
+          }
+        })();
+        const targetLayerNum = Math.max(1, focusRow - 1);
+        const focusedLayer = layers.find((l: any) => l?.layerNum === targetLayerNum || l?.name === `Layer ${targetLayerNum}`)
+          || layers[Math.max(0, Math.min(layers.length - 1, targetLayerNum - 1))];
+        if (focusedLayer?.id) {
+          try { setSelectedLayerId(focusedLayer.id); } catch {}
+          try { setSelectedLayer(focusedLayer); } catch {}
+          return;
+        }
+      }
+
       // If the currently selected layer already belongs to this column, keep it.
       try {
         const currentId = persistedSelectedLayerId;
@@ -1237,7 +1264,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       const updatedEffects = [...currentGlobalEffects];
       const updatedSlot = { ...updatedEffects[idx] } as any;
       if (options.params) {
-        updatedSlot.params = options.params;
+        updatedSlot.params = { ...(updatedSlot.params || {}), ...(options.params || {}) };
       }
       // Future: support blend/opacity if needed for global context
       updatedEffects[idx] = updatedSlot;
@@ -1253,7 +1280,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     try {
       setPreviewContent((prev: any) => {
         if (!prev || prev.type !== 'column') return prev;
-        const updateLayer = (l: any) => (l && l.id === layerId) ? { ...l, ...options } : l;
+        const updateLayer = (l: any) => {
+          if (!l || l.id !== layerId) return l;
+          return {
+            ...l,
+            ...options,
+            params: options?.params ? { ...(l.params || {}), ...(options.params || {}) } : l.params
+          };
+        };
         const nextColumn = prev.column ? { ...prev.column, layers: (prev.column.layers || []).map(updateLayer) } : prev.column;
         const nextLayers = Array.isArray(prev.layers) ? prev.layers.map(updateLayer) : prev.layers;
         return { ...prev, column: nextColumn, layers: nextLayers };
@@ -1261,7 +1295,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     } catch {}
     // Keep local selectedLayer in sync so UI reflects new values immediately
     try {
-      setSelectedLayer((prev: any) => (prev && prev.id === layerId) ? { ...prev, ...options } : prev);
+      setSelectedLayer((prev: any) => (prev && prev.id === layerId) ? {
+        ...prev,
+        ...options,
+        params: options?.params ? { ...(prev.params || {}), ...(options.params || {}) } : prev.params
+      } : prev);
     } catch {}
   };
 

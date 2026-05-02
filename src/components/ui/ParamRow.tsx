@@ -9,6 +9,8 @@ interface ParamRowProps {
   max?: number;
   step?: number;
   onChange: (value: number) => void;
+  onCommit?: (value: number) => void;
+  commitOnly?: boolean;
   onIncrement?: () => void;
   onDecrement?: () => void;
   showButtons?: boolean;
@@ -28,6 +30,8 @@ export const ParamRow: React.FC<ParamRowProps> = ({
   max = 1,
   step = 0.1,
   onChange,
+  onCommit,
+  commitOnly = false,
   onIncrement,
   onDecrement,
   showButtons = true,
@@ -47,6 +51,12 @@ export const ParamRow: React.FC<ParamRowProps> = ({
     }
   };
 
+  const handleSliderCommit = (values: number[]) => {
+    if (values && values.length > 0) {
+      onCommit?.(values[0]);
+    }
+  };
+
   const formattedValue = label.toLowerCase() === 'opacity'
     ? `${Math.round(value * 100)}%`
     : (step >= 1 ? Math.round(value) : value.toFixed(step < 0.01 ? 3 : step < 0.1 ? 2 : 1));
@@ -62,6 +72,18 @@ export const ParamRow: React.FC<ParamRowProps> = ({
       </Button>
     </div>
   ) : null;
+
+  const sliderProps = commitOnly
+    ? {
+        key: `commit-${value}`,
+        defaultValue: [value],
+        onValueCommit: handleSliderCommit,
+      }
+    : {
+        value: [value],
+        onValueChange: handleSliderChange,
+        onValueCommit: handleSliderCommit,
+      };
 
   // Stacked layout shows label on top, then a row: value | slider | +/-
   if (layout === 'stacked') {
@@ -80,11 +102,10 @@ export const ParamRow: React.FC<ParamRowProps> = ({
           )}
           <div className="slider-container tw-flex-1 tw-min-w-0">
             <Slider
-              value={[value]}
               min={min}
               max={max}
               step={step}
-              onValueChange={handleSliderChange}
+              {...sliderProps}
             />
           </div>
           {Buttons}
@@ -117,11 +138,10 @@ export const ParamRow: React.FC<ParamRowProps> = ({
           {!buttonsAfter && Buttons}
           <div className="slider-container tw-flex-1 tw-min-w-0">
             <Slider
-              value={[value]}
               min={min}
               max={max}
               step={step}
-              onValueChange={handleSliderChange}
+              {...sliderProps}
             />
           </div>
           {buttonsAfter && Buttons}

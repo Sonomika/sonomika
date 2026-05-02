@@ -16,6 +16,10 @@ type StoreActions = {
 
 type Store = AppState & StoreActions;
 
+const SLIDER_COMMIT_MODE_KEY = 'vj-slider-updates-commit-on-release';
+const LEGACY_SLIDER_COMMIT_MODE_KEY = 'vj-layer-options-commit-sliders-on-release';
+const MIDI_KNOB_SETTLE_MS = 90;
+
 export class MIDIProcessor {
   private static instance: MIDIProcessor;
   private mappings: MIDIMapping[];
@@ -32,6 +36,7 @@ export class MIDIProcessor {
   private pendingTimelineUpdates: Map<string, Record<string, number>> = new Map();
   private pendingTimelineOpacityUpdates: Map<string, number> = new Map();
   private timelineApplyScheduled: boolean = false;
+  private settledMidiTimeouts: Map<string, number> = new Map();
 
   private constructor() {
     this.mappings = [];
@@ -46,6 +51,101 @@ export class MIDIProcessor {
 
   setMappings(mappings: MIDIMapping[]): void {
     this.mappings = mappings;
+  }
+
+  private shouldCommitMidiOnRelease(): boolean {
+    try {
+      if (typeof localStorage === 'undefined') return true;
+      const raw = localStorage.getItem(SLIDER_COMMIT_MODE_KEY);
+      if (raw !== null) return raw === 'true';
+      const legacy = localStorage.getItem(LEGACY_SLIDER_COMMIT_MODE_KEY);
+      return legacy === null ? true : legacy === 'true';
+    } catch {
+      return true;
+    }
+  }
+
+  private isFocusModeActive(): boolean {
+    try {
+      const v = localStorage.getItem('vj-focus-mode');
+      return v === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  private shouldProcessLayerTarget(layerId: string): boolean {
+    if (!this.isFocusModeActive()) return true;
+    try {
+      const state: any = useStore.getState();
+      const focusedLayerId = state?.selectedLayerId;
+      if (!focusedLayerId) return true;
+      return String(layerId) === String(focusedLayerId);
+    } catch {
+      return true;
+    }
+  }
+
+  private scheduleSettledMidiUpdate(key: string, apply: () => void) {
+    const previous = this.settledMidiTimeouts.get(key);
+    if (previous !== undefined) {
+      try { clearTimeout(previous); } catch {}
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      this.settledMidiTimeouts.delete(key);
+      apply();
+    }, MIDI_KNOB_SETTLE_MS);
+    this.settledMidiTimeouts.set(key, timeoutId);
+  }
+
+  private applyLayerOpacityUpdate(layerId: string, value: number) {
+    const apply = () => {
+      const state: any = useStore.getState();
+      if (typeof state.updateLayer === 'function') {
+        state.updateLayer(layerId, { opacity: value });
+      }
+    };
+
+    if (this.shouldCommitMidiOnRelease()) {
+      this.scheduleSettledMidiUpdate(`layer:${layerId}:opacity`, apply);
+      return;
+    }
+
+    apply();
+  }
+
+  private applyLayerParamUpdate(layerId: string, paramName: string, value: number) {
+    if (this.shouldCommitMidiOnRelease()) {
+      this.scheduleSettledMidiUpdate(`layer:${layerId}:${paramName}`, () => {
+        this.queueLayerParamUpdate(layerId, paramName, value);
+      });
+      return;
+    }
+
+    this.queueLayerParamUpdate(layerId, paramName, value);
+  }
+
+  private applyTimelineParamUpdate(clipId: string, paramName: string, value: number) {
+    if (this.shouldCommitMidiOnRelease()) {
+      this.scheduleSettledMidiUpdate(`timeline:${clipId}:${paramName}`, () => {
+        this.queueTimelineUpdate(clipId, paramName, value);
+      });
+      return;
+    }
+
+    this.queueTimelineUpdate(clipId, paramName, value);
+  }
+
+  private applyGlobalParamUpdate(slotId: string, paramName: string, value: number) {
+    if (this.shouldCommitMidiOnRelease()) {
+      this.scheduleSettledMidiUpdate(`global-effect:${slotId}:${paramName}`, () => {
+        this.queueGlobalParamUpdate(slotId, paramName, value);
+      });
+      return;
+    }
+
+    this.queueGlobalParamUpdate(slotId, paramName, value);
   }
 
   private queueLayerParamUpdate(layerId: string, paramName: string, value: number) {
@@ -335,7 +435,7 @@ export class MIDIProcessor {
             let min = 0; let max = 1;
             if (paramConfig) { if (typeof paramConfig.min === 'number') min = paramConfig.min; if (typeof paramConfig.max === 'number') max = paramConfig.max; }
             const mapped = min + ((max - min) * (velocity / 127));
-            this.queueGlobalParamUpdate(slot.id, paramName, mapped);
+            this.applyGlobalParamUpdate(slot.id, paramName, mapped);
             break;
           }
           case 'scene': {
@@ -356,6 +456,7 @@ export class MIDIProcessor {
           }
           case 'layer': {
             const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
+            if (!this.shouldProcessLayerTarget(layerTarget.id)) break;
             const st: any = useStore.getState();
             
             // In timeline mode, update the clip directly (independent from column mode)
@@ -395,7 +496,7 @@ export class MIDIProcessor {
               const mappedValue = min + (range * normalizedValue);
               
               // Queue timeline updates with same batching as column mode for matching sensitivity
-              this.queueTimelineUpdate(selectedClip.id, layerTarget.param, mappedValue);
+              this.applyTimelineParamUpdate(selectedClip.id, layerTarget.param, mappedValue);
               break; // Skip column mode processing in timeline mode
             }
             
@@ -405,7 +506,7 @@ export class MIDIProcessor {
             if (layer && layerTarget.param) {
               const effectiveLayerId = layer.id;
               if (layerTarget.param === 'opacity') {
-                store.updateLayer(effectiveLayerId, { opacity: velocity / 127 });
+                this.applyLayerOpacityUpdate(effectiveLayerId, velocity / 127);
               } else if (layerTarget.param) {
                 // Derive min/max more robustly: prefer effect metadata, else infer from existing value object
                 const metadata = this.getEffectMetadataForLayer(layer) as any;
@@ -426,7 +527,7 @@ export class MIDIProcessor {
                 const range = max - min;
                 const normalizedValue = velocity / 127;
                 const mappedValue = min + (range * normalizedValue);
-                this.queueLayerParamUpdate(effectiveLayerId, layerTarget.param, mappedValue);
+                this.applyLayerParamUpdate(effectiveLayerId, layerTarget.param, mappedValue);
               }
             }
             break;
@@ -531,11 +632,12 @@ export class MIDIProcessor {
             let min = 0; let max = 1;
             if (paramConfig) { if (typeof paramConfig.min === 'number') min = paramConfig.min; if (typeof paramConfig.max === 'number') max = paramConfig.max; }
             const mapped = min + ((max - min) * (value / 127));
-            this.queueGlobalParamUpdate(slot.id, paramName, mapped);
+            this.applyGlobalParamUpdate(slot.id, paramName, mapped);
             break;
           }
           case 'layer': {
             const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
+            if (!this.shouldProcessLayerTarget(layerTarget.id)) break;
             const st: any = useStore.getState();
             
             // In timeline mode, update the clip directly (independent from column mode)
@@ -575,7 +677,7 @@ export class MIDIProcessor {
               const mappedValue = min + (range * normalizedValue);
               
               // Queue timeline updates with same batching as column mode for matching sensitivity
-              this.queueTimelineUpdate(selectedClip.id, layerTarget.param, mappedValue);
+              this.applyTimelineParamUpdate(selectedClip.id, layerTarget.param, mappedValue);
               break; // Skip column mode processing in timeline mode
             }
             
@@ -585,7 +687,7 @@ export class MIDIProcessor {
             if (layer && layerTarget.param) {
               const effectiveLayerId = layer.id;
               if (layerTarget.param === 'opacity') {
-                store.updateLayer(effectiveLayerId, { opacity: value / 127 });
+                this.applyLayerOpacityUpdate(effectiveLayerId, value / 127);
               } else {
                 const metadata = this.getEffectMetadataForLayer(layer) as any;
                 const paramConfig = metadata?.parameters?.find((p: any) => p.name === layerTarget.param);
@@ -605,7 +707,7 @@ export class MIDIProcessor {
                 const range = max - min;
                 const normalizedValue = value / 127;
                 const mappedValue = min + (range * normalizedValue);
-                this.queueLayerParamUpdate(effectiveLayerId, layerTarget.param, mappedValue);
+                this.applyLayerParamUpdate(effectiveLayerId, layerTarget.param, mappedValue);
               }
             }
             break;

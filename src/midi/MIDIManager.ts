@@ -5,6 +5,11 @@ import { trackFeatureOnce, trackFeatureThrottled } from '../utils/analytics';
 type NoteCallback = (note: number, velocity: number, channel: number) => void;
 type CCCallback = (cc: number, value: number, channel: number) => void;
 
+const NOTE_RATE_LIMIT_KEY = 'vj-midi-output-note-limit-per-second';
+const MAX_ACTIVE_NOTES_KEY = 'vj-midi-output-max-active-notes';
+const DEFAULT_NOTE_RATE_LIMIT = 48;
+const DEFAULT_MAX_ACTIVE_NOTES = 64;
+
 export class MIDIManager {
   private static instance: MIDIManager;
   private inputs: Input[]; // Filtered inputs (only selected devices, or all if none selected)
@@ -23,6 +28,10 @@ export class MIDIManager {
   private clockRunning: boolean;
   private clockNextTime: number;
   private clockTimeout: number | null;
+  private noteWindowStart: number;
+  private noteWindowCount: number;
+  private activeNoteKeys: Set<string>;
+  private activeNoteTimeouts: Map<string, number>;
 
   private constructor() {
     this.inputs = [];
@@ -38,6 +47,10 @@ export class MIDIManager {
     this.clockRunning = false;
     this.clockNextTime = 0;
     this.clockTimeout = null;
+    this.noteWindowStart = 0;
+    this.noteWindowCount = 0;
+    this.activeNoteKeys = new Set();
+    this.activeNoteTimeouts = new Map();
     this.initialize();
   }
 
@@ -250,6 +263,83 @@ export class MIDIManager {
     return this.outputs.find(o => o.name === this.selectedOutputName) || null;
   }
 
+  private getNumberSetting(key: string, defaultValue: number, min: number, max: number): number {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return defaultValue;
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed)) return defaultValue;
+      return Math.max(min, Math.min(max, Math.floor(parsed)));
+    } catch {
+      return defaultValue;
+    }
+  }
+
+  getNoteRateLimit(): number {
+    return this.getNumberSetting(NOTE_RATE_LIMIT_KEY, DEFAULT_NOTE_RATE_LIMIT, 0, 1000);
+  }
+
+  setNoteRateLimit(limit: number): void {
+    try {
+      localStorage.setItem(NOTE_RATE_LIMIT_KEY, String(Math.max(0, Math.min(1000, Math.floor(Number(limit) || 0)))));
+    } catch {}
+  }
+
+  getMaxActiveNotes(): number {
+    return this.getNumberSetting(MAX_ACTIVE_NOTES_KEY, DEFAULT_MAX_ACTIVE_NOTES, 1, 512);
+  }
+
+  setMaxActiveNotes(limit: number): void {
+    try {
+      localStorage.setItem(MAX_ACTIVE_NOTES_KEY, String(Math.max(1, Math.min(512, Math.floor(Number(limit) || DEFAULT_MAX_ACTIVE_NOTES)))));
+    } catch {}
+  }
+
+  private noteKey(note: number, channel: number): string {
+    return `${channel}:${note}`;
+  }
+
+  private clearTrackedNote(key: string): void {
+    this.activeNoteKeys.delete(key);
+    const timeoutId = this.activeNoteTimeouts.get(key);
+    if (timeoutId !== undefined) {
+      try { clearTimeout(timeoutId); } catch {}
+      this.activeNoteTimeouts.delete(key);
+    }
+  }
+
+  private canSendNoteOn(note: number, channel: number): boolean {
+    const now = performance.now();
+    const rateLimit = this.getNoteRateLimit();
+    if (rateLimit > 0) {
+      if (now - this.noteWindowStart >= 1000) {
+        this.noteWindowStart = now;
+        this.noteWindowCount = 0;
+      }
+      if (this.noteWindowCount >= rateLimit) return false;
+    }
+
+    const key = this.noteKey(note, channel);
+    const maxActive = this.getMaxActiveNotes();
+    if (!this.activeNoteKeys.has(key) && this.activeNoteKeys.size >= maxActive) return false;
+
+    if (rateLimit > 0) this.noteWindowCount++;
+    return true;
+  }
+
+  private trackNoteOn(note: number, channel: number, durationMs?: number): void {
+    const key = this.noteKey(note, channel);
+    this.clearTrackedNote(key);
+    this.activeNoteKeys.add(key);
+    if (durationMs !== undefined) {
+      const timeoutId = window.setTimeout(() => {
+        this.activeNoteTimeouts.delete(key);
+        this.activeNoteKeys.delete(key);
+      }, Math.max(1, durationMs) + 20);
+      this.activeNoteTimeouts.set(key, timeoutId);
+    }
+  }
+
   /**
    * Fire a note with optional auto-release after durationMs.
    * note: 0-127. velocity: 0-1. channel: 1-16. durationMs: default 20ms (good for percussive hits).
@@ -259,27 +349,37 @@ export class MIDIManager {
     const n = Math.max(0, Math.min(127, Math.round(note)));
     const v = Math.max(0, Math.min(1, velocity));
     const ch = Math.max(1, Math.min(16, Math.round(channel)));
+    const duration = Math.max(1, durationMs);
+    if (!this.canSendNoteOn(n, ch)) return;
     try {
-      out.playNote(n, { channels: ch, attack: v, duration: Math.max(1, durationMs) });
+      out.playNote(n, { channels: ch, attack: v, duration });
+      this.trackNoteOn(n, ch, duration);
     } catch {}
   }
 
   sendNoteOn(note: number, velocity = 0.9, channel = 1): void {
     const out = this.getOutput(); if (!out) return;
+    const n = Math.max(0, Math.min(127, Math.round(note)));
+    const ch = Math.max(1, Math.min(16, channel));
+    if (!this.canSendNoteOn(n, ch)) return;
     try {
-      out.sendNoteOn(Math.max(0, Math.min(127, Math.round(note))), {
-        channels: Math.max(1, Math.min(16, channel)),
+      out.sendNoteOn(n, {
+        channels: ch,
         attack: Math.max(0, Math.min(1, velocity)),
       });
+      this.trackNoteOn(n, ch);
     } catch {}
   }
 
   sendNoteOff(note: number, channel = 1): void {
     const out = this.getOutput(); if (!out) return;
+    const n = Math.max(0, Math.min(127, Math.round(note)));
+    const ch = Math.max(1, Math.min(16, channel));
     try {
-      out.sendNoteOff(Math.max(0, Math.min(127, Math.round(note))), {
-        channels: Math.max(1, Math.min(16, channel)),
+      out.sendNoteOff(n, {
+        channels: ch,
       });
+      this.clearTrackedNote(this.noteKey(n, ch));
     } catch {}
   }
 
@@ -301,6 +401,11 @@ export class MIDIManager {
         try { (out as any).sendAllNotesOff?.({ channels: ch }); } catch {}
         try { (out as any).sendAllSoundOff?.({ channels: ch }); } catch {}
       }
+      this.activeNoteTimeouts.forEach((timeoutId) => {
+        try { clearTimeout(timeoutId); } catch {}
+      });
+      this.activeNoteTimeouts.clear();
+      this.activeNoteKeys.clear();
     } catch {}
   }
 

@@ -30,6 +30,20 @@ const RandomIcon: React.FC<{ className?: string }> = ({ className }) => {
   return <DiceIcon className={cls} />;
 };
 
+const SLIDER_COMMIT_MODE_KEY = 'vj-slider-updates-commit-on-release';
+const LEGACY_SLIDER_COMMIT_MODE_KEY = 'vj-layer-options-commit-sliders-on-release';
+
+function readSliderCommitMode(): boolean {
+  try {
+    const raw = localStorage.getItem(SLIDER_COMMIT_MODE_KEY);
+    if (raw !== null) return raw === 'true';
+    const legacy = localStorage.getItem(LEGACY_SLIDER_COMMIT_MODE_KEY);
+    return legacy === null ? true : legacy === 'true';
+  } catch {
+    return true;
+  }
+}
+
 function midiToNoteLabel(value: number): string {
   const midi = Math.round(value);
   const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -127,9 +141,69 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const [fadeOutDurationMs, setFadeOutDurationMs] = useState<number>(defaultFadeMs);
   const [localParamValues, setLocalParamValues] = useState<Record<string, any>>({});
   const [lockedParams, setLockedParams] = useState<Record<string, boolean>>({});
+  const [commitSlidersOnRelease, setCommitSlidersOnRelease] = useState<boolean>(readSliderCommitMode);
+  const [localRenderScale, setLocalRenderScale] = useState<number>(
+    Number(videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1)
+  );
   // Global randomization smoothing
   const [randSmoothing, setRandSmoothing] = useState<number>(0.1);
   const randAnimRafRef = useRef<number | null>(null);
+  const pendingLayerUpdatesRef = useRef<Record<string, Partial<Layer>>>({});
+  const layerUpdateRafRef = useRef<number | null>(null);
+  const onUpdateLayerRef = useRef(onUpdateLayer);
+
+  React.useEffect(() => {
+    onUpdateLayerRef.current = onUpdateLayer;
+  }, [onUpdateLayer]);
+
+  React.useEffect(() => {
+    const syncSliderCommitMode = () => {
+      setCommitSlidersOnRelease(readSliderCommitMode());
+    };
+    window.addEventListener('vj-slider-update-mode-change', syncSliderCommitMode as any);
+    window.addEventListener('storage', syncSliderCommitMode);
+    return () => {
+      window.removeEventListener('vj-slider-update-mode-change', syncSliderCommitMode as any);
+      window.removeEventListener('storage', syncSliderCommitMode);
+    };
+  }, []);
+
+  const mergeLayerUpdate = React.useCallback((prev: Partial<Layer> | undefined, next: Partial<Layer>): Partial<Layer> => {
+    if (!prev) return next;
+    return {
+      ...prev,
+      ...next,
+      params: (prev as any).params || (next as any).params
+        ? { ...((prev as any).params || {}), ...((next as any).params || {}) }
+        : (next as any).params
+    } as Partial<Layer>;
+  }, []);
+
+  const flushLayerUpdates = React.useCallback(() => {
+    layerUpdateRafRef.current = null;
+    const pending = pendingLayerUpdatesRef.current;
+    pendingLayerUpdatesRef.current = {};
+    Object.entries(pending).forEach(([layerId, options]) => {
+      onUpdateLayerRef.current(layerId, options);
+    });
+  }, []);
+
+  const scheduleLayerUpdate = React.useCallback((layerId: string, options: Partial<Layer>) => {
+    pendingLayerUpdatesRef.current[layerId] = mergeLayerUpdate(pendingLayerUpdatesRef.current[layerId], options);
+    if (layerUpdateRafRef.current == null) {
+      layerUpdateRafRef.current = requestAnimationFrame(flushLayerUpdates);
+    }
+  }, [flushLayerUpdates, mergeLayerUpdate]);
+
+  React.useEffect(() => {
+    return () => {
+      if (layerUpdateRafRef.current != null) {
+        cancelAnimationFrame(layerUpdateRafRef.current);
+        layerUpdateRafRef.current = null;
+      }
+      flushLayerUpdates();
+    };
+  }, [flushLayerUpdates]);
 
   // Expose smoothing globally so mapper/random triggers can respect it
   React.useEffect(() => {
@@ -333,7 +407,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
           const v = from + (to - from) * p;
           frameParams[name] = { ...(prevParams[name] || {}), value: v };
         });
-        onUpdateLayer(selectedLayer.id, { params: frameParams });
+        scheduleLayerUpdate(selectedLayer.id, { params: frameParams });
         setLocalParamValues((prev) => {
           const next = { ...prev } as Record<string, any>;
           Object.keys(targets).forEach((name) => { next[name] = frameParams[name].value; });
@@ -403,6 +477,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       setLoopCount(options.loopCount || 1);
       try { setRandomSpeed(inferRandomSpeed()); } catch {}
       setLayerOpacity(typeof options.opacity === 'number' ? options.opacity : 1);
+      setLocalRenderScale(Number(options.renderScale ?? defaultVideoRenderScale ?? 1));
       
       if (hasEffect && effectMetadata?.parameters) {
         const baseParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
@@ -602,7 +677,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     const clamped = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
     setLayerOpacity(clamped);
     setVideoOptionsForLayerMode(selectedLayer.id, { opacity: clamped }, showTimeline);
-    onUpdateLayer(selectedLayer.id, { opacity: clamped } as any);
+    scheduleLayerUpdate(selectedLayer.id, { opacity: clamped } as any);
     if (showTimeline && selectedTimelineClip && typeof setSelectedTimelineClip === 'function') {
       const prev = selectedTimelineClip as any;
       const nextData = { ...(prev.data || {}) } as any;
@@ -611,6 +686,11 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       nextData.params.opacity = { value: clamped };
       setSelectedTimelineClip({ ...prev, data: nextData });
     }
+  };
+
+  const setOpacityDraft = (value: number) => {
+    const clamped = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+    setLayerOpacity(clamped);
   };
 
   const handleLoopModeChange = (mode: LoopMode) => {
@@ -711,10 +791,11 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const handleRenderScaleChange = (value: number) => {
     if (!selectedLayer) return;
     const clamped = Number.isFinite(value) ? Math.max(0.1, Math.min(1, value)) : 1;
+    setLocalRenderScale(clamped);
     setVideoOptionsForLayerMode(selectedLayer.id, { renderScale: clamped }, showTimeline);
     
     // Also update the layer data in the main store for immediate rendering
-    onUpdateLayer(selectedLayer.id, { renderScale: clamped } as any);
+    scheduleLayerUpdate(selectedLayer.id, { renderScale: clamped } as any);
 
     // In timeline mode, also update the selectedTimelineClip data
     try {
@@ -735,6 +816,11 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     } catch {}
   };
 
+  const setRenderScaleDraft = (value: number) => {
+    const clamped = Number.isFinite(value) ? Math.max(0.1, Math.min(1, value)) : 1;
+    setLocalRenderScale(clamped);
+  };
+
   const handleEffectParamChange = (paramName: string, value: any) => {
     if (selectedLayer) {
       // Sanitize NaN values - convert to 0 or keep original value if not a number
@@ -742,11 +828,13 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         ? (selectedLayer.params?.[paramName]?.value ?? 0)
         : value;
       
-      const currentParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
-      if (currentParams[paramName] === undefined) currentParams[paramName] = {};
-      const prevLocked = currentParams[paramName].locked;
-      currentParams[paramName] = { ...currentParams[paramName], value: sanitizedValue, ...(prevLocked !== undefined ? { locked: prevLocked } : {}) };
-      onUpdateLayer(selectedLayer.id, { params: currentParams });
+      const currentParam = (selectedLayer.params || {})[paramName] || {};
+      const prevLocked = currentParam.locked;
+      scheduleLayerUpdate(selectedLayer.id, {
+        params: {
+          [paramName]: { ...currentParam, value: sanitizedValue, ...(prevLocked !== undefined ? { locked: prevLocked } : {}) }
+        }
+      } as any);
       setLocalParamValues(prev => ({
         ...prev,
         [paramName]: sanitizedValue
@@ -879,11 +967,20 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               step={param.step || 0.1}
                               buttonsAfter
                               layout="stacked"
+                              commitOnly={commitSlidersOnRelease}
                               onChange={(value) => {
                                 if (isLocked) return;
                                 const v = Number(value);
                                 if (!Number.isFinite(v)) return;
                                 setLocalParamValues(prev => ({ ...prev, [param.name]: v }));
+                                if (!commitSlidersOnRelease) {
+                                  handleEffectParamChange(param.name, v);
+                                }
+                              }}
+                              onCommit={(value) => {
+                                if (isLocked) return;
+                                const v = Number(value);
+                                if (!Number.isFinite(v)) return;
                                 handleEffectParamChange(param.name, v);
                               }}
                               onIncrement={() => {
@@ -1095,6 +1192,12 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   const param = selectedLayer.params?.[paramName];
                   const currentValue = param?.value ?? 1.0;
                   const isLocked = !!lockedParams[paramName];
+                  const fallbackSliderValue = (() => {
+                    const rawValue = (showTimeline && isTimelinePlaying && liveModulatedByParam[paramName] !== undefined)
+                      ? Number(liveModulatedByParam[paramName])
+                      : Number(localParamValues[paramName] ?? (param?.value ?? 0));
+                    return Number.isFinite(rawValue) ? rawValue : (param?.value ?? 0);
+                  })();
                     
                   return (
                     <div key={paramName} className="tw-space-y-1">
@@ -1138,16 +1241,25 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                                 min={param?.min || 0}
                                 max={param?.max || 100}
                                 step={param?.step || 1}
-                                value={[
-                                  // During timeline playback, prefer live LFO modulated value if available
-                                  (() => {
-                                    const rawValue = (showTimeline && isTimelinePlaying && liveModulatedByParam[paramName] !== undefined)
-                                      ? Number(liveModulatedByParam[paramName])
-                                      : Number(localParamValues[paramName] ?? (param?.value ?? 0));
-                                    return Number.isFinite(rawValue) ? rawValue : (param?.value ?? 0);
-                                  })()
-                                ]}
-                                onValueChange={(values) => !isLocked && values && values.length > 0 && handleEffectParamChange(paramName, values[0])}
+                                {...(commitSlidersOnRelease ? {
+                                  key: `commit-${fallbackSliderValue}`,
+                                  defaultValue: [fallbackSliderValue],
+                                } : {
+                                  value: [fallbackSliderValue],
+                                  onValueChange: (values: number[]) => {
+                                    if (isLocked || !values || values.length === 0) return;
+                                    const v = Number(values[0]);
+                                    if (!Number.isFinite(v)) return;
+                                    setLocalParamValues(prev => ({ ...prev, [paramName]: v }));
+                                    handleEffectParamChange(paramName, v);
+                                  },
+                                })}
+                                onValueCommit={(values) => {
+                                  if (isLocked || !values || values.length === 0) return;
+                                  const v = Number(values[0]);
+                                  if (!Number.isFinite(v)) return;
+                                  handleEffectParamChange(paramName, v);
+                                }}
                               />
                             </div>
                             <input
@@ -1248,13 +1360,18 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   <div className="tw-w-full tw-min-w-0">
                     <ParamRow
                       label="Render Resolution"
-                      value={Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1))}
+                      value={Number(localRenderScale)}
                       min={0.1}
                       max={1}
                       step={0.01}
                       buttonsAfter
                       showLabel={false}
-                      onChange={(value) => handleRenderScaleChange(Number(value))}
+                      commitOnly={commitSlidersOnRelease}
+                      onChange={(value) => {
+                        if (commitSlidersOnRelease) setRenderScaleDraft(Number(value));
+                        else handleRenderScaleChange(Number(value));
+                      }}
+                      onCommit={(value) => handleRenderScaleChange(Number(value))}
                       onIncrement={() => {
                         if (!selectedLayer) return;
                         const cur = Number((videoOptions?.renderScale ?? defaultVideoRenderScale ?? 1));
@@ -1312,7 +1429,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                       step={50}
                       buttonsAfter
                       showLabel={false}
-                      onChange={(value) => handleFadeInDurationChange(Number(value))}
+                      commitOnly={commitSlidersOnRelease}
+                      onChange={(value) => {
+                        if (commitSlidersOnRelease) {
+                          const clamped = Math.max(100, Math.min(2000, Math.floor(Number(value) || 0)));
+                          setFadeInDurationMs(clamped);
+                        } else {
+                          handleFadeInDurationChange(Number(value));
+                        }
+                      }}
+                      onCommit={(value) => handleFadeInDurationChange(Number(value))}
                       onIncrement={() => handleFadeInDurationChange(Number(fadeInDurationMs) + 50)}
                       onDecrement={() => handleFadeInDurationChange(Number(fadeInDurationMs) - 50)}
                     />
@@ -1329,7 +1455,16 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                       step={50}
                       buttonsAfter
                       showLabel={false}
-                      onChange={(value) => handleFadeOutDurationChange(Number(value))}
+                      commitOnly={commitSlidersOnRelease}
+                      onChange={(value) => {
+                        if (commitSlidersOnRelease) {
+                          const clamped = Math.max(100, Math.min(2000, Math.floor(Number(value) || 0)));
+                          setFadeOutDurationMs(clamped);
+                        } else {
+                          handleFadeOutDurationChange(Number(value));
+                        }
+                      }}
+                      onCommit={(value) => handleFadeOutDurationChange(Number(value))}
                       onIncrement={() => handleFadeOutDurationChange(Number(fadeOutDurationMs) + 50)}
                       onDecrement={() => handleFadeOutDurationChange(Number(fadeOutDurationMs) - 50)}
                     />
@@ -1353,7 +1488,12 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
               step={0.01}
               buttonsAfter
               showLabel={false}
-              onChange={(value) => handleOpacityChange(Number(value))}
+              commitOnly={commitSlidersOnRelease}
+              onChange={(value) => {
+                if (commitSlidersOnRelease) setOpacityDraft(Number(value));
+                else handleOpacityChange(Number(value));
+              }}
+              onCommit={(value) => handleOpacityChange(Number(value))}
               onIncrement={() => handleOpacityChange(Number(layerOpacity) + 0.01)}
               onDecrement={() => handleOpacityChange(Number(layerOpacity) - 0.01)}
             />

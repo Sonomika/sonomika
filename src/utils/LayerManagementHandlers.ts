@@ -209,32 +209,24 @@ export const handleUpdateLayer = (
   setRefreshTrigger: (trigger: (prev: number) => number) => void
 ) => {
   if (currentScene) {
-    // Create a deep copy of the current scene
-    const updatedScene = JSON.parse(JSON.stringify(currentScene));
-    
-    // Find the layer in any column
     let layerFound = false;
-    for (const column of updatedScene.columns) {
-      const layer = column.layers.find((layer: any) => layer.id === layerId);
-      if (layer) {
-        // Update the layer with new options
-        Object.assign(layer, updatedLayer);
+    const updatedColumns = (currentScene.columns || []).map((column: any) => {
+      let columnChanged = false;
+      const layers = (column.layers || []).map((layer: any) => {
+        if (!layer || layer.id !== layerId) return layer;
+        columnChanged = true;
         layerFound = true;
-        console.log('Updated layer options:', layerId, updatedLayer);
-        break;
-      }
-    }
-    
+        return {
+          ...layer,
+          ...updatedLayer,
+          params: updatedLayer?.params ? { ...(layer.params || {}), ...(updatedLayer.params || {}) } : layer.params
+        };
+      });
+      return columnChanged ? { ...column, layers } : column;
+    });
+
     if (layerFound) {
-      // Update the entire scene
-      updateScene(currentScene.id, updatedScene);
-      
-      // Update selected layer if it's the same one
-      // Note: selectedLayer parameter would need to be passed in if we want to check it
-      // For now, we'll just update the layer without checking if it's selected
-      
-      // Force component refresh
-      setRefreshTrigger(prev => prev + 1);
+      updateScene(currentScene.id, { columns: updatedColumns });
     }
   }
-}; 
+};

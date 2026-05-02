@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/store';
-import { Button, Input, Label, Select, Switch } from './ui';
+import { Button, ButtonGroup, Input, Label, Select, Switch } from './ui';
 import { MIDIManager } from '../midi/MIDIManager';
 import { MIDIMapping } from '../store/types';
 import { getEffectComponentSync } from '../utils/EffectLoader';
@@ -35,6 +35,20 @@ const useLayerParamOptions = (selectedLayer: any) => {
     return options;
   }, [selectedLayer]);
 };
+
+const SLIDER_COMMIT_MODE_KEY = 'vj-slider-updates-commit-on-release';
+const LEGACY_SLIDER_COMMIT_MODE_KEY = 'vj-layer-options-commit-sliders-on-release';
+
+function readSliderCommitMode(): boolean {
+  try {
+    const raw = localStorage.getItem(SLIDER_COMMIT_MODE_KEY);
+    if (raw !== null) return raw === 'true';
+    const legacy = localStorage.getItem(LEGACY_SLIDER_COMMIT_MODE_KEY);
+    return legacy === null ? true : legacy === 'true';
+  } catch {
+    return true;
+  }
+}
 
 export const LayerCCMapper: React.FC = () => {
   const {
@@ -146,6 +160,18 @@ export const LayerCCMapper: React.FC = () => {
   const [ccNumber, setCcNumber] = useState<number>(1);
   const [learn, setLearn] = useState<boolean>(false);
   const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [commitSlidersOnRelease, setCommitSlidersOnRelease] = useState<boolean>(readSliderCommitMode);
+
+  const updateSliderCommitMode = useCallback((commitOnRelease: boolean) => {
+    setCommitSlidersOnRelease(commitOnRelease);
+    try {
+      localStorage.setItem(SLIDER_COMMIT_MODE_KEY, String(commitOnRelease));
+      localStorage.removeItem(LEGACY_SLIDER_COMMIT_MODE_KEY);
+      window.dispatchEvent(new CustomEvent('vj-slider-update-mode-change', {
+        detail: { commitOnRelease }
+      }));
+    } catch {}
+  }, []);
 
   // Auto-map helpers
 
@@ -286,6 +312,23 @@ export const LayerCCMapper: React.FC = () => {
 
   return (
     <div className="tw-flex tw-flex-col tw-gap-3 tw-text-neutral-200">
+      <div className="tw-space-y-1 tw-border-b tw-border-neutral-800 tw-pb-3">
+        <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Slider Updates</h4>
+        <ButtonGroup
+          options={[
+            { value: 'commit', label: 'On release' },
+            { value: 'live', label: 'Live' },
+          ]}
+          value={commitSlidersOnRelease ? 'commit' : 'live'}
+          onChange={(v) => updateSliderCommitMode(v === 'commit')}
+          columns={2}
+          size="small"
+        />
+        <p className="tw-text-xs tw-text-neutral-500">
+          On release only applies the target value when the slider is released.
+        </p>
+      </div>
+
       {!effectiveLayer || !resolvedLayerId ? (
         <div className="tw-text-sm tw-text-neutral-400">
           {showTimeline

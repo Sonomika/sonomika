@@ -243,6 +243,34 @@ function sanitizeAssetsForPreset(assets: any[]): any[] {
   });
 }
 
+function sanitizeCompositionSettings(settings: any): any {
+  const fallback = {
+    width: 1920,
+    height: 1080,
+    aspectRatio: '16:9',
+    backgroundColor: '#000000',
+  };
+
+  if (!settings || typeof settings !== 'object') return fallback;
+
+  const width = Math.max(1, Math.floor(Number(settings.width) || fallback.width));
+  const height = Math.max(1, Math.floor(Number(settings.height) || fallback.height));
+  const aspectRatio = typeof settings.aspectRatio === 'string' && settings.aspectRatio.trim()
+    ? settings.aspectRatio
+    : `${width}:${height}`;
+  const backgroundColor = typeof settings.backgroundColor === 'string' && settings.backgroundColor.trim()
+    ? settings.backgroundColor
+    : fallback.backgroundColor;
+
+  return {
+    ...settings,
+    width,
+    height,
+    aspectRatio,
+    backgroundColor,
+  };
+}
+
 /**
  * Build the `data` block for a preset from the current app state,
  * applying sanitization so the result is portable and shareable.
@@ -293,7 +321,7 @@ export function buildPresetDataFromState(state: AnyState): any {
     previewMode: state.previewMode,
     transitionType: state.transitionType,
     transitionDuration: state.transitionDuration,
-    compositionSettings: state.compositionSettings,
+    compositionSettings: sanitizeCompositionSettings(state.compositionSettings),
     // Crossfade settings (UI)
     columnCrossfadeEnabled: !!(state as any).columnCrossfadeEnabled,
     columnCrossfadeDuration: (state as any).columnCrossfadeDuration,
@@ -315,6 +343,7 @@ export function sanitizePresetDataOnLoad(data: any): any {
   next.scenes = sanitizeScenes(next.scenes || []);
   next.timelineScenes = sanitizeScenes(next.timelineScenes || []);
   next.assets = sanitizeAssetsForPreset(next.assets || []);
+  next.compositionSettings = sanitizeCompositionSettings(next.compositionSettings);
   try {
     if (next.timelineTracksBySceneId && typeof next.timelineTracksBySceneId === 'object') {
       const src = next.timelineTracksBySceneId as Record<string, any>;

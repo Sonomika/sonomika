@@ -25,6 +25,12 @@ export const MIDIMapper: React.FC = () => {
   const [lastEventAt, setLastEventAt] = useState<number | null>(null);
   const [lastEvent, setLastEvent] = useState<{ type: 'note' | 'cc'; channel: number; effChannel?: number; forced?: boolean; number: number; value: number; ts: number } | null>(null);
   const [isRefreshingMidi, setIsRefreshingMidi] = useState(false);
+  const [noteRateLimit, setNoteRateLimit] = useState<number>(() => {
+    try { return MIDIManager.getInstance().getNoteRateLimit(); } catch { return 48; }
+  });
+  const [maxActiveNotes, setMaxActiveNotes] = useState<number>(() => {
+    try { return MIDIManager.getInstance().getMaxActiveNotes(); } catch { return 64; }
+  });
 
   const refreshMidiOutputs = async () => {
     if (isRefreshingMidi) return;
@@ -143,6 +149,14 @@ export const MIDIMapper: React.FC = () => {
       }
     } catch {}
   }, [selectedMIDIOutput]);
+
+  useEffect(() => {
+    try { MIDIManager.getInstance().setNoteRateLimit(noteRateLimit); } catch {}
+  }, [noteRateLimit]);
+
+  useEffect(() => {
+    try { MIDIManager.getInstance().setMaxActiveNotes(maxActiveNotes); } catch {}
+  }, [maxActiveNotes]);
 
   const noteOptions = [
     'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
@@ -629,7 +643,7 @@ export const MIDIMapper: React.FC = () => {
             <Button variant="secondary" onClick={() => setMonitorEnabled(!monitorEnabled)}>{monitorEnabled ? 'Pause' : 'Resume'}</Button>
           </div>
         </div>
-        <div>
+        <div className="tw-space-y-3">
           {!lastEvent ? (
             <div className="tw-text-neutral-500">No MIDI events yet. Play a note or move a control.</div>
           ) : (
@@ -646,6 +660,34 @@ export const MIDIMapper: React.FC = () => {
               </span>
             </div>
           )}
+          <div className="tw-grid tw-grid-cols-2 tw-gap-2 tw-pt-2 tw-border-t tw-border-neutral-800">
+            <div className="tw-col-span-2 tw-text-xs tw-font-medium tw-text-neutral-300">
+              Output Safety Limit
+            </div>
+            <div className="tw-space-y-1">
+              <Label className="tw-text-xs">Max Notes / Sec</Label>
+              <Input
+                type="number"
+                min={0}
+                max={1000}
+                value={noteRateLimit}
+                onChange={(e) => setNoteRateLimit(Math.max(0, Math.min(1000, Number(e.target.value) || 0)))}
+              />
+            </div>
+            <div className="tw-space-y-1">
+              <Label className="tw-text-xs">Max Active Notes</Label>
+              <Input
+                type="number"
+                min={1}
+                max={512}
+                value={maxActiveNotes}
+                onChange={(e) => setMaxActiveNotes(Math.max(1, Math.min(512, Number(e.target.value) || 64)))}
+              />
+            </div>
+            <div className="tw-col-span-2 tw-text-xs tw-text-neutral-400">
+              Prevents LoopBe or virtual MIDI outputs from crashing during dense note bursts. Notes/sec 0 disables the burst cap. Note-off and panic messages are never blocked.
+            </div>
+          </div>
           </div>
         </div>
         <input
