@@ -968,6 +968,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                               buttonsAfter
                               layout="stacked"
                               commitOnly={commitSlidersOnRelease}
+                              sliderDisabled={isLocked}
                               onChange={(value) => {
                                 if (isLocked) return;
                                 const v = Number(value);
@@ -1260,6 +1261,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                                   if (!Number.isFinite(v)) return;
                                   handleEffectParamChange(paramName, v);
                                 }}
+                                disabled={isLocked}
                               />
                             </div>
                             <input

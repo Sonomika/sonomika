@@ -285,6 +285,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const [previewContent, setPreviewContent] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [, setRefreshTrigger] = useState(0);
+  const pendingPreviewLayerUpdatesRef = useRef<Record<string, any>>({});
+  const previewLayerUpdateTimerRef = useRef<number | null>(null);
+  const pendingSceneLayerUpdatesRef = useRef<Record<string, any>>({});
+  const sceneLayerUpdateTimerRef = useRef<number | null>(null);
   const [isBeatPulse, setIsBeatPulse] = useState(false);
   const beatPulseTimeoutRef = React.useRef<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
@@ -998,6 +1002,140 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     }
   }, [showTimeline]);
 
+  const mergeLayerOptions = useCallback((prev: any, next: any) => {
+    if (!prev) return next;
+    return {
+      ...prev,
+      ...next,
+      params: prev?.params || next?.params
+        ? { ...(prev?.params || {}), ...(next?.params || {}) }
+        : next?.params,
+    };
+  }, []);
+
+  const isVisualLayerUpdate = useCallback((options: any) => {
+    if (!options || typeof options !== 'object') return true;
+    const nonVisualParams = new Set([
+      'rootMidi',
+      'midiChannel',
+      'sendMidi',
+      'noteLength',
+      'velocityBoost',
+    ]);
+    const topLevelKeys = Object.keys(options).filter((key) => key !== 'params');
+    if (topLevelKeys.length > 0) return true;
+    const paramKeys = Object.keys(options.params || {});
+    if (paramKeys.length === 0) return true;
+    return paramKeys.some((key) => !nonVisualParams.has(key));
+  }, []);
+
+  const flushPreviewLayerUpdates = useCallback(() => {
+    previewLayerUpdateTimerRef.current = null;
+    const pending = pendingPreviewLayerUpdatesRef.current;
+    pendingPreviewLayerUpdatesRef.current = {};
+    if (Object.keys(pending).length === 0) return;
+
+    const applyUpdate = () => {
+      setPreviewContent((prev: any) => {
+        if (!prev || prev.type !== 'column') return prev;
+        const updateLayer = (layer: any) => {
+          const options = layer?.id ? pending[layer.id] : null;
+          if (!options) return layer;
+          return {
+            ...layer,
+            ...options,
+            params: options?.params ? { ...(layer.params || {}), ...(options.params || {}) } : layer.params,
+          };
+        };
+        const nextColumn = prev.column ? { ...prev.column, layers: (prev.column.layers || []).map(updateLayer) } : prev.column;
+        const nextLayers = Array.isArray(prev.layers) ? prev.layers.map(updateLayer) : prev.layers;
+        return { ...prev, column: nextColumn, layers: nextLayers };
+      });
+    };
+
+    try {
+      React.startTransition(applyUpdate);
+    } catch {
+      applyUpdate();
+    }
+  }, []);
+
+  const schedulePreviewLayerUpdate = useCallback((layerId: string, options: any) => {
+    pendingPreviewLayerUpdatesRef.current[layerId] = mergeLayerOptions(
+      pendingPreviewLayerUpdatesRef.current[layerId],
+      options
+    );
+
+    if (previewLayerUpdateTimerRef.current != null) {
+      window.clearTimeout(previewLayerUpdateTimerRef.current);
+    }
+
+    if (!isPlaying && !isGlobalPlaying) {
+      flushPreviewLayerUpdates();
+      return;
+    }
+
+    // Let the active animation keep its frame budget while the user is adjusting options.
+    // The store/UI update stays immediate; the running preview receives the latest value after input settles.
+    previewLayerUpdateTimerRef.current = window.setTimeout(flushPreviewLayerUpdates, 160);
+  }, [flushPreviewLayerUpdates, isGlobalPlaying, isPlaying, mergeLayerOptions]);
+
+  const flushSceneLayerUpdates = useCallback(() => {
+    sceneLayerUpdateTimerRef.current = null;
+    const pending = pendingSceneLayerUpdatesRef.current;
+    pendingSceneLayerUpdatesRef.current = {};
+    if (Object.keys(pending).length === 0) return;
+
+    const scene = getCurrentScene();
+    if (!scene) return;
+    const { updateScene: updateSceneFn } = getSceneManagementFunctions();
+    let changed = false;
+    const updatedColumns = (scene.columns || []).map((column: any) => {
+      let columnChanged = false;
+      const layers = (column.layers || []).map((layer: any) => {
+        const options = layer?.id ? pending[layer.id] : null;
+        if (!options) return layer;
+        changed = true;
+        columnChanged = true;
+        return {
+          ...layer,
+          ...options,
+          params: options?.params ? { ...(layer.params || {}), ...(options.params || {}) } : layer.params,
+        };
+      });
+      return columnChanged ? { ...column, layers } : column;
+    });
+    if (changed) {
+      updateSceneFn(scene.id, { columns: updatedColumns });
+    }
+  }, [getCurrentScene, getSceneManagementFunctions]);
+
+  const scheduleSceneLayerUpdate = useCallback((layerId: string, options: any, settleMs = 180) => {
+    pendingSceneLayerUpdatesRef.current[layerId] = mergeLayerOptions(
+      pendingSceneLayerUpdatesRef.current[layerId],
+      options
+    );
+
+    if (sceneLayerUpdateTimerRef.current != null) {
+      window.clearTimeout(sceneLayerUpdateTimerRef.current);
+    }
+
+    sceneLayerUpdateTimerRef.current = window.setTimeout(flushSceneLayerUpdates, settleMs);
+  }, [flushSceneLayerUpdates, mergeLayerOptions]);
+
+  useEffect(() => {
+    return () => {
+      if (previewLayerUpdateTimerRef.current != null) {
+        window.clearTimeout(previewLayerUpdateTimerRef.current);
+        previewLayerUpdateTimerRef.current = null;
+      }
+      if (sceneLayerUpdateTimerRef.current != null) {
+        window.clearTimeout(sceneLayerUpdateTimerRef.current);
+        sceneLayerUpdateTimerRef.current = null;
+      }
+    };
+  }, []);
+
   if (debugMode) console.log('LayerManager state - scenes:', scenes, 'currentSceneId:', currentSceneId);
   if (debugMode) console.log('Preview state - previewContent:', previewContent, 'isPlaying:', isPlaying);
 
@@ -1274,32 +1412,37 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       setSelectedLayer((prev: any) => (prev && prev.id === layerId ? { ...prev, ...options } : prev));
       return;
     }
-    // Fallback to regular layer update
-    handleUpdateLayerWrapper(layerId, options);
-    // If the preview is showing a column, mirror the update into the previewContent object
+    // Fallback to regular layer update. While playing, debounce the scene-store write too:
+    // updating `scenes` is enough to re-render the full manager/grid and can steal a frame.
+    const visualUpdate = isVisualLayerUpdate(options);
+    if (isPlaying || isGlobalPlaying) {
+      scheduleSceneLayerUpdate(layerId, options, visualUpdate ? 180 : 600);
+    } else {
+      handleUpdateLayerWrapper(layerId, options);
+    }
+    // The active preview is the expensive path. Coalesce these updates so controls
+    // such as root MIDI note do not rebuild the effect chain on every small input.
     try {
-      setPreviewContent((prev: any) => {
-        if (!prev || prev.type !== 'column') return prev;
-        const updateLayer = (l: any) => {
-          if (!l || l.id !== layerId) return l;
-          return {
-            ...l,
-            ...options,
-            params: options?.params ? { ...(l.params || {}), ...(options.params || {}) } : l.params
-          };
-        };
-        const nextColumn = prev.column ? { ...prev.column, layers: (prev.column.layers || []).map(updateLayer) } : prev.column;
-        const nextLayers = Array.isArray(prev.layers) ? prev.layers.map(updateLayer) : prev.layers;
-        return { ...prev, column: nextColumn, layers: nextLayers };
-      });
+      if (visualUpdate && previewContent?.type === 'column') {
+        schedulePreviewLayerUpdate(layerId, options);
+      }
     } catch {}
     // Keep local selectedLayer in sync so UI reflects new values immediately
     try {
-      setSelectedLayer((prev: any) => (prev && prev.id === layerId) ? {
-        ...prev,
-        ...options,
-        params: options?.params ? { ...(prev.params || {}), ...(options.params || {}) } : prev.params
-      } : prev);
+      const syncSelectedLayer = () => {
+        setSelectedLayer((prev: any) => (prev && prev.id === layerId) ? {
+          ...prev,
+          ...options,
+          params: options?.params ? { ...(prev.params || {}), ...(options.params || {}) } : prev.params
+        } : prev);
+      };
+      if ((isPlaying || isGlobalPlaying) && !visualUpdate) {
+        // Param controls already keep their own local value; avoid a full manager re-render for MIDI-only edits.
+      } else if (isPlaying || isGlobalPlaying) {
+        React.startTransition(syncSelectedLayer);
+      } else {
+        syncSelectedLayer();
+      }
     } catch {}
   };
 

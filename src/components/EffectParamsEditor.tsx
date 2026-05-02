@@ -264,6 +264,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                     step={1}
                     value={[Number(value)]}
                     onValueChange={(values) => values && values.length > 0 && !isLocked && handleParamChange(paramName, values[0])}
+                    disabled={isLocked}
                   />
                 </div>
                 <input
@@ -364,6 +365,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
                     step={param.step || 0.1}
                     buttonsAfter
                     layout="stacked"
+                    sliderDisabled={isLocked}
                     onChange={(value) => {
                       if (isLocked) return;
                       setLocalParamValues((prev) => ({ ...prev, [param.name]: value }));

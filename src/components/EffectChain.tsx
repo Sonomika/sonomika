@@ -19,7 +19,52 @@ interface EffectChainProps {
   baseAssetId?: string;
 }
 
-export const EffectChain: React.FC<EffectChainProps> = ({
+const shallowEqualParams = (a?: Record<string, any>, b?: Record<string, any>) => {
+  if (a === b) return true;
+  const aKeys = Object.keys(a || {});
+  const bKeys = Object.keys(b || {});
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => (a as any)?.[key] === (b as any)?.[key]);
+};
+
+const chainItemsEqual = (a: ChainItem[], b: ChainItem[]) => {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+
+  for (let i = 0; i < a.length; i++) {
+    const left: any = a[i];
+    const right: any = b[i];
+    if (!left || !right || left.type !== right.type) return false;
+    if (left.__uniqueKey !== right.__uniqueKey) return false;
+    if (left.opacity !== right.opacity) return false;
+
+    if (left.type === 'video') {
+      if (left.video !== right.video) return false;
+      if (left.assetId !== right.assetId) return false;
+      if (left.blendMode !== right.blendMode) return false;
+      if (left.fitMode !== right.fitMode) return false;
+      if (left.backgroundSizeMode !== right.backgroundSizeMode) return false;
+      if (left.backgroundRepeat !== right.backgroundRepeat) return false;
+      if (left.backgroundSizeCustom !== right.backgroundSizeCustom) return false;
+      if (left.renderScale !== right.renderScale) return false;
+    } else {
+      if (left.effectId !== right.effectId) return false;
+      if (!shallowEqualParams(left.params, right.params)) return false;
+    }
+  }
+
+  return true;
+};
+
+const areEffectChainPropsEqual = (prev: EffectChainProps, next: EffectChainProps) => {
+  return prev.compositionWidth === next.compositionWidth
+    && prev.compositionHeight === next.compositionHeight
+    && prev.opacity === next.opacity
+    && prev.baseAssetId === next.baseAssetId
+    && chainItemsEqual(prev.items, next.items);
+};
+
+const EffectChainComponent: React.FC<EffectChainProps> = ({
   items,
   compositionWidth = 1920,
   compositionHeight = 1080,
@@ -931,6 +976,8 @@ export const EffectChain: React.FC<EffectChainProps> = ({
     </>
   );
 };
+
+export const EffectChain = React.memo(EffectChainComponent, areEffectChainPropsEqual);
 
 export default EffectChain;
 

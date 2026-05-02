@@ -19,6 +19,7 @@ interface ParamRowProps {
   showLabel?: boolean;
   valueDisplay?: string;
   buttonsAfter?: boolean;
+  sliderDisabled?: boolean;
   // Layout control: auto (responsive), stacked (label above), or inline (single row)
   layout?: 'auto' | 'stacked' | 'inline';
 }
@@ -40,6 +41,7 @@ export const ParamRow: React.FC<ParamRowProps> = ({
   showLabel = true,
   valueDisplay,
   buttonsAfter = false,
+  sliderDisabled = false,
   layout = 'auto'
 }) => {
 
@@ -105,6 +107,7 @@ export const ParamRow: React.FC<ParamRowProps> = ({
               min={min}
               max={max}
               step={step}
+              disabled={sliderDisabled}
               {...sliderProps}
             />
           </div>
@@ -141,6 +144,7 @@ export const ParamRow: React.FC<ParamRowProps> = ({
               min={min}
               max={max}
               step={step}
+              disabled={sliderDisabled}
               {...sliderProps}
             />
           </div>
