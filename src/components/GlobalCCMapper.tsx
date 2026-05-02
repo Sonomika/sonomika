@@ -217,76 +217,85 @@ const GlobalCCMapper: React.FC = () => {
         <div className="tw-text-sm tw-text-neutral-400">No scene loaded.</div>
       ) : (
         <>
-          <div className="tw-grid tw-grid-cols-2 tw-gap-2">
+          <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
             <div className="tw-space-y-1">
-              <Label className="tw-text-xs">Global Effect</Label>
-              <Select value={selectedGlobalId} onChange={(v) => setSelectedGlobalId(String(v))} options={globalOptions} />
+              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">1. Map Global Effect</h4>
+              <p className="tw-text-xs tw-text-neutral-500">Choose a global effect parameter, then assign or learn a MIDI CC.</p>
             </div>
-            <div className="tw-space-y-1">
-              <Label className="tw-text-xs">Parameter</Label>
-              <Select value={param} onChange={(v) => setParam(String(v))} options={paramOptions} />
-            </div>
-            <div className="tw-space-y-1">
-              <Label className="tw-text-xs">MIDI Channel</Label>
-              <Select value={String(channel)} onChange={(v) => setChannel(Number(v))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
-            </div>
-            <div className="tw-space-y-1">
-              <Label className="tw-text-xs">CC Number</Label>
-              <Input value={ccNumber} onChange={(e) => setCcNumber(Math.max(0, Math.min(127, Number(e.target.value) || 0)))} />
-            </div>
-            <div className="tw-space-y-1">
-              <div className="tw-flex tw-items-center tw-justify-between">
-                <Label className="tw-text-xs">CC Offset</Label>
-                <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
-                  <Switch
-                    checked={!!midiAutoDetectOffset}
-                    onCheckedChange={(v: boolean) => {
-                      try {
-                        setMidiAutoDetectOffset(!!v);
-                      } catch {}
-                    }}
-                  />
-                  Auto detect
-                </label>
+            <div className="tw-grid tw-grid-cols-2 tw-gap-2">
+              <div className="tw-space-y-1">
+                <Label className="tw-text-xs">Global Effect</Label>
+                <Select value={selectedGlobalId} onChange={(v) => setSelectedGlobalId(String(v))} options={globalOptions} />
               </div>
-              <Input
-                value={midiCCOffset ?? 0}
-                onChange={(e) => {
-                  try {
-                    setMidiCCOffset(Math.max(0, Math.min(127, Number(e.target.value) || 0)));
-                  } catch {}
-                }}
-                disabled={!!midiAutoDetectOffset}
-              />
-              {midiAutoDetectOffset && (
-                <div className="tw-text-xs tw-text-neutral-400">
-                  {midiAutoDetectOffsetPrimed
-                    ? 'Move any knob to learn the offset.'
-                    : `Learned from CC ${Math.max(1, (Number(midiCCOffset) || 0) + 1)}.`}
+              <div className="tw-space-y-1">
+                <Label className="tw-text-xs">Parameter</Label>
+                <Select value={param} onChange={(v) => setParam(String(v))} options={paramOptions} />
+              </div>
+              <div className="tw-space-y-1">
+                <Label className="tw-text-xs">MIDI Channel</Label>
+                <Select value={String(channel)} onChange={(v) => setChannel(Number(v))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
+              </div>
+              <div className="tw-space-y-1">
+                <Label className="tw-text-xs">CC Number</Label>
+                <Input value={ccNumber} onChange={(e) => setCcNumber(Math.max(0, Math.min(127, Number(e.target.value) || 0)))} />
+              </div>
+              <div className="tw-space-y-1">
+                <div className="tw-flex tw-items-center tw-justify-between">
+                  <Label className="tw-text-xs">CC Offset</Label>
+                  <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
+                    <Switch
+                      checked={!!midiAutoDetectOffset}
+                      onCheckedChange={(v: boolean) => {
+                        try {
+                          setMidiAutoDetectOffset(!!v);
+                        } catch {}
+                      }}
+                    />
+                    Auto detect
+                  </label>
                 </div>
-              )}
-            </div>
-            <div className="tw-col-span-2 tw-flex tw-flex-wrap tw-items-end tw-gap-2">
-              <Button variant="secondary" onClick={() => setLearn((v) => !v)}>{learn ? 'Listening…' : 'Learn CC'}</Button>
-              <Button onClick={addMapping} disabled={!param || !selectedGlobalId}>{editIndex !== null ? 'Save Mapping' : 'Add Mapping'}</Button>
-              <Button variant="secondary" onClick={autoMapAll} disabled={paramOptions.length === 0}>Auto Map</Button>
-              <label className="tw-flex tw-items-center tw-gap-2 tw-text-xs tw-ml-2">
-                <Switch checked={autoOnSelect} onCheckedChange={(v: boolean) => setAutoOnSelect(!!v)} />
-                Auto Map on select
-              </label>
-              <div className="tw-basis-full tw-flex tw-items-end tw-gap-2">
-                <Label className="tw-text-xs">Knobs</Label>
-                <div className="tw-flex tw-items-center tw-gap-1">
-                  <Input type="number" className="tw-w-14" value={autoMapStart} onChange={(e) => setAutoMapStart(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
-                  <span className="tw-text-neutral-400">-</span>
-                  <Input type="number" className="tw-w-14" value={autoMapEnd} onChange={(e) => setAutoMapEnd(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
+                <Input
+                  value={midiCCOffset ?? 0}
+                  onChange={(e) => {
+                    try {
+                      setMidiCCOffset(Math.max(0, Math.min(127, Number(e.target.value) || 0)));
+                    } catch {}
+                  }}
+                  disabled={!!midiAutoDetectOffset}
+                />
+                {midiAutoDetectOffset && (
+                  <div className="tw-text-xs tw-text-neutral-400">
+                    {midiAutoDetectOffsetPrimed
+                      ? 'Move any knob to learn the offset.'
+                      : `Learned from CC ${Math.max(1, (Number(midiCCOffset) || 0) + 1)}.`}
+                  </div>
+                )}
+              </div>
+              <div className="tw-col-span-2 tw-flex tw-flex-wrap tw-items-end tw-gap-2">
+                <Button variant="secondary" onClick={() => setLearn((v) => !v)}>{learn ? 'Listening…' : 'Learn CC'}</Button>
+                <Button onClick={addMapping} disabled={!param || !selectedGlobalId}>{editIndex !== null ? 'Save Mapping' : 'Add Mapping'}</Button>
+                <Button variant="secondary" onClick={autoMapAll} disabled={paramOptions.length === 0}>Auto Map</Button>
+                <label className="tw-flex tw-items-center tw-gap-2 tw-text-xs tw-ml-2">
+                  <Switch checked={autoOnSelect} onCheckedChange={(v: boolean) => setAutoOnSelect(!!v)} />
+                  Auto Map on select
+                </label>
+                <div className="tw-basis-full tw-flex tw-items-end tw-gap-2">
+                  <Label className="tw-text-xs">Knobs</Label>
+                  <div className="tw-flex tw-items-center tw-gap-1">
+                    <Input type="number" className="tw-w-14" value={autoMapStart} onChange={(e) => setAutoMapStart(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
+                    <span className="tw-text-neutral-400">-</span>
+                    <Input type="number" className="tw-w-14" value={autoMapEnd} onChange={(e) => setAutoMapEnd(Math.max(1, Math.min(127, Number(e.target.value) || 1)))} />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="tw-mt-2 tw-space-y-1">
-            <div className="tw-text-sm tw-text-neutral-300">Current CC Mappings for this Global Effect</div>
+          <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
+            <div className="tw-space-y-1">
+              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">2. Current Global Mappings</h4>
+              <p className="tw-text-xs tw-text-neutral-500">Review, edit, disable, or remove CC assignments for global effects.</p>
+            </div>
             <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900">
               {layerMappings.length === 0 ? (
                 <div className="tw-text-xs tw-text-neutral-500 tw-px-2 tw-py-2">None yet.</div>

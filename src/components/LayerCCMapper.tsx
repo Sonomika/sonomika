@@ -312,8 +312,8 @@ export const LayerCCMapper: React.FC = () => {
 
   return (
     <div className="tw-flex tw-flex-col tw-gap-3 tw-text-neutral-200">
-      <div className="tw-space-y-1 tw-border-b tw-border-neutral-800 tw-pb-3">
-        <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Slider Updates</h4>
+      <div className="tw-space-y-1 tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2">
+        <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">1. Mapping Behavior</h4>
         <ButtonGroup
           options={[
             { value: 'commit', label: 'On release' },
@@ -337,7 +337,12 @@ export const LayerCCMapper: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="tw-grid tw-grid-cols-2 tw-gap-2">
+          <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
+            <div className="tw-space-y-1">
+              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">2. Map Selected Layer</h4>
+              <p className="tw-text-xs tw-text-neutral-500">Choose a layer parameter, then assign or learn a MIDI CC.</p>
+            </div>
+            <div className="tw-grid tw-grid-cols-2 tw-gap-2">
             <div className="tw-space-y-1">
               <Label className="tw-text-xs">Parameter</Label>
               <Select value={param} onChange={(v) => setParam(String(v))} options={paramOptions} />
@@ -419,9 +424,13 @@ export const LayerCCMapper: React.FC = () => {
               </div>
             </div>
           </div>
+          </div>
 
-          <div className="tw-mt-2 tw-space-y-1">
-            <div className="tw-text-sm tw-text-neutral-300">Current CC Mappings for this Layer</div>
+          <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
+            <div className="tw-space-y-1">
+              <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">3. Current Layer Mappings</h4>
+              <p className="tw-text-xs tw-text-neutral-500">Review, edit, disable, or remove CC assignments for the selected layer.</p>
+            </div>
             <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900">
               {layerMappings.length === 0 ? (
                 <div className="tw-text-xs tw-text-neutral-500 tw-px-2 tw-py-2">None yet.</div>

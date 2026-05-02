@@ -11,6 +11,16 @@ import GlobalCCMapper from './GlobalCCMapper';
 
 interface MIDIDeviceOption { value: string; label?: string }
 
+const MIDISection: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({ title, description, children }) => (
+  <section className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
+    <div className="tw-space-y-1">
+      <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">{title}</h4>
+      {description && <p className="tw-text-xs tw-text-neutral-500">{description}</p>}
+    </div>
+    {children}
+  </section>
+);
+
 export const MIDIMapper: React.FC = () => {
   const { midiMappings, setMIDIMappings, midiForceChannel1, setMIDIForceChannel1, selectedMIDIDevices, setSelectedMIDIDevices, selectedMIDIOutput, setSelectedMIDIOutput, scenes, currentSceneId } = useStore() as any;
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
@@ -351,303 +361,329 @@ export const MIDIMapper: React.FC = () => {
   // No forced default mapping; allow empty list
 
   return (
-    <div className="tw-flex tw-flex-col tw-h-full tw-text-neutral-200">
-      <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+    <div className="tw-flex tw-flex-col tw-h-full tw-text-neutral-200 tw-bg-neutral-900">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="tw-flex tw-flex-col tw-min-h-0 tw-flex-1">
+        <div className="tw-px-2 tw-pt-2 tw-border-b tw-border-neutral-800">
           <TabsList>
             <TabsTrigger value="mappings">Mappings</TabsTrigger>
             <TabsTrigger value="layer-cc">Layer CC</TabsTrigger>
             <TabsTrigger value="global-cc">Global</TabsTrigger>
           </TabsList>
+        </div>
 
-          <TabsContent value="mappings">
-        <div className="tw-flex tw-flex-col tw-gap-2">
-          <div className="tw-flex tw-flex-col tw-gap-2">
-            <Label className="tw-text-xs">MIDI Devices</Label>
-            <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-py-2 tw-max-h-32 tw-overflow-y-auto tw-overflow-x-hidden tw-bg-neutral-900">
-              {deviceOptions.length === 0 ? (
-                <div className="tw-text-xs tw-text-neutral-400">No MIDI devices detected</div>
-              ) : (
+        <div className="tw-flex-1 tw-min-h-0 tw-overflow-auto tw-p-2">
+          <TabsContent value="mappings" className="tw-mt-0">
+            <div className="tw-flex tw-flex-col tw-gap-3">
+              <MIDISection
+                title="1. MIDI Input"
+                description="Choose the hardware or virtual inputs that can trigger mappings."
+              >
                 <div className="tw-flex tw-flex-col tw-gap-2">
-                  {deviceOptions.map((device) => {
-                    const isSelected = (selectedMIDIDevices || []).includes(device.value);
-                    return (
-                      <div key={device.value} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-py-1">
-                        <Label className="tw-text-xs">{device.value}</Label>
-                        <Switch
-                          checked={isSelected}
-                          onCheckedChange={(checked) => {
-                            const current = selectedMIDIDevices || [];
-                            if (checked) {
-                              setSelectedMIDIDevices([...current, device.value]);
-                            } else {
-                              setSelectedMIDIDevices(current.filter((d: string) => d !== device.value));
+                  <Label className="tw-text-xs">MIDI Devices</Label>
+                  <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-p-2 tw-max-h-32 tw-overflow-y-auto tw-overflow-x-hidden">
+                    {deviceOptions.length === 0 ? (
+                      <div className="tw-text-xs tw-text-neutral-400">No MIDI devices detected</div>
+                    ) : (
+                      <div className="tw-flex tw-flex-col tw-gap-2">
+                        {deviceOptions.map((device) => {
+                          const isSelected = (selectedMIDIDevices || []).includes(device.value);
+                          return (
+                            <div key={device.value} className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+                              <Label className="tw-text-xs">{device.value}</Label>
+                              <Switch
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  const current = selectedMIDIDevices || [];
+                                  if (checked) {
+                                    setSelectedMIDIDevices([...current, device.value]);
+                                  } else {
+                                    setSelectedMIDIDevices(current.filter((d: string) => d !== device.value));
+                                  }
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {(selectedMIDIDevices || []).length === 0 && (
+                    <div className="tw-text-xs tw-text-neutral-400">No devices selected - MIDI input is disabled</div>
+                  )}
+                </div>
+                <div className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-pt-1">
+                  <Label className="tw-text-xs">Force Channel 1</Label>
+                  <Switch checked={!!midiForceChannel1} onCheckedChange={(val: boolean) => setMIDIForceChannel1(!!val)} />
+                </div>
+              </MIDISection>
+
+              <MIDISection
+                title="2. Mapping Preset"
+                description="Add, duplicate, remove, save, or load trigger mappings."
+              >
+                <div className="tw-flex tw-flex-wrap tw-gap-2">
+                  <Button title="Add a new mapping" onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>
+                  <Button variant="secondary" title="Duplicate selected mapping" onClick={() => {
+                    if (!selectedMapping) return;
+                    const clone = JSON.parse(JSON.stringify(selectedMapping)) as MIDIMapping;
+                    const next = mappings.slice();
+                    const insertAt = Math.min(mappings.length, selectedIndex + 1);
+                    next.splice(insertAt, 0, clone);
+                    updateMappings(next);
+                    setSelectedIndex(insertAt);
+                  }}>Duplicate</Button>
+                  <Button title="Remove selected mapping" onClick={() => { if (selectedMapping) { const next = mappings.filter((_, i) => i !== selectedIndex); updateMappings(next); setSelectedIndex(Math.max(0, selectedIndex - 1)); } }}>Remove</Button>
+                  <Button variant="secondary" title="Save mappings to file" onClick={() => { saveMappingsToFile(); }}>Save Preset</Button>
+                  <Button variant="secondary" title="Load mappings from file" onClick={() => {
+                    try {
+                      const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
+                      if (isElectron) {
+                        (async () => {
+                          trackFeature('midi_mapping_load_dialog', { ok: true });
+                          const result = await (window as any).electron.showOpenDialog({ title: 'Load MIDI Mapping', properties: ['openFile'], filters: [{ name: 'MIDI Mapping', extensions: ['json'] }] });
+                          if (!result.canceled && result.filePaths && result.filePaths[0]) {
+                            const content = await (window as any).electron.readFileText(result.filePaths[0]);
+                            if (content) {
+                              loadMappingsFromContent(content);
+                              trackFeature('midi_mapping_loaded', { ok: true, source: 'electron_dialog' });
                             }
+                          }
+                        })();
+                      } else {
+                        trackFeature('midi_mapping_load_dialog', { ok: true, source: 'file_input' });
+                        fileInputRef.current?.click();
+                      }
+                    } catch {}
+                  }}>Load Preset</Button>
+                </div>
+              </MIDISection>
+
+              <MIDISection
+                title="3. Mapping List"
+                description="Select a mapping here, then edit its input and action below."
+              >
+                <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-auto tw-max-h-64 tw-min-h-0">
+                  {(mappings || []).length === 0 ? (
+                    <div className="tw-text-xs tw-text-neutral-500 tw-px-2 tw-py-2">No mappings yet. Use Add to create one.</div>
+                  ) : (
+                    (mappings || []).map((mapping, idx) => {
+                      const isSelected = idx === selectedIndex;
+                      return (
+                        <div key={idx}
+                          className={`tw-flex tw-justify-between tw-items-center tw-gap-2 tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 last:tw-border-b-0 tw-cursor-pointer ${isSelected ? 'tw-bg-neutral-700 tw-text-white' : 'hover:tw-bg-neutral-800/60'}`}
+                          onClick={() => handleMappingSelect(idx)}
+                          aria-selected={isSelected}
+                        >
+                          <span className="tw-text-sm tw-font-medium">{mapping.target.type}</span>
+                          <span className={`tw-text-xs tw-font-semibold ${isSelected ? 'tw-text-white' : 'tw-text-neutral-300'}`}>{getNoteChannelDisplay(mapping)}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </MIDISection>
+
+              <section className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
+                {!selectedMapping ? (
+                  <div className="tw-text-xs tw-text-neutral-500">Select or add a mapping to edit its details.</div>
+                ) : (
+                  <div className="tw-grid tw-grid-cols-2 tw-gap-2">
+                    <div className="tw-space-y-2">
+                      <Label className="tw-text-xs">Input Type</Label>
+                      <Select value={selectedMapping?.type || 'note'} onChange={(v) => updateSelected(m => ({ ...m, type: v as any }))} options={inputTypeOptions} />
+                    </div>
+                    {selectedMapping?.type !== 'key' && (
+                      <div className="tw-space-y-2">
+                        <Label className="tw-text-xs">Channel</Label>
+                        <Select value={String(selectedMapping?.channel || 1)} onChange={(v) => updateSelected(m => ({ ...m, channel: Number(v) }))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
+                      </div>
+                    )}
+                    {selectedMapping?.type !== 'key' ? (
+                      <div className="tw-space-y-2">
+                        <Label className="tw-text-xs">Note Number</Label>
+                        <Input value={selectedMapping?.number ?? 60} onChange={(e) => updateSelected(m => ({ ...m, number: Math.max(0, Math.min(127, Number(e.target.value) || 0)) }))} />
+                      </div>
+                    ) : (
+                      <div className="tw-space-y-2">
+                        <Label className="tw-text-xs">Key Combo</Label>
+                        <Input
+                          value={getNoteChannelDisplay(selectedMapping)}
+                          placeholder="Click and press a key"
+                          onFocus={(e) => {
+                            const handler = (ev: KeyboardEvent) => {
+                              ev.preventDefault();
+                              updateSelected(m => ({ ...m, key: ev.key, ctrl: ev.ctrlKey, shift: ev.shiftKey, alt: ev.altKey, meta: ev.metaKey }));
+                            };
+                            const onBlur = () => {
+                              (e.target as HTMLInputElement).removeEventListener('keydown', handler as any);
+                              (e.target as HTMLInputElement).removeEventListener('blur', onBlur);
+                            };
+                            (e.target as HTMLInputElement).addEventListener('keydown', handler as any, { once: true } as any);
+                            (e.target as HTMLInputElement).addEventListener('blur', onBlur, { once: true } as any);
                           }}
+                          onChange={() => {}}
+                          readOnly
                         />
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            {(selectedMIDIDevices || []).length === 0 && (
-              <div className="tw-text-xs tw-text-neutral-400">No devices selected - MIDI input is disabled</div>
-            )}
-          </div>
-          <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
-            <Label className="tw-text-xs">Force Channel 1</Label>
-            <Switch checked={!!midiForceChannel1} onCheckedChange={(val: boolean) => setMIDIForceChannel1(!!val)} />
-          </div>
+                    )}
+                    <div className="tw-space-y-2">
+                      <Label className="tw-text-xs">Action</Label>
+                      <Select
+                        value={selectedMapping && (selectedMapping.target as any)?.type || 'transport'}
+                        onChange={(v) => {
+                          const val = String(v);
+                          // Ensure a mapping exists so the dropdown works even when none were added yet
+                          if (!selectedMapping) {
+                            const newMapping: MIDIMapping = {
+                              type: 'note',
+                              channel: 1,
+                              number: 60,
+                              target: { type: 'transport', action: 'play' } as any,
+                              enabled: true,
+                            } as any;
+                            const next = [...(mappings || []), newMapping];
+                            updateMappings(next);
+                            setSelectedIndex(next.length - 1);
+                          }
+                          // Apply the selected action to the (now guaranteed) selected mapping
+                          updateSelected((m) => {
+                            if (val === 'transport') return { ...m, target: { type: 'transport', action: 'play' } as any };
+                            if (val === 'column') return { ...m, target: { type: 'column', index: 1 } as any };
+                            if (val === 'cell') return { ...m, target: { type: 'cell', row: 1, column: 1 } as any };
+                            if (val === 'scene') return { ...m, target: { type: 'scene', id: (useStore.getState() as any).currentSceneId } as any };
+                            return m;
+                          });
+                        }}
+                        options={actionTypeOptions}
+                      />
+                    </div>
 
-          <div className="tw-flex tw-flex-col tw-gap-2 tw-pt-2 tw-mt-2 tw-border-t tw-border-neutral-800">
-            <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
-              <Label className="tw-text-xs">MIDI Output (send to DAW)</Label>
-              <Button
-                variant="secondary"
-                title="Rescan OS MIDI ports (use after creating a new virtual port in loopMIDI / IAC)"
-                onClick={refreshMidiOutputs}
-                disabled={isRefreshingMidi}
+                    {selectedMapping?.target?.type === 'transport' && (
+                      <div className="tw-space-y-2">
+                        <Label className="tw-text-xs">Transport Action</Label>
+                        <Select value={(selectedMapping.target as any).action} onChange={(v) => updateSelected(m => ({ ...m, target: { type: 'transport', action: v as any } as any }))} options={[{ value: 'play' }, { value: 'pause' }, { value: 'stop' }]} />
+                      </div>
+                    )}
+                    {selectedMapping?.target?.type === 'column' && (
+                      <div className="tw-space-y-2">
+                        <Label className="tw-text-xs">Column Index</Label>
+                        <Input value={(selectedMapping.target as any).index} onChange={(e) => updateSelected(m => ({ ...m, target: { type: 'column', index: Math.max(1, Number(e.target.value) || 1) } as any }))} />
+                      </div>
+                    )}
+                    {selectedMapping?.target?.type === 'scene' && (() => {
+                      const tgt: any = selectedMapping.target as any;
+                      const allScenes = scenes || [];
+                      const derivedIndex = (() => {
+                        const idx = allScenes.findIndex((s: any) => s.id === tgt.id);
+                        return idx >= 0 ? idx + 1 : 1;
+                      })();
+                      return (
+                        <div className="tw-space-y-2">
+                          <Label className="tw-text-xs">Scene Number</Label>
+                          <Input value={derivedIndex} onChange={(e) => {
+                            const next = Math.max(1, Math.min(allScenes.length || 1, Number(e.target.value) || 1));
+                            const scene = allScenes[next - 1];
+                            if (scene) {
+                              updateSelected(m => ({ ...m, target: { type: 'scene', id: scene.id } as any }));
+                            }
+                          }} />
+                        </div>
+                      );
+                    })()}
+                    {selectedMapping?.target?.type === 'cell' && (() => {
+                      const scene = (scenes || []).find((s: any) => s.id === currentSceneId);
+                      const columns = scene?.columns || [];
+                      const tgt: any = selectedMapping.target as any;
+                      const derivedIndex = (() => {
+                        if (typeof tgt.column === 'number') return Math.max(1, Number(tgt.column) || 1);
+                        if (tgt.columnId) {
+                          const idx = columns.findIndex((c: any) => c.id === tgt.columnId);
+                          return idx >= 0 ? idx + 1 : 1;
+                        }
+                        return 1;
+                      })();
+                      return (
+                        <>
+                          <div className="tw-space-y-2">
+                            <Label className="tw-text-xs">Row (Layer Number)</Label>
+                            <Input value={tgt.row} onChange={(e) => updateSelected(m => ({ ...m, target: { type: 'cell', row: Math.max(1, Number(e.target.value) || 1), column: (m.target as any).column ?? derivedIndex, columnId: (m.target as any).columnId } as any }))} />
+                          </div>
+                          <div className="tw-space-y-2">
+                            <Label className="tw-text-xs">Column Index</Label>
+                            <Input value={derivedIndex} onChange={(e) => {
+                              const next = Math.max(1, Number(e.target.value) || 1);
+                              updateSelected(m => ({ ...m, target: { type: 'cell', row: (m.target as any).row, column: next } as any }));
+                            }} />
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </section>
+
+              <MIDISection
+                title="4. MIDI Output"
+                description="Route note output to a DAW or virtual MIDI port."
               >
-                {isRefreshingMidi ? 'Rescanning…' : 'Refresh'}
-              </Button>
+                <div className="tw-flex tw-items-center tw-justify-between tw-gap-2">
+                  <Label className="tw-text-xs">MIDI Output (send to DAW)</Label>
+                  <Button
+                    variant="secondary"
+                    title="Rescan OS MIDI ports (use after creating a new virtual port in loopMIDI / IAC)"
+                    onClick={refreshMidiOutputs}
+                    disabled={isRefreshingMidi}
+                  >
+                    {isRefreshingMidi ? 'Rescanning...' : 'Refresh'}
+                  </Button>
+                </div>
+                <Select
+                  value={selectedMIDIOutput || ''}
+                  onChange={(v: string) => setSelectedMIDIOutput(v || null)}
+                  options={[
+                    { value: '', label: outputOptions.length === 0 ? 'No MIDI outputs detected' : 'None (disabled)' },
+                    ...outputOptions.map((o) => ({ value: o.value, label: o.value })),
+                  ]}
+                />
+                {outputOptions.length === 0 && (
+                  <div className="tw-text-xs tw-text-neutral-400">
+                    Install a virtual MIDI port (e.g. loopMIDI) and create one, then click Refresh to route audio sources into Ableton.
+                  </div>
+                )}
+                <Button
+                  variant="secondary"
+                  title="Send all-notes-off on every channel to the selected output"
+                  onClick={() => { try { MIDIManager.getInstance().allNotesOff(); } catch {} }}
+                >
+                  Panic (All Notes Off)
+                </Button>
+              </MIDISection>
             </div>
-            <Select
-              value={selectedMIDIOutput || ''}
-              onChange={(v: string) => setSelectedMIDIOutput(v || null)}
-              options={[
-                { value: '', label: outputOptions.length === 0 ? 'No MIDI outputs detected' : 'None (disabled)' },
-                ...outputOptions.map((o) => ({ value: o.value, label: o.value })),
-              ]}
-            />
-            {outputOptions.length === 0 && (
-              <div className="tw-text-xs tw-text-neutral-400">
-                Install a virtual MIDI port (e.g. loopMIDI) and create one, then click Refresh to route audio sources into Ableton.
-              </div>
-            )}
-            <div className="tw-flex tw-gap-2">
-              <Button
-                variant="secondary"
-                title="Send all-notes-off on every channel to the selected output"
-                onClick={() => { try { MIDIManager.getInstance().allNotesOff(); } catch {} }}
-              >
-                Panic (All Notes Off)
-              </Button>
-            </div>
-          </div>
-          <div className="tw-flex tw-flex-wrap tw-gap-2">
-            <Button title="Add a new mapping" onClick={() => updateMappings([...(mappings || []), { type: 'note', channel: 1, number: 60, target: { type: 'transport', action: 'play' } }])}>Add</Button>
-            <Button variant="secondary" title="Duplicate selected mapping" onClick={() => {
-              if (!selectedMapping) return;
-              const clone = JSON.parse(JSON.stringify(selectedMapping)) as MIDIMapping;
-              const next = mappings.slice();
-              const insertAt = Math.min(mappings.length, selectedIndex + 1);
-              next.splice(insertAt, 0, clone);
-              updateMappings(next);
-              setSelectedIndex(insertAt);
-            }}>Duplicate</Button>
-            <Button title="Remove selected mapping" onClick={() => { if (selectedMapping) { const next = mappings.filter((_, i) => i !== selectedIndex); updateMappings(next); setSelectedIndex(Math.max(0, selectedIndex - 1)); } }}>Remove</Button>
-            <Button variant="secondary" title="Save mappings to file" onClick={() => { saveMappingsToFile(); }}>Save Preset</Button>
-            <Button variant="secondary" title="Load mappings from file" onClick={() => {
-              try {
-                const isElectron = typeof window !== 'undefined' && !!(window as any).electron?.showOpenDialog;
-                if (isElectron) {
-                  (async () => {
-                    trackFeature('midi_mapping_load_dialog', { ok: true });
-                    const result = await (window as any).electron.showOpenDialog({ title: 'Load MIDI Mapping', properties: ['openFile'], filters: [{ name: 'MIDI Mapping', extensions: ['json'] }] });
-                    if (!result.canceled && result.filePaths && result.filePaths[0]) {
-                      const content = await (window as any).electron.readFileText(result.filePaths[0]);
-                      if (content) {
-                        loadMappingsFromContent(content);
-                        trackFeature('midi_mapping_loaded', { ok: true, source: 'electron_dialog' });
-                      }
-                    }
-                  })();
-                } else {
-                  trackFeature('midi_mapping_load_dialog', { ok: true, source: 'file_input' });
-                  fileInputRef.current?.click();
-                }
-              } catch {}
-            }}>Load Preset</Button>
-          </div>
-        </div>
-        
-        <div className="tw-mt-2 tw-border tw-border-neutral-800 tw-rounded-md tw-overflow-auto tw-max-h-64 tw-min-h-0 tw-bg-neutral-900">
-          {(mappings || []).map((mapping, idx) => (
-            <div key={idx}
-              className={`tw-flex tw-justify-between tw-items-center tw-px-2 tw-py-1 tw-border-b tw-border-neutral-800 tw-cursor-pointer hover:tw-bg-neutral-800/60 ${idx === selectedIndex ? 'tw-bg-sky-600 tw-text-black' : ''}`}
-              onClick={() => handleMappingSelect(idx)}
-            >
-              <span className="tw-text-sm tw-font-medium">{mapping.target.type}</span>
-              <span className="tw-text-xs tw-font-semibold tw-text-neutral-300">{getNoteChannelDisplay(mapping)}</span>
-            </div>
-          ))}
-        </div>
           </TabsContent>
 
-          <TabsContent value="layer-cc">
+          <TabsContent value="layer-cc" className="tw-mt-0">
             <LayerCCMapper />
           </TabsContent>
 
-          <TabsContent value="global-cc">
+          <TabsContent value="global-cc" className="tw-mt-0">
             <GlobalCCMapper />
           </TabsContent>
-
-        </Tabs>
-      </div>
-
-      {activeTab === 'mappings' && (
-      <div className="tw-p-2 tw-border-b tw-border-neutral-800 tw-bg-neutral-900">
-        <div className="tw-grid tw-grid-cols-2 tw-gap-2">
-          <div className="tw-space-y-2">
-            <Label className="tw-text-xs">Input Type</Label>
-            <Select value={selectedMapping?.type || 'note'} onChange={(v) => updateSelected(m => ({ ...m, type: v as any }))} options={inputTypeOptions} />
-          </div>
-          {selectedMapping?.type !== 'key' && (
-            <div className="tw-space-y-2">
-              <Label className="tw-text-xs">Channel</Label>
-              <Select value={String(selectedMapping?.channel || 1)} onChange={(v) => updateSelected(m => ({ ...m, channel: Number(v) }))} options={Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1) }))} />
-            </div>
-          )}
-          {selectedMapping?.type !== 'key' ? (
-            <div className="tw-space-y-2">
-              <Label className="tw-text-xs">Note Number</Label>
-              <Input value={selectedMapping?.number ?? 60} onChange={(e) => updateSelected(m => ({ ...m, number: Math.max(0, Math.min(127, Number(e.target.value) || 0)) }))} />
-            </div>
-          ) : (
-            <div className="tw-space-y-2">
-              <Label className="tw-text-xs">Key Combo</Label>
-              <Input
-                value={getNoteChannelDisplay(selectedMapping)}
-                placeholder="Click and press a key"
-                onFocus={(e) => {
-                  const handler = (ev: KeyboardEvent) => {
-                    ev.preventDefault();
-                    updateSelected(m => ({ ...m, key: ev.key, ctrl: ev.ctrlKey, shift: ev.shiftKey, alt: ev.altKey, meta: ev.metaKey }));
-                  };
-                  const onBlur = () => {
-                    (e.target as HTMLInputElement).removeEventListener('keydown', handler as any);
-                    (e.target as HTMLInputElement).removeEventListener('blur', onBlur);
-                  };
-                  (e.target as HTMLInputElement).addEventListener('keydown', handler as any, { once: true } as any);
-                  (e.target as HTMLInputElement).addEventListener('blur', onBlur, { once: true } as any);
-                }}
-                onChange={() => {}}
-                readOnly
-              />
-            </div>
-          )}
-          <div className="tw-space-y-2">
-            <Label className="tw-text-xs">Action</Label>
-            <Select
-              value={selectedMapping && (selectedMapping.target as any)?.type || 'transport'}
-              onChange={(v) => {
-                const val = String(v);
-                // Ensure a mapping exists so the dropdown works even when none were added yet
-                if (!selectedMapping) {
-                  const newMapping: MIDIMapping = {
-                    type: 'note',
-                    channel: 1,
-                    number: 60,
-                    target: { type: 'transport', action: 'play' } as any,
-                    enabled: true,
-                  } as any;
-                  const next = [...(mappings || []), newMapping];
-                  updateMappings(next);
-                  setSelectedIndex(next.length - 1);
-                }
-                // Apply the selected action to the (now guaranteed) selected mapping
-                updateSelected((m) => {
-                  if (val === 'transport') return { ...m, target: { type: 'transport', action: 'play' } as any };
-                  if (val === 'column') return { ...m, target: { type: 'column', index: 1 } as any };
-                  if (val === 'cell') return { ...m, target: { type: 'cell', row: 1, column: 1 } as any };
-                  if (val === 'scene') return { ...m, target: { type: 'scene', id: (useStore.getState() as any).currentSceneId } as any };
-                  return m;
-                });
-              }}
-              options={actionTypeOptions}
-            />
         </div>
+      </Tabs>
 
-          {selectedMapping?.target?.type === 'transport' && (
-            <div className="tw-space-y-2">
-              <Label className="tw-text-xs">Transport Action</Label>
-              <Select value={(selectedMapping.target as any).action} onChange={(v) => updateSelected(m => ({ ...m, target: { type: 'transport', action: v as any } as any }))} options={[{ value: 'play' }, { value: 'pause' }, { value: 'stop' }]} />
-          </div>
-          )}
-          {selectedMapping?.target?.type === 'column' && (
-            <div className="tw-space-y-2">
-              <Label className="tw-text-xs">Column Index</Label>
-              <Input value={(selectedMapping.target as any).index} onChange={(e) => updateSelected(m => ({ ...m, target: { type: 'column', index: Math.max(1, Number(e.target.value) || 1) } as any }))} />
-        </div>
-          )}
-          {selectedMapping?.target?.type === 'scene' && (() => {
-            const tgt: any = selectedMapping.target as any;
-            const allScenes = scenes || [];
-            const derivedIndex = (() => {
-              const idx = allScenes.findIndex((s: any) => s.id === tgt.id);
-              return idx >= 0 ? idx + 1 : 1;
-            })();
-            return (
-              <div className="tw-space-y-2">
-                <Label className="tw-text-xs">Scene Number</Label>
-                <Input value={derivedIndex} onChange={(e) => {
-                  const next = Math.max(1, Math.min(allScenes.length || 1, Number(e.target.value) || 1));
-                  const scene = allScenes[next - 1];
-                  if (scene) {
-                    updateSelected(m => ({ ...m, target: { type: 'scene', id: scene.id } as any }));
-                  }
-                }} />
-              </div>
-            );
-          })()}
-          {selectedMapping?.target?.type === 'cell' && (() => {
-            const scene = (scenes || []).find((s: any) => s.id === currentSceneId);
-            const columns = scene?.columns || [];
-            const tgt: any = selectedMapping.target as any;
-            const derivedIndex = (() => {
-              if (typeof tgt.column === 'number') return Math.max(1, Number(tgt.column) || 1);
-              if (tgt.columnId) {
-                const idx = columns.findIndex((c: any) => c.id === tgt.columnId);
-                return idx >= 0 ? idx + 1 : 1;
-              }
-              return 1;
-            })();
-            return (
-              <>
-                <div className="tw-space-y-2">
-                  <Label className="tw-text-xs">Row (Layer Number)</Label>
-                  <Input value={tgt.row} onChange={(e) => updateSelected(m => ({ ...m, target: { type: 'cell', row: Math.max(1, Number(e.target.value) || 1), column: (m.target as any).column ?? derivedIndex, columnId: (m.target as any).columnId } as any }))} />
-                </div>
-                <div className="tw-space-y-2">
-                  <Label className="tw-text-xs">Column Index</Label>
-                  <Input value={derivedIndex} onChange={(e) => {
-                    const next = Math.max(1, Number(e.target.value) || 1);
-                    updateSelected(m => ({ ...m, target: { type: 'cell', row: (m.target as any).row, column: next } as any }));
-                  }} />
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      </div>
-      )}
-
-      <div className="tw-bg-neutral-900 tw-flex-1 tw-overflow-auto tw-text-xs tw-text-neutral-300 tw-p-2">
-        <div className="tw-flex tw-items-center tw-justify-between tw-mb-2">
-        <div className="tw-flex tw-items-center tw-gap-2">
-            <span className="tw-text-neutral-300">MIDI Monitor</span>
+      <div className="tw-border-t tw-border-neutral-800 tw-bg-neutral-900 tw-text-xs tw-text-neutral-300 tw-p-2">
+        <div className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-mb-2">
+          <div className="tw-flex tw-items-center tw-gap-2">
+            <span className="tw-text-sm tw-font-medium tw-text-neutral-300">MIDI Monitor</span>
             <span className={`tw-inline-block tw-w-2 tw-h-2 tw-rounded-full ${lastEventAt && Date.now() - lastEventAt < 500 ? 'tw-bg-emerald-400' : 'tw-bg-neutral-700'}`}></span>
           </div>
-          <div className="tw-flex tw-gap-2">
-            <Button variant="secondary" onClick={() => setMonitorEnabled(!monitorEnabled)}>{monitorEnabled ? 'Pause' : 'Resume'}</Button>
-          </div>
+          <Button variant="secondary" onClick={() => setMonitorEnabled(!monitorEnabled)}>{monitorEnabled ? 'Pause' : 'Resume'}</Button>
         </div>
         <div className="tw-space-y-3">
           {!lastEvent ? (
             <div className="tw-text-neutral-500">No MIDI events yet. Play a note or move a control.</div>
           ) : (
-            <div className="tw-flex tw-justify-between tw-border tw-border-neutral-800 tw-rounded tw-px-2 tw-py-1">
+            <div className="tw-flex tw-justify-between tw-gap-2 tw-border tw-border-neutral-800 tw-rounded tw-px-2 tw-py-1">
               <span className="tw-text-neutral-200">{lastEvent.type.toUpperCase()} {lastEvent.number}</span>
               <span className="tw-text-neutral-400">
                 {(() => {
@@ -661,7 +697,7 @@ export const MIDIMapper: React.FC = () => {
             </div>
           )}
           <div className="tw-grid tw-grid-cols-2 tw-gap-2 tw-pt-2 tw-border-t tw-border-neutral-800">
-            <div className="tw-col-span-2 tw-text-xs tw-font-medium tw-text-neutral-300">
+            <div className="tw-col-span-2 tw-text-sm tw-font-medium tw-text-neutral-300">
               Output Safety Limit
             </div>
             <div className="tw-space-y-1">
@@ -688,15 +724,15 @@ export const MIDIMapper: React.FC = () => {
               Prevents LoopBe or virtual MIDI outputs from crashing during dense note bursts. Notes/sec 0 disables the burst cap. Note-off and panic messages are never blocked.
             </div>
           </div>
-          </div>
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json,application/json"
-          className="tw-hidden"
-          onChange={(event) => handleFileList(event.target.files)}
-        />
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="tw-hidden"
+        onChange={(event) => handleFileList(event.target.files)}
+      />
     </div>
   );
 }; 
