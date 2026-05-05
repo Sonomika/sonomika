@@ -214,6 +214,12 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
   const framesSinceStructureChangeRef = useRef(0); // Start at 0 to skip clears on mount
   const mountTimeRef = useRef(Date.now());
   const lastStructureChangeTimeRef = useRef(Date.now());
+  // Tracks whether we've performed the one-shot wipe on the first useFrame after
+  // mount. Without this, the inTransition gate below preserves whatever pixels
+  // were last in the canvas buffer (which on column change is the previous
+  // column's content) and the new chain's transparent compositing leaves the
+  // old frame ghosting through for ~250ms.
+  const hasInitialClearRunRef = useRef(false);
 
   // Offscreen scenes for each non-video item (only recreate when structure changes)
   const offscreenScenes = useMemo(() => {
@@ -375,14 +381,24 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
 
     // Only clear the canvas if we're NOT in a transition.
     // Use time since mount/change to be robust against component remounts.
-    // Skip clears for 250ms after mount OR 250ms after structure change.
+    // Skip clears for 250ms after an in-place structure change so the previous
+    // final texture stays visible while the new structure stabilises. The very
+    // first useFrame after mount is exempt — on a column change we MUST clear
+    // immediately, otherwise the previous column's pixels (preserved by
+    // preserveDrawingBuffer + the source-only alpha=0 clear) ghost through the
+    // new chain's transparent compositing for the entire transition window.
     const timeSinceMount = now - mountTimeRef.current;
     const timeSinceStructureChange = now - lastStructureChangeTimeRef.current;
-    const inTransition = timeSinceMount < 250 || timeSinceStructureChange < 250;
+    const isFirstFrameAfterMount = !hasInitialClearRunRef.current;
+    const inTransition = !isFirstFrameAfterMount && (timeSinceMount < 250 || timeSinceStructureChange < 250);
 
     if (!inTransition) {
       // Explicitly clear the default framebuffer once per frame to avoid trails
-      // when preserveDrawingBuffer is true and the canvas clear alpha is 0
+      // when preserveDrawingBuffer is true and the canvas clear alpha is 0.
+      // The clear color is (0,0,0,0) so source-only columns reveal the
+      // compositionBg div behind the transparent canvas instead of flashing
+      // black; on the first useFrame after mount this is what wipes the
+      // previous column's leftover pixels.
       try {
         const prevTarget = gl.getRenderTarget();
         const prevClear = new THREE.Color();
@@ -394,6 +410,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
         gl.setRenderTarget(prevTarget);
         gl.setClearColor(prevClear, prevAlpha);
       } catch {}
+      hasInitialClearRunRef.current = true;
     }
     ensureRTs();
     // Shared scratch RT for per-stage opacity mixing
@@ -901,7 +918,17 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
       if (!EffectComponent) return;
       const params = item.params || {};
       const itemKey = (item as any).__uniqueKey || `${idx}`;
-      const extras: Record<string, any> = { compositionWidth, compositionHeight };
+      // The layer id is encoded in __uniqueKey as `<kind>-<layerId>` (e.g.
+      // `effect-abc123`). We forward it as `__layerId` so effects can read
+      // live modulation values via `globalThis.__VJ_LIVE_MOD__` without
+      // depending on a re-render of their props every LFO tick.
+      const layerIdFromKey = (() => {
+        const k = String(itemKey || '');
+        const dash = k.indexOf('-');
+        if (dash >= 0 && dash < k.length - 1) return k.slice(dash + 1);
+        return '';
+      })();
+      const extras: Record<string, any> = { compositionWidth, compositionHeight, __layerId: layerIdFromKey };
       if (item.type === 'effect') {
         if ((item as any).sourceVideoElement) {
           extras.sourceVideoElement = (item as any).sourceVideoElement;

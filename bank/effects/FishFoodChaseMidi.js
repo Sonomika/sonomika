@@ -98,6 +98,7 @@ export default function FishFoodChaseMidi({
   velocityBoost = 1.0,
   sendMidi = true,
   midiChannel = 1,
+  __layerId,
 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame, useThree } = r3f;
@@ -124,12 +125,16 @@ export default function FishFoodChaseMidi({
   const dummyFoodFlash = useMemo(() => new THREE.Object3D(), []);
   const dummyFoodFlashColor = useMemo(() => new THREE.Color(), []);
 
-  const fishGeometry = useMemo(() => new THREE.CircleGeometry(fishSize * 0.5, 16), [fishSize]);
-  const foodGeometry = useMemo(() => new THREE.CircleGeometry(foodSize * 0.5, 14), [foodSize]);
+  // Geometry is a unit circle. We apply per-instance scale = fishSize/foodSize
+  // inside useFrame so changing the size slider updates instantly without
+  // rebuilding the geometry (which would otherwise force R3F to tear down the
+  // instancedMesh and reset every fish position).
+  const fishGeometry = useMemo(() => new THREE.CircleGeometry(0.5, 16), []);
+  const foodGeometry = useMemo(() => new THREE.CircleGeometry(0.5, 14), []);
 
   const fishMaterial = useMemo(() => {
     const m = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(fishColor),
+      color: new THREE.Color('#ffffff'),
       transparent: true,
       opacity: 0.9,
       side: THREE.DoubleSide,
@@ -138,11 +143,11 @@ export default function FishFoodChaseMidi({
     m.depthWrite = false;
     m.blending = THREE.AdditiveBlending;
     return m;
-  }, [fishColor]);
+  }, []);
 
   const foodMaterial = useMemo(() => {
     const m = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(foodColor),
+      color: new THREE.Color('#ffffff'),
       transparent: true,
       opacity: 0.88,
       side: THREE.DoubleSide,
@@ -151,7 +156,7 @@ export default function FishFoodChaseMidi({
     m.depthWrite = false;
     m.blending = THREE.AdditiveBlending;
     return m;
-  }, [foodColor]);
+  }, []);
 
   const foodFlashMaterial = useMemo(() => {
     const m = new THREE.MeshBasicMaterial({
@@ -167,22 +172,63 @@ export default function FishFoodChaseMidi({
     return m;
   }, []);
 
+  // Push live colors into the existing materials in place. Recreating the
+  // material on each color change would force R3F to swap it on the mesh and
+  // could drop the instance-color buffer for the flash mesh.
+  useEffect(() => {
+    try { fishMaterial.color.set(fishColor); } catch (_) {}
+  }, [fishMaterial, fishColor]);
+  useEffect(() => {
+    try { foodMaterial.color.set(foodColor); } catch (_) {}
+  }, [foodMaterial, foodColor]);
+
   const fishLimit = Math.max(1, Math.min(120, Math.floor(fishCount)));
   const foodLimit = Math.max(1, Math.min(220, Math.floor(foodCount)));
   const maxFoodFlashes = 128;
-  const pad = Math.max(fishSize, foodSize) * 1.8;
-  const left = -halfWidth + pad;
-  const right = halfWidth - pad;
-  const bottom = -halfHeight + pad;
-  const top = halfHeight - pad;
 
-  const makeFood = () => ({
-    id: foodIdRef.current++,
-    x: randomIn(left, right),
-    y: randomIn(bottom, top),
-    phase: Math.random() * Math.PI * 2,
-    energy: 0.35 + Math.random() * 0.65,
-  });
+  // Live size/bounds — tracked in refs so they update every frame without
+  // re-running the init useEffect (which would reset every fish position).
+  // We also peek at the LFO live-modulation side channel each frame so an
+  // LFO mapped to fishSize/foodSize updates smoothly without round-tripping
+  // through the React store on every tick.
+  const sizeRef = useRef({ fish: fishSize, food: foodSize });
+  const boundsRef = useRef({ left: 0, right: 0, bottom: 0, top: 0 });
+  const halfWidthRef = useRef(halfWidth);
+  const halfHeightRef = useRef(halfHeight);
+  halfWidthRef.current = halfWidth;
+  halfHeightRef.current = halfHeight;
+  const computeBounds = (fSize, fdSize) => {
+    const p = Math.max(fSize, fdSize) * 1.8;
+    return {
+      left: -halfWidthRef.current + p,
+      right: halfWidthRef.current - p,
+      bottom: -halfHeightRef.current + p,
+      top: halfHeightRef.current - p,
+    };
+  };
+  const readLiveSize = (paramName, fallback) => {
+    if (!__layerId) return fallback;
+    try {
+      const live = globalThis.__VJ_LIVE_MOD__;
+      const v = live && live.get ? live.get(__layerId, paramName) : undefined;
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+    } catch (_) {}
+    return fallback;
+  };
+  sizeRef.current.fish = fishSize;
+  sizeRef.current.food = foodSize;
+  boundsRef.current = computeBounds(fishSize, foodSize);
+
+  const makeFood = () => {
+    const b = boundsRef.current;
+    return {
+      id: foodIdRef.current++,
+      x: randomIn(b.left, b.right),
+      y: randomIn(b.bottom, b.top),
+      phase: Math.random() * Math.PI * 2,
+      energy: 0.35 + Math.random() * 0.65,
+    };
+  };
 
   const claimMidiOwnership = () => {
     try {
@@ -212,36 +258,57 @@ export default function FishFoodChaseMidi({
     };
   }, []);
 
+  // Initialize once on mount, then only resize the fish array when fishLimit
+  // changes (food is resized live in useFrame). Size/bounds changes do NOT
+  // re-run this effect, so fish keep their positions while sliders move.
   useEffect(() => {
-    const fish = [];
-    const food = [];
-
-    for (let i = 0; i < fishLimit; i++) {
-      const a = Math.random() * Math.PI * 2;
-      fish.push({
-        x: randomIn(left, right),
-        y: randomIn(bottom, top),
-        vx: Math.cos(a) * 0.35,
-        vy: Math.sin(a) * 0.35,
-        phase: Math.random() * Math.PI * 2,
-      });
+    if (fishRef.current.length === 0) {
+      const fish = [];
+      const food = [];
+      const b = boundsRef.current;
+      for (let i = 0; i < fishLimit; i++) {
+        const a = Math.random() * Math.PI * 2;
+        fish.push({
+          x: randomIn(b.left, b.right),
+          y: randomIn(b.bottom, b.top),
+          vx: Math.cos(a) * 0.35,
+          vy: Math.sin(a) * 0.35,
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+      for (let i = 0; i < foodLimit; i++) {
+        food.push(makeFood());
+      }
+      fishRef.current = fish;
+      foodRef.current = food;
+      foodFlashesRef.current = [];
+      consumedFoodIdsRef.current = new Set();
+      return;
     }
-
-    for (let i = 0; i < foodLimit; i++) {
-      food.push(makeFood());
+    const fish = fishRef.current;
+    if (fish.length < fishLimit) {
+      const b = boundsRef.current;
+      for (let i = fish.length; i < fishLimit; i++) {
+        const a = Math.random() * Math.PI * 2;
+        fish.push({
+          x: randomIn(b.left, b.right),
+          y: randomIn(b.bottom, b.top),
+          vx: Math.cos(a) * 0.35,
+          vy: Math.sin(a) * 0.35,
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+    } else if (fish.length > fishLimit) {
+      fish.length = fishLimit;
     }
-
-    fishRef.current = fish;
-    foodRef.current = food;
-    foodFlashesRef.current = [];
-    consumedFoodIdsRef.current = new Set();
-  }, [fishLimit, foodLimit, left, right, bottom, top]);
+  }, [fishLimit, foodLimit]);
 
   function fireMidiForFood(fishIndex, eatenFood) {
     if (!eatenFood || consumedFoodIdsRef.current.has(eatenFood.id)) return;
     consumedFoodIdsRef.current.add(eatenFood.id);
 
-    const note = midiForY(eatenFood.y, bottom, top, rootMidi, noteRange);
+    const b = boundsRef.current;
+    const note = midiForY(eatenFood.y, b.bottom, b.top, rootMidi, noteRange);
     const velocity = clamp((0.45 + eatenFood.energy * 0.55) * velocityBoost, 0.05, 1);
     const channel = clamp(Math.round(midiChannel), 1, 16);
     const duration = Math.max(5, Math.round(Math.max(0.03, noteLength) * 1000));
@@ -283,6 +350,17 @@ export default function FishFoodChaseMidi({
     const visionDist = Math.max(0.02, vision);
     const vision2 = visionDist * visionDist;
     const eatDist = Math.max(0.005, eatRadius);
+
+    const liveFishSize = readLiveSize('fishSize', sizeRef.current.fish);
+    const liveFoodSize = readLiveSize('foodSize', sizeRef.current.food);
+    sizeRef.current.fish = liveFishSize;
+    sizeRef.current.food = liveFoodSize;
+    boundsRef.current = computeBounds(liveFishSize, liveFoodSize);
+    const liveBounds = boundsRef.current;
+    const left = liveBounds.left;
+    const right = liveBounds.right;
+    const bottom = liveBounds.bottom;
+    const top = liveBounds.top;
 
     while (food.length < foodLimit) food.push(makeFood());
     while (food.length > foodLimit) food.pop();
@@ -357,7 +435,7 @@ export default function FishFoodChaseMidi({
       const stretch = 2.25 + Math.sin(f.phase * 2) * 0.22;
       dummyFish.position.set(f.x, f.y, 0);
       dummyFish.rotation.z = angle + wiggle;
-      dummyFish.scale.set(stretch, 0.64, 1);
+      dummyFish.scale.set(stretch * liveFishSize, 0.64 * liveFishSize, 1);
       dummyFish.updateMatrix();
       fishMesh.setMatrixAt(i, dummyFish.matrix);
     }
@@ -370,7 +448,7 @@ export default function FishFoodChaseMidi({
       const pulse = 1 + Math.sin(fd.phase * 2.2) * 0.16;
       dummyFood.position.set(fd.x, fd.y, 0.01);
       dummyFood.rotation.z = fd.phase * 0.4;
-      dummyFood.scale.set(pulse * (0.9 + fd.energy * 0.35), pulse, 1);
+      dummyFood.scale.set(pulse * (0.9 + fd.energy * 0.35) * liveFoodSize, pulse * liveFoodSize, 1);
       dummyFood.updateMatrix();
       foodMesh.setMatrixAt(i, dummyFood.matrix);
     }
@@ -381,7 +459,7 @@ export default function FishFoodChaseMidi({
       const flash = foodFlashes[i];
       const k = clamp01(flash.age / flash.life);
       const fade = 1 - k;
-      const scale = (0.35 + fade * 0.9) * (0.8 + flash.velocity * 0.7 + flash.energy * 0.4);
+      const scale = (0.35 + fade * 0.9) * (0.8 + flash.velocity * 0.7 + flash.energy * 0.4) * liveFoodSize;
       dummyFoodFlash.position.set(flash.x, flash.y, 0.04);
       dummyFoodFlash.rotation.z = t * 2.4;
       dummyFoodFlash.scale.set(scale, scale, 1);

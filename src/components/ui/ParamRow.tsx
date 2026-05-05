@@ -32,7 +32,6 @@ export const ParamRow: React.FC<ParamRowProps> = ({
   step = 0.1,
   onChange,
   onCommit,
-  commitOnly = false,
   onIncrement,
   onDecrement,
   showButtons = true,
@@ -75,16 +74,11 @@ export const ParamRow: React.FC<ParamRowProps> = ({
     </div>
   ) : null;
 
-  const sliderProps = commitOnly
-    ? {
-        defaultValue: [value],
-        onValueCommit: handleSliderCommit,
-      }
-    : {
-        value: [value],
-        onValueChange: handleSliderChange,
-        onValueCommit: handleSliderCommit,
-      };
+  const sliderProps = {
+    value: [value],
+    onValueChange: handleSliderChange,
+    onValueCommit: handleSliderCommit,
+  };
 
   // Stacked layout shows label on top, then a row: value | slider | +/-
   if (layout === 'stacked') {
@@ -103,7 +97,6 @@ export const ParamRow: React.FC<ParamRowProps> = ({
           )}
           <div className="slider-container tw-flex-1 tw-min-w-0">
             <Slider
-              key={commitOnly ? `commit-${value}` : 'live'}
               min={min}
               max={max}
               step={step}
@@ -141,7 +134,6 @@ export const ParamRow: React.FC<ParamRowProps> = ({
           {!buttonsAfter && Buttons}
           <div className="slider-container tw-flex-1 tw-min-w-0">
             <Slider
-              key={commitOnly ? `commit-${value}` : 'live'}
               min={min}
               max={max}
               step={step}

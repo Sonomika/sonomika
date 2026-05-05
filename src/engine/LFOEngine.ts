@@ -4,6 +4,7 @@ import { useLFOStore, type LFOState, type LFOMapping } from '../store/lfoStore';
 import { getClock } from './Clock';
 import { getEffect } from '../utils/effectRegistry';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
+import { setLiveModulationValue, clearLiveModulationLayer } from '../utils/liveModulation';
 
 type LayerLike = {
   id: string;
@@ -88,6 +89,14 @@ class LFOEngineImpl {
   private running: boolean = false;
   private lastUpdateMs: number = 0;
   private updateThrottleMs: number = 50;
+  // Continuous LFO modulation writes to a side-channel every tick (smooth)
+  // and only commits to the React store at this slower rate so the UI/
+  // persistence stays in sync without re-rendering the whole scene tree at
+  // 20 Hz. Effects that have opted in read live values directly from the
+  // side channel each frame; effects that haven't will still see the value
+  // change at this rate via their normal props pathway.
+  private storeCommitThrottleMs: number = 200;
+  private lastStoreCommitMsByLayer: Map<string, number> = new Map();
   private randomTimers: Map<string, number> = new Map();
   private randomTimerMeta: Map<string, string> = new Map();
   private randomHoldCache: Map<string, { step: number; value: number }> = new Map();
@@ -108,6 +117,7 @@ class LFOEngineImpl {
     for (const [, t] of this.randomTimers) clearInterval(t);
     this.randomTimers.clear();
     this.randomTimerMeta.clear();
+    this.lastStoreCommitMsByLayer.clear();
   }
 
   // Expose a safe way to rebuild random timers (e.g., on BPM or division change)
@@ -204,6 +214,7 @@ class LFOEngineImpl {
     if (!layers || layers.length === 0) return;
     // Track current active ids and stop timers for anything not active
     const activeIds = new Set(layers.map((l) => l.id));
+    const previousIds = this.activeLayerIds;
     this.activeLayerIds = activeIds;
     for (const [key, timerId] of this.randomTimers.entries()) {
       if (!activeIds.has(key)) {
@@ -211,6 +222,17 @@ class LFOEngineImpl {
         this.randomTimers.delete(key);
         this.randomTimerMeta.delete(key);
       }
+    }
+    // Layers that were active last tick but aren't anymore: drop their live
+    // modulation entries so an opt-in effect never reads a stale value if
+    // the same layer id reappears later.
+    if (previousIds && previousIds.size > 0) {
+      previousIds.forEach((id) => {
+        if (!activeIds.has(id)) {
+          try { clearLiveModulationLayer(id); } catch {}
+          this.lastStoreCommitMsByLayer.delete(id);
+        }
+      });
     }
     const lfoState = useLFOStore.getState();
     const updateLayer = (useStore.getState() as any).updateLayer as (id: string, updates: Partial<LayerLike>) => void;
@@ -532,14 +554,37 @@ class LFOEngineImpl {
           const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
           dispatchToTimeline({ clipId, paramName: actualParamName, value: modulatedValue });
         } else {
-          pendingParams = {
-            ...currentParams,
-            [actualParamName]: {
-              ...currentParams[actualParamName],
-              value: modulatedValue,
-            },
-          };
-          anyChanged = true;
+          // Always publish to the live side-channel so opt-in effects can
+          // read the smoothly modulated value every frame without going
+          // through React reconciliation.
+          try { setLiveModulationValue(layer.id, actualParamName, modulatedValue); } catch {}
+          // For randomize-style triggers we always write to the store so
+          // the new "base" value persists; for continuous modulation we
+          // only commit to the store on a throttle so React doesn't redraw
+          // the whole scene tree at 20 Hz. Effects that don't read the
+          // live channel will still see the value drift via this commit.
+          if (isRandomMode) {
+            pendingParams = {
+              ...currentParams,
+              [actualParamName]: {
+                ...currentParams[actualParamName],
+                value: modulatedValue,
+              },
+            };
+            anyChanged = true;
+          } else {
+            const lastCommit = this.lastStoreCommitMsByLayer.get(layer.id) || 0;
+            if (now - lastCommit >= this.storeCommitThrottleMs) {
+              pendingParams = {
+                ...currentParams,
+                [actualParamName]: {
+                  ...currentParams[actualParamName],
+                  value: modulatedValue,
+                },
+              };
+              anyChanged = true;
+            }
+          }
         }
       }
 
@@ -558,6 +603,7 @@ class LFOEngineImpl {
       const update: any = { params: pendingParams };
       if (typeof pendingOpacity === 'number') update.opacity = pendingOpacity;
       updateLayer(layer.id, update);
+      this.lastStoreCommitMsByLayer.set(layer.id, now);
     }
   }
 }

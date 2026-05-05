@@ -1292,7 +1292,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       if (!scene) return;
       const allLayers = scene.columns.flatMap((c: any) => c.layers || []);
       const match = allLayers.find((l: any) => l.id === persistedSelectedLayerId);
-      if (match) setSelectedLayer(match);
+      if (match) {
+        setSelectedLayer((prev: any) => {
+          // Do not replace the active selection with a stale scene copy while
+          // layer edits are debounced during playback.
+          if (prev?.id === persistedSelectedLayerId) return prev;
+          return match;
+        });
+      }
     } catch {}
   }, [showTimeline, persistedSelectedLayerId, getCurrentSceneId, getCurrentScene]);
 
@@ -1343,6 +1350,24 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       updatePreviewForColumn(playingColumnId);
     } catch {}
   }, [playingColumnId]);
+
+  // OSC/MIDI column launches dispatch columnPlay before React has necessarily
+  // rendered the new playingColumnId. Update the preview in the same event tick
+  // so the outgoing column does not visibly pause before the next one appears.
+  useEffect(() => {
+    const onColumnPlay = (event: Event) => {
+      try {
+        const columnId = (event as CustomEvent)?.detail?.columnId;
+        if (!columnId || showTimeline) return;
+        updatePreviewForColumn(String(columnId));
+      } catch {}
+    };
+
+    document.addEventListener('columnPlay', onColumnPlay as EventListener);
+    return () => {
+      document.removeEventListener('columnPlay', onColumnPlay as EventListener);
+    };
+  }, [currentScene, showTimeline]);
 
   // const handleLayerPlayWrapper = (layerId: string) => {
   //   handleLayerPlay(layerId, currentScene, setPreviewContent, setIsPlaying);

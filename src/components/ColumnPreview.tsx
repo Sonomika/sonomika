@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useStore } from '../store/store';
@@ -61,6 +61,40 @@ const ClearOnEmptyColumn: React.FC<{ isEmpty: boolean; clearTo?: string }> = ({ 
     try { (gl as any).clear?.(true, true, true); } catch {}
     try { invalidate(); } catch {}
   }, [isEmpty, clearTo, gl, invalidate]);
+
+  return null;
+};
+
+// Source-only columns set the canvas clear alpha to 0 so the composition
+// background shows through. With `preserveDrawingBuffer: true`, that means a
+// frame from the previous column would ghost into the next column until the
+// new effect chain has fully drawn over every pixel. We do a one-shot
+// transparent clear (rgba 0,0,0,0) the moment column.id changes, in a
+// useLayoutEffect so it lands before the next browser paint. The cleared
+// pixels reveal the compositionBg div behind the canvas, so there is no
+// black flash, and the previous column's content is wiped before the new
+// chain begins its transparent compositing.
+const ClearOnColumnChange: React.FC<{ columnId: string | undefined }> = ({ columnId }) => {
+  const gl = useThree((s) => s.gl);
+  const invalidate = useThree((s) => s.invalidate);
+  const previousColumnIdRef = useRef<string | undefined>(columnId);
+
+  useLayoutEffect(() => {
+    if (previousColumnIdRef.current === columnId) return;
+    previousColumnIdRef.current = columnId;
+
+    try {
+      const anyGl: any = gl;
+      const prevColor = new THREE.Color();
+      anyGl?.getClearColor?.(prevColor);
+      const prevAlpha = anyGl?.getClearAlpha ? anyGl.getClearAlpha() : 1;
+      anyGl?.setRenderTarget?.(null);
+      anyGl?.setClearColor?.(0x000000, 0);
+      anyGl?.clear?.(true, true, true);
+      anyGl?.setClearColor?.(prevColor, prevAlpha);
+    } catch {}
+    try { invalidate(); } catch {}
+  }, [columnId, gl, invalidate]);
 
   return null;
 };
@@ -537,6 +571,7 @@ const EffectLayer: React.FC<{
 // Main scene component for R3F
 const ColumnScene: React.FC<{
   column: any;
+  renderKey: string;
   isPlaying: boolean;
   suppressPause?: boolean;
   bpm: number;
@@ -546,7 +581,7 @@ const ColumnScene: React.FC<{
   onFirstFrameReady?: () => void;
   isTimelineMode?: boolean;
   timelineTime?: number;
-}> = ({ column, isPlaying, suppressPause = false, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false, timelineTime }) => {
+}> = ({ column, renderKey, isPlaying, suppressPause = false, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false, timelineTime }) => {
   const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -556,11 +591,12 @@ const ColumnScene: React.FC<{
   const firstFrameReadyRef = useRef<boolean>(false);
   const frameCounterRef = useRef<number>(0);
   
-  // Reset first-frame readiness whenever the column changes so we don't unmask too early
+  // Reset first-frame readiness whenever the visible column changes so we don't unmask too early.
+  // OSC full-column launches can arrive as row overrides while column.id stays on the base column.
   useEffect(() => {
     firstFrameReadyRef.current = false;
     frameCounterRef.current = 0;
-  }, [column?.id]);
+  }, [renderKey]);
   
   // Use ref to track loaded assets to prevent infinite loops
   const loadedAssetsRef = useRef<{
@@ -1574,6 +1610,12 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
   const [error, setError] = useState<string | null>(null);
   // Start with mask hidden if skipInitialMask is true (used for crossfade when content is already warmed up)
   const [maskVisible, setMaskVisible] = useState<boolean>(!skipInitialMask);
+  const renderKey = useMemo(() => {
+    const layerSig = (column?.layers || [])
+      .map((layer: any) => `${layer?.layerNum ?? ''}:${layer?.id ?? ''}:${layer?.asset?.id ?? ''}`)
+      .join('|');
+    return `${column?.id || 'col'}:${overridesKey || '{}'}:${layerSig}`;
+  }, [column?.id, column?.layers, overridesKey]);
   const hasAnyLayerAsset = useMemo(() => {
     try {
       const layers = (column as any)?.layers;
@@ -1582,15 +1624,19 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
       return false;
     }
   }, [column]);
-  
-  // Re-arm mask whenever the column changes so background never shows during switch
-  // Skip if skipInitialMask is true (crossfade case where content is already warmed up)
+
+  // The Canvas uses preserveDrawingBuffer, so the last rendered frame stays
+  // visible while the next column warms up. We only need the black mask on the
+  // very first mount to cover the empty composition background; after that we
+  // intentionally leave the prior frame on screen to make column changes feel
+  // instant instead of flashing through black.
+  const initialMaskFiredRef = useRef<boolean>(false);
   useEffect(() => {
-    if (skipInitialMask) return; // Don't re-arm mask during crossfade
-    try { setMaskVisible(true); } catch {}
-    // Signal mirror to freeze on last frame while new column warms up
+    if (skipInitialMask) return;
+    if (initialMaskFiredRef.current) return;
+    initialMaskFiredRef.current = true;
     try { window.dispatchEvent(new CustomEvent('mirrorFreeze', { detail: { freeze: true } })); } catch {}
-  }, [column?.id, skipInitialMask]);
+  }, [skipInitialMask]);
   // Use composition background color behind the transparent canvas so sources show correct bg
   const compositionBg = (() => {
     try {
@@ -1787,10 +1833,12 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
             >
               <HiddenRenderDriver />
               <ClearOnEmptyColumn isEmpty={!hasAnyLayerAsset} clearTo={'#000000'} />
+              <ClearOnColumnChange columnId={renderKey} />
               <ColumnScene 
                 // Keep scene stable across row-override changes; props updates handle rerender.
-                key={`scene-${width}x${height}-${column?.id || 'col'}`}
+                key={`scene-${width}x${height}-${renderKey}`}
                 column={column} 
+                renderKey={renderKey}
                 isPlaying={effectiveIsPlaying} 
                 suppressPause={suppressPause}
                 bpm={bpm}

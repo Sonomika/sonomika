@@ -231,18 +231,47 @@ function App() {
       try {
         const state: any = useStore.getState();
         const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId) || state.scenes?.[0];
-        const columns = scene?.columns || [];
+        const columns: any[] = scene?.columns || [];
         if (!scene || columns.length === 0) return;
 
         if (state.showTimeline && typeof state.setShowTimeline === 'function') {
           state.setShowTimeline(false);
         }
 
+        // Calling `playColumn` remounts the 3D scene (the React tree is keyed by
+        // column id) and re-issues videoRestart events, which produces a black
+        // flash. We only do that once on cold start. Subsequent column changes
+        // are expressed as per-row overrides, which the renderer applies to the
+        // already-mounted scene without restarting any layer.
+        const bootstrapColumn = (columnId: string) => {
+          state.clearActiveLayerOverrides?.();
+          state.playColumn?.(columnId);
+        };
+
+        const overrideAllRows = (columnId: string) => {
+          const setter = state.setActiveLayerOverride;
+          if (typeof setter !== 'function') return;
+          const rowsCount = columns.reduce(
+            (max: number, c: any) => Math.max(max, Array.isArray(c?.layers) ? c.layers.length : 0),
+            0
+          );
+          for (let row = 1; row <= rowsCount; row++) {
+            setter(row, columnId);
+          }
+        };
+
         if (payload.action === 'column-launch') {
           const column = columns[Math.max(0, Number(payload.column || 1) - 1)];
           if (!column) return;
-          state.clearActiveLayerOverrides?.();
-          state.playColumn?.(column.id);
+          if (!state.playingColumnId) {
+            bootstrapColumn(column.id);
+            return;
+          }
+          if (state.playingColumnId === column.id) {
+            state.clearActiveLayerOverrides?.();
+            return;
+          }
+          overrideAllRows(column.id);
           return;
         }
 
@@ -260,14 +289,12 @@ function App() {
         const column = columns[Math.max(0, Number(payload.clip || 1) - 1)];
         if (!column) return;
 
-        const baseColumnId = state.playingColumnId || columns[0]?.id || column.id;
-        if (!state.playingColumnId && baseColumnId) {
-          state.playColumn?.(baseColumnId);
+        if (!state.playingColumnId) {
+          bootstrapColumn(column.id);
+          return;
         }
 
-        if (typeof state.setActiveLayerOverride === 'function') {
-          state.setActiveLayerOverride(row, column.id);
-        }
+        state.setActiveLayerOverride?.(row, column.id);
       } catch (error) {
         console.warn('OSC clip launch failed:', error, payload);
       }

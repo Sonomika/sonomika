@@ -32,14 +32,8 @@ export const handleColumnPlay = async (
     return;
   }
 
-  // Preload assets before switching preview to avoid flashes
-  try {
-    await preloadColumnAssets(column, { timeoutMs: 1500 });
-  } catch (e) {
-    console.warn('Preload failed or timed out, proceeding:', e);
-  }
-
-  // console.log('✅ Assets preloaded, updating preview');
+  // Switch the live render state immediately. Waiting for preload here creates
+  // a visible transport hitch on fast MIDI/OSC column changes.
   setPreviewContent({
     type: 'column',
     columnId,
@@ -47,6 +41,15 @@ export const handleColumnPlay = async (
     layers: layersWithContent
   });
   setIsPlaying(true);
+
+  try {
+    void preloadColumnAssets(column, { timeoutMs: 1500 }).catch((e) => {
+      console.warn('Preload failed or timed out after column switch:', e);
+    });
+  } catch (e) {
+    console.warn('Preload failed or timed out after column switch:', e);
+  }
+
   // Defer play to ensure the preview mounts and event listeners are attached
   try {
     requestAnimationFrame(() => {
