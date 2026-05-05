@@ -77,7 +77,6 @@ export const ParamRow: React.FC<ParamRowProps> = ({
 
   const sliderProps = commitOnly
     ? {
-        key: `commit-${value}`,
         defaultValue: [value],
         onValueCommit: handleSliderCommit,
       }
@@ -104,6 +103,7 @@ export const ParamRow: React.FC<ParamRowProps> = ({
           )}
           <div className="slider-container tw-flex-1 tw-min-w-0">
             <Slider
+              key={commitOnly ? `commit-${value}` : 'live'}
               min={min}
               max={max}
               step={step}
@@ -141,6 +141,7 @@ export const ParamRow: React.FC<ParamRowProps> = ({
           {!buttonsAfter && Buttons}
           <div className="slider-container tw-flex-1 tw-min-w-0">
             <Slider
+              key={commitOnly ? `commit-${value}` : 'live'}
               min={min}
               max={max}
               step={step}

@@ -327,19 +327,19 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   };
 
   const toggleLock = (name: string) => {
+    const nextLocked = !lockedParams[name];
     setLockedParams(prev => {
-      const next = { ...prev, [name]: !prev[name] };
-      if (selectedLayer) {
-        const params = { ...(selectedLayer.params || {}) } as Record<string, any>;
-        if (!params[name]) {
-          const def = (effectMetadata?.parameters || []).find((p: any) => p.name === name);
-          params[name] = { value: def?.value };
-        }
-        params[name] = { ...(params[name] || {}), locked: next[name] };
-        onUpdateLayer(selectedLayer.id, { params });
-      }
-      return next;
+      return { ...prev, [name]: nextLocked };
     });
+    if (selectedLayer) {
+      const params = { ...(selectedLayer.params || {}) } as Record<string, any>;
+      if (!params[name]) {
+        const def = (effectMetadata?.parameters || []).find((p: any) => p.name === name);
+        params[name] = { value: def?.value };
+      }
+      params[name] = { ...(params[name] || {}), locked: nextLocked };
+      onUpdateLayer(selectedLayer.id, { params });
+    }
   };
 
   // Randomize effect parameters (excludes blend mode, opacity, and locked params)
@@ -1239,11 +1239,11 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                           <div className="tw-flex tw-items-center tw-gap-2 tw-w-full">
                             <div className="tw-flex-1">
                               <Slider
+                                key={commitSlidersOnRelease ? `commit-${fallbackSliderValue}` : `live-${paramName}`}
                                 min={param?.min || 0}
                                 max={param?.max || 100}
                                 step={param?.step || 1}
                                 {...(commitSlidersOnRelease ? {
-                                  key: `commit-${fallbackSliderValue}`,
                                   defaultValue: [fallbackSliderValue],
                                 } : {
                                   value: [fallbackSliderValue],

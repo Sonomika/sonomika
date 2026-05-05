@@ -1,0 +1,5468 @@
+{
+  "name": "fishFood_Sqaure",
+  "displayName": "fishFood_Sqaure",
+  "timestamp": 1777729214419,
+  "version": "1.0.0",
+  "description": "VJ Preset: fishFood_Sqaure",
+  "data": {
+    "scenes": [
+      {
+        "id": "e0a22c94-3e53-4ef0-8106-1efc36166ed7",
+        "name": "1",
+        "columns": [
+          {
+            "id": "a23db97f-7d73-40e2-904c-793e112dbf23",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "55661fae-8a7b-4dcb-84df-891a347d812a",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              },
+              {
+                "id": "layer-1777644957011-",
+                "name": "Layer 1 (Copy)",
+                "type": "media",
+                "columnId": "Layer 1",
+                "layerNum": 1,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "background -color -source",
+                  "name": "Background Color Source",
+                  "description": "Solid color and gradients with optional animation.",
+                  "category": "Sources",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "color",
+                        "type": "color",
+                        "value": "#000000"
+                      },
+                      {
+                        "name": "gradientType",
+                        "type": "select",
+                        "value": "solid",
+                        "options": [
+                          "solid",
+                          "linear",
+                          "radial",
+                          "conic"
+                        ]
+                      },
+                      {
+                        "name": "gradientColors",
+                        "type": "colorArray",
+                        "value": [
+                          "#ff0000",
+                          "#00ff00",
+                          "#0000ff"
+                        ]
+                      },
+                      {
+                        "name": "gradientStops",
+                        "type": "numberArray",
+                        "value": [
+                          0,
+                          0.5,
+                          1
+                        ]
+                      },
+                      {
+                        "name": "gradientDirection",
+                        "type": "select",
+                        "value": "horizontal",
+                        "options": [
+                          "horizontal",
+                          "vertical",
+                          "diagonal"
+                        ]
+                      },
+                      {
+                        "name": "gradientCenter",
+                        "type": "vector2",
+                        "value": [
+                          0.5,
+                          0.5
+                        ]
+                      },
+                      {
+                        "name": "gradientRadius",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animate",
+                        "type": "boolean",
+                        "value": false
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 5,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animationType",
+                        "type": "select",
+                        "value": "pulse",
+                        "options": [
+                          "pulse",
+                          "rotate",
+                          "flow"
+                        ]
+                      }
+                    ],
+                    "category": "Sources",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": true,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": true
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "background -color -source",
+                    "name": "Background Color Source",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "color",
+                        "type": "color",
+                        "value": "#000000"
+                      },
+                      {
+                        "name": "gradientType",
+                        "type": "select",
+                        "value": "solid",
+                        "options": [
+                          "solid",
+                          "linear",
+                          "radial",
+                          "conic"
+                        ]
+                      },
+                      {
+                        "name": "gradientColors",
+                        "type": "colorArray",
+                        "value": [
+                          "#ff0000",
+                          "#00ff00",
+                          "#0000ff"
+                        ]
+                      },
+                      {
+                        "name": "gradientStops",
+                        "type": "numberArray",
+                        "value": [
+                          0,
+                          0.5,
+                          1
+                        ]
+                      },
+                      {
+                        "name": "gradientDirection",
+                        "type": "select",
+                        "value": "horizontal",
+                        "options": [
+                          "horizontal",
+                          "vertical",
+                          "diagonal"
+                        ]
+                      },
+                      {
+                        "name": "gradientCenter",
+                        "type": "vector2",
+                        "value": [
+                          0.5,
+                          0.5
+                        ]
+                      },
+                      {
+                        "name": "gradientRadius",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animate",
+                        "type": "boolean",
+                        "value": false
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 5,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animationType",
+                        "type": "select",
+                        "value": "pulse",
+                        "options": [
+                          "pulse",
+                          "rotate",
+                          "flow"
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "color": {
+                    "value": "#000000"
+                  },
+                  "gradientType": {
+                    "value": "solid"
+                  },
+                  "gradientColors": {
+                    "value": [
+                      "#ff0000",
+                      "#00ff00",
+                      "#0000ff"
+                    ]
+                  },
+                  "gradientStops": {
+                    "value": [
+                      0,
+                      0.5,
+                      1
+                    ]
+                  },
+                  "gradientDirection": {
+                    "value": "horizontal"
+                  },
+                  "gradientCenter": {
+                    "value": [
+                      0.5,
+                      0.5
+                    ]
+                  },
+                  "gradientRadius": {
+                    "value": 0.6086614173228346
+                  },
+                  "animate": {
+                    "value": false
+                  },
+                  "animationSpeed": {
+                    "value": 2.9165354330708664
+                  },
+                  "animationType": {
+                    "value": "pulse"
+                  }
+                }
+              },
+              {
+                "id": "layer-Layer 3-3-1777617878239",
+                "name": "Layer 3",
+                "type": "media",
+                "columnId": "Layer 3",
+                "layerNum": 3,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "futuristic -h-u-d -overlay",
+                  "name": "Futuristic HUD Overlay",
+                  "description": "Animated quasi-futuristic interface overlay with modular panels, waveforms, meters, rings, grids, and scanning UI detail.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "opacity",
+                        "type": "number",
+                        "value": 0.72,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.78,
+                        "min": 0.15,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "panelScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.6,
+                        "max": 1.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "lineWidth",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.4,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "flicker",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanGlow",
+                        "type": "number",
+                        "value": 0.45,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "primaryColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "accentColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "secondaryColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "futuristic -h-u-d -overlay",
+                    "name": "Futuristic HUD Overlay",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "opacity",
+                        "type": "number",
+                        "value": 0.72,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.78,
+                        "min": 0.15,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "panelScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.6,
+                        "max": 1.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "lineWidth",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.4,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "flicker",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanGlow",
+                        "type": "number",
+                        "value": 0.45,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "primaryColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "accentColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "secondaryColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "opacity": {
+                    "value": 1,
+                    "locked": true
+                  },
+                  "density": {
+                    "value": 0.73
+                  },
+                  "animationSpeed": {
+                    "value": 1.55
+                  },
+                  "panelScale": {
+                    "value": 0.84
+                  },
+                  "lineWidth": {
+                    "value": 2.45
+                  },
+                  "flicker": {
+                    "value": 0.33
+                  },
+                  "scanGlow": {
+                    "value": 0.79
+                  },
+                  "primaryColor": {
+                    "value": "#ffffff",
+                    "locked": true
+                  },
+                  "accentColor": {
+                    "value": "#7df9ff",
+                    "locked": true
+                  },
+                  "secondaryColor": {
+                    "value": "#8f7dff",
+                    "locked": true
+                  }
+                }
+              },
+              {
+                "id": "layer-Layer 2-2-1777617908869",
+                "name": "Layer 2",
+                "type": "media",
+                "columnId": "Layer 2",
+                "layerNum": 2,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "fish -food -chase (-m-i-d-i)",
+                  "name": "Fish Food Chase (MIDI)",
+                  "description": "Fish swim around the screen and fire chromatic MIDI notes only when they eat food.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "fishCount",
+                        "type": "number",
+                        "value": 7,
+                        "min": 1,
+                        "max": 80,
+                        "step": 1
+                      },
+                      {
+                        "name": "foodCount",
+                        "type": "number",
+                        "value": 14,
+                        "min": 1,
+                        "max": 160,
+                        "step": 1
+                      },
+                      {
+                        "name": "fishSpeed",
+                        "type": "number",
+                        "value": 1.3,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "turnSpeed",
+                        "type": "number",
+                        "value": 2.3,
+                        "min": 0.2,
+                        "max": 12,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "wander",
+                        "type": "number",
+                        "value": 1.45,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "vision",
+                        "type": "number",
+                        "value": 2.2,
+                        "min": 0.1,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "eatRadius",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.2,
+                        "step": 0.005
+                      },
+                      {
+                        "name": "fishSize",
+                        "type": "number",
+                        "value": 0.034,
+                        "min": 0.01,
+                        "max": 0.12,
+                        "step": 0.002
+                      },
+                      {
+                        "name": "foodSize",
+                        "type": "number",
+                        "value": 0.014,
+                        "min": 0.008,
+                        "max": 0.12,
+                        "step": 0.002
+                      },
+                      {
+                        "name": "fishColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "foodColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 48,
+                        "min": 0,
+                        "max": 108,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "noteRange",
+                        "type": "number",
+                        "value": 7,
+                        "min": 1,
+                        "max": 48,
+                        "step": 1,
+                        "description": "Chromatic range from bottom food to top food"
+                      },
+                      {
+                        "name": "noteLength",
+                        "type": "number",
+                        "value": 0.16,
+                        "min": 0.03,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "velocityBoost",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true,
+                        "description": "Send MIDI when a fish eats food"
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "fish -food -chase (-m-i-d-i)",
+                    "name": "Fish Food Chase (MIDI)",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "fishCount",
+                        "type": "number",
+                        "value": 7,
+                        "min": 1,
+                        "max": 80,
+                        "step": 1
+                      },
+                      {
+                        "name": "foodCount",
+                        "type": "number",
+                        "value": 14,
+                        "min": 1,
+                        "max": 160,
+                        "step": 1
+                      },
+                      {
+                        "name": "fishSpeed",
+                        "type": "number",
+                        "value": 1.3,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "turnSpeed",
+                        "type": "number",
+                        "value": 2.3,
+                        "min": 0.2,
+                        "max": 12,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "wander",
+                        "type": "number",
+                        "value": 1.45,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "vision",
+                        "type": "number",
+                        "value": 2.2,
+                        "min": 0.1,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "eatRadius",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.2,
+                        "step": 0.005
+                      },
+                      {
+                        "name": "fishSize",
+                        "type": "number",
+                        "value": 0.034,
+                        "min": 0.01,
+                        "max": 0.12,
+                        "step": 0.002
+                      },
+                      {
+                        "name": "foodSize",
+                        "type": "number",
+                        "value": 0.014,
+                        "min": 0.008,
+                        "max": 0.12,
+                        "step": 0.002
+                      },
+                      {
+                        "name": "fishColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "foodColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 48,
+                        "min": 0,
+                        "max": 108,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "noteRange",
+                        "type": "number",
+                        "value": 7,
+                        "min": 1,
+                        "max": 48,
+                        "step": 1,
+                        "description": "Chromatic range from bottom food to top food"
+                      },
+                      {
+                        "name": "noteLength",
+                        "type": "number",
+                        "value": 0.16,
+                        "min": 0.03,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "velocityBoost",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true,
+                        "description": "Send MIDI when a fish eats food"
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "fishCount": {
+                    "value": 2
+                  },
+                  "foodCount": {
+                    "value": 55
+                  },
+                  "fishSpeed": {
+                    "value": 0.3
+                  },
+                  "turnSpeed": {
+                    "value": 2.3
+                  },
+                  "wander": {
+                    "value": 1.45
+                  },
+                  "vision": {
+                    "value": 2.2
+                  },
+                  "eatRadius": {
+                    "value": 0.07
+                  },
+                  "fishSize": {
+                    "value": 0.018
+                  },
+                  "foodSize": {
+                    "value": 0.014
+                  },
+                  "fishColor": {
+                    "value": "#ffffff"
+                  },
+                  "foodColor": {
+                    "value": "#ffffff"
+                  },
+                  "rootMidi": {
+                    "value": 36
+                  },
+                  "noteRange": {
+                    "value": 24
+                  },
+                  "noteLength": {
+                    "value": 0.16
+                  },
+                  "velocityBoost": {
+                    "value": 1
+                  },
+                  "sendMidi": {
+                    "value": true
+                  },
+                  "midiChannel": {
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "column-1777618074468-31jld021z",
+            "name": "New Column (Copy)",
+            "layers": [
+              {
+                "id": "layer-1777618074469-d3r7lx25s",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              },
+              {
+                "id": "layer-1777618074469-r3qmsymzq",
+                "name": "Layer 3",
+                "type": "media",
+                "columnId": "Layer 3",
+                "layerNum": 3,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "bio -scan -wireframe -h-u-d -overlay",
+                  "name": "Bio Scan Wireframe HUD Overlay",
+                  "description": "Animated biometric sci-fi overlay with wireframe body scans, geodesic diagrams, radar scopes, waveforms, and diagnostic panels.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "opacity",
+                        "type": "number",
+                        "value": 0.74,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.82,
+                        "min": 0.2,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "bodyCount",
+                        "type": "number",
+                        "value": 2,
+                        "min": 0,
+                        "max": 3,
+                        "step": 1
+                      },
+                      {
+                        "name": "lineWidth",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.4,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "diagramScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.6,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "flicker",
+                        "type": "number",
+                        "value": 0.14,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "primaryColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "accentColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "warningColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "bio -scan -wireframe -h-u-d -overlay",
+                    "name": "Bio Scan Wireframe HUD Overlay",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "opacity",
+                        "type": "number",
+                        "value": 0.74,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.82,
+                        "min": 0.2,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "bodyCount",
+                        "type": "number",
+                        "value": 2,
+                        "min": 0,
+                        "max": 3,
+                        "step": 1
+                      },
+                      {
+                        "name": "lineWidth",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.4,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "diagramScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.6,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "flicker",
+                        "type": "number",
+                        "value": 0.14,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "primaryColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "accentColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "warningColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "opacity": {
+                    "value": 1,
+                    "locked": true
+                  },
+                  "density": {
+                    "value": 0.8600000000000001
+                  },
+                  "animationSpeed": {
+                    "value": 3.9799999999999995
+                  },
+                  "panelScale": {
+                    "value": 0.84
+                  },
+                  "lineWidth": {
+                    "value": 2.5
+                  },
+                  "flicker": {
+                    "value": 0.45
+                  },
+                  "scanGlow": {
+                    "value": 0.79
+                  },
+                  "primaryColor": {
+                    "value": "#ffffff",
+                    "locked": true
+                  },
+                  "accentColor": {
+                    "value": "#7df9ff",
+                    "locked": true
+                  },
+                  "secondaryColor": {
+                    "value": "#8f7dff",
+                    "locked": true
+                  },
+                  "scanSpeed": {
+                    "value": 3
+                  },
+                  "bodyCount": {
+                    "value": 1
+                  },
+                  "diagramScale": {
+                    "value": 0.78
+                  },
+                  "warningColor": {
+                    "value": "#47875f"
+                  }
+                }
+              },
+              {
+                "id": "layer-1777625698211-",
+                "name": "Layer 2 (Copy)",
+                "type": "media",
+                "columnId": "Layer 2",
+                "layerNum": 2,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "fish -food -chase (-m-i-d-i)",
+                  "name": "Fish Food Chase (MIDI)",
+                  "description": "Fish swim around the screen and fire chromatic MIDI notes only when they eat food.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "fishCount",
+                        "type": "number",
+                        "value": 7,
+                        "min": 1,
+                        "max": 80,
+                        "step": 1
+                      },
+                      {
+                        "name": "foodCount",
+                        "type": "number",
+                        "value": 14,
+                        "min": 1,
+                        "max": 160,
+                        "step": 1
+                      },
+                      {
+                        "name": "fishSpeed",
+                        "type": "number",
+                        "value": 1.3,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "turnSpeed",
+                        "type": "number",
+                        "value": 2.3,
+                        "min": 0.2,
+                        "max": 12,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "wander",
+                        "type": "number",
+                        "value": 1.45,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "vision",
+                        "type": "number",
+                        "value": 2.2,
+                        "min": 0.1,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "eatRadius",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.2,
+                        "step": 0.005
+                      },
+                      {
+                        "name": "fishSize",
+                        "type": "number",
+                        "value": 0.034,
+                        "min": 0.01,
+                        "max": 0.12,
+                        "step": 0.002
+                      },
+                      {
+                        "name": "foodSize",
+                        "type": "number",
+                        "value": 0.014,
+                        "min": 0.008,
+                        "max": 0.12,
+                        "step": 0.002
+                      },
+                      {
+                        "name": "fishColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "foodColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 48,
+                        "min": 0,
+                        "max": 108,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "noteRange",
+                        "type": "number",
+                        "value": 7,
+                        "min": 1,
+                        "max": 48,
+                        "step": 1,
+                        "description": "Chromatic range from bottom food to top food"
+                      },
+                      {
+                        "name": "noteLength",
+                        "type": "number",
+                        "value": 0.16,
+                        "min": 0.03,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "velocityBoost",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true,
+                        "description": "Send MIDI when a fish eats food"
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "fish -food -chase (-m-i-d-i)",
+                    "name": "Fish Food Chase (MIDI)",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "fishCount",
+                        "type": "number",
+                        "value": 7,
+                        "min": 1,
+                        "max": 80,
+                        "step": 1
+                      },
+                      {
+                        "name": "foodCount",
+                        "type": "number",
+                        "value": 14,
+                        "min": 1,
+                        "max": 160,
+                        "step": 1
+                      },
+                      {
+                        "name": "fishSpeed",
+                        "type": "number",
+                        "value": 1.3,
+                        "min": 0.1,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "turnSpeed",
+                        "type": "number",
+                        "value": 2.3,
+                        "min": 0.2,
+                        "max": 12,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "wander",
+                        "type": "number",
+                        "value": 1.45,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "vision",
+                        "type": "number",
+                        "value": 2.2,
+                        "min": 0.1,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "eatRadius",
+                        "type": "number",
+                        "value": 0.07,
+                        "min": 0.01,
+                        "max": 0.2,
+                        "step": 0.005
+                      },
+                      {
+                        "name": "fishSize",
+                        "type": "number",
+                        "value": 0.034,
+                        "min": 0.01,
+                        "max": 0.12,
+                        "step": 0.002
+                      },
+                      {
+                        "name": "foodSize",
+                        "type": "number",
+                        "value": 0.014,
+                        "min": 0.008,
+                        "max": 0.12,
+                        "step": 0.002
+                      },
+                      {
+                        "name": "fishColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "foodColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 48,
+                        "min": 0,
+                        "max": 108,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "noteRange",
+                        "type": "number",
+                        "value": 7,
+                        "min": 1,
+                        "max": 48,
+                        "step": 1,
+                        "description": "Chromatic range from bottom food to top food"
+                      },
+                      {
+                        "name": "noteLength",
+                        "type": "number",
+                        "value": 0.16,
+                        "min": 0.03,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "velocityBoost",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true,
+                        "description": "Send MIDI when a fish eats food"
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "fishCount": {
+                    "value": 53
+                  },
+                  "foodCount": {
+                    "value": 14
+                  },
+                  "fishSpeed": {
+                    "value": 1.15
+                  },
+                  "turnSpeed": {
+                    "value": 5.500000000000001
+                  },
+                  "wander": {
+                    "value": 1.35
+                  },
+                  "vision": {
+                    "value": 1.4000000000000001
+                  },
+                  "eatRadius": {
+                    "value": 0.04
+                  },
+                  "fishSize": {
+                    "value": 0.018,
+                    "locked": true
+                  },
+                  "foodSize": {
+                    "value": 0.014,
+                    "locked": true
+                  },
+                  "fishColor": {
+                    "value": "#84caf3"
+                  },
+                  "foodColor": {
+                    "value": "#25b53e"
+                  },
+                  "rootMidi": {
+                    "value": 36
+                  },
+                  "noteRange": {
+                    "value": 45
+                  },
+                  "noteLength": {
+                    "value": 1.5299999999999998
+                  },
+                  "velocityBoost": {
+                    "value": 0.25
+                  },
+                  "sendMidi": {
+                    "value": true
+                  },
+                  "midiChannel": {
+                    "value": 1
+                  }
+                }
+              },
+              {
+                "id": "layer-1777618074469-6ca3d2tcl",
+                "name": "Layer 1",
+                "type": "media",
+                "columnId": "Layer 1",
+                "layerNum": 1,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "background -color -source",
+                  "name": "Background Color Source",
+                  "description": "Solid color and gradients with optional animation.",
+                  "category": "Sources",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "color",
+                        "type": "color",
+                        "value": "#000000"
+                      },
+                      {
+                        "name": "gradientType",
+                        "type": "select",
+                        "value": "solid",
+                        "options": [
+                          "solid",
+                          "linear",
+                          "radial",
+                          "conic"
+                        ]
+                      },
+                      {
+                        "name": "gradientColors",
+                        "type": "colorArray",
+                        "value": [
+                          "#ff0000",
+                          "#00ff00",
+                          "#0000ff"
+                        ]
+                      },
+                      {
+                        "name": "gradientStops",
+                        "type": "numberArray",
+                        "value": [
+                          0,
+                          0.5,
+                          1
+                        ]
+                      },
+                      {
+                        "name": "gradientDirection",
+                        "type": "select",
+                        "value": "horizontal",
+                        "options": [
+                          "horizontal",
+                          "vertical",
+                          "diagonal"
+                        ]
+                      },
+                      {
+                        "name": "gradientCenter",
+                        "type": "vector2",
+                        "value": [
+                          0.5,
+                          0.5
+                        ]
+                      },
+                      {
+                        "name": "gradientRadius",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animate",
+                        "type": "boolean",
+                        "value": false
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 5,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animationType",
+                        "type": "select",
+                        "value": "pulse",
+                        "options": [
+                          "pulse",
+                          "rotate",
+                          "flow"
+                        ]
+                      }
+                    ],
+                    "category": "Sources",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": true,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": true
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "background -color -source",
+                    "name": "Background Color Source",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "color",
+                        "type": "color",
+                        "value": "#000000"
+                      },
+                      {
+                        "name": "gradientType",
+                        "type": "select",
+                        "value": "solid",
+                        "options": [
+                          "solid",
+                          "linear",
+                          "radial",
+                          "conic"
+                        ]
+                      },
+                      {
+                        "name": "gradientColors",
+                        "type": "colorArray",
+                        "value": [
+                          "#ff0000",
+                          "#00ff00",
+                          "#0000ff"
+                        ]
+                      },
+                      {
+                        "name": "gradientStops",
+                        "type": "numberArray",
+                        "value": [
+                          0,
+                          0.5,
+                          1
+                        ]
+                      },
+                      {
+                        "name": "gradientDirection",
+                        "type": "select",
+                        "value": "horizontal",
+                        "options": [
+                          "horizontal",
+                          "vertical",
+                          "diagonal"
+                        ]
+                      },
+                      {
+                        "name": "gradientCenter",
+                        "type": "vector2",
+                        "value": [
+                          0.5,
+                          0.5
+                        ]
+                      },
+                      {
+                        "name": "gradientRadius",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animate",
+                        "type": "boolean",
+                        "value": false
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 5,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animationType",
+                        "type": "select",
+                        "value": "pulse",
+                        "options": [
+                          "pulse",
+                          "rotate",
+                          "flow"
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "color": {
+                    "value": "#000000"
+                  },
+                  "gradientType": {
+                    "value": "solid"
+                  },
+                  "gradientColors": {
+                    "value": [
+                      "#ff0000",
+                      "#00ff00",
+                      "#0000ff"
+                    ]
+                  },
+                  "gradientStops": {
+                    "value": [
+                      0,
+                      0.5,
+                      1
+                    ]
+                  },
+                  "gradientDirection": {
+                    "value": "horizontal"
+                  },
+                  "gradientCenter": {
+                    "value": [
+                      0.5,
+                      0.5
+                    ]
+                  },
+                  "gradientRadius": {
+                    "value": 0.6086614173228346
+                  },
+                  "animate": {
+                    "value": false
+                  },
+                  "animationSpeed": {
+                    "value": 2.9165354330708664
+                  },
+                  "animationType": {
+                    "value": "pulse"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "column-1777618135459-8gjdotz7d",
+            "name": "New Column (Copy) (Copy)",
+            "layers": [
+              {
+                "id": "layer-1777618135459-wowvo4mgi",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              },
+              {
+                "id": "layer-1777618135459-18o70fxdv",
+                "name": "Layer 3",
+                "type": "media",
+                "columnId": "Layer 3",
+                "layerNum": 3,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "tech -poster -typography -overlay",
+                  "name": "Tech Poster Typography Overlay",
+                  "description": "Animated futuristic poster overlay with bold typography panels, wire objects, labels, arrows, grids, and editorial tech graphics.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "opacity",
+                        "type": "number",
+                        "value": 0.76,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.88,
+                        "min": 0.25,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "posterScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.6,
+                        "max": 1.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "lineWidth",
+                        "type": "number",
+                        "value": 1.2,
+                        "min": 0.4,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "word",
+                        "type": "string",
+                        "value": "////"
+                      },
+                      {
+                        "name": "textAmount",
+                        "type": "number",
+                        "value": 0.82,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "motion",
+                        "type": "number",
+                        "value": 0.65,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "flicker",
+                        "type": "number",
+                        "value": 0.12,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "primaryColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "accentColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "secondaryColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "tech -poster -typography -overlay",
+                    "name": "Tech Poster Typography Overlay",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "opacity",
+                        "type": "number",
+                        "value": 0.76,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.88,
+                        "min": 0.25,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "posterScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.6,
+                        "max": 1.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "lineWidth",
+                        "type": "number",
+                        "value": 1.2,
+                        "min": 0.4,
+                        "max": 4,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "word",
+                        "type": "string",
+                        "value": "////"
+                      },
+                      {
+                        "name": "textAmount",
+                        "type": "number",
+                        "value": 0.82,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "motion",
+                        "type": "number",
+                        "value": 0.65,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "flicker",
+                        "type": "number",
+                        "value": 0.12,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "primaryColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "accentColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "secondaryColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "opacity": {
+                    "value": 1,
+                    "locked": true
+                  },
+                  "density": {
+                    "value": 0.8600000000000001
+                  },
+                  "animationSpeed": {
+                    "value": 3.9799999999999995
+                  },
+                  "panelScale": {
+                    "value": 0.84
+                  },
+                  "lineWidth": {
+                    "value": 2.5
+                  },
+                  "flicker": {
+                    "value": 0.45
+                  },
+                  "scanGlow": {
+                    "value": 0.79
+                  },
+                  "primaryColor": {
+                    "value": "#ffffff",
+                    "locked": true
+                  },
+                  "accentColor": {
+                    "value": "#7df9ff",
+                    "locked": true
+                  },
+                  "secondaryColor": {
+                    "value": "#8f7dff",
+                    "locked": true
+                  },
+                  "scanSpeed": {
+                    "value": 3
+                  },
+                  "bodyCount": {
+                    "value": 1
+                  },
+                  "diagramScale": {
+                    "value": 0.78
+                  },
+                  "warningColor": {
+                    "value": "#47875f"
+                  },
+                  "posterScale": {
+                    "value": 1
+                  },
+                  "word": {
+                    "value": "////"
+                  },
+                  "textAmount": {
+                    "value": 0.82
+                  },
+                  "motion": {
+                    "value": 0.65
+                  }
+                }
+              },
+              {
+                "id": "layer-Layer 2-2-1777618367624",
+                "name": "Layer 2",
+                "type": "media",
+                "columnId": "Layer 2",
+                "layerNum": 2,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "signal -atlas -sequencer (-m-i-d-i)",
+                  "name": "Signal Atlas Sequencer (MIDI)",
+                  "description": "A hyper-dense technical sequencer made of numbered nodes, scan rows, grid lines, and cross-linked signal webs. A descending scan band triggers nodes and sends MIDI.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "lanes",
+                        "type": "number",
+                        "value": 6,
+                        "min": 3,
+                        "max": 10,
+                        "step": 1
+                      },
+                      {
+                        "name": "steps",
+                        "type": "number",
+                        "value": 14,
+                        "min": 6,
+                        "max": 24,
+                        "step": 1
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.36,
+                        "min": 0.05,
+                        "max": 0.85,
+                        "step": 0.02
+                      },
+                      {
+                        "name": "stepsPerBeat",
+                        "type": "number",
+                        "value": 2,
+                        "min": 1,
+                        "max": 8,
+                        "step": 1,
+                        "description": "2 = 8th-note rows, 4 = 16th-note rows"
+                      },
+                      {
+                        "name": "bpmSync",
+                        "type": "boolean",
+                        "value": true
+                      },
+                      {
+                        "name": "manualBpm",
+                        "type": "number",
+                        "value": 122,
+                        "min": 40,
+                        "max": 220,
+                        "step": 1
+                      },
+                      {
+                        "name": "evolveLoops",
+                        "type": "number",
+                        "value": 4,
+                        "min": 0,
+                        "max": 16,
+                        "step": 1,
+                        "description": "rebuild the atlas every N full scan cycles (0 = static)"
+                      },
+                      {
+                        "name": "scanMode",
+                        "type": "select",
+                        "value": "bounce",
+                        "options": [
+                          "down",
+                          "bounce",
+                          "chaos"
+                        ],
+                        "description": "how the scan line travels through the atlas"
+                      },
+                      {
+                        "name": "scanGlitchChance",
+                        "type": "number",
+                        "value": 0.22,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "chance that the scan line skips, repeats, or reverses unexpectedly"
+                      },
+                      {
+                        "name": "noteMode",
+                        "type": "select",
+                        "value": "row",
+                        "options": [
+                          "row",
+                          "single"
+                        ],
+                        "description": "play the full row or only one note per scan step"
+                      },
+                      {
+                        "name": "gapChance",
+                        "type": "number",
+                        "value": 0.14,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "chance that a scan step becomes a silent gap"
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 36,
+                        "min": 24,
+                        "max": 72,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "noteLength",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0.03,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "jitter",
+                        "type": "number",
+                        "value": 0.38,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "position disorder inside each scan row"
+                      },
+                      {
+                        "name": "lineDensity",
+                        "type": "number",
+                        "value": 0.58,
+                        "min": 0.1,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "how many cross-links and scan lines are visible"
+                      },
+                      {
+                        "name": "inkColor",
+                        "type": "color",
+                        "value": "#f4f6fb"
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true,
+                        "description": "send MIDI notes to the selected MIDI output"
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "signal -atlas -sequencer (-m-i-d-i)",
+                    "name": "Signal Atlas Sequencer (MIDI)",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "lanes",
+                        "type": "number",
+                        "value": 6,
+                        "min": 3,
+                        "max": 10,
+                        "step": 1
+                      },
+                      {
+                        "name": "steps",
+                        "type": "number",
+                        "value": 14,
+                        "min": 6,
+                        "max": 24,
+                        "step": 1
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.36,
+                        "min": 0.05,
+                        "max": 0.85,
+                        "step": 0.02
+                      },
+                      {
+                        "name": "stepsPerBeat",
+                        "type": "number",
+                        "value": 2,
+                        "min": 1,
+                        "max": 8,
+                        "step": 1,
+                        "description": "2 = 8th-note rows, 4 = 16th-note rows"
+                      },
+                      {
+                        "name": "bpmSync",
+                        "type": "boolean",
+                        "value": true
+                      },
+                      {
+                        "name": "manualBpm",
+                        "type": "number",
+                        "value": 122,
+                        "min": 40,
+                        "max": 220,
+                        "step": 1
+                      },
+                      {
+                        "name": "evolveLoops",
+                        "type": "number",
+                        "value": 4,
+                        "min": 0,
+                        "max": 16,
+                        "step": 1,
+                        "description": "rebuild the atlas every N full scan cycles (0 = static)"
+                      },
+                      {
+                        "name": "scanMode",
+                        "type": "select",
+                        "value": "bounce",
+                        "options": [
+                          "down",
+                          "bounce",
+                          "chaos"
+                        ],
+                        "description": "how the scan line travels through the atlas"
+                      },
+                      {
+                        "name": "scanGlitchChance",
+                        "type": "number",
+                        "value": 0.22,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "chance that the scan line skips, repeats, or reverses unexpectedly"
+                      },
+                      {
+                        "name": "noteMode",
+                        "type": "select",
+                        "value": "row",
+                        "options": [
+                          "row",
+                          "single"
+                        ],
+                        "description": "play the full row or only one note per scan step"
+                      },
+                      {
+                        "name": "gapChance",
+                        "type": "number",
+                        "value": 0.14,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "chance that a scan step becomes a silent gap"
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 36,
+                        "min": 24,
+                        "max": 72,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "noteLength",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0.03,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "jitter",
+                        "type": "number",
+                        "value": 0.38,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "position disorder inside each scan row"
+                      },
+                      {
+                        "name": "lineDensity",
+                        "type": "number",
+                        "value": 0.58,
+                        "min": 0.1,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "how many cross-links and scan lines are visible"
+                      },
+                      {
+                        "name": "inkColor",
+                        "type": "color",
+                        "value": "#f4f6fb"
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true,
+                        "description": "send MIDI notes to the selected MIDI output"
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "lanes": {
+                    "value": 4.488188976377953
+                  },
+                  "steps": {
+                    "value": 12.94488188976378
+                  },
+                  "density": {
+                    "value": 0.15078740157480314
+                  },
+                  "stepsPerBeat": {
+                    "value": 2
+                  },
+                  "bpmSync": {
+                    "value": true
+                  },
+                  "manualBpm": {
+                    "value": 122
+                  },
+                  "evolveLoops": {
+                    "value": 4
+                  },
+                  "scanMode": {
+                    "value": "bounce"
+                  },
+                  "scanGlitchChance": {
+                    "value": 0.22
+                  },
+                  "noteMode": {
+                    "value": "row"
+                  },
+                  "gapChance": {
+                    "value": 0.14
+                  },
+                  "rootMidi": {
+                    "value": 36
+                  },
+                  "noteLength": {
+                    "value": 0.03
+                  },
+                  "jitter": {
+                    "value": 0.42
+                  },
+                  "lineDensity": {
+                    "value": 0.42
+                  },
+                  "inkColor": {
+                    "value": "#f4f6fb"
+                  },
+                  "sendMidi": {
+                    "value": true
+                  },
+                  "midiChannel": {
+                    "value": 3
+                  }
+                }
+              },
+              {
+                "id": "layer-1777644959247-",
+                "name": "Layer 1 (Copy)",
+                "type": "media",
+                "columnId": "Layer 1",
+                "layerNum": 1,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "background -color -source",
+                  "name": "Background Color Source",
+                  "description": "Solid color and gradients with optional animation.",
+                  "category": "Sources",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "color",
+                        "type": "color",
+                        "value": "#000000"
+                      },
+                      {
+                        "name": "gradientType",
+                        "type": "select",
+                        "value": "solid",
+                        "options": [
+                          "solid",
+                          "linear",
+                          "radial",
+                          "conic"
+                        ]
+                      },
+                      {
+                        "name": "gradientColors",
+                        "type": "colorArray",
+                        "value": [
+                          "#ff0000",
+                          "#00ff00",
+                          "#0000ff"
+                        ]
+                      },
+                      {
+                        "name": "gradientStops",
+                        "type": "numberArray",
+                        "value": [
+                          0,
+                          0.5,
+                          1
+                        ]
+                      },
+                      {
+                        "name": "gradientDirection",
+                        "type": "select",
+                        "value": "horizontal",
+                        "options": [
+                          "horizontal",
+                          "vertical",
+                          "diagonal"
+                        ]
+                      },
+                      {
+                        "name": "gradientCenter",
+                        "type": "vector2",
+                        "value": [
+                          0.5,
+                          0.5
+                        ]
+                      },
+                      {
+                        "name": "gradientRadius",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animate",
+                        "type": "boolean",
+                        "value": false
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 5,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animationType",
+                        "type": "select",
+                        "value": "pulse",
+                        "options": [
+                          "pulse",
+                          "rotate",
+                          "flow"
+                        ]
+                      }
+                    ],
+                    "category": "Sources",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": true,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": true
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "background -color -source",
+                    "name": "Background Color Source",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "color",
+                        "type": "color",
+                        "value": "#000000"
+                      },
+                      {
+                        "name": "gradientType",
+                        "type": "select",
+                        "value": "solid",
+                        "options": [
+                          "solid",
+                          "linear",
+                          "radial",
+                          "conic"
+                        ]
+                      },
+                      {
+                        "name": "gradientColors",
+                        "type": "colorArray",
+                        "value": [
+                          "#ff0000",
+                          "#00ff00",
+                          "#0000ff"
+                        ]
+                      },
+                      {
+                        "name": "gradientStops",
+                        "type": "numberArray",
+                        "value": [
+                          0,
+                          0.5,
+                          1
+                        ]
+                      },
+                      {
+                        "name": "gradientDirection",
+                        "type": "select",
+                        "value": "horizontal",
+                        "options": [
+                          "horizontal",
+                          "vertical",
+                          "diagonal"
+                        ]
+                      },
+                      {
+                        "name": "gradientCenter",
+                        "type": "vector2",
+                        "value": [
+                          0.5,
+                          0.5
+                        ]
+                      },
+                      {
+                        "name": "gradientRadius",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animate",
+                        "type": "boolean",
+                        "value": false
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 5,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animationType",
+                        "type": "select",
+                        "value": "pulse",
+                        "options": [
+                          "pulse",
+                          "rotate",
+                          "flow"
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "color": {
+                    "value": "#000000"
+                  },
+                  "gradientType": {
+                    "value": "solid"
+                  },
+                  "gradientColors": {
+                    "value": [
+                      "#ff0000",
+                      "#00ff00",
+                      "#0000ff"
+                    ]
+                  },
+                  "gradientStops": {
+                    "value": [
+                      0,
+                      0.5,
+                      1
+                    ]
+                  },
+                  "gradientDirection": {
+                    "value": "horizontal"
+                  },
+                  "gradientCenter": {
+                    "value": [
+                      0.5,
+                      0.5
+                    ]
+                  },
+                  "gradientRadius": {
+                    "value": 0.6086614173228346
+                  },
+                  "animate": {
+                    "value": false
+                  },
+                  "animationSpeed": {
+                    "value": 2.9165354330708664
+                  },
+                  "animationType": {
+                    "value": "pulse"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "column-1777626648414-6x9lxf8n9",
+            "name": "New Column (Copy)",
+            "layers": [
+              {
+                "id": "layer-1777626648414-sdb0r1i42",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              },
+              {
+                "id": "layer-1777645395772-",
+                "name": "Layer 1 (Copy) (Copy)",
+                "type": "media",
+                "columnId": "Layer 1",
+                "layerNum": 1,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "background -color -source",
+                  "name": "Background Color Source",
+                  "description": "Solid color and gradients with optional animation.",
+                  "category": "Sources",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "color",
+                        "type": "color",
+                        "value": "#000000"
+                      },
+                      {
+                        "name": "gradientType",
+                        "type": "select",
+                        "value": "solid",
+                        "options": [
+                          "solid",
+                          "linear",
+                          "radial",
+                          "conic"
+                        ]
+                      },
+                      {
+                        "name": "gradientColors",
+                        "type": "colorArray",
+                        "value": [
+                          "#ff0000",
+                          "#00ff00",
+                          "#0000ff"
+                        ]
+                      },
+                      {
+                        "name": "gradientStops",
+                        "type": "numberArray",
+                        "value": [
+                          0,
+                          0.5,
+                          1
+                        ]
+                      },
+                      {
+                        "name": "gradientDirection",
+                        "type": "select",
+                        "value": "horizontal",
+                        "options": [
+                          "horizontal",
+                          "vertical",
+                          "diagonal"
+                        ]
+                      },
+                      {
+                        "name": "gradientCenter",
+                        "type": "vector2",
+                        "value": [
+                          0.5,
+                          0.5
+                        ]
+                      },
+                      {
+                        "name": "gradientRadius",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animate",
+                        "type": "boolean",
+                        "value": false
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 5,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animationType",
+                        "type": "select",
+                        "value": "pulse",
+                        "options": [
+                          "pulse",
+                          "rotate",
+                          "flow"
+                        ]
+                      }
+                    ],
+                    "category": "Sources",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": true,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": true
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "background -color -source",
+                    "name": "Background Color Source",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "color",
+                        "type": "color",
+                        "value": "#000000"
+                      },
+                      {
+                        "name": "gradientType",
+                        "type": "select",
+                        "value": "solid",
+                        "options": [
+                          "solid",
+                          "linear",
+                          "radial",
+                          "conic"
+                        ]
+                      },
+                      {
+                        "name": "gradientColors",
+                        "type": "colorArray",
+                        "value": [
+                          "#ff0000",
+                          "#00ff00",
+                          "#0000ff"
+                        ]
+                      },
+                      {
+                        "name": "gradientStops",
+                        "type": "numberArray",
+                        "value": [
+                          0,
+                          0.5,
+                          1
+                        ]
+                      },
+                      {
+                        "name": "gradientDirection",
+                        "type": "select",
+                        "value": "horizontal",
+                        "options": [
+                          "horizontal",
+                          "vertical",
+                          "diagonal"
+                        ]
+                      },
+                      {
+                        "name": "gradientCenter",
+                        "type": "vector2",
+                        "value": [
+                          0.5,
+                          0.5
+                        ]
+                      },
+                      {
+                        "name": "gradientRadius",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animate",
+                        "type": "boolean",
+                        "value": false
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 5,
+                        "step": 0.1
+                      },
+                      {
+                        "name": "animationType",
+                        "type": "select",
+                        "value": "pulse",
+                        "options": [
+                          "pulse",
+                          "rotate",
+                          "flow"
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "color": {
+                    "value": "#000000"
+                  },
+                  "gradientType": {
+                    "value": "solid"
+                  },
+                  "gradientColors": {
+                    "value": [
+                      "#ff0000",
+                      "#00ff00",
+                      "#0000ff"
+                    ]
+                  },
+                  "gradientStops": {
+                    "value": [
+                      0,
+                      0.5,
+                      1
+                    ]
+                  },
+                  "gradientDirection": {
+                    "value": "horizontal"
+                  },
+                  "gradientCenter": {
+                    "value": [
+                      0.5,
+                      0.5
+                    ]
+                  },
+                  "gradientRadius": {
+                    "value": 0.1
+                  },
+                  "animate": {
+                    "value": false
+                  },
+                  "animationSpeed": {
+                    "value": 4.266929133858268
+                  },
+                  "animationType": {
+                    "value": "pulse"
+                  }
+                }
+              },
+              {
+                "id": "layer-1777626648414-nkt059z5c",
+                "name": "Layer 3",
+                "type": "media",
+                "columnId": "Layer 3",
+                "layerNum": 3,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "futuristic -h-u-d -overlay",
+                  "name": "Futuristic HUD Overlay",
+                  "description": "Animated quasi-futuristic interface overlay with modular panels, waveforms, meters, rings, grids, and scanning UI detail.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "opacity",
+                        "type": "number",
+                        "value": 0.72,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.78,
+                        "min": 0.15,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "panelScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.6,
+                        "max": 1.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "lineWidth",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.4,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "flicker",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanGlow",
+                        "type": "number",
+                        "value": 0.45,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "primaryColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "accentColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "secondaryColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "futuristic -h-u-d -overlay",
+                    "name": "Futuristic HUD Overlay",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "opacity",
+                        "type": "number",
+                        "value": 0.72,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.78,
+                        "min": 0.15,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "animationSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "panelScale",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.6,
+                        "max": 1.6,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "lineWidth",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.4,
+                        "max": 3,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "flicker",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanGlow",
+                        "type": "number",
+                        "value": 0.45,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "primaryColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "accentColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "secondaryColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "opacity": {
+                    "value": 1,
+                    "locked": true
+                  },
+                  "density": {
+                    "value": 0.15
+                  },
+                  "animationSpeed": {
+                    "value": 0.7399999999999998
+                  },
+                  "panelScale": {
+                    "value": 1.3900000000000001
+                  },
+                  "lineWidth": {
+                    "value": 2.6
+                  },
+                  "flicker": {
+                    "value": 0.66
+                  },
+                  "scanGlow": {
+                    "value": 1.47
+                  },
+                  "primaryColor": {
+                    "value": "#ffffff",
+                    "locked": true
+                  },
+                  "accentColor": {
+                    "value": "#7df9ff",
+                    "locked": true
+                  },
+                  "secondaryColor": {
+                    "value": "#8f7dff",
+                    "locked": true
+                  }
+                }
+              },
+              {
+                "id": "layer-Layer 4-4-1777626717800",
+                "name": "Layer 2",
+                "type": "media",
+                "columnId": "Layer 4",
+                "layerNum": 2,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "orbital -drift -sequencer (-m-i-d-i)",
+                  "name": "Orbital Drift Sequencer (MIDI)",
+                  "description": "A circular MIDI sequencer where orbiting particles drift across a scan beam and trigger evolving pentatonic notes.",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "steps",
+                        "type": "number",
+                        "value": 32,
+                        "min": 8,
+                        "max": 128,
+                        "step": 1
+                      },
+                      {
+                        "name": "lanes",
+                        "type": "number",
+                        "value": 12,
+                        "min": 4,
+                        "max": 32,
+                        "step": 1
+                      },
+                      {
+                        "name": "particleDensity",
+                        "type": "number",
+                        "value": 0.55,
+                        "min": 0.05,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "driftSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.05,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "orbitJitter",
+                        "type": "number",
+                        "value": 0.28,
+                        "min": 0,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanWidth",
+                        "type": "number",
+                        "value": 0.72,
+                        "min": 0.1,
+                        "max": 2.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "mutationRate",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "stepsPerBeat",
+                        "type": "number",
+                        "value": 4,
+                        "min": 1,
+                        "max": 8,
+                        "step": 1
+                      },
+                      {
+                        "name": "bpmSync",
+                        "type": "boolean",
+                        "value": true
+                      },
+                      {
+                        "name": "manualBpm",
+                        "type": "number",
+                        "value": 112,
+                        "min": 40,
+                        "max": 220,
+                        "step": 1
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 48,
+                        "min": 0,
+                        "max": 108,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "noteRange",
+                        "type": "number",
+                        "value": 24,
+                        "min": 4,
+                        "max": 60,
+                        "step": 1
+                      },
+                      {
+                        "name": "noteLength",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0.03,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "velocityBoost",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "maxNotesPerStep",
+                        "type": "number",
+                        "value": 6,
+                        "min": 1,
+                        "max": 24,
+                        "step": 1
+                      },
+                      {
+                        "name": "particleColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "trailColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      },
+                      {
+                        "name": "scanColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "glow",
+                        "type": "number",
+                        "value": 0.85,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "orbital -drift -sequencer (-m-i-d-i)",
+                    "name": "Orbital Drift Sequencer (MIDI)",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "steps",
+                        "type": "number",
+                        "value": 32,
+                        "min": 8,
+                        "max": 128,
+                        "step": 1
+                      },
+                      {
+                        "name": "lanes",
+                        "type": "number",
+                        "value": 12,
+                        "min": 4,
+                        "max": 32,
+                        "step": 1
+                      },
+                      {
+                        "name": "particleDensity",
+                        "type": "number",
+                        "value": 0.55,
+                        "min": 0.05,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "driftSpeed",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.05,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "orbitJitter",
+                        "type": "number",
+                        "value": 0.28,
+                        "min": 0,
+                        "max": 1.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "scanWidth",
+                        "type": "number",
+                        "value": 0.72,
+                        "min": 0.1,
+                        "max": 2.5,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "mutationRate",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "stepsPerBeat",
+                        "type": "number",
+                        "value": 4,
+                        "min": 1,
+                        "max": 8,
+                        "step": 1
+                      },
+                      {
+                        "name": "bpmSync",
+                        "type": "boolean",
+                        "value": true
+                      },
+                      {
+                        "name": "manualBpm",
+                        "type": "number",
+                        "value": 112,
+                        "min": 40,
+                        "max": 220,
+                        "step": 1
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 48,
+                        "min": 0,
+                        "max": 108,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "noteRange",
+                        "type": "number",
+                        "value": 24,
+                        "min": 4,
+                        "max": 60,
+                        "step": 1
+                      },
+                      {
+                        "name": "noteLength",
+                        "type": "number",
+                        "value": 0.18,
+                        "min": 0.03,
+                        "max": 4,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "velocityBoost",
+                        "type": "number",
+                        "value": 1,
+                        "min": 0.1,
+                        "max": 2,
+                        "step": 0.05
+                      },
+                      {
+                        "name": "maxNotesPerStep",
+                        "type": "number",
+                        "value": 6,
+                        "min": 1,
+                        "max": 24,
+                        "step": 1
+                      },
+                      {
+                        "name": "particleColor",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "trailColor",
+                        "type": "color",
+                        "value": "#8f7dff"
+                      },
+                      {
+                        "name": "scanColor",
+                        "type": "color",
+                        "value": "#7df9ff"
+                      },
+                      {
+                        "name": "glow",
+                        "type": "number",
+                        "value": 0.85,
+                        "min": 0,
+                        "max": 2,
+                        "step": 0.01
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "genre": {
+                    "value": "drumAndBass"
+                  },
+                  "autoBars": {
+                    "value": 31
+                  },
+                  "bpmSync": {
+                    "value": true
+                  },
+                  "manualBpm": {
+                    "value": 104
+                  },
+                  "swing": {
+                    "value": 0.04000000000000001
+                  },
+                  "density": {
+                    "value": 0.63
+                  },
+                  "fillAmount": {
+                    "value": 0.72
+                  },
+                  "velocityBoost": {
+                    "value": 0.7000000000000001
+                  },
+                  "noteLength": {
+                    "value": 0.6900000000000001
+                  },
+                  "gridColor": {
+                    "value": "#a6666a"
+                  },
+                  "accentColor": {
+                    "value": "#28e7d6"
+                  },
+                  "gridGlow": {
+                    "value": 1.32
+                  },
+                  "sendMidi": {
+                    "value": true
+                  },
+                  "midiChannel": {
+                    "value": 4
+                  },
+                  "butterflyCount": {
+                    "value": 9
+                  },
+                  "flowerCount": {
+                    "value": 18
+                  },
+                  "flutterSpeed": {
+                    "value": 1.15
+                  },
+                  "turnSpeed": {
+                    "value": 2
+                  },
+                  "wander": {
+                    "value": 1.7
+                  },
+                  "vision": {
+                    "value": 2.4
+                  },
+                  "sipRadius": {
+                    "value": 0.075
+                  },
+                  "butterflySize": {
+                    "value": 0.052
+                  },
+                  "flowerSize": {
+                    "value": 0.026
+                  },
+                  "butterflyColor": {
+                    "value": "#ffffff"
+                  },
+                  "flowerColor": {
+                    "value": "#ff7df3"
+                  },
+                  "nectarColor": {
+                    "value": "#7df9ff"
+                  },
+                  "rootMidi": {
+                    "value": 52
+                  },
+                  "noteRange": {
+                    "value": 18
+                  },
+                  "steps": {
+                    "value": 40.125984251968504
+                  },
+                  "lanes": {
+                    "value": 20.094488188976378
+                  },
+                  "particleDensity": {
+                    "value": 0.05
+                  },
+                  "driftSpeed": {
+                    "value": 2.23
+                  },
+                  "orbitJitter": {
+                    "value": 0.77
+                  },
+                  "scanWidth": {
+                    "value": 0.72
+                  },
+                  "mutationRate": {
+                    "value": 0.62
+                  },
+                  "stepsPerBeat": {
+                    "value": 4
+                  },
+                  "maxNotesPerStep": {
+                    "value": 6
+                  },
+                  "particleColor": {
+                    "value": "#ffffff"
+                  },
+                  "trailColor": {
+                    "value": "#8f7dff"
+                  },
+                  "scanColor": {
+                    "value": "#7df9ff"
+                  },
+                  "glow": {
+                    "value": 0.85
+                  }
+                }
+              },
+              {
+                "id": "layer-Layer 4-4-1777627596770",
+                "name": "Layer 4",
+                "type": "media",
+                "columnId": "Layer 4",
+                "layerNum": 4,
+                "loopMode": "none",
+                "loopCount": 1,
+                "reverseEnabled": false,
+                "pingPongEnabled": false,
+                "blendMode": "add",
+                "opacity": 1,
+                "asset": {
+                  "type": "effect",
+                  "isEffect": true,
+                  "id": "data -matrix (-m-i-d-i)",
+                  "name": "Data Matrix (MIDI)",
+                  "description": "Scanning binary grid in the tradition of Ryoji Ikeda test-pattern works. A vertical playhead sweeps left to right; every lit cell it crosses fires a precisely pitched sine pulse (row = frequency).",
+                  "category": "Effects",
+                  "icon": "",
+                  "metadata": {
+                    "parameters": [
+                      {
+                        "name": "gridCols",
+                        "type": "number",
+                        "value": 48,
+                        "min": 12,
+                        "max": 96,
+                        "step": 1
+                      },
+                      {
+                        "name": "gridRows",
+                        "type": "number",
+                        "value": 12,
+                        "min": 4,
+                        "max": 24,
+                        "step": 1
+                      },
+                      {
+                        "name": "scanRate",
+                        "type": "number",
+                        "value": 12,
+                        "min": 1,
+                        "max": 40,
+                        "step": 0.5,
+                        "description": "columns per second"
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.22,
+                        "min": 0.03,
+                        "max": 0.7,
+                        "step": 0.02
+                      },
+                      {
+                        "name": "freqLow",
+                        "type": "number",
+                        "value": 120,
+                        "min": 20,
+                        "max": 800,
+                        "step": 5
+                      },
+                      {
+                        "name": "freqHigh",
+                        "type": "number",
+                        "value": 9000,
+                        "min": 1000,
+                        "max": 18000,
+                        "step": 100
+                      },
+                      {
+                        "name": "pulseMs",
+                        "type": "number",
+                        "value": 18,
+                        "min": 4,
+                        "max": 120,
+                        "step": 1
+                      },
+                      {
+                        "name": "evolveSec",
+                        "type": "number",
+                        "value": 0,
+                        "min": 0,
+                        "max": 30,
+                        "step": 0.5,
+                        "description": "re-randomize pattern every N seconds (0 = static)"
+                      },
+                      {
+                        "name": "jitter",
+                        "type": "number",
+                        "value": 0,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "pitch jitter (cents scatter per strike)"
+                      },
+                      {
+                        "name": "accent",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 48,
+                        "min": 0,
+                        "max": 108,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true,
+                        "description": "send MIDI notes to the selected MIDI output (bottom row = root note)"
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ],
+                    "category": "Effects",
+                    "type": "react-component",
+                    "folder": "user-effects",
+                    "isSource": false,
+                    "isUserEffect": true
+                  },
+                  "assetType": "effect",
+                  "isSource": false
+                },
+                "assetType": "effect",
+                "effects": [
+                  {
+                    "id": "data -matrix (-m-i-d-i)",
+                    "name": "Data Matrix (MIDI)",
+                    "type": "effect",
+                    "parameters": [
+                      {
+                        "name": "gridCols",
+                        "type": "number",
+                        "value": 48,
+                        "min": 12,
+                        "max": 96,
+                        "step": 1
+                      },
+                      {
+                        "name": "gridRows",
+                        "type": "number",
+                        "value": 12,
+                        "min": 4,
+                        "max": 24,
+                        "step": 1
+                      },
+                      {
+                        "name": "scanRate",
+                        "type": "number",
+                        "value": 12,
+                        "min": 1,
+                        "max": 40,
+                        "step": 0.5,
+                        "description": "columns per second"
+                      },
+                      {
+                        "name": "density",
+                        "type": "number",
+                        "value": 0.22,
+                        "min": 0.03,
+                        "max": 0.7,
+                        "step": 0.02
+                      },
+                      {
+                        "name": "freqLow",
+                        "type": "number",
+                        "value": 120,
+                        "min": 20,
+                        "max": 800,
+                        "step": 5
+                      },
+                      {
+                        "name": "freqHigh",
+                        "type": "number",
+                        "value": 9000,
+                        "min": 1000,
+                        "max": 18000,
+                        "step": 100
+                      },
+                      {
+                        "name": "pulseMs",
+                        "type": "number",
+                        "value": 18,
+                        "min": 4,
+                        "max": 120,
+                        "step": 1
+                      },
+                      {
+                        "name": "evolveSec",
+                        "type": "number",
+                        "value": 0,
+                        "min": 0,
+                        "max": 30,
+                        "step": 0.5,
+                        "description": "re-randomize pattern every N seconds (0 = static)"
+                      },
+                      {
+                        "name": "jitter",
+                        "type": "number",
+                        "value": 0,
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.02,
+                        "description": "pitch jitter (cents scatter per strike)"
+                      },
+                      {
+                        "name": "accent",
+                        "type": "color",
+                        "value": "#ffffff"
+                      },
+                      {
+                        "name": "rootMidi",
+                        "type": "number",
+                        "value": 48,
+                        "min": 0,
+                        "max": 108,
+                        "step": 1,
+                        "lockDefault": true
+                      },
+                      {
+                        "name": "sendMidi",
+                        "type": "boolean",
+                        "value": true,
+                        "lockDefault": true,
+                        "description": "send MIDI notes to the selected MIDI output (bottom row = root note)"
+                      },
+                      {
+                        "name": "midiChannel",
+                        "type": "number",
+                        "value": 1,
+                        "min": 1,
+                        "max": 16,
+                        "step": 1,
+                        "lockDefault": true
+                      }
+                    ]
+                  }
+                ],
+                "params": {
+                  "gridCols": {
+                    "value": 78
+                  },
+                  "gridRows": {
+                    "value": 12
+                  },
+                  "scanRate": {
+                    "value": 4.5
+                  },
+                  "density": {
+                    "value": 0.03
+                  },
+                  "freqLow": {
+                    "value": 20
+                  },
+                  "freqHigh": {
+                    "value": 1000
+                  },
+                  "pulseMs": {
+                    "value": 18
+                  },
+                  "evolveSec": {
+                    "value": 14
+                  },
+                  "jitter": {
+                    "value": 0.4
+                  },
+                  "accent": {
+                    "value": "#ffffff"
+                  },
+                  "sendMidi": {
+                    "value": true
+                  },
+                  "midiChannel": {
+                    "value": 1
+                  },
+                  "rootMidi": {
+                    "value": 24
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "cb5b103d-0e2d-469b-be7b-dfab059df2f1",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "c850f263-5f6a-4c6b-82a9-8069f645e7a9",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "cce18b2e-c29a-451f-8045-6ea55e736a04",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "624559b4-841c-45ab-bc9f-5295d4caf32d",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "ef36a402-9c4f-43ce-95bd-6c115830d5cc",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4f32a2f8-1d02-4c8e-881c-62514175fa78",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "b328395d-7f4e-488b-8223-a74078f3a767",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "eada2851-da7a-4625-ad43-1082eff24627",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "c40a2f48-694a-4fe6-be68-e4df440c3029",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "45439aed-f9fa-428e-913d-aadd030b22e3",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "c22e7ce7-b7f8-4638-8eee-ebf69c445dc7",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "ea5f3e0e-3bd2-4a3a-be71-23a217b07ab5",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "f11b5c64-0f52-4560-8d78-0f52453e53f2",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "92a71151-ce22-4285-af84-5f7e816268c1",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "5b9d6dc2-9555-4de6-bca9-7c9ab955f84b",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "f4b71ca6-0a4c-4c67-a1ef-854561746510",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "afcdb0db-7960-4ca7-9b3f-62d0303d8ba8",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "215b8660-3e31-4e48-97eb-8d8a7f81fb20",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "bd36b110-3471-407b-afc8-6bcf5876d39f",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "80f7ebfe-375c-4435-bdb7-325bb93a67fe",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "803e1bcf-2e66-4afc-8b02-34aaab7990bf",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "28ec3948-506a-4f62-b5d8-d220b10515ed",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "d908262a-4bc0-4b69-bec8-6de2c7c08f4b",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "1af0f2ad-112d-4a76-8d55-4b1697a1cf4b",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "5986c63b-09cb-4709-9a40-9ae5c3aa268c",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "5a5c10a2-9fde-41d1-b29a-6d76d1d4ed1d",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "d798b2e8-63d9-4b4c-808e-e30493fc483e",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "f26f4cc6-92e1-4522-be40-7efdc266577a",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "31dae0cf-720a-40ba-8741-4a42d1f139f0",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4306a953-94f5-4778-9ee1-6c7a1063483a",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "29cae990-b3fd-4664-ae98-c8e8fec68b7a",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "e2846d32-263b-4fa2-b952-473de8d11879",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "e580b2f4-be98-4a7f-a6b5-8595cb760ba7",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "075b5e4f-ab85-4fd7-88da-c820743972fa",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "e7ac3455-eb8b-4836-a9e8-a3e67e391126",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "14d0ae6c-6802-4f23-bf1b-ed7f1deb6f22",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "62cad2e1-f7b4-46c4-b448-d3599f4010e1",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "42c729f6-cca8-4be2-a4a7-3191a63709ee",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "fe55e87e-0152-400b-8c25-afa64f0614ee",
+            "name": "Column 21",
+            "layers": []
+          },
+          {
+            "id": "2ea1afdc-dc04-4694-8969-14e7d5c8cd38",
+            "name": "Column 22",
+            "layers": []
+          },
+          {
+            "id": "36896c57-1f98-4ba2-8c70-0a16fcf7ebcb",
+            "name": "Column 23",
+            "layers": []
+          },
+          {
+            "id": "e5d28fa7-a733-4956-8c5c-32497822027a",
+            "name": "Column 24",
+            "layers": []
+          },
+          {
+            "id": "daa99db6-8af4-4be2-9f79-769e219cadd7",
+            "name": "Column 25",
+            "layers": []
+          },
+          {
+            "id": "48da9e2b-ac95-4656-b649-06d9a708266a",
+            "name": "Column 26",
+            "layers": []
+          },
+          {
+            "id": "2ee07932-5a29-4b26-90ac-4e282f11a455",
+            "name": "Column 27",
+            "layers": []
+          },
+          {
+            "id": "f3c39b82-ae33-487e-9cf0-17170eb69aa1",
+            "name": "Column 28",
+            "layers": []
+          },
+          {
+            "id": "b4ca507f-b523-4be0-ad9e-075bae05a132",
+            "name": "Column 29",
+            "layers": []
+          },
+          {
+            "id": "c864b634-4ca3-4246-8252-1f79ec5a4e63",
+            "name": "Column 30",
+            "layers": []
+          }
+        ],
+        "globalEffects": [],
+        "numRows": 4,
+        "sequenceEnabled": false
+      }
+    ],
+    "currentSceneId": "e0a22c94-3e53-4ef0-8106-1efc36166ed7",
+    "timelineScenes": [
+      {
+        "id": "111dffc7-122a-44b5-89fa-a2a093c4c7f2",
+        "name": "1",
+        "columns": [
+          {
+            "id": "edbc149a-88e8-489a-a32c-86bc4016da63",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "77470b0f-e6e7-47b5-905d-d90b46a8a86f",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "be7c6b55-5405-4857-b8df-507691deedf1",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "47386ed6-e5bf-4204-bcb9-e0062ba78f77",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "af88665e-2e70-464f-8d11-c801c86e96c7",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "9d0f408b-9120-4678-96ab-73537a5f727e",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "3a6b02c2-b77a-49d0-92e4-a60f0d01145e",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4bc38f48-ed1a-4005-b111-876a511a3160",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "44d1fc04-ec36-4567-a2ff-8aa503c54693",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "b10e6c1e-4870-4a4a-b528-ee404fe40d5a",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "b56b0ac9-e221-409e-b4de-6ffec5a20325",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "af0e0478-8dd9-468f-a327-daba99df8ed6",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "d075329a-b4d9-43ba-8d97-87b3d8a56144",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "4026e204-6dfe-412a-b336-432f07201ef5",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "e8e93d15-498b-48f8-a55c-3dea13d76978",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "c3c69619-3ce2-4e93-a3ae-fe34a26161c8",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "62f62741-51fc-46d4-9fe2-77cd91a6dca6",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "2095e1d3-5594-4c92-9eb7-c9be7204cb0b",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "cb0aa82e-5659-4d6f-ac28-6347d7a9bd86",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "f6ec85bc-1182-4666-a75d-fafe175d93d1",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "8c7fcefa-9645-4348-88ca-0d1c3cdc6d01",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "fb817f68-4eea-457b-a22d-40e65f3652ac",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "1e083087-34fe-4c5c-b55c-cd822bf3bcf8",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "661ce598-9b1e-4fe0-aadb-d2d7420aa8cc",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "7839c69c-7d97-4f9c-a5fd-682b5defcf9c",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "8950027f-9835-4aaa-a1c6-ab457ef96740",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "4a02715a-400d-4e6c-80ce-c964eaa8ced7",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "0b7ff0cd-d575-49b5-8d5e-79c7903bd1cb",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "195a58f3-48f5-4525-a723-a4e0690a1290",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "cfca39be-44d9-4bd4-b406-bb0ac28125a2",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "1d90078d-020e-427f-8543-fab1e03e2fd8",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "5ff1b9cc-3081-4490-84c7-751776998df1",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "03bdd136-e19d-4af5-b0e8-5f9a7e90b14b",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "c9d76f11-aa76-4f35-abcd-4f3ea94cb4e4",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "4f0c484d-be0e-4e46-a537-9e05da155fb5",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "b930fe29-f2ae-4a60-9f6e-7df585a08ee1",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "ab82d444-707f-4c1b-9ed3-4558b4c3ac86",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "3e14e19c-5663-46f5-aa8a-f7daef28ccc7",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          },
+          {
+            "id": "b35f8504-8c7e-495c-9642-edc0e8e85169",
+            "name": "New Column",
+            "layers": [
+              {
+                "id": "ad1717c7-3e4d-4d86-8d12-935cbe3851ce",
+                "type": "p5",
+                "name": "New Layer",
+                "opacity": 1,
+                "blendMode": "normal",
+                "solo": false,
+                "mute": false,
+                "locked": false,
+                "playMode": "restart",
+                "params": {}
+              }
+            ]
+          }
+        ],
+        "globalEffects": [],
+        "numRows": 3,
+        "sequenceEnabled": false
+      }
+    ],
+    "currentTimelineSceneId": "111dffc7-122a-44b5-89fa-a2a093c4c7f2",
+    "showTimeline": false,
+    "playingColumnId": "a23db97f-7d73-40e2-904c-793e112dbf23",
+    "bpm": 130,
+    "sidebarVisible": true,
+    "midiMappings": [
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 48,
+        "target": {
+          "type": "column",
+          "index": 1
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 49,
+        "target": {
+          "type": "column",
+          "index": 2
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 50,
+        "target": {
+          "type": "column",
+          "index": 3
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 51,
+        "target": {
+          "type": "column",
+          "index": 4
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 52,
+        "target": {
+          "type": "column",
+          "index": 5
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 53,
+        "target": {
+          "type": "column",
+          "index": 6
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 54,
+        "target": {
+          "type": "column",
+          "index": 7
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 55,
+        "target": {
+          "type": "column",
+          "index": 8
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 56,
+        "target": {
+          "type": "column",
+          "index": 9
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 57,
+        "target": {
+          "type": "column",
+          "index": 10
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 58,
+        "target": {
+          "type": "column",
+          "index": 11
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 59,
+        "target": {
+          "type": "column",
+          "index": 12
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 60,
+        "target": {
+          "type": "column",
+          "index": 13
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 61,
+        "target": {
+          "type": "column",
+          "index": 14
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 62,
+        "target": {
+          "type": "column",
+          "index": 15
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 63,
+        "target": {
+          "type": "column",
+          "index": 16
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 64,
+        "target": {
+          "type": "column",
+          "index": 17
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 65,
+        "target": {
+          "type": "column",
+          "index": 18
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 66,
+        "target": {
+          "type": "column",
+          "index": 19
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 67,
+        "target": {
+          "type": "column",
+          "index": 20
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 68,
+        "target": {
+          "type": "column",
+          "index": 21
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 69,
+        "target": {
+          "type": "column",
+          "index": 22
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 70,
+        "target": {
+          "type": "column",
+          "index": 23
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 71,
+        "target": {
+          "type": "column",
+          "index": 24
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 72,
+        "target": {
+          "type": "column",
+          "index": 25
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 73,
+        "target": {
+          "type": "column",
+          "index": 26
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 74,
+        "target": {
+          "type": "column",
+          "index": 27
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 75,
+        "target": {
+          "type": "column",
+          "index": 28
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 76,
+        "target": {
+          "type": "column",
+          "index": 29
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 77,
+        "target": {
+          "type": "column",
+          "index": 30
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 78,
+        "target": {
+          "type": "column",
+          "index": 31
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 79,
+        "target": {
+          "type": "column",
+          "index": 32
+        }
+      },
+      {
+        "type": "note",
+        "channel": 1,
+        "number": 80,
+        "target": {
+          "type": "column",
+          "index": 33
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1777617870486",
+          "param": "gradientRadius"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 1-1-1777617870486",
+          "param": "animationSpeed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-1777644957011-",
+          "param": "gradientRadius"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-1777644957011-",
+          "param": "animationSpeed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "lanes"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "steps"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 3,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "density"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 4,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "stepsPerBeat"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 5,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "manualBpm"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 6,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "evolveLoops"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 7,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "scanGlitchChance"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 8,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "gapChance"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 9,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "rootMidi"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 10,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "noteLength"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 11,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "jitter"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 12,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "lineDensity"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 13,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 2-2-1777618367624",
+          "param": "midiChannel"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-1777618074469-6ca3d2tcl",
+          "param": "gradientRadius"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-1777618074469-6ca3d2tcl",
+          "param": "animationSpeed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-1777644959247-",
+          "param": "gradientRadius"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-1777644959247-",
+          "param": "animationSpeed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-1777626648414-g9jjm2zm3",
+          "param": "gradientRadius"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-1777626648414-g9jjm2zm3",
+          "param": "animationSpeed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 1,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "steps"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 2,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "lanes"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 3,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "particleDensity"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 4,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "driftSpeed"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 5,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "orbitJitter"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 6,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "scanWidth"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 7,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "mutationRate"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 8,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "stepsPerBeat"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 9,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "manualBpm"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 10,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "rootMidi"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 11,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "noteRange"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 12,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "noteLength"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 13,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "velocityBoost"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 14,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "maxNotesPerStep"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 15,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "glow"
+        }
+      },
+      {
+        "type": "cc",
+        "channel": 1,
+        "number": 16,
+        "enabled": true,
+        "target": {
+          "type": "layer",
+          "id": "layer-Layer 4-4-1777626717800",
+          "param": "midiChannel"
+        }
+      }
+    ],
+    "selectedLayerId": "layer-Layer 2-2-1777617908869",
+    "previewMode": "composition",
+    "transitionType": "fade",
+    "transitionDuration": 500,
+    "compositionSettings": {
+      "width": 1080,
+      "height": 1300,
+      "aspectRatio": "1080:1300",
+      "backgroundColor": "#000000"
+    },
+    "columnCrossfadeEnabled": false,
+    "columnCrossfadeDuration": 400,
+    "cellCrossfadeEnabled": true,
+    "assets": []
+  }
+}

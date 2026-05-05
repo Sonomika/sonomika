@@ -9,7 +9,7 @@ import { EffectErrorBoundary } from './EffectErrorBoundary';
 export type ChainItem =
   | { type: 'video'; video: HTMLVideoElement; assetId?: string; opacity?: number; blendMode?: string; fitMode?: 'cover' | 'contain' | 'stretch' | 'none' | 'tile'; backgroundSizeMode?: 'cover' | 'contain' | 'auto' | 'custom'; backgroundRepeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y'; backgroundSizeCustom?: string; renderScale?: number; __uniqueKey?: string }
   | { type: 'source'; effectId: string; params?: Record<string, any>; opacity?: number; __uniqueKey?: string }
-  | { type: 'effect'; effectId: string; params?: Record<string, any>; opacity?: number; __uniqueKey?: string };
+  | { type: 'effect'; effectId: string; params?: Record<string, any>; opacity?: number; __uniqueKey?: string; sourceVideoElement?: HTMLVideoElement };
 
 interface EffectChainProps {
   items: ChainItem[];
@@ -17,6 +17,7 @@ interface EffectChainProps {
   compositionHeight?: number;
   opacity?: number;
   baseAssetId?: string;
+  renderOrder?: number;
 }
 
 const shallowEqualParams = (a?: Record<string, any>, b?: Record<string, any>) => {
@@ -50,6 +51,7 @@ const chainItemsEqual = (a: ChainItem[], b: ChainItem[]) => {
     } else {
       if (left.effectId !== right.effectId) return false;
       if (!shallowEqualParams(left.params, right.params)) return false;
+      if (left.sourceVideoElement !== right.sourceVideoElement) return false;
     }
   }
 
@@ -61,6 +63,7 @@ const areEffectChainPropsEqual = (prev: EffectChainProps, next: EffectChainProps
     && prev.compositionHeight === next.compositionHeight
     && prev.opacity === next.opacity
     && prev.baseAssetId === next.baseAssetId
+    && prev.renderOrder === next.renderOrder
     && chainItemsEqual(prev.items, next.items);
 };
 
@@ -69,7 +72,8 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
   compositionWidth = 1920,
   compositionHeight = 1080,
   opacity = 1,
-  baseAssetId
+  baseAssetId,
+  renderOrder = -1000
 }) => {
   const { gl, camera, invalidate } = useThree();
   // Scratch RT used for stage output before mixing
@@ -792,7 +796,8 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
           // effect layers to skip rendering incorrectly.
           const stageInputCandidate = currentTexture || inputTextures[idx] || null;
           const safeStageInput = (stageInputCandidate && stageInputCandidate !== rt.texture) ? stageInputCandidate : null;
-          if (!safeStageInput) {
+          const canRenderWithoutInput = md?.stickyOverlay === true;
+          if (!safeStageInput && !canRenderWithoutInput) {
             // Skip writing this stage's RT; keep showing the previous texture.
             // (This avoids a one-frame black flash at effect activation.)
           } else {
@@ -895,8 +900,19 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
       const EffectComponent = getEffectComponentSync(item.effectId);
       if (!EffectComponent) return;
       const params = item.params || {};
+      const itemKey = (item as any).__uniqueKey || `${idx}`;
       const extras: Record<string, any> = { compositionWidth, compositionHeight };
       if (item.type === 'effect') {
+        if ((item as any).sourceVideoElement) {
+          extras.sourceVideoElement = (item as any).sourceVideoElement;
+        }
+        for (let prevIdx = idx - 1; prevIdx >= 0; prevIdx--) {
+          const previous = items[prevIdx];
+          if (previous.type === 'video') {
+            extras.sourceVideoElement = previous.video;
+            break;
+          }
+        }
         const stageRT = rtRefs.current[idx]!;
         // Use lastComputedTexturesRef as fallback when inputTextures state hasn't propagated yet
         // This prevents flash when stacked effect layers are first rendered
@@ -918,7 +934,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
       })();
       if (((item.type === 'effect' && !replacesVideo) || item.type === 'source') && bgTex) {
         const aspect = compositionWidth / compositionHeight;
-        const portalKey = `portal-bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`;
+        const portalKey = `portal-bg-${item.effectId || 'unknown'}-${itemKey}`;
         list.push(
           React.createElement(
             React.Fragment,
@@ -926,7 +942,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
             createPortal(
               React.createElement(
                 'mesh',
-                { key: `bg-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, renderOrder: -1000 },
+                { key: `bg-${item.effectId || 'unknown'}-${itemKey}`, renderOrder: -1000 },
                 React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
                 React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
               ),
@@ -935,7 +951,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
           )
         );
       }
-      const fxPortalKey = `portal-fx-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`;
+      const fxPortalKey = `portal-fx-${item.effectId || 'unknown'}-${itemKey}`;
       list.push(
         React.createElement(
           React.Fragment,
@@ -947,7 +963,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
                 effectId: item.effectId,
                 children: React.createElement(
                   EffectComponent, 
-                  { key: `effect-${idx}-${item.effectId || 'unknown'}-${(item as any).__uniqueKey || ''}`, ...params, ...extras }
+                  { key: `effect-${item.effectId || 'unknown'}-${itemKey}`, ...params, ...extras }
                 )
               }
             ),
@@ -968,7 +984,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
     <>
       {portals}
       {finalTextureRef.current && (
-        <mesh position={[0, 0, 0]} renderOrder={-1000}>
+        <mesh position={[0, 0, 0]} renderOrder={renderOrder}>
           <planeGeometry args={[displayAspect * 2, 2]} />
           <meshBasicMaterial map={finalTextureRef.current} transparent={true} toneMapped={false} depthTest={false} depthWrite={false} opacity={opacity} />
         </mesh>

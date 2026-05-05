@@ -1,8 +1,3 @@
-// sonomika template – Suikinkutsu (水琴窟), the Japanese "water koto cave".
-// A traditional Japanese garden instrument reimagined as a MIDI source: drops
-// fall onto a still water surface, and each impact sends a note from a
-// Japanese scale out to the selected MIDI output. Horizontal position maps to
-// pitch; the visual is just drops + expanding ripples.
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
@@ -10,7 +5,7 @@ const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
   name: 'Suikinkutsu (MIDI)',
-  description: 'Japanese "water koto cave" as a MIDI source. Drops fall onto a still water surface; each impact sends a note from a Japanese scale to the selected MIDI output. Horizontal position maps to pitch.',
+  description: 'Japanese "water koto cave" as a MIDI source. Drops fall onto a still water surface. Horizontal position maps to pitch.',
   category: 'Effects',
   author: 'VJ',
   version: '1.0.0',

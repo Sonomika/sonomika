@@ -1,4 +1,3 @@
-// sonomika template – Glitch Codex: self-composing Ikeda-style polyrhythmic glitch drum system. Songs are generated as a sequence of algorithmic sections and auto-regenerated when they finish.
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
@@ -6,7 +5,7 @@ const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
   name: 'Glitch Codex (MIDI)',
-  description: 'Auto-composing glitch drum machine in the spirit of Ryoji Ikeda. A bank of 8 polyrhythmic voices (sub, click, blip, noise burst, stutter, metal, ring, grain) is arranged into multi-section songs that re-generate automatically. Rhythms are built from Euclidean patterns with per-section moods (null / grid / poly / wall / signal / reduction).',
+  description: 'Auto-composing glitch drum machine.',
   category: 'Effects',
   author: 'VJ',
   version: '1.0.0',

@@ -1125,6 +1125,25 @@ const TimelineScene: React.FC<{
           return Number.isFinite(num) ? num : 9999;
         };
         const sortedClips = [...activeClips].sort((a, b) => trackOrder(a) - trackOrder(b));
+        const sourceVideoForStickyClip = (stickyClip: any): HTMLVideoElement | undefined => {
+          const stickyOrder = trackOrder(stickyClip);
+          let best: HTMLVideoElement | undefined;
+          let bestOrder = -Infinity;
+          sortedClips.forEach((candidate: any) => {
+            if (!isVideoClip(candidate)) return;
+            const order = trackOrder(candidate);
+            const video = assets.videos.get(assetKey(candidate));
+            if (!video) return;
+            if (order <= stickyOrder && order >= bestOrder) {
+              best = video;
+              bestOrder = order;
+            }
+          });
+          if (best) return best;
+          const fallbackVideoClip = sortedClips.find((candidate: any) => isVideoClip(candidate));
+          return fallbackVideoClip ? assets.videos.get(assetKey(fallbackVideoClip)) : undefined;
+        };
+        const stickyOverlayItems: ChainItem[] = [];
         // Build chains based on sorted order (bottom track first = back, top track last = front)
         const assetKey = (c: any) => (c?.asset?.id != null ? String(c.asset.id) : '');
         sortedClips.forEach((clip: any) => {
@@ -1156,7 +1175,15 @@ const TimelineScene: React.FC<{
                 const v = getParamVal(clip?.params?.opacity);
                 return typeof v === 'number' ? v : 1;
               })();
-              currentChain.push({ type: 'effect', effectId: eid, params: mergeParams(clip), opacity: Math.max(0, Math.min(1, baseOpacity * fade)), __uniqueKey: `timeline-${clip.id}` });
+              const effectItem: ChainItem = { type: 'effect', effectId: eid, params: mergeParams(clip), opacity: Math.max(0, Math.min(1, baseOpacity * fade)), __uniqueKey: `timeline-${clip.id}` };
+              const EffectComponent = getEffectComponentSync(eid);
+              const md: any = (EffectComponent as any)?.metadata || {};
+              if (md?.stickyOverlay === true) {
+                (effectItem as any).sourceVideoElement = sourceVideoForStickyClip(clip);
+                stickyOverlayItems.push(effectItem);
+              } else {
+                currentChain.push(effectItem);
+              }
             }
           } else {
             if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
@@ -1166,6 +1193,20 @@ const TimelineScene: React.FC<{
 
         // Enabled global effects to append to each chain
         const enabledGlobals = Array.isArray(globalEffects) ? globalEffects.filter((g: any) => g && g.enabled) : [];
+        const orderStickyOverlaysLast = (chain: ChainItem[]): ChainItem[] => {
+          const regular: ChainItem[] = [];
+          const sticky: ChainItem[] = [];
+          chain.forEach((item) => {
+            if (item.type !== 'effect') {
+              regular.push(item);
+              return;
+            }
+            const EffectComponent = getEffectComponentSync(item.effectId);
+            const md: any = (EffectComponent as any)?.metadata || {};
+            (md?.stickyOverlay === true ? sticky : regular).push(item);
+          });
+          return sticky.length > 0 ? [...regular, ...sticky] : chain;
+        };
 
         const elements: React.ReactElement[] = [];
         let renderedBaseThisFrame = false;
@@ -1233,9 +1274,10 @@ const TimelineScene: React.FC<{
             if (it.type === 'video') return 'video';
             return `${it.type}:${(it as any).effectId || 'eff'}`;
           }).join('|');
-          const chainWithGlobals: ChainItem[] = enabledGlobals.length > 0
+          const rawChainWithGlobals: ChainItem[] = enabledGlobals.length > 0
             ? ([...chain, ...enabledGlobals.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {} }))] as ChainItem[])
             : chain;
+          const chainWithGlobals = orderStickyOverlaysLast(rawChainWithGlobals);
           timelineDebugLog('[TimelineScene] Chain', { idx, key: chainKey, items: chainWithGlobals.length });
 
           // Determine crossfade factor based on currentTime proximity to neighboring clip boundaries
@@ -1392,6 +1434,21 @@ const TimelineScene: React.FC<{
             />
           );
         }
+
+        // Sticky overlays (for example face tracking HUDs) render as transparent top
+        // layers so delayed effects cannot cover or remount their visuals.
+        stickyOverlayItems.forEach((item: ChainItem, stickyIdx: number) => {
+          elements.push(
+            <EffectChain
+              key={`chain-sticky-overlay-${(item as any).__uniqueKey || stickyIdx}`}
+              items={[item]}
+              compositionWidth={compositionWidth}
+              compositionHeight={compositionHeight}
+              opacity={1}
+              renderOrder={10000 + stickyIdx}
+            />
+          );
+        });
 
         // Expose active layers for engines (LFO) while timeline is playing
         try {

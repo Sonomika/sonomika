@@ -1,4 +1,4 @@
-// sonomika template – Ryoji Ikeda-inspired scanning binary grid. Each lit cell triggers a pure sine pulse when the playhead crosses it.
+// sonomika template – Scanning binary grid. Each lit cell triggers a pure sine pulse when the playhead crosses it.
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
@@ -6,7 +6,7 @@ const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
   name: 'Data Matrix (MIDI)',
-  description: 'Scanning binary grid in the tradition of Ryoji Ikeda test-pattern works. A vertical playhead sweeps left to right; every lit cell it crosses fires a precisely pitched sine pulse (row = frequency).',
+  description: 'Scanning binary grid test-pattern works. A vertical playhead sweeps left to right; every lit cell it crosses fires a precisely pitched sine pulse (row = frequency).',
   category: 'Effects',
   author: 'VJ',
   version: '1.0.0',
