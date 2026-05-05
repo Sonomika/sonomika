@@ -5,6 +5,7 @@ import 'dotenv/config';
 import { app, BrowserWindow, protocol, Menu, ipcMain, safeStorage, dialog, powerSaveBlocker, nativeImage, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import dgram from 'dgram';
 import { SpoutSender } from './spout/SpoutSender';
 import { createGa4Analytics } from './analytics/ga4';
 
@@ -102,6 +103,18 @@ let ga4SessionStartMs = Date.now();
 let ga4ActiveSinceMs: number | null = null;
 let ga4TotalActiveMs = 0;
 let ga4LastHeartbeatAtMs = Date.now();
+let oscServer: dgram.Socket | null = null;
+
+type OscArgument = string | number | boolean | null;
+
+type OscClipLaunchPayload = {
+  address: string;
+  args: OscArgument[];
+  layer?: number;
+  clip?: number;
+  column?: number;
+  action: 'clip-launch' | 'column-launch' | 'stop';
+};
 
 function ga4FlushActiveTime(nowMs: number) {
   if (ga4ActiveSinceMs != null) {
@@ -456,6 +469,179 @@ function copyDirectoryRecursive(src: string, dest: string) {
       }
     }
   }
+}
+
+function readOscString(buffer: Buffer, offset: number): { value: string; nextOffset: number } | null {
+  if (offset < 0 || offset >= buffer.length) return null;
+  let end = offset;
+  while (end < buffer.length && buffer[end] !== 0) end++;
+  if (end >= buffer.length) return null;
+  const value = buffer.toString('utf8', offset, end);
+  const nextOffset = Math.ceil((end + 1) / 4) * 4;
+  return { value, nextOffset };
+}
+
+function parseOscPacket(buffer: Buffer): Array<{ address: string; args: OscArgument[] }> {
+  const messages: Array<{ address: string; args: OscArgument[] }> = [];
+
+  const parseMessage = (msg: Buffer) => {
+    const addressPart = readOscString(msg, 0);
+    if (!addressPart || !addressPart.value.startsWith('/')) return;
+
+    const typePart = readOscString(msg, addressPart.nextOffset);
+    if (!typePart || !typePart.value.startsWith(',')) {
+      messages.push({ address: addressPart.value, args: [] });
+      return;
+    }
+
+    const args: OscArgument[] = [];
+    let offset = typePart.nextOffset;
+    for (const type of typePart.value.slice(1)) {
+      if (type === 'i') {
+        if (offset + 4 > msg.length) break;
+        args.push(msg.readInt32BE(offset));
+        offset += 4;
+      } else if (type === 'f') {
+        if (offset + 4 > msg.length) break;
+        args.push(msg.readFloatBE(offset));
+        offset += 4;
+      } else if (type === 's') {
+        const stringPart = readOscString(msg, offset);
+        if (!stringPart) break;
+        args.push(stringPart.value);
+        offset = stringPart.nextOffset;
+      } else if (type === 'T') {
+        args.push(true);
+      } else if (type === 'F') {
+        args.push(false);
+      } else if (type === 'N') {
+        args.push(null);
+      }
+    }
+
+    messages.push({ address: addressPart.value, args });
+  };
+
+  const bundleHeader = readOscString(buffer, 0);
+  if (bundleHeader?.value === '#bundle') {
+    let offset = 16; // "#bundle" string + 8-byte timetag
+    while (offset + 4 <= buffer.length) {
+      const size = buffer.readUInt32BE(offset);
+      offset += 4;
+      if (size <= 0 || offset + size > buffer.length) break;
+      messages.push(...parseOscPacket(buffer.subarray(offset, offset + size)));
+      offset += size;
+    }
+    return messages;
+  }
+
+  parseMessage(buffer);
+  return messages;
+}
+
+function normalizeOscClipLaunch(address: string, args: OscArgument[]): OscClipLaunchPayload | null {
+  const normalized = String(address || '').trim();
+  if (!normalized) return null;
+
+  const firstArg = args[0];
+  if (typeof firstArg === 'number' && firstArg <= 0) return null;
+  if (firstArg === false) return null;
+
+  const patterns: Array<{ regex: RegExp; action: OscClipLaunchPayload['action'] }> = [
+    { regex: /^\/composition\/layers\/(\d+)\/clips\/(\d+)\/connect$/i, action: 'clip-launch' },
+    { regex: /^\/composition\/layers\/(\d+)\/clips\/(\d+)\/select$/i, action: 'clip-launch' },
+    { regex: /^\/composition\/decks\/\d+\/layers\/(\d+)\/clips\/(\d+)\/connect$/i, action: 'clip-launch' },
+    { regex: /^\/layers?\/(\d+)\/clips?\/(\d+)\/connect$/i, action: 'clip-launch' },
+    { regex: /^\/layer(\d+)\/clip(\d+)\/connect$/i, action: 'clip-launch' },
+  ];
+
+  for (const { regex, action } of patterns) {
+    const match = normalized.match(regex);
+    if (match) {
+      return {
+        address: normalized,
+        args,
+        layer: Number(match[1]),
+        clip: Number(match[2]),
+        action,
+      };
+    }
+  }
+
+  const disconnectMatch =
+    normalized.match(/^\/composition\/layers\/(\d+)\/clips\/(\d+)\/disconnect$/i) ||
+    normalized.match(/^\/composition\/decks\/\d+\/layers\/(\d+)\/clips\/(\d+)\/disconnect$/i) ||
+    normalized.match(/^\/layers?\/(\d+)\/clips?\/(\d+)\/disconnect$/i);
+  if (disconnectMatch) {
+    return {
+      address: normalized,
+      args,
+      layer: Number(disconnectMatch[1]),
+      clip: Number(disconnectMatch[2]),
+      action: 'stop',
+    };
+  }
+
+  const columnMatch =
+    normalized.match(/^\/composition\/columns\/(\d+)\/connect$/i) ||
+    normalized.match(/^\/composition\/decks\/\d+\/columns\/(\d+)\/connect$/i) ||
+    normalized.match(/^\/columns?\/(\d+)\/connect$/i);
+  if (columnMatch) {
+    return {
+      address: normalized,
+      args,
+      column: Number(columnMatch[1]),
+      action: 'column-launch',
+    };
+  }
+
+  if (/\/(?:disconnect|clear|stop)$/i.test(normalized)) {
+    return { address: normalized, args, action: 'stop' };
+  }
+
+  return null;
+}
+
+function startOscServer() {
+  if (oscServer) return;
+
+  const port = Math.max(1, Math.min(65535, Number(process.env.SONOMIKA_OSC_PORT || process.env.VJ_OSC_PORT || 7000) || 7000));
+  const host = process.env.SONOMIKA_OSC_HOST || '0.0.0.0';
+  const server = dgram.createSocket('udp4');
+  oscServer = server;
+
+  server.on('message', (msg) => {
+    try {
+      for (const message of parseOscPacket(msg)) {
+        const payload = normalizeOscClipLaunch(message.address, message.args);
+        if (!payload) continue;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('osc:clip-launch', payload);
+        }
+      }
+    } catch (error) {
+      console.warn('OSC packet handling failed:', error);
+    }
+  });
+
+  server.on('error', (error: any) => {
+    const code = error?.code ? ` (${error.code})` : '';
+    console.warn(`OSC server error${code}:`, error?.message || error);
+    try { server.close(); } catch {}
+    if (oscServer === server) oscServer = null;
+  });
+
+  server.bind(port, host, () => {
+    const address = server.address();
+    const boundPort = typeof address === 'object' ? address.port : port;
+    console.log(`OSC input listening on ${host}:${boundPort}`);
+  });
+}
+
+function stopOscServer() {
+  if (!oscServer) return;
+  try { oscServer.close(); } catch {}
+  oscServer = null;
 }
 
 function createWindow() {
@@ -2162,6 +2348,7 @@ app.whenReady().then(() => {
   });
   
   createWindow();
+  startOscServer();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -2189,6 +2376,7 @@ try {
       ga4?.track('app_quit', { ts_ms: now });
     } catch {}
     try { spoutSender.stop(); } catch {}
+    try { stopOscServer(); } catch {}
   });
 } catch {}
 

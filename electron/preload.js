@@ -150,6 +150,23 @@ try {
                 electron_1.ipcRenderer.send('ga4:track', { name: name, params: params });
             }
             catch (_a) { }
+        },
+        onOscClipLaunch: (handler) => {
+            const listener = (_event, payload) => {
+                try {
+                    handler && handler(payload);
+                }
+                catch (e) {
+                    console.warn('Preload: onOscClipLaunch handler failed', e);
+                }
+            };
+            electron_1.ipcRenderer.on('osc:clip-launch', listener);
+            return () => {
+                try {
+                    electron_1.ipcRenderer.removeListener('osc:clip-launch', listener);
+                }
+                catch (_a) { }
+            };
         }
     });
 

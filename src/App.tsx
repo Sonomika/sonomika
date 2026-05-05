@@ -51,6 +51,14 @@ declare global {
       stopSpout?: () => Promise<{ success: boolean; error?: string }>;
       sendSpoutFrame?: (dataUrl: string, maxFps?: number) => void;
       trackEvent?: (name: string, params?: Record<string, string | number | boolean>) => void;
+      onOscClipLaunch?: (handler: (payload: {
+        address: string;
+        args?: Array<string | number | boolean | null>;
+        layer?: number;
+        clip?: number;
+        column?: number;
+        action: 'clip-launch' | 'column-launch' | 'stop';
+      }) => void) => (() => void) | void;
     };
     electronAPI?: {
       getScreenSizes?: () => Promise<Array<{width: number, height: number}>>;
@@ -217,6 +225,58 @@ function App() {
   }, []);
   const { recordSettings, setRecordSettings } = useStore() as any;
   const { showTimeline, setShowTimeline } = useStore() as any;
+
+  useEffect(() => {
+    const unsubscribe = window.electron?.onOscClipLaunch?.((payload) => {
+      try {
+        const state: any = useStore.getState();
+        const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId) || state.scenes?.[0];
+        const columns = scene?.columns || [];
+        if (!scene || columns.length === 0) return;
+
+        if (state.showTimeline && typeof state.setShowTimeline === 'function') {
+          state.setShowTimeline(false);
+        }
+
+        if (payload.action === 'column-launch') {
+          const column = columns[Math.max(0, Number(payload.column || 1) - 1)];
+          if (!column) return;
+          state.clearActiveLayerOverrides?.();
+          state.playColumn?.(column.id);
+          return;
+        }
+
+        if (payload.action === 'stop') {
+          const row = Math.max(1, Number(payload.layer || 0));
+          if (row > 0 && typeof state.setActiveLayerOverride === 'function') {
+            state.setActiveLayerOverride(row, null);
+          } else {
+            state.globalStop?.({ source: 'osc', force: true });
+          }
+          return;
+        }
+
+        const row = Math.max(1, Number(payload.layer || 1));
+        const column = columns[Math.max(0, Number(payload.clip || 1) - 1)];
+        if (!column) return;
+
+        const baseColumnId = state.playingColumnId || columns[0]?.id || column.id;
+        if (!state.playingColumnId && baseColumnId) {
+          state.playColumn?.(baseColumnId);
+        }
+
+        if (typeof state.setActiveLayerOverride === 'function') {
+          state.setActiveLayerOverride(row, column.id);
+        }
+      } catch (error) {
+        console.warn('OSC clip launch failed:', error, payload);
+      }
+    });
+
+    return () => {
+      try { unsubscribe?.(); } catch {}
+    };
+  }, []);
 
   // Convert a hex color (e.g., #00bcd4) to HSL components for CSS var usage
   const hexToHslComponents = (hex: string): { h: number; s: number; l: number } => {
