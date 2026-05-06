@@ -1,19 +1,22 @@
 import React from 'react';
-import { PlayIcon, StopIcon, Link2Icon } from '@radix-ui/react-icons';
+import { PlayIcon, PauseIcon, StopIcon, Link2Icon } from '@radix-ui/react-icons';
 import { useStore } from '../store/store';
 // Replaced slider with +/- buttons to avoid fixed-width layout
 
-// Minimal timeline controls: Play/Stop + Zoom slider + Magnet toggle (uses timelineCommand bridge)
+// Minimal timeline controls: Play/Pause/Stop + Zoom slider + Magnet toggle (uses timelineCommand bridge)
 const TimelineControls: React.FC = () => {
   const { timelineZoom, setTimelineZoom, timelineSnapEnabled, setTimelineSnapEnabled } = useStore() as any;
-  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [transportState, setTransportState] = React.useState<'play' | 'pause' | 'stop'>('stop');
   React.useEffect(() => {
-    const onPlay = () => setIsPlaying(true);
-    const onStop = () => setIsPlaying(false);
+    const onPlay = () => setTransportState('play');
+    const onPause = () => setTransportState('pause');
+    const onStop = () => setTransportState('stop');
     document.addEventListener('timelinePlay', onPlay as any);
+    document.addEventListener('timelinePause', onPause as any);
     document.addEventListener('timelineStop', onStop as any);
     return () => {
       document.removeEventListener('timelinePlay', onPlay as any);
+      document.removeEventListener('timelinePause', onPause as any);
       document.removeEventListener('timelineStop', onStop as any);
     };
   }, []);
@@ -25,15 +28,23 @@ const TimelineControls: React.FC = () => {
     <div className="tw-flex tw-items-center tw-gap-3 tw-px-2 tw-h-14 tw-py-0 tw-bg-neutral-900 tw-border tw-border-neutral-800 tw-rounded-md">
       <button
         onClick={() => dispatchCommand('playPause')}
-        className={`tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded tw-text-black ${isPlaying ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))]' : 'tw-bg-neutral-800 tw-text-white tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
+        className={`tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded ${transportState === 'play' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-text-white tw-border-neutral-700 hover:tw-bg-neutral-700'}`}
         title="Play"
         aria-label="Play"
       >
         <PlayIcon className="tw-w-4 tw-h-4" />
       </button>
       <button
+        onClick={() => dispatchCommand('pause')}
+        className={`tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded ${transportState === 'pause' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-border-neutral-700 tw-text-white hover:tw-bg-neutral-700'}`}
+        title="Pause"
+        aria-label="Pause"
+      >
+        <PauseIcon className="tw-w-4 tw-h-4" />
+      </button>
+      <button
         onClick={() => dispatchCommand('stop')}
-        className={`tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded ${!isPlaying ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-border-neutral-700 tw-text-white hover:tw-bg-neutral-700'}`}
+        className={`tw-flex tw-items-center tw-justify-center tw-w-8 tw-h-8 tw-border tw-rounded ${transportState === 'stop' ? 'tw-bg-[hsl(var(--accent))] tw-border-[hsl(var(--accent))] tw-text-black' : 'tw-bg-neutral-800 tw-border-neutral-700 tw-text-white hover:tw-bg-neutral-700'}`}
         title="Stop"
         aria-label="Stop"
       >

@@ -581,13 +581,15 @@ const ColumnScene: React.FC<{
   onFirstFrameReady?: () => void;
   isTimelineMode?: boolean;
   timelineTime?: number;
-}> = ({ column, renderKey, isPlaying, suppressPause = false, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false, timelineTime }) => {
+  restartVideosOnRenderKeyChange?: boolean;
+}> = ({ column, renderKey, isPlaying, suppressPause = false, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false, timelineTime, restartVideosOnRenderKeyChange = true }) => {
   const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
     videos: Map<string, HTMLVideoElement>;
   }>({ images: new Map(), videos: new Map() });
   const pendingRestartRef = useRef<boolean>(false);
+  const lastRenderKeyRestartRef = useRef<string | null>(null);
   const firstFrameReadyRef = useRef<boolean>(false);
   const frameCounterRef = useRef<number>(0);
   
@@ -926,6 +928,34 @@ const ColumnScene: React.FC<{
     };
   }, [isPlaying, suppressPause, assets.videos, column.layers, column?.id]);
 
+  // A visible "cell" can change while transport stays playing (row overrides, OSC/sequence
+  // triggers). Treat each rendered cell/column key as a fresh launch for video layers.
+  useEffect(() => {
+    if (!restartVideosOnRenderKeyChange) return;
+    if (isTimelineMode || column?.id === 'timeline-preview') return;
+    if (!isPlaying) return;
+    if (lastRenderKeyRestartRef.current === renderKey) return;
+
+    lastRenderKeyRestartRef.current = renderKey;
+    let handledAny = false;
+
+    try {
+      column.layers.forEach((layer: any) => {
+        if (!layer?.asset || layer.asset.type !== 'video') return;
+        const video = assets.videos.get(layer.asset.id);
+        if (!video) return;
+        try { video.currentTime = 0; } catch {}
+        try {
+          const p = video.play();
+          if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
+        } catch {}
+        handledAny = true;
+      });
+    } catch {}
+
+    pendingRestartRef.current = !handledAny;
+  }, [restartVideosOnRenderKeyChange, isTimelineMode, isPlaying, renderKey, column?.id, column.layers, assets.videos]);
+
   // Apply per-layer playback modes (Random / Ping Pong / Reverse)
   const videoStatsRef = useRef<Map<string, { lastAt: number; lastTotal: number; lastDropped: number }>>(new Map());
   // Double-buffer Random seeks: keep a hidden alternate <video> per assetId, seek it, then swap.
@@ -1164,9 +1194,8 @@ const ColumnScene: React.FC<{
         let handledAny = false;
         column.layers.forEach((l: any) => {
           if (!l?.asset || l.asset.type !== 'video') return;
-          const mode = (l as any).playMode ?? 'restart';
           const v = assets.videos.get(l.asset.id);
-          if (mode === 'restart' && v) {
+          if (v) {
             try { v.currentTime = 0; } catch {}
             try { const p = v.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {}
             handledAny = true;
@@ -1195,9 +1224,8 @@ const ColumnScene: React.FC<{
     let handledAny = false;
     column.layers.forEach((l: any) => {
       if (!l?.asset || l.asset.type !== 'video') return;
-      const mode = (l as any).playMode ?? 'restart';
       const v = assets.videos.get(l.asset.id);
-      if (mode === 'restart' && v) {
+      if (v) {
         try { v.currentTime = 0; } catch {}
         try { const p = v.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {}
         handledAny = true;
@@ -1519,10 +1547,12 @@ const ColumnScene: React.FC<{
 
         const elements: React.ReactElement[] = [];
 
-        // Determine any enabled global effects to append to each chain
+        // Determine enabled global effects. The UI is top-to-bottom, while
+        // EffectChain processes bottom-to-top, so render globals in reverse.
         const enabledGlobalEffects = Array.isArray(globalEffects)
           ? globalEffects.filter((ge: any) => ge && ge.enabled)
           : [];
+        const globalEffectsRenderOrder = [...enabledGlobalEffects].reverse();
 
         chains.forEach((chain, chainIndex) => {
           const chainKey = chain.map((it) => {
@@ -1547,9 +1577,9 @@ const ColumnScene: React.FC<{
             } catch {}
             return 'r?-c?';
           })();
-          // Append enabled global effects at the end of each chain so they run as part of the chain
-          const chainWithGlobals: ChainItem[] = enabledGlobalEffects.length > 0
-            ? ([...chain, ...enabledGlobalEffects.map((ge: any, globalIndex) => {
+          // Append globals at the end of each chain so the panel's top slot renders above lower slots.
+          const chainWithGlobals: ChainItem[] = globalEffectsRenderOrder.length > 0
+            ? ([...chain, ...globalEffectsRenderOrder.map((ge: any) => {
                 // Normalize global params: unwrap { value } objects to raw values like layer params
                 const normalizedParams: Record<string, any> = {};
                 if (ge && ge.params) {
@@ -1562,6 +1592,7 @@ const ColumnScene: React.FC<{
                   type: 'effect' as const,
                   effectId: ge.effectId,
                   params: normalizedParams,
+                  __uniqueKey: `global-${ge.id || ge.effectId}`,
                 };
               })] as ChainItem[])
             : chain;
@@ -1847,6 +1878,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 compositionHeight={height}
                 isTimelineMode={isTimelineMode}
                 timelineTime={timelineTime}
+                restartVideosOnRenderKeyChange={!skipInitialMask}
                 onFirstFrameReady={() => {
                   setMaskVisible(false);
                   // Unfreeze mirror when first frame is ready

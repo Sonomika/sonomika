@@ -79,11 +79,14 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const [isTimelinePlaying, setIsTimelinePlaying] = React.useState<boolean>(Boolean((window as any).__vj_timeline_is_playing__ === true));
   React.useEffect(() => {
     const onPlay = () => setIsTimelinePlaying(true);
+    const onPause = () => setIsTimelinePlaying(false);
     const onStop = () => setIsTimelinePlaying(false);
     document.addEventListener('timelinePlay', onPlay as any);
+    document.addEventListener('timelinePause', onPause as any);
     document.addEventListener('timelineStop', onStop as any);
     return () => {
       document.removeEventListener('timelinePlay', onPlay as any);
+      document.removeEventListener('timelinePause', onPause as any);
       document.removeEventListener('timelineStop', onStop as any);
     };
   }, []);

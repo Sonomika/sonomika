@@ -325,7 +325,8 @@ export function buildPresetDataFromState(state: AnyState): any {
     // Crossfade settings (UI)
     columnCrossfadeEnabled: !!(state as any).columnCrossfadeEnabled,
     columnCrossfadeDuration: (state as any).columnCrossfadeDuration,
-    cellCrossfadeEnabled: !!(state as any).cellCrossfadeEnabled,
+    oscInputEnabled: (state as any).oscInputEnabled !== false,
+    oscInputPort: Math.max(1, Math.min(65535, Math.floor(Number((state as any).oscInputPort) || 7000))),
     assets,
   };
 }

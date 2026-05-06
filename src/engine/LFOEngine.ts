@@ -630,8 +630,10 @@ export function attachLFOEngineGlobalListeners() {
 
   // Ensure engine runs during timeline playback and stays in sync
   const onTimelineTick = () => { if (!(engine as any).running) engine.start(); };
+  const onTimelinePause = () => engine.stop();
   const onTimelineStop = () => engine.stop();
   document.addEventListener('timelineTick', onTimelineTick as any);
+  document.addEventListener('timelinePause', onTimelinePause as any);
   document.addEventListener('timelineStop', onTimelineStop as any);
 
   // Rebuild random timers when BPM changes so Sync timing updates immediately

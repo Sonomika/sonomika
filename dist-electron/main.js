@@ -769,6 +769,9 @@ let ga4ActiveSinceMs = null;
 let ga4TotalActiveMs = 0;
 let ga4LastHeartbeatAtMs = Date.now();
 let oscServer = null;
+let oscInputEnabled = true;
+let oscInputPort = Math.max(1, Math.min(65535, Number(process.env.SONOMIKA_OSC_PORT || process.env.VJ_OSC_PORT || 7e3) || 7e3));
+let oscInputHost = process.env.SONOMIKA_OSC_HOST || "0.0.0.0";
 function ga4FlushActiveTime(nowMs) {
   if (ga4ActiveSinceMs != null) {
     const delta = Math.max(0, nowMs - ga4ActiveSinceMs);
@@ -1167,10 +1170,26 @@ function normalizeOscClipLaunch(address, args) {
   }
   return null;
 }
-function startOscServer() {
-  if (oscServer) return;
-  const port = Math.max(1, Math.min(65535, Number(process.env.SONOMIKA_OSC_PORT || process.env.VJ_OSC_PORT || 7e3) || 7e3));
-  const host = process.env.SONOMIKA_OSC_HOST || "0.0.0.0";
+function normalizeOscPort(port) {
+  return Math.max(1, Math.min(65535, Math.floor(Number(port) || 7e3)));
+}
+function getLocalIpAddress() {
+  try {
+    const interfaces = require$$2.networkInterfaces();
+    for (const entries of Object.values(interfaces)) {
+      for (const entry of entries || []) {
+        if (!entry || entry.family !== "IPv4" || entry.internal) continue;
+        return entry.address;
+      }
+    }
+  } catch {
+  }
+  return "127.0.0.1";
+}
+function startOscServer(port = oscInputPort, host = oscInputHost) {
+  if (oscServer || !oscInputEnabled) return;
+  oscInputPort = normalizeOscPort(port);
+  oscInputHost = host || "0.0.0.0";
   const server = dgram.createSocket("udp4");
   oscServer = server;
   server.on("message", (msg) => {
@@ -1195,10 +1214,11 @@ function startOscServer() {
     }
     if (oscServer === server) oscServer = null;
   });
-  server.bind(port, host, () => {
+  server.bind(oscInputPort, oscInputHost, () => {
     const address = server.address();
-    const boundPort = typeof address === "object" ? address.port : port;
-    console.log(`OSC input listening on ${host}:${boundPort}`);
+    const boundPort = typeof address === "object" ? address.port : oscInputPort;
+    oscInputPort = boundPort;
+    console.log(`OSC input listening on ${oscInputHost}:${boundPort}`);
   });
 }
 function stopOscServer() {
@@ -1208,6 +1228,23 @@ function stopOscServer() {
   } catch {
   }
   oscServer = null;
+}
+function getOscInputState() {
+  return {
+    enabled: oscInputEnabled,
+    port: oscInputPort,
+    host: oscInputHost,
+    ipAddress: getLocalIpAddress(),
+    running: Boolean(oscServer)
+  };
+}
+async function configureOscInput(options) {
+  oscInputEnabled = options?.enabled !== false;
+  oscInputPort = normalizeOscPort(options?.port ?? oscInputPort);
+  oscInputHost = String(options?.host || oscInputHost || "0.0.0.0");
+  stopOscServer();
+  if (oscInputEnabled) startOscServer(oscInputPort, oscInputHost);
+  return getOscInputState();
 }
 function createWindow() {
   const appIconPath = resolveAppIconPath();
@@ -2287,6 +2324,19 @@ electron.app.whenReady().then(() => {
     } catch (e) {
       console.error("Failed to get app version:", e);
       return "unknown";
+    }
+  });
+  electron.ipcMain.handle("osc:get-input-state", async () => {
+    return getOscInputState();
+  });
+  electron.ipcMain.handle("osc:configure-input", async (_event, options) => {
+    try {
+      return await configureOscInput(options || {});
+    } catch (error) {
+      return {
+        ...getOscInputState(),
+        error: error?.message || String(error)
+      };
     }
   });
   electron.ipcMain.handle("get-resources-path", async () => {

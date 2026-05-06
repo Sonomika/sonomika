@@ -2589,6 +2589,34 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
   // Keep ref pointing at latest implementation for loop/preload paths.
   startTimelinePlaybackRef.current = startTimelinePlayback;
 
+  // Pause timeline playback without unloading/resetting the preview.
+  const pauseTimelinePlayback = () => {
+    pendingPlaybackRef.current = false;
+    if (playbackInterval) {
+      clearInterval(playbackInterval);
+      setPlaybackInterval(null);
+    }
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    isPlayingRef.current = false;
+    try {
+      (window as any).__vj_timeline_is_playing__ = false;
+      (window as any).__vj_timeline_active_layers__ = [];
+    } catch {}
+    try {
+      audioElementsRef.current.forEach((audio) => {
+        audio.pause();
+      });
+      lastActiveAudioIdsRef.current.clear();
+    } catch {}
+    try { setCurrentTime(currentTimeRef.current); } catch {}
+    setIsPlaying(false);
+    try { publishTimelineRuntime(currentTimeRef.current, false, durationRef.current || duration); } catch {}
+    try { document.dispatchEvent(new Event('timelinePause')); } catch {}
+  };
+
   // Stop timeline playback
   const stopTimelinePlayback = () => {
     pendingPlaybackRef.current = false;
@@ -2650,11 +2678,11 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     }
 
     if (isPlaying) {
-      timelineDebugLog('Stopping timeline playback');
-      stopTimelinePlayback();
+      timelineDebugLog('Pausing timeline playback');
+      pauseTimelinePlayback();
       
       // Don't automatically pause WaveSurfer - let our timeline control it
-      timelineDebugLog('Timeline playback stopped - WaveSurfer will be synced to timeline');
+      timelineDebugLog('Timeline playback paused - WaveSurfer will be synced to timeline');
     } else {
       timelineDebugLog('Starting timeline playback');
       startTimelinePlayback();
@@ -3141,23 +3169,13 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
           case 'playPause':
             handlePlayButtonClick();
             break;
-          case 'stop': {
+          case 'pause':
             if (isPlayingRef.current) {
-              // First stop: stop playback, keep current position
-              stopTimelinePlayback();
-            } else {
-              // Second stop while already stopped: return to start (or earliest clip)
-              const resetTime = getEarliestClipTime() > 0 ? getEarliestClipTime() : 0;
-              setPlayheadTimeImmediate(resetTime);
-              try {
-                document.dispatchEvent(new CustomEvent('timelineTick', { detail: { time: resetTime, duration } }));
-              } catch {}
-              try {
-                document.dispatchEvent(new CustomEvent('videoStop', {
-                  detail: { type: 'videoStop', allColumns: true, source: 'timeline-reset' }
-                }));
-              } catch {}
+              pauseTimelinePlayback();
             }
+            break;
+          case 'stop': {
+            stopTimelinePlayback();
             break;
           }
           case 'seekToTime':

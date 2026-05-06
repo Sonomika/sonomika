@@ -245,8 +245,8 @@ const initialState: AppState = {
   // Enable crossfade transitions when switching between columns
   columnCrossfadeEnabled: true,
   columnCrossfadeDuration: 400, // 400ms default (linear fade)
-  // Crossfade when switching per-row overrides (selecting cells in other columns)
-  cellCrossfadeEnabled: true,
+  oscInputEnabled: true,
+  oscInputPort: 7000,
 };
 
 try {
@@ -358,7 +358,8 @@ export const useStore = createWithEqualityFn<AppState & {
   setShowSystemEffectsTab: (v: boolean) => void;
   setColumnCrossfadeEnabled: (enabled: boolean) => void;
   setColumnCrossfadeDuration: (duration: number) => void;
-  setCellCrossfadeEnabled: (enabled: boolean) => void;
+  setOscInputEnabled: (enabled: boolean) => void;
+  setOscInputPort: (port: number) => void;
 }>()(
   persist(
     (set, get) => ({
@@ -429,7 +430,8 @@ export const useStore = createWithEqualityFn<AppState & {
       setShowSystemEffectsTab: (v: boolean) => set({ showSystemEffectsTab: Boolean(v) }),
       setColumnCrossfadeEnabled: (enabled: boolean) => set({ columnCrossfadeEnabled: Boolean(enabled) }),
       setColumnCrossfadeDuration: (duration: number) => set({ columnCrossfadeDuration: Math.max(100, Math.min(2000, Math.floor(Number(duration) || 400))) }),
-      setCellCrossfadeEnabled: (enabled: boolean) => set({ cellCrossfadeEnabled: Boolean(enabled) }),
+      setOscInputEnabled: (enabled: boolean) => set({ oscInputEnabled: Boolean(enabled) } as any),
+      setOscInputPort: (port: number) => set({ oscInputPort: Math.max(1, Math.min(65535, Math.floor(Number(port) || 7000))) } as any),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();
@@ -1569,7 +1571,8 @@ export const useStore = createWithEqualityFn<AppState & {
            // Persist crossfade settings
            columnCrossfadeEnabled: (state as any).columnCrossfadeEnabled,
            columnCrossfadeDuration: (state as any).columnCrossfadeDuration,
-          cellCrossfadeEnabled: (state as any).cellCrossfadeEnabled,
+           oscInputEnabled: (state as any).oscInputEnabled,
+           oscInputPort: (state as any).oscInputPort,
         };
       },
              onRehydrateStorage: () => (state) => {

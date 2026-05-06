@@ -18,6 +18,7 @@ import { handleSceneRename } from '../utils/SceneManagementHandlers';
 import EffectsBrowser from './EffectsBrowser';
 import { MIDIMapper } from './MIDIMapper';
 import { LFOMapper } from './LFOMapper';
+import { OSCSettings } from './OSCSettings';
 import { Button } from './ui';
 import AIEffectsLab from './AIEffectsLab';
 import { useFocusMode } from '../hooks/useFocusMode';
@@ -126,7 +127,7 @@ VideoThumbnailPreview.displayName = 'VideoThumbnailPreview';
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   // console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline, columnCrossfadeEnabled, setColumnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeDuration, cellCrossfadeEnabled } = useStore() as any;
+  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline, columnCrossfadeEnabled, setColumnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeDuration } = useStore() as any;
 
   // Track transport state to style Play/Pause/Stop buttons with accent for the active control.
   // Derive from store so refresh/rehydrate reliably shows Stop when fully stopped.
@@ -309,6 +310,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   const cancelCrossfadeRef = useRef<(() => void) | null>(null); // Function to cancel active animation
   // Track last override map so we can crossfade row-override ("cell") changes
   const lastOverridesRef = useRef<Record<number, string>>((activeLayerOverrides || {}) as any);
+
+  const unloadPreviewToBlack = useCallback(() => {
+    try { cancelCrossfadeRef.current?.(); } catch {}
+    cancelCrossfadeRef.current = null;
+    if (crossfadeTimeoutRef.current) {
+      try { clearTimeout(crossfadeTimeoutRef.current); } catch {}
+      crossfadeTimeoutRef.current = null;
+    }
+    setIsPlaying(false);
+    setPreviewContent(null);
+    setPreviousPreviewContent(null);
+    setCrossfadeProgress(1);
+    setIsCrossfading(false);
+    setShowPreviousContent(false);
+  }, []);
   
   // Handle crossfade transitions when previewContent changes
   useEffect(() => {
@@ -336,7 +352,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       previousPreviewContent?.type === 'column' &&
       previewContent?.columnId !== previousPreviewContent?.columnId;
     const isCellOverrideSwitch =
-      cellCrossfadeEnabled &&
+      columnCrossfadeEnabled &&
       !showTimeline &&
       previewContent?.type === 'column' &&
       previousPreviewContent?.type === 'column' &&
@@ -451,7 +467,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       setIsCrossfading(false);
       setShowPreviousContent(false);
     }
-  }, [previewContent, previousPreviewContent, columnCrossfadeEnabled, cellCrossfadeEnabled, showTimeline, columnCrossfadeDuration, debugMode]);
+  }, [previewContent, previousPreviewContent, columnCrossfadeEnabled, showTimeline, columnCrossfadeDuration, debugMode]);
 
   // Crossfade when selecting cells in other columns (row override changes).
   // This preserves the ability to select any cell, but fades the preview between the old and new override state.
@@ -462,7 +478,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     lastOverridesRef.current = nextOverrides;
 
     if (showTimeline) return;
-    if (!cellCrossfadeEnabled) return;
+    if (!columnCrossfadeEnabled) return;
     if (!previewContent || previewContent.type !== 'column') return;
 
     // Only crossfade when overrides actually changed
@@ -479,7 +495,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       if (!cur || cur.type !== 'column') return cur;
       return { ...cur, overrideMap: nextOverrides, overrideVersion: Date.now() };
     });
-  }, [activeLayerOverrides, cellCrossfadeEnabled, showTimeline, previewContent]);
+  }, [activeLayerOverrides, columnCrossfadeEnabled, showTimeline, previewContent]);
 
   // Always default to STOP when switching between column and timeline modes.
   useEffect(() => {
@@ -495,8 +511,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
   useEffect(() => {
     const onTimelinePlay = () => { timelineAllowPlayRef.current = true; };
-    const onTimelineStop = () => {
-      timelineAllowPlayRef.current = false;
+    const onTimelinePause = () => {
+      timelineAllowPlayRef.current = true;
       if (timelinePreviewRafRef.current != null) {
         try { cancelAnimationFrame(timelinePreviewRafRef.current); } catch {}
         timelinePreviewRafRef.current = null;
@@ -508,13 +524,25 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         setPreviewContent((prev: any) => (prev && prev.type === 'timeline' ? { ...prev, isPlaying: false } : prev));
       } catch {}
     };
+    const onTimelineStop = () => {
+      timelineAllowPlayRef.current = false;
+      if (timelinePreviewRafRef.current != null) {
+        try { cancelAnimationFrame(timelinePreviewRafRef.current); } catch {}
+        timelinePreviewRafRef.current = null;
+      }
+      pendingTimelinePreviewRef.current = null;
+      pendingTimelineIsPlayingRef.current = null;
+      try { unloadPreviewToBlack(); } catch {}
+    };
     try { document.addEventListener('timelinePlay', onTimelinePlay as any); } catch {}
+    try { document.addEventListener('timelinePause', onTimelinePause as any); } catch {}
     try { document.addEventListener('timelineStop', onTimelineStop as any); } catch {}
     return () => {
       try { document.removeEventListener('timelinePlay', onTimelinePlay as any); } catch {}
+      try { document.removeEventListener('timelinePause', onTimelinePause as any); } catch {}
       try { document.removeEventListener('timelineStop', onTimelineStop as any); } catch {}
     };
-  }, []);
+  }, [unloadPreviewToBlack]);
 
   useEffect(() => {
     return () => {
@@ -543,7 +571,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
   useEffect(() => {
     const onPlay = () => { if (!showTimeline) setIsPlaying(true); };
     const onPause = () => { if (!showTimeline) setIsPlaying(false); };
-    const onStop = () => { if (!showTimeline) setIsPlaying(false); };
+    const onStop = () => { if (!showTimeline) unloadPreviewToBlack(); };
     document.addEventListener('globalPlay', onPlay as any);
     document.addEventListener('globalPause', onPause as any);
     document.addEventListener('globalStop', onStop as any);
@@ -552,7 +580,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       document.removeEventListener('globalPause', onPause as any);
       document.removeEventListener('globalStop', onStop as any);
     };
-  }, [showTimeline]);
+  }, [showTimeline, unloadPreviewToBlack]);
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const mirrorStreamRef = useRef<CanvasStreamManager | null>(null);
   const [isPreviewMirrorOpen, setIsPreviewMirrorOpen] = useState(false);
@@ -962,11 +990,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     // In timeline mode, default to STOP on refresh/initial load unless global play is active.
     // Allow play updates from the timeline itself.
     if (showTimeline && !timelineAllowPlayRef.current) {
-      setPreviewContent({
-        ...previewContent,
-        isPlaying: false
-      });
-      setIsPlaying(false);
+      unloadPreviewToBlack();
       timelineStopOnFirstUpdateRef.current = false;
       return;
     }
@@ -990,7 +1014,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         }
       });
     }
-  }, [showTimeline, isGlobalPlaying]);
+  }, [showTimeline, unloadPreviewToBlack]);
 
   // Clear timeline preview when switching to column mode
   useEffect(() => {
@@ -1998,14 +2022,13 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             const w = Math.max(1, Number(compositionSettings?.width) || 1920);
             const h = Math.max(1, Number(compositionSettings?.height) || 1080);
             const aspectRatio = w / h;
-            const bg = (compositionSettings as any)?.backgroundColor || '#000000';
             return (
               <div
                 className="tw-relative tw-w-full"
                 data-aspect-ratio={`${w}:${h}`}
                 style={{ aspectRatio }}
               >
-                <div className="tw-absolute tw-inset-0" style={{ backgroundColor: bg }} aria-label="Composition placeholder" title="Composition" />
+                <div className="tw-absolute tw-inset-0 tw-bg-black" aria-label="Composition placeholder" title="Composition" />
               </div>
             );
           })()}
@@ -2133,8 +2156,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
               globalEffects={currentScene?.globalEffects || []}
               overridesKey={JSON.stringify(((useStore as any).getState?.() || {}).activeLayerOverrides || {})}
               isTimelineMode={true}
-              // In timeline mode, Stop should pause effects too (freeze frameloop) while preserving last frame.
-              hardFreeze={!Boolean(content.isPlaying)}
+              hardFreeze={false}
             />
           </div>
         </div>
@@ -2226,7 +2248,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 overridesKey={overridesKeyForRender}
                 forceAlwaysRender={is360PreviewMode && isEquirectangular}
                 suppressPause={is360PreviewMode && isEquirectangular}
-                hardFreeze={!isGlobalPlaying && !forcePlaying}
+                hardFreeze={false}
                 skipInitialMask={slotId === 'previous'}
               />
             </div>
@@ -3308,8 +3330,6 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
-                        // Same as 360 toggle: dispatch synchronous play signal within the gesture.
-                        try { globalPlay({ force: true, source: 'preview:fullscreen' } as any); } catch {}
                         togglePreviewFullscreen();
                       }}
                       title="Fullscreen Preview"
@@ -3534,6 +3554,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                   <TabsTrigger value="effects">Bank</TabsTrigger>
                   <TabsTrigger value="files">Files</TabsTrigger>
                   <TabsTrigger value="midi">MIDI</TabsTrigger>
+                  <TabsTrigger value="osc">OSC</TabsTrigger>
                   <TabsTrigger value="lfo">LFO</TabsTrigger>
                   <TabsTrigger value="ai">AI</TabsTrigger>
                 </TabsList>
@@ -3558,6 +3579,11 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                       <TabsContent value="midi" forceMount className="data-[state=inactive]:tw-hidden">
                         <div className="midi-tab">
                           <MIDIMapper />
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="osc" forceMount className="data-[state=inactive]:tw-hidden">
+                        <div className="osc-tab">
+                          <OSCSettings />
                         </div>
                       </TabsContent>
                       <TabsContent value="lfo" forceMount className="data-[state=inactive]:tw-hidden">

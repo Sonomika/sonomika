@@ -100,6 +100,12 @@ try {
         openExternal: (url) => {
             return electron_1.ipcRenderer.invoke('open-external-url', url);
         },
+        getOscInputState: () => {
+            return electron_1.ipcRenderer.invoke('osc:get-input-state');
+        },
+        configureOscInput: (options) => {
+            return electron_1.ipcRenderer.invoke('osc:configure-input', options);
+        },
         // Record menu events from main process (native app menu)
         onRecordStart: (handler) => {
             try {

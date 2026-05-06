@@ -139,65 +139,67 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.max(2, Math.floor(compositionWidth * dpr));
     const h = Math.max(2, Math.floor(compositionHeight * dpr));
-    if (rtRefs.current.length !== items.length) {
-      // Dispose previous and recreate sized to items
-      rtRefs.current.forEach((rt) => rt?.dispose());
-      rtRefs.current = items.map((it) => (it.type === 'video' ? null : new THREE.WebGLRenderTarget(w, h, {
+    const makeRT = () => {
+      const rt = new THREE.WebGLRenderTarget(w, h, {
         format: THREE.RGBAFormat,
         type: THREE.UnsignedByteType,
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
         depthBuffer: true,
         stencilBuffer: false
-      })));
-      // Set render target textures to linear color space to avoid double sRGB decoding
-      rtRefs.current.forEach((rt) => {
-        if (rt) {
-          try {
-            (rt.texture as any).colorSpace = (THREE as any).LinearSRGBColorSpace || (rt.texture as any).colorSpace;
-          } catch {}
+      });
+      try {
+        (rt.texture as any).colorSpace = (THREE as any).LinearSRGBColorSpace || (rt.texture as any).colorSpace;
+      } catch {}
+      return rt;
+    };
+
+    if (rtRefs.current.length !== items.length) {
+      const previous = rtRefs.current;
+      const next = items.map((it, idx) => {
+        const existing = previous[idx] || null;
+        if (it.type === 'video') return null;
+        if (existing && existing.width === w && existing.height === h) return existing;
+
+        const rt = makeRT();
+        // Seed before disposing any old target: finalTextureRef may point at the old output.
+        seedRenderTarget(gl, rt, (finalTextureRef as any)?.current || null, camera);
+        return rt;
+      });
+
+      previous.forEach((rt) => {
+        if (rt && !next.includes(rt)) {
+          try { rt.dispose(); } catch {}
         }
       });
-      // Seed newly created RTs with the last valid final texture to avoid first-frame empties
-      rtRefs.current.forEach((rt) => {
-        if (rt) seedRenderTarget(gl, rt, (finalTextureRef as any)?.current || null, camera);
-      });
+
+      rtRefs.current = next;
       return;
     }
+
     for (let i = 0; i < rtRefs.current.length; i++) {
       const rt = rtRefs.current[i];
-      if (!rt && items[i].type === 'video') continue;
-      if (!rt && items[i].type !== 'video') {
-        rtRefs.current[i] = new THREE.WebGLRenderTarget(w, h, {
-          format: THREE.RGBAFormat,
-          type: THREE.UnsignedByteType,
-          minFilter: THREE.LinearFilter,
-          magFilter: THREE.LinearFilter,
-          depthBuffer: true,
-          stencilBuffer: false
-        });
-        try {
-          (rtRefs.current[i]!.texture as any).colorSpace = (THREE as any).LinearSRGBColorSpace || (rtRefs.current[i]!.texture as any).colorSpace;
-        } catch {}
-        // Seed new RT with previous final texture
-        seedRenderTarget(gl, rtRefs.current[i]!, (finalTextureRef as any)?.current || null, camera);
+      if (items[i].type === 'video') {
+        if (rt) {
+          try { rt.dispose(); } catch {}
+          rtRefs.current[i] = null;
+        }
         continue;
       }
-      if (rt && (rt.width !== w || rt.height !== h)) {
-        rt.dispose();
-        rtRefs.current[i] = new THREE.WebGLRenderTarget(w, h, {
-          format: THREE.RGBAFormat,
-          type: THREE.UnsignedByteType,
-          minFilter: THREE.LinearFilter,
-          magFilter: THREE.LinearFilter,
-          depthBuffer: true,
-          stencilBuffer: false
-        });
-        try {
-          (rtRefs.current[i]!.texture as any).colorSpace = (THREE as any).LinearSRGBColorSpace || (rtRefs.current[i]!.texture as any).colorSpace;
-        } catch {}
-        // Seed resized RT with previous final texture
-        seedRenderTarget(gl, rtRefs.current[i]!, (finalTextureRef as any)?.current || null, camera);
+
+      if (!rt) {
+        const next = makeRT();
+        seedRenderTarget(gl, next, (finalTextureRef as any)?.current || null, camera);
+        rtRefs.current[i] = next;
+        continue;
+      }
+
+      if (rt.width !== w || rt.height !== h) {
+        const next = makeRT();
+        // Seed before disposing the old target because it may be the current displayed texture.
+        seedRenderTarget(gl, next, (finalTextureRef as any)?.current || null, camera);
+        try { rt.dispose(); } catch {}
+        rtRefs.current[i] = next;
       }
     }
   };
@@ -364,6 +366,11 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
 
   // Render chain per frame
   const finalTextureRef = useRef<THREE.Texture | null>(null);
+  const [displayTexture, setDisplayTexture] = useState<THREE.Texture | null>(null);
+
+  React.useEffect(() => {
+    try { invalidate(); } catch {}
+  }, [items, compositionWidth, compositionHeight, invalidate]);
 
   useFrame(() => {
     // Ensure no automatic clears between passes
@@ -854,6 +861,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
     // Keep showing previous final texture until a new one is ready to avoid background showing through
     if (currentTexture) {
       finalTextureRef.current = currentTexture;
+      setDisplayTexture((prev) => (prev === currentTexture ? prev : currentTexture));
     }
     // Update the ref with computed textures for fallback use in portals
     // This happens synchronously so portals can use it as a fallback when state is stale
@@ -873,6 +881,10 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
     }
     if (changed) {
       setInputTextures(nextInputTextures);
+      // In demand-render mode the first frame after adding a stacked effect can
+      // compute the correct inputs before React has pushed them into the effect
+      // portals. Request the follow-up frame that renders with settled props.
+      try { invalidate(); } catch {}
     }
   });
 
@@ -1011,10 +1023,10 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
   return (
     <>
       {portals}
-      {finalTextureRef.current && (
+      {displayTexture && (
         <mesh position={[0, 0, 0]} renderOrder={renderOrder}>
           <planeGeometry args={[displayAspect * 2, 2]} />
-          <meshBasicMaterial map={finalTextureRef.current} transparent={true} toneMapped={false} depthTest={false} depthWrite={false} opacity={opacity} />
+          <meshBasicMaterial map={displayTexture} transparent={true} toneMapped={false} depthTest={false} depthWrite={false} opacity={opacity} />
         </mesh>
       )}
     </>

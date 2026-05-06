@@ -1191,8 +1191,10 @@ const TimelineScene: React.FC<{
         });
         if (currentChain.length > 0) { chains.push(currentChain); currentChain = []; }
 
-        // Enabled global effects to append to each chain
+        // The panel is top-to-bottom, while EffectChain processes bottom-to-top.
+        // Reverse globals so the top slot renders above lower slots.
         const enabledGlobals = Array.isArray(globalEffects) ? globalEffects.filter((g: any) => g && g.enabled) : [];
+        const globalsRenderOrder = [...enabledGlobals].reverse();
         const orderStickyOverlaysLast = (chain: ChainItem[]): ChainItem[] => {
           const regular: ChainItem[] = [];
           const sticky: ChainItem[] = [];
@@ -1274,8 +1276,8 @@ const TimelineScene: React.FC<{
             if (it.type === 'video') return 'video';
             return `${it.type}:${(it as any).effectId || 'eff'}`;
           }).join('|');
-          const rawChainWithGlobals: ChainItem[] = enabledGlobals.length > 0
-            ? ([...chain, ...enabledGlobals.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {} }))] as ChainItem[])
+          const rawChainWithGlobals: ChainItem[] = globalsRenderOrder.length > 0
+            ? ([...chain, ...globalsRenderOrder.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {}, __uniqueKey: `global-${ge.id || ge.effectId}` }))] as ChainItem[])
             : chain;
           const chainWithGlobals = orderStickyOverlaysLast(rawChainWithGlobals);
           timelineDebugLog('[TimelineScene] Chain', { idx, key: chainKey, items: chainWithGlobals.length });
