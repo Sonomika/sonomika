@@ -2524,11 +2524,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
       let effectsMigrated = false;
       const migratedEffects = (currentScene.globalEffects as any[])
         .map((effect: any) => {
-          // Drop null/undefined entries safely
-          if (effect == null) {
-            effectsMigrated = true;
-            return null;
-          }
+          // Empty slots are meaningful: preserve them so global effects can be
+          // moved into fixed slot positions without compacting back to slot 1.
+          if (effect == null) return null;
           // Old format: just a string ID
           if (typeof effect === 'string') {
             effectsMigrated = true;
@@ -2553,8 +2551,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
           // Unknown type, drop it
           effectsMigrated = true;
           return null;
-        })
-        .filter((e: any) => e != null);
+        });
 
       if (!effectsMigrated) return;
       if (debugMode) console.log('Migrating global effects to new format');

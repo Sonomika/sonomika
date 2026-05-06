@@ -238,40 +238,17 @@ function App() {
           state.setShowTimeline(false);
         }
 
-        // Calling `playColumn` remounts the 3D scene (the React tree is keyed by
-        // column id) and re-issues videoRestart events, which produces a black
-        // flash. We only do that once on cold start. Subsequent column changes
-        // are expressed as per-row overrides, which the renderer applies to the
-        // already-mounted scene without restarting any layer.
         const bootstrapColumn = (columnId: string) => {
           state.clearActiveLayerOverrides?.();
           state.playColumn?.(columnId);
         };
 
-        const overrideAllRows = (columnId: string) => {
-          const setter = state.setActiveLayerOverride;
-          if (typeof setter !== 'function') return;
-          const rowsCount = columns.reduce(
-            (max: number, c: any) => Math.max(max, Array.isArray(c?.layers) ? c.layers.length : 0),
-            0
-          );
-          for (let row = 1; row <= rowsCount; row++) {
-            setter(row, columnId);
-          }
-        };
-
         if (payload.action === 'column-launch') {
           const column = columns[Math.max(0, Number(payload.column || 1) - 1)];
           if (!column) return;
-          if (!state.playingColumnId) {
-            bootstrapColumn(column.id);
-            return;
-          }
-          if (state.playingColumnId === column.id) {
-            state.clearActiveLayerOverrides?.();
-            return;
-          }
-          overrideAllRows(column.id);
+          // OSC column messages should match the column header/MIDI behavior:
+          // launch the full column, even when only one row in that column has a clip.
+          bootstrapColumn(column.id);
           return;
         }
 

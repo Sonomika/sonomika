@@ -1550,8 +1550,17 @@ const ColumnScene: React.FC<{
         // Determine enabled global effects. The UI is top-to-bottom, while
         // EffectChain processes bottom-to-top, so render globals in reverse.
         const enabledGlobalEffects = Array.isArray(globalEffects)
-          ? globalEffects.filter((ge: any) => ge && ge.enabled)
+          ? globalEffects
+              .map((ge: any, slotIndex: number) => (ge && ge.enabled ? { ...ge, __slotIndex: slotIndex } : null))
+              .filter(Boolean)
           : [];
+        const globalEffectsKey = Array.isArray(globalEffects)
+          ? globalEffects.map((ge: any, slotIndex: number) => (
+              ge && ge.enabled
+                ? `${slotIndex}:${ge.id || ''}:${ge.effectId || ''}`
+                : `${slotIndex}:empty`
+            )).join('|')
+          : 'no-globals';
         const globalEffectsRenderOrder = [...enabledGlobalEffects].reverse();
 
         chains.forEach((chain, chainIndex) => {
@@ -1592,7 +1601,7 @@ const ColumnScene: React.FC<{
                   type: 'effect' as const,
                   effectId: ge.effectId,
                   params: normalizedParams,
-                  __uniqueKey: `global-${ge.id || ge.effectId}`,
+                  __uniqueKey: `global-${ge.__slotIndex ?? 'x'}-${ge.id || ge.effectId}`,
                 };
               })] as ChainItem[])
             : chain;
@@ -1601,7 +1610,7 @@ const ColumnScene: React.FC<{
           const chainVideo = chain.find((it: any) => it?.type === 'video') as Extract<ChainItem, { type: 'video' }> | undefined;
           elements.push(
             <EffectChain
-              key={`chain-${column?.id || 'col'}-${rowHint}-${chainIndex}-${chainKey}`}
+              key={`chain-${column?.id || 'col'}-${rowHint}-${chainIndex}-${chainKey}-${globalEffectsKey}`}
               items={chainWithGlobals}
               compositionWidth={compositionWidth}
               compositionHeight={compositionHeight}

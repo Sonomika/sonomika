@@ -1193,7 +1193,18 @@ const TimelineScene: React.FC<{
 
         // The panel is top-to-bottom, while EffectChain processes bottom-to-top.
         // Reverse globals so the top slot renders above lower slots.
-        const enabledGlobals = Array.isArray(globalEffects) ? globalEffects.filter((g: any) => g && g.enabled) : [];
+        const enabledGlobals = Array.isArray(globalEffects)
+          ? globalEffects
+              .map((g: any, slotIndex: number) => (g && g.enabled ? { ...g, __slotIndex: slotIndex } : null))
+              .filter(Boolean)
+          : [];
+        const globalsKey = Array.isArray(globalEffects)
+          ? globalEffects.map((g: any, slotIndex: number) => (
+              g && g.enabled
+                ? `${slotIndex}:${g.id || ''}:${g.effectId || ''}`
+                : `${slotIndex}:empty`
+            )).join('|')
+          : 'no-globals';
         const globalsRenderOrder = [...enabledGlobals].reverse();
         const orderStickyOverlaysLast = (chain: ChainItem[]): ChainItem[] => {
           const regular: ChainItem[] = [];
@@ -1277,7 +1288,7 @@ const TimelineScene: React.FC<{
             return `${it.type}:${(it as any).effectId || 'eff'}`;
           }).join('|');
           const rawChainWithGlobals: ChainItem[] = globalsRenderOrder.length > 0
-            ? ([...chain, ...globalsRenderOrder.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {}, __uniqueKey: `global-${ge.id || ge.effectId}` }))] as ChainItem[])
+            ? ([...chain, ...globalsRenderOrder.map((ge: any) => ({ type: 'effect', effectId: ge.effectId, params: ge.params || {}, __uniqueKey: `global-${ge.__slotIndex ?? 'x'}-${ge.id || ge.effectId}` }))] as ChainItem[])
             : chain;
           const chainWithGlobals = orderStickyOverlaysLast(rawChainWithGlobals);
           timelineDebugLog('[TimelineScene] Chain', { idx, key: chainKey, items: chainWithGlobals.length });
@@ -1379,10 +1390,9 @@ const TimelineScene: React.FC<{
             // Propagate baseAssetId from the chain's video (if any) so EffectChain can seed correctly
             const baseVid = chainWithGlobals.find((it) => it.type === 'video') as any;
             const baseAssetIdForChain = baseVid ? (activeClips.find((c: any) => c.asset && assets.videos.get(String(c.asset?.id ?? '')) === baseVid.video)?.asset?.id) : undefined;
-            // Use stable key based on video asset (not chainKey which changes with effects)
-            // This prevents React from remounting EffectChain when effects are added/removed,
-            // which would cause finalTextureRef to reset and show a black frame.
-            const stableKey = baseAssetIdForChain ? `chain-video-${baseAssetIdForChain}-${idx}` : `chain-${chainKey}-${idx}`;
+            // Keep the key stable for the video source, but include the global
+            // slot layout so global stack edits rebuild stale effect portals.
+            const stableKey = baseAssetIdForChain ? `chain-video-${baseAssetIdForChain}-${idx}-${globalsKey}` : `chain-${chainKey}-${idx}-${globalsKey}`;
             elements.push(
               <EffectChain
                 key={stableKey}

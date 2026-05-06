@@ -818,12 +818,16 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
           // `inputTextures[idx]` (previous frame's React state) to prevent flash when stacked
           // effects are rendered - the state update has a one-frame delay that causes upper
           // effect layers to skip rendering incorrectly.
-          const stageInputCandidate = currentTexture || inputTextures[idx] || null;
-          const safeStageInput = (stageInputCandidate && stageInputCandidate !== rt.texture) ? stageInputCandidate : null;
           const canRenderWithoutInput = md?.stickyOverlay === true;
-          if (!safeStageInput && !canRenderWithoutInput) {
+          const portalStageInput = inputTextures[idx] && inputTextures[idx] !== rt.texture ? inputTextures[idx] : null;
+          const stageInputCandidate = currentTexture || portalStageInput || null;
+          const safeStageInput = (stageInputCandidate && stageInputCandidate !== rt.texture) ? stageInputCandidate : null;
+          const portalInputSettled = !replacesVideo || canRenderWithoutInput || (portalStageInput && portalStageInput === currentTexture);
+          if ((!safeStageInput && !canRenderWithoutInput) || !portalInputSettled) {
             // Skip writing this stage's RT; keep showing the previous texture.
-            // (This avoids a one-frame black flash at effect activation.)
+            // Replacement effects often initialise internal buffers from their
+            // `videoTexture` prop, so wait until the portal has the same input
+            // texture that this frame's chain computed.
           } else {
             const stageOpacityRaw = (item as any).opacity;
             const stageOpacity = Number.isFinite(Number(stageOpacityRaw)) ? Math.max(0, Math.min(1, Number(stageOpacityRaw))) : 1;
@@ -929,6 +933,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
       const EffectComponent = getEffectComponentSync(item.effectId);
       if (!EffectComponent) return;
       const params = item.params || {};
+      const md: any = (EffectComponent as any)?.metadata || {};
       const itemKey = (item as any).__uniqueKey || `${idx}`;
       const portalItemKey = `${itemKey}-${idx}`;
       // The layer id is encoded in __uniqueKey as `<kind>-<layerId>` (e.g.
@@ -957,13 +962,15 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
         // Use lastComputedTexturesRef as fallback when inputTextures state hasn't propagated yet
         // This prevents flash when stacked effect layers are first rendered
         const candidate = inputTextures[idx] || lastComputedTexturesRef.current[idx] || null;
+        if (md?.replacesVideo === true && (!candidate || (stageRT && candidate === stageRT.texture))) {
+          return;
+        }
         extras.videoTexture = stageRT && candidate === stageRT.texture ? null : candidate;
         extras.isGlobal = false;
         const src = extras.videoTexture as any;
         const isSRGB = !!(src && (src.isVideoTexture || src.isCanvasTexture));
         extras.inputIsSRGB = isSRGB;
       }
-      const md: any = (EffectComponent as any)?.metadata || {};
       const replacesVideo: boolean = md?.replacesVideo === true;
       const bgTex = ((): THREE.Texture | null => {
         const stageRT = rtRefs.current[idx]!;

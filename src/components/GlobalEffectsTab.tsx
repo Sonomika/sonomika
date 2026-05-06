@@ -34,6 +34,7 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
     y: number;
     index: number;
   } | null>(null);
+  const dragSourceIndexRef = React.useRef<number | null>(null);
   React.useEffect(() => {
     const handleGlobalClick = () => setContextMenu(null);
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -77,7 +78,9 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
 
   const handleRemove = (index: number) => {
     const toRemove = effects[index];
-    setEffects(effects.filter((_, i) => i !== index));
+    const next = [...effects];
+    next[index] = null;
+    setEffects(next);
     if (toRemove?.id) {
       setOpenMap((prev) => {
         const copy = { ...prev };
@@ -96,6 +99,7 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
   const handleDropIntoSlot = (index: number, data: any) => {
     if (!data?.isEffect) return;
     const next = [...effects];
+    while (next.length <= index) next.push(null);
     const effectId = data.id || data.name || data.filePath || '';
     next[index] = {
       id: next[index]?.id || uuidv4(),
@@ -112,8 +116,11 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
   const move = (from: number, to: number) => {
     if (from === to) return;
     const next = [...effects];
-    const [item] = next.splice(from, 1);
-    next.splice(to, 0, item);
+    while (next.length <= Math.max(from, to)) next.push(null);
+    const item = next[from];
+    if (!item) return;
+    next[from] = next[to] || null;
+    next[to] = item;
     setEffects(next);
   };
 
@@ -127,21 +134,51 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
   };
 
   const onDragStart = (e: React.DragEvent, index: number) => {
+    if (!effects[index]) {
+      e.preventDefault();
+      return;
+    }
+    dragSourceIndexRef.current = index;
     e.dataTransfer.setData('application/x-global-effect-index', String(index));
+    e.dataTransfer.setData('text/plain', `global-effect:${index}`);
     e.dataTransfer.effectAllowed = 'move';
   };
 
   const onDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = dragSourceIndexRef.current != null ? 'move' : 'copy';
+  };
+
+  const onDragEnd = () => {
+    dragSourceIndexRef.current = null;
   };
 
   const onDropReorder = (e: React.DragEvent, toIndex: number) => {
-    const fromStr = e.dataTransfer.getData('application/x-global-effect-index');
-    if (fromStr) {
-      const from = parseInt(fromStr, 10);
-      if (!Number.isNaN(from)) move(from, toIndex);
+    e.preventDefault();
+    e.stopPropagation();
+
+    const fromCustom = e.dataTransfer.getData('application/x-global-effect-index');
+    const fromPlain = e.dataTransfer.getData('text/plain');
+    const from = (() => {
+      if (dragSourceIndexRef.current != null) return dragSourceIndexRef.current;
+      if (fromCustom !== '') {
+        const parsed = parseInt(fromCustom, 10);
+        if (!Number.isNaN(parsed)) return parsed;
+      }
+      const match = /^global-effect:(\d+)$/.exec(fromPlain || '');
+      if (match) {
+        const parsed = parseInt(match[1], 10);
+        if (!Number.isNaN(parsed)) return parsed;
+      }
+      return null;
+    })();
+
+    if (from != null) {
+      move(from, toIndex);
+      dragSourceIndexRef.current = null;
       return;
     }
+
     const raw = e.dataTransfer.getData('application/json');
     try {
       const data = raw ? JSON.parse(raw) : null;
@@ -171,6 +208,9 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
                 <div
                   key={slot?.id || `empty-${index}`}
                   className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900"
+                  draggable={Boolean(slot)}
+                  onDragStart={(e) => onDragStart(e, index)}
+                  onDragEnd={onDragEnd}
                   onDragOver={onDragOver}
                   onDrop={(e) => onDropReorder(e, index)}
                   onContextMenu={(e) => {
@@ -180,9 +220,7 @@ export const GlobalEffectsTab: React.FC<GlobalEffectsTabProps> = ({ className = 
                   }}
                 >
                   <div
-                    className="tw-flex tw-items-center tw-justify-between tw-pr-3 tw-pl-0 tw-py-2 tw-border-b tw-border-neutral-800"
-                    draggable={Boolean(slot)}
-                    onDragStart={(e) => onDragStart(e, index)}
+                    className={`tw-flex tw-items-center tw-justify-between tw-pr-3 tw-pl-0 tw-py-2 tw-border-b tw-border-neutral-800 ${slot ? 'tw-cursor-move' : ''}`}
                   >
                     <button
                       className="tw-flex tw-items-center tw-gap-2 tw-text-left tw-bg-transparent tw-border-none tw-appearance-none tw-p-0"

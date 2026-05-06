@@ -591,10 +591,13 @@ function normalizeOscClipLaunch(address: string, args: OscArgument[]): OscClipLa
     normalized.match(/^\/composition\/decks\/\d+\/columns\/(\d+)\/connect$/i) ||
     normalized.match(/^\/columns?\/(\d+)\/connect$/i);
   if (columnMatch) {
+    const argColumn = typeof firstArg === 'number' && Number.isFinite(firstArg) && firstArg > 0
+      ? Math.floor(firstArg)
+      : null;
     return {
       address: normalized,
       args,
-      column: Number(columnMatch[1]),
+      column: argColumn || Number(columnMatch[1]),
       action: 'column-launch',
     };
   }
