@@ -567,12 +567,14 @@ export class EffectDiscovery {
     // Convert CamelCase to kebab-case and keep "effect" suffix
     // Handle consecutive uppercase letters properly (e.g., "BPM" -> "bpm")
     const id = fileName
+      .replace(/\s+/g, '-')
       .replace(/([A-Z]+)(?=[A-Z][a-z]|$)/g, (match) => `-${match.toLowerCase()}`) // Handle consecutive uppercase at word boundaries
       .replace(/([A-Z])/g, '-$1') // Handle single uppercase
       .toLowerCase()
       .replace(/^-/, '')
       .replace(/\.(tsx|ts|js|jsx)$/, '') // Remove known extensions
       .replace(/-+$/, '') // Remove trailing hyphens
+      .replace(/\s*-\s*/g, '-')
       .replace(/-+/g, '-'); // Replace multiple hyphens with single
     
     // console.log(`🔍 Generated effect ID: "${id}" from fileName: "${fileName}"`);

@@ -2,6 +2,13 @@ import React from 'react';
 import { getEffect } from './effectRegistry';
 const DEBUG_EFFECTS = !!(typeof window !== 'undefined' && (window as any).__DEBUG_EFFECTS);
 
+const normalizeEffectId = (id: string) =>
+  String(id || '')
+    .trim()
+    .replace(/\s*-\s*/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+
 // Preload all effect modules eagerly once so they self-register synchronously
 try {
   const eagerModules = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}', { eager: true });
@@ -29,14 +36,15 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
   }
 
   try {
+    const normalizedEffectId = normalizeEffectId(effectId);
     // Try to load the effect by filename directly (search subfolders)
     const modules = (import.meta as any).glob('../bank/**/*.{tsx,jsx,ts,js}');
     
     // Try the exact filename first
-    const exactPathTsx = `../bank/${effectId}.tsx`;
-    const exactPathJs = `../bank/${effectId}.js`;
-    const exactPathTs = `../bank/${effectId}.ts`;
-    const exactPathJsx = `../bank/${effectId}.jsx`;
+    const exactPathTsx = `../bank/${normalizedEffectId}.tsx`;
+    const exactPathJs = `../bank/${normalizedEffectId}.js`;
+    const exactPathTs = `../bank/${normalizedEffectId}.ts`;
+    const exactPathJsx = `../bank/${normalizedEffectId}.jsx`;
     
     if (DEBUG_EFFECTS) {
       console.log(`🔍 Loading effect: ${effectId}`);
@@ -72,7 +80,7 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
       const fileName = file.replace('../bank/', '').replace(/\.(tsx|ts|js|jsx)$/,'');
       
       // Check if the effectId matches the filename directly
-      if (fileName === effectId) return true;
+      if (fileName === normalizedEffectId) return true;
       
       // Check if the effectId is a kebab-case version of the filename
       const kebabCaseFileName = fileName
@@ -83,10 +91,10 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
         .replace(/-+$/, '')
         .replace(/-+/g, '-');
       
-      if (kebabCaseFileName === effectId) return true;
+      if (kebabCaseFileName === normalizedEffectId) return true;
       
       // Check if the filename is a kebab-case version of the effectId
-      const camelCaseEffectId = effectId
+      const camelCaseEffectId = normalizedEffectId
         .split('-')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join('');
@@ -94,8 +102,8 @@ export const loadEffectComponent = async (effectId: string): Promise<React.Compo
       if (fileName === camelCaseEffectId || fileName === camelCaseEffectId + 'Effect') return true;
       
       // Fallback: check if either contains the other
-      const matches = file.includes(effectId) || effectId.includes(fileName) || fileName.endsWith(`/${camelCaseEffectId}`) || fileName.endsWith(`/${camelCaseEffectId}Effect`);
-      if (DEBUG_EFFECTS) console.log(`🔍 Checking file: ${file} (${fileName}) against ${effectId} - matches: ${matches}`);
+      const matches = file.includes(normalizedEffectId) || normalizedEffectId.includes(fileName) || fileName.endsWith(`/${camelCaseEffectId}`) || fileName.endsWith(`/${camelCaseEffectId}Effect`);
+      if (DEBUG_EFFECTS) console.log(`🔍 Checking file: ${file} (${fileName}) against ${normalizedEffectId} - matches: ${matches}`);
       return matches;
     });
     
@@ -221,6 +229,7 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
     if (DEBUG_EFFECTS) console.log(`❌ Invalid effectId provided: "${effectId}"`);
     return null;
   }
+  const normalizedEffectId = normalizeEffectId(effectId);
   
   // Resolve common ID variants dynamically without hardcoded mappings
   const getUpdatedEffectId = (id: string) => {
@@ -248,7 +257,7 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
     }
   };
 
-  const updatedEffectId = getUpdatedEffectId(effectId);
+  const updatedEffectId = getUpdatedEffectId(normalizedEffectId);
   if (DEBUG_EFFECTS) console.log(`🎯 Mapped effectId: ${effectId} -> ${updatedEffectId}`);
   
   // Try to get from registry (synchronous only)
@@ -258,12 +267,12 @@ export const getEffectComponentSync = (effectId: string): React.ComponentType<an
     registeredEffect = getEffect(base) || getEffect(base.replace(/Effect$/, '')) || null;
   }
   if (!registeredEffect) {
-    const base = effectId.split('/').pop() as string;
+    const base = normalizedEffectId.split('/').pop() as string;
     registeredEffect = getEffect(base) || getEffect(base.replace(/Effect$/, '')) || null;
   }
   if (!registeredEffect) {
     // Try prefixed variants once more
-    registeredEffect = getEffect(`sources/${effectId}`) || getEffect(`effects/${effectId}`) || getEffect(`visual-effects/${effectId}`) || null;
+    registeredEffect = getEffect(`sources/${normalizedEffectId}`) || getEffect(`effects/${normalizedEffectId}`) || getEffect(`visual-effects/${normalizedEffectId}`) || null;
   }
   if (registeredEffect) {
     if (DEBUG_EFFECTS) console.log(`✅ Found effect in registry (sync):`, registeredEffect?.name || updatedEffectId);

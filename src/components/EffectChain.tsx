@@ -918,6 +918,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
       if (!EffectComponent) return;
       const params = item.params || {};
       const itemKey = (item as any).__uniqueKey || `${idx}`;
+      const portalItemKey = `${itemKey}-${idx}`;
       // The layer id is encoded in __uniqueKey as `<kind>-<layerId>` (e.g.
       // `effect-abc123`). We forward it as `__layerId` so effects can read
       // live modulation values via `globalThis.__VJ_LIVE_MOD__` without
@@ -961,7 +962,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
       })();
       if (((item.type === 'effect' && !replacesVideo) || item.type === 'source') && bgTex) {
         const aspect = compositionWidth / compositionHeight;
-        const portalKey = `portal-bg-${item.effectId || 'unknown'}-${itemKey}`;
+        const portalKey = `portal-bg-${item.effectId || 'unknown'}-${portalItemKey}`;
         list.push(
           React.createElement(
             React.Fragment,
@@ -969,7 +970,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
             createPortal(
               React.createElement(
                 'mesh',
-                { key: `bg-${item.effectId || 'unknown'}-${itemKey}`, renderOrder: -1000 },
+                { key: `bg-${item.effectId || 'unknown'}-${portalItemKey}`, renderOrder: -1000 },
                 React.createElement('planeGeometry', { args: [aspect * 2, 2] }),
                 React.createElement('meshBasicMaterial', { map: bgTex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false })
               ),
@@ -978,7 +979,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
           )
         );
       }
-      const fxPortalKey = `portal-fx-${item.effectId || 'unknown'}-${itemKey}`;
+      const fxPortalKey = `portal-fx-${item.effectId || 'unknown'}-${portalItemKey}`;
       list.push(
         React.createElement(
           React.Fragment,
@@ -990,7 +991,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
                 effectId: item.effectId,
                 children: React.createElement(
                   EffectComponent, 
-                  { key: `effect-${item.effectId || 'unknown'}-${itemKey}`, ...params, ...extras }
+                  { key: `effect-${item.effectId || 'unknown'}-${portalItemKey}`, ...params, ...extras }
                 )
               }
             ),
