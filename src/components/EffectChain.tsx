@@ -223,14 +223,29 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
   // old frame ghosting through for ~250ms.
   const hasInitialClearRunRef = useRef(false);
 
-  // Offscreen scenes for each non-video item (only recreate when structure changes)
+  const sceneKeyForItem = (it: ChainItem, idx: number) => String((it as any).__uniqueKey || `${it.type}-${idx}`);
+  const offscreenSceneMapRef = useRef<Map<string, THREE.Scene>>(new Map());
+
+  // Offscreen scenes are keyed by layer/global slot identity so effect
+  // components can keep their local refs across row changes.
   const offscreenScenes = useMemo(() => {
-    return items.map(() => {
-      const s = new THREE.Scene();
-      (s as any).background = null;
-      return s;
+    const activeKeys = new Set<string>();
+    const scenes = items.map((it, idx) => {
+      const key = sceneKeyForItem(it, idx);
+      activeKeys.add(key);
+      let scene = offscreenSceneMapRef.current.get(key);
+      if (!scene) {
+        scene = new THREE.Scene();
+        (scene as any).background = null;
+        offscreenSceneMapRef.current.set(key, scene);
+      }
+      return scene;
     });
-  }, [sceneSignature, compositionWidth, compositionHeight]);
+    offscreenSceneMapRef.current.forEach((_scene, key) => {
+      if (!activeKeys.has(key)) offscreenSceneMapRef.current.delete(key);
+    });
+    return scenes;
+  }, [items]);
 
   // Keep per-index input textures to pass into effect components
   const [inputTextures, setInputTextures] = useState<Array<THREE.Texture | null>>(
@@ -371,6 +386,12 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
   React.useEffect(() => {
     try { invalidate(); } catch {}
   }, [items, compositionWidth, compositionHeight, invalidate]);
+
+  React.useEffect(() => {
+    lastComputedTexturesRef.current = items.map(() => null);
+    setInputTextures(items.map(() => null));
+    try { invalidate(); } catch {}
+  }, [sceneSignature, items.length, invalidate]);
 
   useFrame(() => {
     // Ensure no automatic clears between passes
@@ -935,7 +956,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
       const params = item.params || {};
       const md: any = (EffectComponent as any)?.metadata || {};
       const itemKey = (item as any).__uniqueKey || `${idx}`;
-      const portalItemKey = `${itemKey}-${idx}`;
+      const portalItemKey = String(itemKey);
       // The layer id is encoded in __uniqueKey as `<kind>-<layerId>` (e.g.
       // `effect-abc123`). We forward it as `__layerId` so effects can read
       // live modulation values via `globalThis.__VJ_LIVE_MOD__` without

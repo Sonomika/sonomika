@@ -46,6 +46,32 @@ function randomUnitVector() {
   return new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, z).normalize();
 }
 
+const ORB_STATE_CACHE = (() => {
+  try {
+    const root = globalThis;
+    root.__SONOMIKA_PULSE_ORB_STATE__ = root.__SONOMIKA_PULSE_ORB_STATE__ || new Map();
+    return root.__SONOMIKA_PULSE_ORB_STATE__;
+  } catch (_) {
+    return new Map();
+  }
+})();
+
+function getPersistentOrbState(key) {
+  const stateKey = String(key || 'default');
+  let state = ORB_STATE_CACHE.get(stateKey);
+  if (!state) {
+    state = {
+      position: new THREE.Vector3(0, 0, 0),
+      velocity: new THREE.Vector3(0.45, 0.25, 0.12),
+      trailPoints: [],
+      seed: Math.random() * 1000,
+      lastPulse: 0,
+    };
+    ORB_STATE_CACHE.set(stateKey, state);
+  }
+  return state;
+}
+
 export default function PulseOrbTrail3D({
   pulse = 0,
   speed = 1.15,
@@ -61,17 +87,19 @@ export default function PulseOrbTrail3D({
   sparkle = 0.35,
   compositionWidth,
   compositionHeight,
+  __layerId,
 }) {
   if (!React || !THREE || !r3f) return null;
   const { useFrame } = r3f;
 
+  const persistentStateRef = useRef(getPersistentOrbState(__layerId || 'unassigned'));
   const orbRef = useRef(null);
   const trailRef = useRef(null);
-  const lastPulseRef = useRef(Number(pulse) || 0);
-  const positionRef = useRef(new THREE.Vector3(0, 0, 0));
-  const velocityRef = useRef(new THREE.Vector3(0.45, 0.25, 0.12));
-  const trailPointsRef = useRef([]);
-  const seedRef = useRef(Math.random() * 1000);
+  const lastPulseRef = useRef(Number.isFinite(Number(persistentStateRef.current.lastPulse)) ? Number(persistentStateRef.current.lastPulse) : (Number(pulse) || 0));
+  const positionRef = useRef(persistentStateRef.current.position);
+  const velocityRef = useRef(persistentStateRef.current.velocity);
+  const trailPointsRef = useRef(persistentStateRef.current.trailPoints);
+  const seedRef = useRef(persistentStateRef.current.seed);
 
   const effectiveW = Math.max(1, Number(compositionWidth) || 1920);
   const effectiveH = Math.max(1, Number(compositionHeight) || 1080);
@@ -124,18 +152,21 @@ export default function PulseOrbTrail3D({
     const impulse = Math.max(0.01, Number(speed) || 1.15);
     velocityRef.current.copy(dir.multiplyScalar(impulse));
     seedRef.current = Math.random() * 1000;
+    persistentStateRef.current.seed = seedRef.current;
     trailPointsRef.current.unshift({
       p: positionRef.current.clone(),
       age: 0,
       z: positionRef.current.z,
       hot: 1,
     });
+    persistentStateRef.current.trailPoints = trailPointsRef.current;
   };
 
   useEffect(() => {
     const next = Number(pulse) || 0;
     if (next !== lastPulseRef.current) {
       lastPulseRef.current = next;
+      persistentStateRef.current.lastPulse = next;
       applyPulse();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -198,6 +229,7 @@ export default function PulseOrbTrail3D({
       hot: flicker,
     });
     trailPointsRef.current = trailPointsRef.current.slice(0, maxTrail);
+    persistentStateRef.current.trailPoints = trailPointsRef.current;
 
     const points = trailPointsRef.current;
     for (let i = 0; i < maxTrail; i++) {

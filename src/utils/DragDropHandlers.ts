@@ -19,6 +19,74 @@ const ensureUniquePath = (dir: string, name: string): string => {
   return `${dir}\\${stamp}_${safe}`;
 };
 
+const getLayerNumber = (layer: any): number | null => {
+  const explicit = Number(layer?.layerNum);
+  if (Number.isFinite(explicit)) return explicit;
+  const match = /^Layer\s+(\d+)$/i.exec(String(layer?.name || '').trim());
+  return match ? Number(match[1]) : null;
+};
+
+const isLayerForNumber = (layer: any, layerNum: number): boolean => {
+  return getLayerNumber(layer) === layerNum;
+};
+
+const getOrCreateReplacementLayer = (column: any, layerNum: number) => {
+  const layers = Array.isArray(column.layers) ? column.layers : [];
+  let layer = layers.find((l: any) => isLayerForNumber(l, layerNum));
+  if (!layer) {
+    layer = createLayer(column.id || column.name || `column-${layerNum}`, layerNum);
+    layers.push(layer);
+  }
+  column.layers = layers.filter((l: any) => l === layer || !isLayerForNumber(l, layerNum));
+  return layer;
+};
+
+const paramsFromDefinitions = (defs: any): Record<string, any> => {
+  if (!Array.isArray(defs)) return defs && typeof defs === 'object' ? { ...defs } : {};
+  const params: Record<string, any> = {};
+  defs.forEach((p: any) => {
+    if (!p?.name) return;
+    params[p.name] = {
+      value: p.value,
+      ...(p.min !== undefined ? { min: p.min } : {}),
+      ...(p.max !== undefined ? { max: p.max } : {}),
+      ...(p.step !== undefined ? { step: p.step } : {}),
+    };
+  });
+  return params;
+};
+
+const applyAssetToLayer = (layer: any, asset: any, layerNum: number) => {
+  layer.asset = asset;
+  layer.assetType = asset.type || 'unknown';
+  layer.name = `Layer ${layerNum}`;
+  layer.layerNum = layerNum;
+
+  // A drop is a replacement, not an additive effect stack.
+  delete layer.effects;
+  layer.params = {};
+
+  if ((asset.type === 'video' || asset.type === 'image') && (layer as any).fitMode == null) {
+    (layer as any).fitMode = 'cover';
+  }
+
+  if (asset.isEffect || asset.type === 'effect' || asset.type === 'p5js' || asset.type === 'threejs') {
+    const effectParams = asset.metadata?.parameters ||
+      asset.effect?.metadata?.parameters ||
+      getDefaultEffectParams(asset.id);
+    const layerParams = paramsFromDefinitions(effectParams);
+
+    layer.effects = [{
+      id: asset.id,
+      name: asset.name,
+      type: 'effect',
+      parameters: effectParams
+    }];
+    layer.params = Object.keys(layerParams).length > 0 ? layerParams : getDefaultEffectParams(asset.id);
+    layer.assetType = 'effect';
+  }
+};
+
 /**
  * If Electron doesn't expose the absolute source path for a dropped file,
  * copy it into Documents/Sonomika/video so the set can be reopened later.
@@ -114,31 +182,8 @@ export const handleDrop = (
       // console.log('🟢 Found column:', column);
       // console.log('🟢 Column layers before:', column.layers);
       
-      // Find or create the layer
-      let layer = column.layers.find((l: any) => 
-        l.name.includes(`Layer ${layerNum}`) || 
-        l.layerNum === layerNum ||
-        l.name === `Layer ${layerNum}`
-      );
-      
-      if (!layer) {
-        // Create new layer
-        layer = createLayer(`Layer ${layerNum}`, layerNum);
-        column.layers.push(layer);
-        // console.log('🆕 Created new layer:', layer);
-      }
-      
-      // Update layer with asset
-      layer.asset = asset;
-      layer.assetType = asset.type || 'unknown';
-      layer.name = `Layer ${layerNum}`;
-      layer.layerNum = layerNum;
-      
-      // Apply default video size to new video/image layers if not explicitly set
-      // Default sizing: Fill
-      if ((asset.type === 'video' || asset.type === 'image') && (layer as any).fitMode == null) {
-        (layer as any).fitMode = 'cover';
-      }
+      const layer = getOrCreateReplacementLayer(column, layerNum);
+      applyAssetToLayer(layer, asset, layerNum);
       
       // console.log('🎯 Layer asset assigned:', {
       //   layerName: layer.name,
@@ -149,35 +194,6 @@ export const handleDrop = (
       //   hasEffect: !!layer.asset.effect,
       //   isSource: layer.asset.isSource
       // });
-      
-      // Set default effect parameters if this is an effect
-      if (asset.isEffect || asset.type === 'effect') {
-        // console.log('🎨 Processing effect drop:', {
-        //   asset,
-        //   metadata: asset.metadata,
-        //   effectMetadata: asset.effect?.metadata,
-        //   isSource: asset.isSource
-        // });
-        
-        // Get parameters from the nested effect object or metadata
-        const effectParams = asset.metadata?.parameters || 
-                           asset.effect?.metadata?.parameters || 
-                           getDefaultEffectParams(asset.id);
-        
-        // console.log('🎨 Effect parameters resolved:', effectParams);
-        
-        layer.effects = [{
-          id: asset.id,
-          name: asset.name,
-          type: 'effect',
-          parameters: effectParams
-        }];
-        
-        // Also set the asset type to indicate this is an effect
-        layer.assetType = 'effect';
-        
-        // console.log('🎨 Layer effects set:', layer.effects);
-      }
       
       // Update the scene
       updateScene(currentSceneId, { columns: currentScene.columns });
@@ -294,20 +310,6 @@ const handleSystemFileDrop = (
   supportedFiles.forEach((file, index) => {
     const targetLayerNum = layerNum + index; // Spread files across layers if multiple
     
-    // Find or create the layer
-    let layer = column.layers.find((l: any) => 
-      l.name.includes(`Layer ${targetLayerNum}`) || 
-      l.layerNum === targetLayerNum ||
-      l.name === `Layer ${targetLayerNum}`
-    );
-    
-    if (!layer) {
-      // Create new layer
-      layer = createLayer(`Layer ${targetLayerNum}`, targetLayerNum);
-      column.layers.push(layer);
-      // console.log('🆕 Created new layer for system file:', layer);
-    }
-    
     // Determine file type
     let assetType = 'unknown';
     if (file.type.startsWith('video/') || ['.mp4', '.mov', '.webm', '.m4v', '.avi', '.mkv'].some(ext => 
@@ -346,15 +348,8 @@ const handleSystemFileDrop = (
       originalFile: file // Keep reference to original file object
     };
     
-    // Update layer with asset
-    layer.asset = asset;
-    layer.assetType = assetType;
-    layer.name = `Layer ${targetLayerNum}`;
-    layer.layerNum = targetLayerNum;
-    // Apply default video size to new video/image layers if not explicitly set
-    if ((assetType === 'video' || assetType === 'image') && (layer as any).fitMode == null) {
-      (layer as any).fitMode = 'cover';
-    }
+    const layer = getOrCreateReplacementLayer(column, targetLayerNum);
+    applyAssetToLayer(layer, asset, targetLayerNum);
     
     // If we couldn't get an absolute path, try copying into Documents/Sonomika/video
     if (!electronAbsPath) {

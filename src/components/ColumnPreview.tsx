@@ -1564,28 +1564,6 @@ const ColumnScene: React.FC<{
         const globalEffectsRenderOrder = [...enabledGlobalEffects].reverse();
 
         chains.forEach((chain, chainIndex) => {
-          const chainKey = chain.map((it) => {
-            if (it.type === 'video') {
-              const v: any = (it as any).video;
-              const lid = (v && (v as any)["__layerKey"]) || 'vid';
-              // Include effective fit mode; fall back to global default if unspecified
-              const fm = (it as any).fitMode || 'cover';
-              const br = (it as any).backgroundRepeat || 'no-repeat';
-              const bsm = (it as any).backgroundSizeMode || 'auto';
-              return `video:${lid}:${fm}:${br}:${bsm}`;
-            }
-            return `${it.type}:${(it as any).effectId || 'eff'}`;
-          }).join('|');
-          // Try to include the layer's row and source column id in the key for uniqueness
-          const rowHint = (() => {
-            try {
-              const vItem: any = (chain || []).find((it: any) => it?.type === 'video');
-              const row = vItem?.video?.__rowNum || vItem?.video?.rowNum || null;
-              const srcCol = vItem?.video?.__sourceColumnId || vItem?.video?.sourceColumnId || null;
-              if (row || srcCol) return `r${row || 'x'}-c${srcCol || 'x'}`;
-            } catch {}
-            return 'r?-c?';
-          })();
           // Append globals at the end of each chain so the panel's top slot renders above lower slots.
           const chainWithGlobals: ChainItem[] = globalEffectsRenderOrder.length > 0
             ? ([...chain, ...globalEffectsRenderOrder.map((ge: any) => {
@@ -1610,7 +1588,7 @@ const ColumnScene: React.FC<{
           const chainVideo = chain.find((it: any) => it?.type === 'video') as Extract<ChainItem, { type: 'video' }> | undefined;
           elements.push(
             <EffectChain
-              key={`chain-${column?.id || 'col'}-${rowHint}-${chainIndex}-${chainKey}-${globalEffectsKey}`}
+              key={`chain-${column?.id || 'col'}-${chainIndex}-${globalEffectsKey}`}
               items={chainWithGlobals}
               compositionWidth={compositionWidth}
               compositionHeight={compositionHeight}
@@ -1876,7 +1854,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
               <ClearOnColumnChange columnId={renderKey} />
               <ColumnScene 
                 // Keep scene stable across row-override changes; props updates handle rerender.
-                key={`scene-${width}x${height}-${renderKey}`}
+                key={`scene-${width}x${height}-${column?.id || 'col'}`}
                 column={column} 
                 renderKey={renderKey}
                 isPlaying={effectiveIsPlaying} 

@@ -3113,6 +3113,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                            }}
                            onDrop={(e) => {
                              e.preventDefault();
+                             e.stopPropagation();
                              e.currentTarget.classList.remove('drag-over');
                              try {
                                const raw = e.dataTransfer.getData('application/json');
@@ -3183,6 +3184,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                            }}
                            onDrop={(e) => {
                              e.preventDefault();
+                             e.stopPropagation();
                              e.currentTarget.classList.remove('drag-over');
                              try {
                                const raw = e.dataTransfer.getData('application/json');
