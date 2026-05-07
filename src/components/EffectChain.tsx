@@ -223,7 +223,11 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
   // old frame ghosting through for ~250ms.
   const hasInitialClearRunRef = useRef(false);
 
-  const sceneKeyForItem = (it: ChainItem, idx: number) => String((it as any).__uniqueKey || `${it.type}-${idx}`);
+  const sceneKeyForItem = (it: ChainItem, idx: number) => {
+    const identity = String((it as any).__uniqueKey || `${it.type}-${idx}`);
+    const effectId = (it.type === 'effect' || it.type === 'source') ? String((it as any).effectId || '') : '';
+    return `${identity}:${effectId}`;
+  };
   const offscreenSceneMapRef = useRef<Map<string, THREE.Scene>>(new Map());
   // Tracks how many frames an offscreen scene has been "warmed up" since
   // creation. Many effects initialise GPU instances (matrices, colors) inside

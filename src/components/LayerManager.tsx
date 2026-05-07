@@ -451,6 +451,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
             if (debugMode) console.log('Crossfade complete, updating previous content to:', targetContent?.columnId);
             // Mark crossfade as complete
             setIsCrossfading(false);
+            setShowPreviousContent(false);
             cancelCrossfadeRef.current = null;
             // Update previous content to the captured target (ready for next crossfade)
             setPreviousPreviewContent(targetContent);
@@ -2178,14 +2179,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
         const getLayerFor = (col: any, ln: number) => {
           if (!col) return null;
           const layers = (col?.layers || []);
-          // Prefer explicit layerNum/name
-          let found = layers.find((l: any) => l?.layerNum === ln || l?.name === `Layer ${ln}`) || null;
-          // Fallback to array index if metadata missing
-          if (!found) {
-            const idx = Math.max(0, Math.min(layers.length - 1, ln - 1));
-            found = layers[idx] || null;
-          }
-          // Normalize layerNum so downstream logic uses row index reliably
+          // Match the grid's row lookup exactly. Falling back by array index can
+          // render a clip whose cell is not active/outlined in the grid.
+          const found = layers.find((l: any) => l?.layerNum === ln || l?.name === `Layer ${ln}`) || null;
+          // Normalize layerNum so downstream logic uses row index reliably.
           if (found && found.layerNum !== ln) {
             return { ...found, layerNum: ln };
           }
@@ -3008,14 +3005,14 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                        })()}
                        onClick={() => {
                          if (!hasAsset) return;
-                         if (rowEmptyInPlaying) {
-                           try {
-                             const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
-                             if (setOverride) setOverride(layerNum, column.id);
-                           } catch {}
-                         } else {
-                           handleLayerClickWrapper(layer, column.id);
+                         try {
+                           const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
+                           if (setOverride) setOverride(layerNum, column.id === playingColumnId ? null : column.id);
+                         } catch {}
+                         if (rowEmptyInPlaying || column.id !== playingColumnId) {
+                           // The clicked cell is now the active source for this row.
                          }
+                         handleLayerClickWrapper(layer, column.id);
                        }}
                        onDoubleClick={() => {
                          if (debugMode) console.log('Double-click detected!', { hasAsset, layer, columnId: column.id, layerNum });
@@ -3128,7 +3125,15 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                              }
                            }}
                          >
-                           <div className="tw-mb-1" onClick={(e) => { e.stopPropagation(); setMiddlePanelTab('layer'); handleLayerClickWrapper(layer, column.id); }}>
+                          <div className="tw-mb-1" onClick={(e) => {
+                            e.stopPropagation();
+                            try {
+                              const setOverride = (useStore as any).getState?.().setActiveLayerOverride as (ln: number, col: string|null) => void;
+                              if (setOverride) setOverride(layerNum, column.id === playingColumnId ? null : column.id);
+                            } catch {}
+                            setMiddlePanelTab('layer');
+                            handleLayerClickWrapper(layer, column.id);
+                          }}>
                              {layer.asset.type === 'image' && (
                                <img
                                  src={getAssetPath(layer.asset)}
