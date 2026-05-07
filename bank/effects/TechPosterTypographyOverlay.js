@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Tech Poster Typography Overlay',
+  name: 'Tech Poster Typography Overlay (HUD)',
   description: 'Animated futuristic poster overlay with bold typography panels, wire objects, labels, arrows, grids, and editorial tech graphics.',
   category: 'Effects',
   author: 'VJ',
