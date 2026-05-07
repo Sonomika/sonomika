@@ -1,7 +1,7 @@
 const React = globalThis.React;
 const THREE = globalThis.THREE;
 const r3f = globalThis.r3f;
-const { useRef, useMemo, useEffect } = React || {};
+const { useRef, useMemo, useEffect, useLayoutEffect } = React || {};
 
 export const metadata = {
   name: 'Glitch Codex (MIDI OUT)',
@@ -232,8 +232,10 @@ export default function GlitchCodexAudioSource({
   const progressFillRef = useRef(null);
   const sectionTickGroupRef = useRef(null);
 
-  // Set matrices once
-  useEffect(() => {
+  // Set matrices synchronously before the first paint so the instances don't
+  // briefly render as 128 unit-sized white planes overlapping at the origin
+  // (which causes a white flash whenever this effect mounts).
+  (useLayoutEffect || useEffect)(() => {
     const mesh = instRef.current;
     if (!mesh) return;
     for (let v = 0; v < VOICE_COUNT; v++) {
@@ -402,9 +404,17 @@ export default function GlitchCodexAudioSource({
       })
     ),
 
-    // Instanced cell grid
+    // Instanced cell grid. count starts at 0 so the default identity matrices
+    // (which would otherwise render every instance as a 1x1 white plane at the
+    // origin) are not drawn before the layout effect populates the matrices.
     React.createElement('instancedMesh', {
-      ref: instRef,
+      ref: (m) => {
+        instRef.current = m;
+        if (m && m.count !== 0 && !m.userData.__inited) {
+          m.count = 0;
+          m.userData.__inited = true;
+        }
+      },
       args: [instGeom, instMat, totalCells],
     }),
 

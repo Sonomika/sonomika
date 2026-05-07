@@ -225,6 +225,15 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
 
   const sceneKeyForItem = (it: ChainItem, idx: number) => String((it as any).__uniqueKey || `${it.type}-${idx}`);
   const offscreenSceneMapRef = useRef<Map<string, THREE.Scene>>(new Map());
+  // Tracks how many frames an offscreen scene has been "warmed up" since
+  // creation. Many effects initialise GPU instances (matrices, colors) inside
+  // a `useEffect` that runs AFTER the first paint, so their very first
+  // rendered frame can show default-identity geometry with the default white
+  // material — a visible white flash on every (re)mount. We render that
+  // first frame to the stage RT but leave the RT cleared instead of running
+  // the offscreen scene render, so the bad first frame is never displayed.
+  const sceneWarmupRef = useRef<Map<string, number>>(new Map());
+  const STAGE_WARMUP_FRAMES = 1;
 
   // Offscreen scenes are keyed by layer/global slot identity so effect
   // components can keep their local refs across row changes.
@@ -238,11 +247,15 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
         scene = new THREE.Scene();
         (scene as any).background = null;
         offscreenSceneMapRef.current.set(key, scene);
+        sceneWarmupRef.current.set(key, 0);
       }
       return scene;
     });
     offscreenSceneMapRef.current.forEach((_scene, key) => {
-      if (!activeKeys.has(key)) offscreenSceneMapRef.current.delete(key);
+      if (!activeKeys.has(key)) {
+        offscreenSceneMapRef.current.delete(key);
+        sceneWarmupRef.current.delete(key);
+      }
     });
     return scenes;
   }, [items]);
@@ -787,13 +800,23 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
         const mixMesh = mixMeshRef.current;
         const baseTex = currentTexture || transparentTexRef.current;
 
+        // Warm-up gate: on the first frame after a stage is freshly mounted,
+        // many effects haven't had their init `useEffect` run yet and would
+        // render default-identity geometry (often white). Clear the RT but
+        // skip the offscreen render, then bump the warm-up counter.
+        const sceneKey = sceneKeyForItem(item, idx);
+        const warmupCount = sceneWarmupRef.current.get(sceneKey) ?? STAGE_WARMUP_FRAMES;
+        const inWarmup = warmupCount < STAGE_WARMUP_FRAMES;
+
         // Render source output (no background) either directly or into scratch for mixing
         gl.setClearColor(0x000000, 0);
         gl.setRenderTarget(needsMix && scratch ? scratch : rt);
         gl.clear(true, true, true);
-        gl.render(offscreenScenes[idx], camera);
+        if (!inWarmup) {
+          gl.render(offscreenScenes[idx], camera);
+        }
 
-        if (needsMix && scratch && mixScene && mixMesh) {
+        if (!inWarmup && needsMix && scratch && mixScene && mixMesh) {
           const mat = mixMesh.material as THREE.ShaderMaterial;
           mat.uniforms.tBase.value = baseTex;
           mat.uniforms.tTop.value = scratch.texture;
@@ -805,6 +828,10 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
 
         gl.setRenderTarget(currentRT);
         gl.setClearColor(prevClear, prevAlpha);
+        if (inWarmup) {
+          sceneWarmupRef.current.set(sceneKey, warmupCount + 1);
+          try { invalidate(); } catch {}
+        }
         currentTexture = rt.texture;
         nextInputTextures[idx] = currentTexture;
       } else if (item.type === 'effect') {
@@ -858,13 +885,24 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
             const mixMesh = mixMeshRef.current;
             const baseTex = currentTexture || transparentTexRef.current;
 
+            // Warm-up gate (see source branch for rationale): skip the
+            // offscreen render for STAGE_WARMUP_FRAMES frames after the
+            // stage is freshly mounted so effects whose init useEffect runs
+            // after the first paint can't leak their default-state white
+            // geometry onto the canvas.
+            const sceneKey = sceneKeyForItem(item, idx);
+            const warmupCount = sceneWarmupRef.current.get(sceneKey) ?? STAGE_WARMUP_FRAMES;
+            const inWarmup = warmupCount < STAGE_WARMUP_FRAMES;
+
             gl.setClearColor(0x000000, 0);
             gl.setRenderTarget(needsMix && scratch ? scratch : rt);
             // Clear depth/stencil to prevent earlier frames from blocking renders
             gl.clear(true, true, true);
-            gl.render(offscreenScenes[idx], camera);
+            if (!inWarmup) {
+              gl.render(offscreenScenes[idx], camera);
+            }
 
-            if (needsMix && scratch && mixScene && mixMesh) {
+            if (!inWarmup && needsMix && scratch && mixScene && mixMesh) {
               const mat = mixMesh.material as THREE.ShaderMaterial;
               mat.uniforms.tBase.value = baseTex;
               mat.uniforms.tTop.value = scratch.texture;
@@ -876,7 +914,15 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
 
             gl.setRenderTarget(currentRT);
             gl.setClearColor(prevClear, prevAlpha);
-            currentTexture = rt.texture;
+            if (inWarmup) {
+              sceneWarmupRef.current.set(sceneKey, warmupCount + 1);
+              try { invalidate(); } catch {}
+              // During warm-up, don't propagate the cleared RT as the
+              // current texture — keep the previous stage's content so a
+              // stack of fresh effects doesn't all flush to transparent.
+            } else {
+              currentTexture = rt.texture;
+            }
           }
         }
         // If effect not loaded yet, keep previous texture (don't update currentTexture)
