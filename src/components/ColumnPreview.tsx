@@ -590,6 +590,8 @@ const ColumnScene: React.FC<{
   }>({ images: new Map(), videos: new Map() });
   const pendingRestartRef = useRef<boolean>(false);
   const lastRenderKeyRestartRef = useRef<string | null>(null);
+  const lastVideoLayerSignaturesRef = useRef<Map<string, string>>(new Map());
+  const pendingVideoLayerRestartsRef = useRef<Map<string, string>>(new Map());
   const firstFrameReadyRef = useRef<boolean>(false);
   const frameCounterRef = useRef<number>(0);
   
@@ -929,7 +931,7 @@ const ColumnScene: React.FC<{
   }, [isPlaying, suppressPause, assets.videos, column.layers, column?.id]);
 
   // A visible "cell" can change while transport stays playing (row overrides, OSC/sequence
-  // triggers). Treat each rendered cell/column key as a fresh launch for video layers.
+  // triggers). Restart only video rows whose own source changed; persistent rows keep playing.
   useEffect(() => {
     if (!restartVideosOnRenderKeyChange) return;
     if (isTimelineMode || column?.id === 'timeline-preview') return;
@@ -937,23 +939,37 @@ const ColumnScene: React.FC<{
     if (lastRenderKeyRestartRef.current === renderKey) return;
 
     lastRenderKeyRestartRef.current = renderKey;
-    let handledAny = false;
+    const previous = lastVideoLayerSignaturesRef.current;
+    const next = new Map<string, string>();
 
     try {
       column.layers.forEach((layer: any) => {
         if (!layer?.asset || layer.asset.type !== 'video') return;
+        const rowKey = String(layer.layerNum ?? layer.name ?? layer.id ?? layer.asset.id);
+        const signature = [
+          layer.id || '',
+          layer.asset.id || '',
+          layer.asset.path || '',
+          layer.asset.filePath || '',
+        ].join(':');
+        next.set(rowKey, signature);
+        if (previous.size > 0 && previous.get(rowKey) === signature) return;
         const video = assets.videos.get(layer.asset.id);
-        if (!video) return;
+        if (!video) {
+          if (previous.size > 0) {
+            pendingVideoLayerRestartsRef.current.set(rowKey, signature);
+          }
+          return;
+        }
         try { video.currentTime = 0; } catch {}
         try {
           const p = video.play();
           if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
         } catch {}
-        handledAny = true;
       });
     } catch {}
 
-    pendingRestartRef.current = !handledAny;
+    lastVideoLayerSignaturesRef.current = next;
   }, [restartVideosOnRenderKeyChange, isTimelineMode, isPlaying, renderKey, column?.id, column.layers, assets.videos]);
 
   // Apply per-layer playback modes (Random / Ping Pong / Reverse)
@@ -1220,6 +1236,25 @@ const ColumnScene: React.FC<{
 
   // If assets arrive after a columnPlay, complete pending restart
   useEffect(() => {
+    if (pendingVideoLayerRestartsRef.current.size > 0) {
+      column.layers.forEach((l: any) => {
+        if (!l?.asset || l.asset.type !== 'video') return;
+        const rowKey = String(l.layerNum ?? l.name ?? l.id ?? l.asset.id);
+        const signature = [
+          l.id || '',
+          l.asset.id || '',
+          l.asset.path || '',
+          l.asset.filePath || '',
+        ].join(':');
+        if (pendingVideoLayerRestartsRef.current.get(rowKey) !== signature) return;
+        const v = assets.videos.get(l.asset.id);
+        if (!v) return;
+        try { v.currentTime = 0; } catch {}
+        try { const p = v.play(); if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {}); } catch {}
+        pendingVideoLayerRestartsRef.current.delete(rowKey);
+      });
+    }
+
     if (!pendingRestartRef.current) return;
     let handledAny = false;
     column.layers.forEach((l: any) => {
