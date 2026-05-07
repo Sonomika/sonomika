@@ -274,6 +274,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     try {
       Object.entries(modulatedValues || {}).forEach(([key, val]: any) => {
         if (key.startsWith(`${lid}-`) && val && typeof val.modulatedValue === 'number') {
+          const ageMs = Date.now() - Number(val.timestamp || 0);
+          if (!Number.isFinite(ageMs) || ageMs > 1500) return;
           const pname = key.slice(lid.length + 1);
           out[pname] = Number(val.modulatedValue);
         }
@@ -282,9 +284,9 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     return out;
   }, [modulatedValues, selectedLayer?.id]);
 
-  // When timeline is playing, mirror live modulated values into local UI state
+  // Mirror live LFO values into local UI state so selected-layer sliders move
+  // while the LFO is active in both column and timeline modes.
   React.useEffect(() => {
-    if (!showTimeline || !isTimelinePlaying) return;
     if (!selectedLayer) return;
     const keys = Object.keys(liveModulatedByParam);
     if (keys.length === 0) return;
@@ -293,7 +295,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       keys.forEach((k) => { next[k] = liveModulatedByParam[k]; });
       return next;
     });
-  }, [showTimeline, isTimelinePlaying, selectedLayer?.id, liveModulatedByParam]);
+  }, [selectedLayer?.id, liveModulatedByParam]);
 
   const handleFitModeChange = (mode: 'cover' | 'contain' | 'stretch' | 'none' | 'tile') => {
     // Update video options store

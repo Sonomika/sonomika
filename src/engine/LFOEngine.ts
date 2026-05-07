@@ -3,6 +3,7 @@ import { useLFOStore, type LFOState, type LFOMapping } from '../store/lfoStore';
 // BPMManager removed; use central Clock
 import { getClock } from './Clock';
 import { getEffect } from '../utils/effectRegistry';
+import { getEffectComponentSync } from '../utils/EffectLoader';
 import { randomizeEffectParams as globalRandomize } from '../utils/ParameterRandomizer';
 import { setLiveModulationValue, clearLiveModulationLayer } from '../utils/liveModulation';
 
@@ -446,7 +447,7 @@ class LFOEngineImpl {
           const isEffect = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;
           const isTimelinePlaying = (window as any).__vj_timeline_is_playing__ === true;
           if (isEffect && effectId) {
-            const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
+            const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || getEffectComponentSync(effectId) || null;
             const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
             if (metadata?.parameters) {
               const unlockedDefs = (metadata.parameters as any[]).filter((p: any) => !(layer.params as any)?.[p.name]?.locked);
@@ -500,7 +501,7 @@ class LFOEngineImpl {
           let updatedParams = { ...(layer.params || {}) } as Record<string, any>;
           const isTimelinePlaying = (window as any).__vj_timeline_is_playing__ === true;
           if (isEffect && effectId) {
-            const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
+            const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || getEffectComponentSync(effectId) || null;
             const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
             const paramDef = metadata?.parameters?.find((p: any) => p?.name === actualParamName);
             if (paramDef) {
