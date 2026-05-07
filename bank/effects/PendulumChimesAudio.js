@@ -5,7 +5,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Pendulum Chimes (MIDI)',
+  name: 'Pendulum Chimes (MIDI OUT)',
   description: 'Rows of swinging bobs at harmonic frequencies. Each bob plays its own note when it crosses the center strike line, so every visible element is one voice.',
   category: 'Effects',
   author: 'VJ',

@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Mirror Crash Sequencer (MIDI)',
+  name: 'Mirror Crash Sequencer (MIDI OUT)',
   description: 'A stark monochrome sequencer where mirrored packets crash at the center and split outward like data impacts.',
   category: 'Effects',
   author: 'VJ',

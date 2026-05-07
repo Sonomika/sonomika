@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Game of Life Drum Machine (MIDI)',
+  name: 'Game of Life Drum Machine (MIDI OUT)',
   description: 'A Conway-style 16-step drum machine where living cells trigger drum MIDI notes and mutate each loop.',
   category: 'Effects',
   author: 'VJ',

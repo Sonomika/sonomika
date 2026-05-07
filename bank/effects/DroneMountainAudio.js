@@ -5,7 +5,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Drone Mountain (MIDI)',
+  name: 'Drone Mountain (MIDI OUT)',
   description: '3D line mountain rotating and glitching with a beat-locked MIDI burst and crackle texture.',
   category: 'Effects',
   author: 'VJ',

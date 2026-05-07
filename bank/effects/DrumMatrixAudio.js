@@ -5,7 +5,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Drum Matrix (MIDI)',
+  name: 'Drum Matrix (MIDI OUT)',
   description: '16-step drum-machine grid locked to the project BPM. Rows are fixed drum voices (kick, snare, toms, rim, clap, closed hat, open hat). A playhead sweeps left to right and triggers every lit cell.',
   category: 'Effects',
   author: 'VJ',

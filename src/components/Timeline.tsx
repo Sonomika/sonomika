@@ -2643,8 +2643,12 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
       // Clear seek debounce refs so next play starts fresh
       audioLastSeekRef.current.clear();
     } catch {}
-    // Sync React state to the final imperative time so UI (labels, etc) snaps correctly on stop.
-    try { setCurrentTime(currentTimeRef.current); } catch {}
+    // Stop means return the transport/playhead to the beginning.
+    const resetTime = 0;
+    try { setPlayheadTimeImmediate(resetTime); } catch {
+      try { currentTimeRef.current = resetTime; } catch {}
+      try { setCurrentTime(resetTime); } catch {}
+    }
     setIsPlaying(false);
     try { document.dispatchEvent(new Event('timelineStop')); } catch {}
     // Ensure all playing media stops when timeline stops
@@ -2654,7 +2658,7 @@ export const Timeline: React.FC<TimelineProps> = ({ onClose: _onClose, onPreview
     try {
       document.dispatchEvent(new CustomEvent('videoStop', { detail: { type: 'videoStop', allColumns: true, source: 'timeline' } }));
     } catch {}
-    try { publishTimelineRuntime(currentTimeRef.current, false, durationRef.current || duration); } catch {}
+    try { publishTimelineRuntime(resetTime, false, durationRef.current || duration); } catch {}
   };
 
   // On mount, force timeline to be stopped (prevents "playing after refresh" cases).

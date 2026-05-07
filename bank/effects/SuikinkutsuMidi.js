@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Suikinkutsu (MIDI)',
+  name: 'Suikinkutsu (MIDI OUT)',
   description: 'Japanese "water koto cave" as a MIDI source. Drops fall onto a still water surface. Horizontal position maps to pitch.',
   category: 'Effects',
   author: 'VJ',

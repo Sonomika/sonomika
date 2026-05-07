@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Impact MIDI Probe (MIDI)',
+  name: 'Impact MIDI Probe (MIDI OUT)',
   description: 'Single bouncing ball test source. Each floor impact should send exactly one MIDI note.',
   category: 'Effects',
   author: 'VJ',

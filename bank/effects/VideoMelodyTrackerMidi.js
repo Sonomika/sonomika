@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Video Melody Tracker (MIDI)',
+  name: 'Video Melody Tracker (MIDI OUT)',
   description: 'Tracks the strongest color or brightness area in the layer underneath and turns its motion into quantized musical MIDI notes.',
   category: 'Effects',
   author: 'VJ',

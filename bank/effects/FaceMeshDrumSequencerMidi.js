@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'FaceMesh Drum Sequencer (MIDI)',
+  name: 'FaceMesh Drum Sequencer (MIDI OUT)',
   description: 'Face tracking drives an 8-voice MIDI drum sequencer. The grid lives on the face — voice zones light up across the landmark mesh as each hit fires.',
   category: 'Effects',
   author: 'VJ',

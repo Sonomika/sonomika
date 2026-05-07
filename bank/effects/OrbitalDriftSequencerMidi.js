@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Orbital Drift Sequencer (MIDI)',
+  name: 'Orbital Drift Sequencer (MIDI OUT)',
   description:
     'A circular MIDI sequencer where orbiting particles drift across a scan beam and trigger evolving pentatonic notes.',
   category: 'Effects',

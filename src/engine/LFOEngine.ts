@@ -480,6 +480,46 @@ class LFOEngineImpl {
       }
       if (!actualParamName) return;
 
+      const effectIdForParam: string | undefined = (layer as any)?.asset?.id || (layer as any)?.asset?.name;
+      const isEffectForParam = (layer as any)?.type === 'effect' || (layer as any)?.asset?.isEffect;
+      const effectComponentForParam = isEffectForParam && effectIdForParam
+        ? (getEffect(effectIdForParam) || getEffect(`${effectIdForParam}Effect`) || getEffectComponentSync(effectIdForParam) || null)
+        : null;
+      const metadataForParam: any = effectComponentForParam ? (effectComponentForParam as any).metadata : null;
+      const paramDefForTarget = metadataForParam?.parameters?.find((p: any) => p?.name === actualParamName);
+
+      if (paramDefForTarget?.type === 'button') {
+        const prev = this.prevNormByMapping.get(mapping.id) ?? 0;
+        this.prevNormByMapping.set(mapping.id, normalizedLFO);
+        const threshold = 0.9;
+        let shouldFire = isRandomMode ? true : (prev <= threshold && normalizedLFO > threshold);
+        if (!isRandomMode && shouldFire) {
+          try {
+            const lfo = useLFOStore.getState().lfoStateByLayer[layer.id] as any;
+            const lfoSkip = Math.max(0, Math.min(100, Number(lfo?.lfoSkipPercent || 0)));
+            if (Math.random() * 100 < lfoSkip) shouldFire = false;
+          } catch {}
+        }
+        if (shouldFire) {
+          const nextValue = (Number((layer.params || {})[actualParamName]?.value ?? paramDefForTarget.value ?? 0) || 0) + 1;
+          const isTimelinePlaying = (window as any).__vj_timeline_is_playing__ === true;
+          if (isTimelinePlaying) {
+            const clipId = String((layer as any).clipId || String(layer.id).replace(/^timeline-layer-/, ''));
+            try { document.dispatchEvent(new CustomEvent('timelineModulate', { detail: { clipId, paramName: actualParamName, value: nextValue } })); } catch {}
+          } else {
+            pendingParams = {
+              ...pendingParams,
+              [actualParamName]: {
+                ...(pendingParams[actualParamName] || {}),
+                value: nextValue,
+              },
+            };
+            anyChanged = true;
+          }
+        }
+        return;
+      }
+
       if (isRandomizeTarget) {
         const prev = this.prevNormByMapping.get(mapping.id) ?? 0;
         this.prevNormByMapping.set(mapping.id, normalizedLFO);

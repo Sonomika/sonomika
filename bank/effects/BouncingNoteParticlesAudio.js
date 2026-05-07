@@ -5,7 +5,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Bouncing Note Particles (MIDI)',
+  name: 'Bouncing Note Particles (MIDI OUT)',
   description: 'Circles bounce off each other and the walls; a note plays only when two circles hit (not on wall bounce).',
   category: 'Effects',
   author: 'VJ',

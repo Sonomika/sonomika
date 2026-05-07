@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Phase Lattice Techno Melody (MIDI)',
+  name: 'Phase Lattice Techno Melody (MIDI OUT)',
   description: 'A minimal hypnotic techno melody generator: sparse notes on a grid are played by several offset clocks that slowly phase against each other.',
   category: 'Effects',
   author: 'VJ',

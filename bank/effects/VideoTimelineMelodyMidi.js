@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Video Timeline Melody (MIDI)',
+  name: 'Video Timeline Melody (MIDI OUT)',
   description: 'A musical timeline scanner: a left-to-right playhead tracks the strongest point in the current video slice and sends quantized MIDI notes.',
   category: 'Effects',
   author: 'VJ',

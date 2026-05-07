@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Plant Growth Sequencer (MIDI)',
+  name: 'Plant Growth Sequencer (MIDI OUT)',
   description: 'A circular plant sequencer where stems grow endlessly outward from the center and fire pentatonic MIDI notes as a rotating scan light passes.',
   category: 'Effects',
   author: 'VJ',

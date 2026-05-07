@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Wireframe Mountain Sequencer (MIDI)',
+  name: 'Wireframe Mountain Sequencer (MIDI OUT)',
   description: 'A rotating layered contour mountain where a vertical scan slice lights ridge points and sends MIDI.',
   category: 'Effects',
   author: 'VJ',

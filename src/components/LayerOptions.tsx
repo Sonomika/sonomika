@@ -958,6 +958,24 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                       {/* Label (stacks above on small screens) */}
                       <label className="tw-text-xs tw-uppercase tw-text-neutral-400 tw-w-full xxl:tw-w-[160px] xxl:tw-shrink-0">{param.description || param.name}</label>
 
+                      {param.type === 'button' && (
+                        <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap">
+                          <button
+                            type="button"
+                            className={`tw-rounded tw-px-4 tw-py-2 tw-font-bold tw-transition-colors tw-min-w-[90px] tw-appearance-none tw-border tw-border-neutral-700 tw-shadow-none tw-outline-none focus:tw-outline-none focus:tw-ring-0 focus:tw-shadow-none tw-bg-neutral-800 tw-text-neutral-100 hover:tw-bg-neutral-700 ${isLocked ? 'tw-opacity-50' : ''}`}
+                            onClick={() => {
+                              if (isLocked) return;
+                              const nextValue = (Number(currentValue) || 0) + 1;
+                              setLocalParamValues(prev => ({ ...prev, [param.name]: nextValue }));
+                              handleEffectParamChange(param.name, nextValue);
+                            }}
+                            disabled={isLocked}
+                          >
+                            Pulse
+                          </button>
+                        </div>
+                      )}
+
                       {/* Numeric inline: value, +/- and slider in one row */}
                       {param.type === 'number' && (
                         <div className="tw-w-full tw-flex tw-items-center tw-gap-2 tw-flex-nowrap tw-min-w-0">

@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Kinetic Bloom Arpeggiator (MIDI)',
+  name: 'Kinetic Bloom Arpeggiator (MIDI OUT)',
   description: 'An arpeggiator visualized as a clear flat note chart with a moving playhead.',
   category: 'Effects',
   author: 'VJ',

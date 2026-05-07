@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useState, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Snake Note Hunter (MIDI)',
+  name: 'Snake Note Hunter (MIDI OUT)',
   description: 'A snake patrols a board and eats glowing note pellets. Every pellet eaten sends one MIDI note.',
   category: 'Effects',
   author: 'VJ',

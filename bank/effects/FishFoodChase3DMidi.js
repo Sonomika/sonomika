@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Fish Food Chase 3D (MIDI)',
+  name: 'Fish Food Chase 3D (MIDI OUT)',
   description: 'A 3D version of Fish Food Chase: fish swim through depth, hunt glowing food, and fire MIDI notes when they eat.',
   category: 'Effects',
   author: 'VJ',

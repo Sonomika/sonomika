@@ -51,6 +51,9 @@ export function randomizeEffectParams(
 			const min = typeof param.min === 'number' ? param.min : 0;
 			const max = typeof param.max === 'number' ? param.max : 1;
 			newValue = randomInRange(min, max, param.step);
+		} else if (type === 'button') {
+			const current = Number((currentParams as any)?.[name]?.value ?? param.value ?? 0);
+			newValue = (Number.isFinite(current) ? current : 0) + 1;
 		} else if (type === 'boolean') {
 			newValue = Math.random() < 0.5;
 		} else if (type === 'select') {

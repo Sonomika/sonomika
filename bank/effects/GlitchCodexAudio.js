@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Glitch Codex (MIDI)',
+  name: 'Glitch Codex (MIDI OUT)',
   description: 'Auto-composing glitch drum machine.',
   category: 'Effects',
   author: 'VJ',

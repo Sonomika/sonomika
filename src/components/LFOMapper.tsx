@@ -593,11 +593,13 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
         // Global randomize-all entry
         options.push({ value: `${metadata.name || effectId} - ${RANDOMIZE_ALL}`, label: `Randomise Button` });
         metadata.parameters
-          .filter((p: any) => p?.type === 'number')
+          .filter((p: any) => p?.type === 'number' || p?.type === 'button')
           .forEach((p: any) => {
             const labelBase = `${metadata.name || 'Effect'} - ${p.description || humanize(p.name)}`;
             options.push({ value: `${metadata.name || effectId} - ${p.name}`, label: labelBase });
-            options.push({ value: `${metadata.name || effectId} - ${p.name}${RANDOMIZE_SUFFIX}`, label: `${labelBase} (Randomize)` });
+            if (p?.type === 'number') {
+              options.push({ value: `${metadata.name || effectId} - ${p.name}${RANDOMIZE_SUFFIX}`, label: `${labelBase} (Randomize)` });
+            }
           });
         return options;
       }
@@ -832,6 +834,8 @@ export const LFOMapper: React.FC<LFOMapperProps> = ({ selectedLayer, onUpdateLay
                                   const defMin = typeof def.min === 'number' ? def.min : 0;
                                   const defMax = typeof def.max === 'number' ? def.max : 100;
                                   updateMappingForLayerMode(lid, mapping.id, { parameter: newParam, min: defMin, max: defMax }, showTimeline);
+                                } else if (def && def.type === 'button') {
+                                  updateMappingForLayerMode(lid, mapping.id, { parameter: newParam, min: 0, max: 1 }, showTimeline);
                                 } else {
                                   updateMappingForLayerMode(lid, mapping.id, { parameter: newParam }, showTimeline);
                                 }

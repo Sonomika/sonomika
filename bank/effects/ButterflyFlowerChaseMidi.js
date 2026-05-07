@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Butterfly Flower Chase (MIDI)',
+  name: 'Butterfly Flower Chase (MIDI OUT)',
   description: 'Butterflies flutter through a flower field and send melodic MIDI notes when they sip nectar.',
   category: 'Effects',
   author: 'VJ',

@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Monochrome Slit Sequencer (MIDI)',
+  name: 'Monochrome Slit Sequencer (MIDI OUT)',
   description: 'A minimal black-and-white glitch sequencer made of barcode slits, scan beams, and jump-cut motion.',
   category: 'Effects',
   author: 'VJ',

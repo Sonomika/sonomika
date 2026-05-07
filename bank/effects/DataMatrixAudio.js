@@ -5,7 +5,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Data Matrix (MIDI)',
+  name: 'Data Matrix (MIDI OUT)',
   description: 'Scanning binary grid test-pattern works. A vertical playhead sweeps left to right; every lit cell it crosses fires a precisely pitched sine pulse (row = frequency).',
   category: 'Effects',
   author: 'VJ',

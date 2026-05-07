@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useRef, useMemo, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Helix Crown Sequencer Flat (MIDI)',
+  name: 'Helix Crown Sequencer Flat (MIDI OUT)',
   description: 'A flat minimal overlay sequencer: concentric rings of note dots with a clean radial sweep that fires MIDI notes.',
   category: 'Effects',
   author: 'VJ',

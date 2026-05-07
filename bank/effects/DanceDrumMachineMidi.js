@@ -4,7 +4,7 @@ const r3f = globalThis.r3f;
 const { useMemo, useRef, useEffect } = React || {};
 
 export const metadata = {
-  name: 'Dance Drum Machine (MIDI)',
+  name: 'Dance Drum Machine (MIDI OUT)',
   description: 'Simple automatic drum MIDI machine with house, techno, breakbeat, DnB, garage, disco, and trap patterns.',
   category: 'Effects',
   author: 'VJ',
