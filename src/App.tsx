@@ -59,6 +59,10 @@ declare global {
         column?: number;
         action: 'clip-launch' | 'column-launch' | 'stop';
       }) => void) => (() => void) | void;
+      onOscMessage?: (handler: (payload: {
+        address: string;
+        args?: Array<string | number | boolean | null>;
+      }) => void) => (() => void) | void;
     };
     electronAPI?: {
       getScreenSizes?: () => Promise<Array<{width: number, height: number}>>;
@@ -221,6 +225,20 @@ function App() {
     return () => {
       window.removeEventListener('dragend', stop);
       window.removeEventListener('drop', stop);
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = window.electron?.onOscMessage?.((payload) => {
+      try {
+        MIDIProcessor.getInstance().handleOscMessage(payload?.address || '', payload?.args || []);
+      } catch (error) {
+        console.warn('OSC parameter mapping failed:', error, payload);
+      }
+    });
+
+    return () => {
+      try { unsubscribe?.(); } catch {}
     };
   }, []);
   const { recordSettings, setRecordSettings } = useStore() as any;

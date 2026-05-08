@@ -173,6 +173,23 @@ try {
                 }
                 catch (_a) { }
             };
+        },
+        onOscMessage: (handler) => {
+            const listener = (_event, payload) => {
+                try {
+                    handler && handler(payload);
+                }
+                catch (e) {
+                    console.warn('Preload: onOscMessage handler failed', e);
+                }
+            };
+            electron_1.ipcRenderer.on('osc:message', listener);
+            return () => {
+                try {
+                    electron_1.ipcRenderer.removeListener('osc:message', listener);
+                }
+                catch (_a) { }
+            };
         }
     });
 

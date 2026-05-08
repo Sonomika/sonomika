@@ -120,6 +120,11 @@ type OscClipLaunchPayload = {
   action: 'clip-launch' | 'column-launch' | 'stop';
 };
 
+type OscMessagePayload = {
+  address: string;
+  args: OscArgument[];
+};
+
 function ga4FlushActiveTime(nowMs: number) {
   if (ga4ActiveSinceMs != null) {
     const delta = Math.max(0, nowMs - ga4ActiveSinceMs);
@@ -509,6 +514,10 @@ function parseOscPacket(buffer: Buffer): Array<{ address: string; args: OscArgum
         if (offset + 4 > msg.length) break;
         args.push(msg.readFloatBE(offset));
         offset += 4;
+      } else if (type === 'd') {
+        if (offset + 8 > msg.length) break;
+        args.push(msg.readDoubleBE(offset));
+        offset += 8;
       } else if (type === 's') {
         const stringPart = readOscString(msg, offset);
         if (!stringPart) break;
@@ -636,6 +645,14 @@ function startOscServer(port: number = oscInputPort, host: string = oscInputHost
   server.on('message', (msg) => {
     try {
       for (const message of parseOscPacket(msg)) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          const rawPayload: OscMessagePayload = {
+            address: message.address,
+            args: message.args,
+          };
+          mainWindow.webContents.send('osc:message', rawPayload);
+        }
+
         const payload = normalizeOscClipLaunch(message.address, message.args);
         if (!payload) continue;
         if (mainWindow && !mainWindow.isDestroyed()) {

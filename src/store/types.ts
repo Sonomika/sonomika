@@ -71,11 +71,12 @@ export interface Scene {
 
 export interface MIDIMapping {
   // Input type and addressing
-  // 'note' and 'cc' use channel+number; 'key' uses key/modifiers
-  type: 'note' | 'cc' | 'key';
+  // 'note' and 'cc' use channel+number; 'key' uses key/modifiers; 'osc' uses address
+  type: 'note' | 'cc' | 'key' | 'osc';
   channel?: number; // 1-16 for MIDI
   number?: number;  // note number (0-127) or CC number (0-127)
   key?: string;     // KeyboardEvent.key (case-sensitive from browser)
+  address?: string; // OSC address, e.g. /composition/layers/1/dashboard/link1
   ctrl?: boolean;
   shift?: boolean;
   alt?: boolean;

@@ -1,10 +1,47 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Input, Button } from './ui';
+import { Input, Button, Label, Select } from './ui';
 import { Switch } from './ui/switch';
 import { useStore } from '../store/store';
+import { MIDIMapping } from '../store/types';
+import { getEffectComponentSync } from '../utils/EffectLoader';
 
 const clampPort = (value: unknown): number => {
   return Math.max(1, Math.min(65535, Math.floor(Number(value) || 7000)));
+};
+
+const useLayerParamOptions = (selectedLayer: any) => {
+  return useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    if (!selectedLayer) return options;
+
+    options.push({ value: 'opacity', label: 'Opacity' });
+
+    const isEffect = selectedLayer?.type === 'effect' || selectedLayer?.asset?.isEffect;
+    const effectId: string | undefined =
+      selectedLayer?.asset?.id || selectedLayer?.asset?.name || selectedLayer?.asset?.effectId;
+    if (isEffect && effectId) {
+      const effectComponent = getEffectComponentSync(effectId);
+      const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
+      if (metadata?.parameters && Array.isArray(metadata.parameters)) {
+        metadata.parameters
+          .filter((p: any) => p?.type === 'number' || p?.type === 'button')
+          .forEach((p: any) => {
+            const label = p.description || p.name;
+            options.push({ value: p.name, label });
+          });
+        return options;
+      }
+    }
+
+    Object.keys(selectedLayer.params || {})
+      .filter((k) => typeof (selectedLayer.params?.[k]?.value) === 'number')
+      .forEach((k) => {
+        if (!options.some((option) => option.value === k)) {
+          options.push({ value: k, label: k });
+        }
+      });
+    return options;
+  }, [selectedLayer]);
 };
 
 export const OSCSettings: React.FC = () => {
@@ -13,6 +50,11 @@ export const OSCSettings: React.FC = () => {
     oscInputPort,
     setOscInputEnabled,
     setOscInputPort,
+    midiMappings,
+    setMIDIMappings,
+    selectedLayerId,
+    scenes,
+    currentSceneId,
   } = useStore() as any;
 
   const enabled = oscInputEnabled !== false;
@@ -20,6 +62,11 @@ export const OSCSettings: React.FC = () => {
   const [draftPort, setDraftPort] = useState(String(port));
   const [ipAddress, setIpAddress] = useState('127.0.0.1');
   const [status, setStatus] = useState('');
+  const [oscAddress, setOscAddress] = useState('/composition/layers/1/dashboard/link1');
+  const [param, setParam] = useState('');
+  const [learn, setLearn] = useState(false);
+  const [lastOscAddress, setLastOscAddress] = useState('');
+  const [lastOscValue, setLastOscValue] = useState('');
 
   const hasElectronOsc = useMemo(() => {
     try {
@@ -29,6 +76,30 @@ export const OSCSettings: React.FC = () => {
       return false;
     }
   }, []);
+  const hasOscMessageListener = useMemo(() => {
+    try {
+      return Boolean((window as any).electron?.onOscMessage);
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const selectedLayer = useMemo(() => {
+    const scene = (scenes || []).find((s: any) => s.id === currentSceneId);
+    if (!scene || !selectedLayerId) return null;
+
+    for (const col of scene.columns || []) {
+      const layer = (col.layers || []).find((l: any) => l.id === selectedLayerId);
+      if (layer) return layer;
+    }
+    return null;
+  }, [scenes, currentSceneId, selectedLayerId]);
+
+  const paramOptions = useLayerParamOptions(selectedLayer);
+  const mappings = (midiMappings as MIDIMapping[]) || [];
+  const oscLayerMappings = mappings
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => m.type === 'osc' && (m.target as any)?.type === 'layer');
 
   const applyOscSettings = async (nextEnabled = enabled, nextPort = port) => {
     const cleanPort = clampPort(nextPort);
@@ -62,6 +133,30 @@ export const OSCSettings: React.FC = () => {
   }, [port]);
 
   useEffect(() => {
+    if (!param && paramOptions.length > 0) {
+      setParam(paramOptions[0].value);
+    }
+  }, [paramOptions, param]);
+
+  useEffect(() => {
+    const unsubscribe = (window as any).electron?.onOscMessage?.((payload: any) => {
+      const address = String(payload?.address || '');
+      if (!address) return;
+      setLastOscAddress(address);
+      const firstArg = Array.isArray(payload?.args) ? payload.args[0] : undefined;
+      setLastOscValue(firstArg === undefined ? 'no value' : String(firstArg));
+      if (learn) {
+        setOscAddress(address);
+        setLearn(false);
+      }
+    });
+
+    return () => {
+      try { unsubscribe?.(); } catch {}
+    };
+  }, [learn]);
+
+  useEffect(() => {
     if (!hasElectronOsc) return;
     let cancelled = false;
 
@@ -84,6 +179,28 @@ export const OSCSettings: React.FC = () => {
 
   const commitPort = () => {
     applyOscSettings(enabled, clampPort(draftPort));
+  };
+
+  const addMapping = () => {
+    const cleanAddress = String(oscAddress || '').trim();
+    if (!selectedLayer || !selectedLayerId || !param || !cleanAddress.startsWith('/')) return;
+
+    const next: MIDIMapping = {
+      type: 'osc',
+      address: cleanAddress,
+      enabled: true,
+      target: {
+        type: 'layer',
+        id: selectedLayerId,
+        param,
+      } as any,
+    };
+
+    setMIDIMappings([...(mappings || []), next]);
+  };
+
+  const removeMappingAt = (idx: number) => {
+    setMIDIMappings((mappings || []).filter((_, i) => i !== idx));
   };
 
   return (
@@ -133,6 +250,78 @@ export const OSCSettings: React.FC = () => {
       {status && (
         <div className="tw-text-xs tw-text-neutral-400">{status}</div>
       )}
+
+      <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
+        <div className="tw-space-y-1">
+          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Map OSC to Layer Sliders</h4>
+          <p className="tw-text-xs tw-text-neutral-500">
+            Use a Showsync Parameter Forwarder destination like /composition/layers/1/dashboard/link1.
+          </p>
+        </div>
+
+        {!hasOscMessageListener ? (
+          <div className="tw-text-sm tw-text-neutral-400">OSC parameter mapping is available in the Electron app.</div>
+        ) : !selectedLayer ? (
+          <div className="tw-text-sm tw-text-neutral-400">Select a layer to map its sliders to OSC addresses.</div>
+        ) : (
+          <>
+            <div className="tw-grid tw-grid-cols-2 tw-gap-2">
+              <div className="tw-space-y-1">
+                <Label className="tw-text-xs">Parameter</Label>
+                <Select value={param} onChange={(v) => setParam(String(v))} options={paramOptions} />
+              </div>
+              <div className="tw-space-y-1">
+                <Label className="tw-text-xs">OSC Address</Label>
+                <Input
+                  value={oscAddress}
+                  onChange={(event) => setOscAddress(event.target.value)}
+                  className="tw-bg-neutral-800 tw-border-neutral-700"
+                />
+              </div>
+            </div>
+            <div className="tw-flex tw-flex-wrap tw-items-center tw-gap-2">
+              <Button variant="secondary" onClick={() => setLearn((v) => !v)}>
+                {learn ? 'Listening...' : 'Learn Address'}
+              </Button>
+              <Button onClick={addMapping} disabled={!param || !oscAddress.trim().startsWith('/')}>
+                Add Mapping
+              </Button>
+              {lastOscAddress && (
+                <div className="tw-text-xs tw-text-neutral-400">Last OSC: {lastOscAddress} {lastOscValue}</div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
+        <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Current OSC Layer Mappings</h4>
+        {oscLayerMappings.length === 0 ? (
+          <div className="tw-text-sm tw-text-neutral-400">No OSC layer mappings yet.</div>
+        ) : (
+          <div className="tw-space-y-1">
+            {oscLayerMappings.map(({ m, i }) => (
+              <div key={`${(m as any).address}-${i}`} className="tw-flex tw-items-center tw-justify-between tw-gap-2 tw-border tw-border-neutral-800 tw-rounded tw-px-2 tw-py-1">
+                <div className="tw-min-w-0">
+                  <div className="tw-text-xs tw-text-neutral-200 tw-truncate">{(m as any).address}</div>
+                  <div className="tw-text-xs tw-text-neutral-500 tw-truncate">{(m.target as any)?.param || 'parameter'}</div>
+                </div>
+                <div className="tw-flex tw-items-center tw-gap-2">
+                  <label className="tw-flex tw-items-center tw-gap-1 tw-text-xs">
+                    <Switch checked={m.enabled !== false} onCheckedChange={(checked) => {
+                      const next = (mappings || []).slice();
+                      (next[i] as any).enabled = !!checked;
+                      setMIDIMappings(next);
+                    }} />
+                    Enabled
+                  </label>
+                  <Button variant="ghost" size="sm" onClick={() => removeMappingAt(i)}>Remove</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

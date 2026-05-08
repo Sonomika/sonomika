@@ -1,5 +1,6 @@
 import { MIDIMapping, AppState } from '../store/types';
 import { useStore } from '../store/store';
+import { useVideoOptionsStore } from '../store/videoOptionsStore';
 import { getEffect } from '../utils/effectRegistry';
 // EffectLoader import removed - using dynamic loading instead
 
@@ -37,6 +38,7 @@ export class MIDIProcessor {
   private pendingTimelineOpacityUpdates: Map<string, number> = new Map();
   private timelineApplyScheduled: boolean = false;
   private settledMidiTimeouts: Map<string, number> = new Map();
+  private oscButtonStates: Map<string, boolean> = new Map();
 
   private constructor() {
     this.mappings = [];
@@ -105,6 +107,9 @@ export class MIDIProcessor {
       if (typeof state.updateLayer === 'function') {
         state.updateLayer(layerId, { opacity: value });
       }
+      try {
+        useVideoOptionsStore.getState().setVideoOptionsForLayerMode(layerId, { opacity: value }, Boolean(state.showTimeline));
+      } catch {}
     };
 
     if (this.shouldCommitMidiOnRelease()) {
@@ -113,6 +118,17 @@ export class MIDIProcessor {
     }
 
     apply();
+  }
+
+  // OSC is a continuous control stream; apply immediately (no "commit on release").
+  private applyLayerOpacityUpdateImmediate(layerId: string, value: number) {
+    const state: any = useStore.getState();
+    if (typeof state.updateLayer === 'function') {
+      state.updateLayer(layerId, { opacity: value });
+    }
+    try {
+      useVideoOptionsStore.getState().setVideoOptionsForLayerMode(layerId, { opacity: value }, Boolean(state.showTimeline));
+    } catch {}
   }
 
   private applyLayerParamUpdate(layerId: string, paramName: string, value: number) {
@@ -126,6 +142,16 @@ export class MIDIProcessor {
     this.queueLayerParamUpdate(layerId, paramName, value);
   }
 
+  private applyLayerParamUpdateImmediate(layerId: string, paramName: string, value: number) {
+    const state: any = useStore.getState();
+    const layer = this.findLayer(layerId) as any;
+    if (!layer || typeof state.updateLayer !== 'function') return;
+    const currentParams = { ...(layer.params || {}) } as Record<string, any>;
+    const prevObj = currentParams[paramName] || {};
+    currentParams[paramName] = { ...prevObj, value };
+    state.updateLayer(layerId, { params: currentParams });
+  }
+
   private applyTimelineParamUpdate(clipId: string, paramName: string, value: number) {
     if (this.shouldCommitMidiOnRelease()) {
       this.scheduleSettledMidiUpdate(`timeline:${clipId}:${paramName}`, () => {
@@ -137,6 +163,10 @@ export class MIDIProcessor {
     this.queueTimelineUpdate(clipId, paramName, value);
   }
 
+  private applyTimelineParamUpdateImmediate(clipId: string, paramName: string, value: number) {
+    this.queueTimelineUpdate(clipId, paramName, value);
+  }
+
   private applyGlobalParamUpdate(slotId: string, paramName: string, value: number) {
     if (this.shouldCommitMidiOnRelease()) {
       this.scheduleSettledMidiUpdate(`global-effect:${slotId}:${paramName}`, () => {
@@ -145,6 +175,10 @@ export class MIDIProcessor {
       return;
     }
 
+    this.queueGlobalParamUpdate(slotId, paramName, value);
+  }
+
+  private applyGlobalParamUpdateImmediate(slotId: string, paramName: string, value: number) {
     this.queueGlobalParamUpdate(slotId, paramName, value);
   }
 
@@ -742,6 +776,170 @@ export class MIDIProcessor {
           }
         }
       });
+  }
+
+  private normalizeOscValue(args: Array<string | number | boolean | null>): number | null {
+    const raw = args[0];
+    if (raw === false || raw === null || raw === undefined) return null;
+    if (raw === true) return 1;
+
+    const numeric = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isFinite(numeric)) return null;
+
+    // Showsync/Resolume parameter values are commonly 0..1. MIDI-style bridges may send 0..127.
+    const normalized = numeric > 1 ? numeric / 127 : numeric;
+    return Math.max(0, Math.min(1, normalized));
+  }
+
+  private shouldTriggerOscButton(mapping: MIDIMapping, normalizedValue: number): boolean {
+    const key = `${String((mapping as any).address || '')}:${mapping.target.type}:${(mapping.target as any).id || ''}:${(mapping.target as any).param || ''}`;
+    const isActive = normalizedValue > 0.001;
+    const wasActive = this.oscButtonStates.get(key) === true;
+    this.oscButtonStates.set(key, isActive);
+    return isActive && !wasActive;
+  }
+
+  private applyContinuousMappingTarget(mapping: MIDIMapping, normalizedValue: number): void {
+    const store = useStore.getState() as Store;
+
+    switch (mapping.target.type) {
+      case 'global-effect': {
+        const geTarget = mapping.target as any;
+        const st: any = useStore.getState();
+        const isTimeline = !!st.showTimeline;
+        const scene = isTimeline
+          ? (st.timelineScenes || []).find((s: any) => s.id === st.currentTimelineSceneId)
+          : (st.scenes || []).find((s: any) => s.id === st.currentSceneId);
+        if (!scene) break;
+        const slot = (scene.globalEffects || []).find((g: any) => g && g.id === geTarget.id);
+        if (!slot) break;
+        const metadata = this.getEffectMetadataForLayer({ type: 'effect', asset: { id: slot.effectId }, params: slot.params } as any) as any;
+        const paramName = geTarget.param;
+        if (!paramName) break;
+        const paramConfig = metadata?.parameters?.find((p: any) => p.name === paramName);
+        if (paramConfig?.type === 'button') {
+          if (this.shouldTriggerOscButton(mapping, normalizedValue)) {
+            const current = Number((slot.params || {})[paramName]?.value ?? paramConfig.value ?? 0);
+            this.applyGlobalParamUpdateImmediate(slot.id, paramName, (Number.isFinite(current) ? current : 0) + 1);
+          }
+          break;
+        }
+        let min = 0; let max = 1;
+        if (paramConfig) {
+          if (typeof paramConfig.min === 'number') min = paramConfig.min;
+          if (typeof paramConfig.max === 'number') max = paramConfig.max;
+        }
+        const mapped = min + ((max - min) * normalizedValue);
+        this.applyGlobalParamUpdateImmediate(slot.id, paramName, mapped);
+        break;
+      }
+      case 'layer': {
+        const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
+        // OSC forwarders are address-driven; they should not depend on which layer is
+        // currently selected in the UI (Focus Mode can otherwise make params appear "dead").
+        const st: any = useStore.getState();
+
+        if (st.showTimeline && st.selectedTimelineClip && layerTarget.param) {
+          const selectedClip = st.selectedTimelineClip;
+          let min = 0;
+          let max = 1;
+          try {
+            const clipAsset = selectedClip.data?.asset || {};
+            const effectId = clipAsset.id || clipAsset.name || clipAsset.effectId;
+            if (effectId) {
+              const effectComponent = getEffect(effectId) || getEffect(`${effectId}Effect`) || null;
+              const metadata: any = effectComponent ? (effectComponent as any).metadata : null;
+              if (metadata?.parameters) {
+                const paramConfig = metadata.parameters.find((p: any) => p.name === layerTarget.param);
+                if (paramConfig) {
+                  if (paramConfig.type === 'button') {
+                    if (this.shouldTriggerOscButton(mapping, normalizedValue)) {
+                      const current = Number(selectedClip.data?.params?.[layerTarget.param]?.value ?? paramConfig.value ?? 0);
+                      this.applyTimelineParamUpdateImmediate(selectedClip.id, layerTarget.param, (Number.isFinite(current) ? current : 0) + 1);
+                    }
+                    break;
+                  }
+                  if (typeof paramConfig.min === 'number') min = paramConfig.min;
+                  if (typeof paramConfig.max === 'number') max = paramConfig.max;
+                }
+              }
+            }
+
+            const clipParam = selectedClip.data?.params?.[layerTarget.param];
+            if (clipParam && typeof clipParam === 'object') {
+              if (typeof clipParam.min === 'number') min = clipParam.min;
+              if (typeof clipParam.max === 'number') max = clipParam.max;
+            }
+          } catch {}
+
+          const mappedValue = min + ((max - min) * normalizedValue);
+          this.applyTimelineParamUpdateImmediate(selectedClip.id, layerTarget.param, mappedValue);
+          break;
+        }
+
+        const layer = this.findLayer(layerTarget.id);
+        if (!layer || !layerTarget.param) break;
+        const effectiveLayerId = layer.id;
+        if (layerTarget.param === 'opacity') {
+          this.applyLayerOpacityUpdateImmediate(effectiveLayerId, normalizedValue);
+        } else {
+          const metadata = this.getEffectMetadataForLayer(layer) as any;
+          const paramConfig = metadata?.parameters?.find((p: any) => p.name === layerTarget.param);
+          if (paramConfig?.type === 'button') {
+            if (this.shouldTriggerOscButton(mapping, normalizedValue)) {
+              const current = Number(((layer as any).params || {})[layerTarget.param]?.value ?? paramConfig.value ?? 0);
+              this.applyLayerParamUpdateImmediate(effectiveLayerId, layerTarget.param, (Number.isFinite(current) ? current : 0) + 1);
+            }
+            break;
+          }
+          let min = 0; let max = 1;
+          if (paramConfig) {
+            if (typeof paramConfig.min === 'number') min = paramConfig.min;
+            if (typeof paramConfig.max === 'number') max = paramConfig.max;
+          } else {
+            try {
+              const layerParam = ((layer as any).params || {})[layerTarget.param];
+              if (layerParam && typeof layerParam === 'object') {
+                if (typeof layerParam.min === 'number') min = layerParam.min;
+                if (typeof layerParam.max === 'number') max = layerParam.max;
+              }
+            } catch {}
+          }
+          const mappedValue = min + ((max - min) * normalizedValue);
+          this.applyLayerParamUpdateImmediate(effectiveLayerId, layerTarget.param, mappedValue);
+        }
+        break;
+      }
+      case 'global': {
+        const globalTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'global' }>;
+        if (globalTarget.param === 'bpm') {
+          const bpm = Math.round(normalizedValue * 200 + 60);
+          store.setBpm(bpm);
+        }
+        break;
+      }
+    }
+  }
+
+  handleOscMessage(address: string, args: Array<string | number | boolean | null>): void {
+    const normalizedAddress = String(address || '').trim().toLowerCase();
+    if (!normalizedAddress) return;
+
+    const normalizedValue = this.normalizeOscValue(args);
+    if (normalizedValue == null) return;
+
+    // OSC arrives outside the MIDI device callback flow, so read persisted mappings
+    // directly from the store. This avoids a stale processor cache making incoming
+    // OSC values visible in the monitor but unable to move any layer parameters.
+    const currentMappings = ((useStore.getState() as any).midiMappings || this.mappings || []) as MIDIMapping[];
+
+    currentMappings
+      .filter(mapping =>
+        mapping.type === 'osc' &&
+        (mapping.enabled !== false) &&
+        String((mapping as any).address || '').trim().toLowerCase() === normalizedAddress
+      )
+      .forEach(mapping => this.applyContinuousMappingTarget(mapping, normalizedValue));
   }
 
   handleKeyMessage(key: string, modifiers: { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean }): void {
