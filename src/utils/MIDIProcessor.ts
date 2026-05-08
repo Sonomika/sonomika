@@ -835,8 +835,8 @@ export class MIDIProcessor {
       }
       case 'layer': {
         const layerTarget = mapping.target as Extract<MIDIMapping['target'], { type: 'layer' }>;
-        // OSC forwarders are address-driven; they should not depend on which layer is
-        // currently selected in the UI (Focus Mode can otherwise make params appear "dead").
+        // The OSC dispatcher narrows duplicate addresses to the selected cell before
+        // reaching this target, while unique addresses keep address-driven behavior.
         const st: any = useStore.getState();
 
         if (st.showTimeline && st.selectedTimelineClip && layerTarget.param) {
@@ -931,14 +931,24 @@ export class MIDIProcessor {
     // OSC arrives outside the MIDI device callback flow, so read persisted mappings
     // directly from the store. This avoids a stale processor cache making incoming
     // OSC values visible in the monitor but unable to move any layer parameters.
-    const currentMappings = ((useStore.getState() as any).midiMappings || this.mappings || []) as MIDIMapping[];
+    const state = useStore.getState() as any;
+    const currentMappings = (state.midiMappings || this.mappings || []) as MIDIMapping[];
+    const addressMatches = currentMappings.filter(mapping =>
+      mapping.type === 'osc' &&
+      (mapping.enabled !== false) &&
+      String((mapping as any).address || '').trim().toLowerCase() === normalizedAddress
+    );
+    const focusedLayerId = state?.selectedLayerId ? String(state.selectedLayerId) : '';
+    const focusedAddressMatches = focusedLayerId
+      ? addressMatches.filter(mapping => (
+        (mapping.target as any)?.type === 'layer'
+        && String((mapping.target as any)?.id || '') === focusedLayerId
+      ))
+      : [];
 
-    currentMappings
-      .filter(mapping =>
-        mapping.type === 'osc' &&
-        (mapping.enabled !== false) &&
-        String((mapping as any).address || '').trim().toLowerCase() === normalizedAddress
-      )
+    // When the same OSC address is mapped in multiple cells, clicking a cell focuses
+    // that cell's mappings. Unique addresses and non-layer mappings keep old behavior.
+    (focusedAddressMatches.length > 0 ? focusedAddressMatches : addressMatches)
       .forEach(mapping => this.applyContinuousMappingTarget(mapping, normalizedValue));
   }
 

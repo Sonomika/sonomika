@@ -94,12 +94,21 @@ export const OSCSettings: React.FC = () => {
     }
     return null;
   }, [scenes, currentSceneId, selectedLayerId]);
+  const selectedLayerName = selectedLayer?.asset?.metadata?.name
+    || selectedLayer?.asset?.name
+    || selectedLayer?.name
+    || 'selected cell';
 
   const paramOptions = useLayerParamOptions(selectedLayer);
   const mappings = (midiMappings as MIDIMapping[]) || [];
   const oscLayerMappings = mappings
     .map((m, i) => ({ m, i }))
-    .filter(({ m }) => m.type === 'osc' && (m.target as any)?.type === 'layer');
+    .filter(({ m }) => (
+      m.type === 'osc'
+      && (m.target as any)?.type === 'layer'
+      && !!selectedLayerId
+      && (m.target as any)?.id === selectedLayerId
+    ));
 
   const applyOscSettings = async (nextEnabled = enabled, nextPort = port) => {
     const cleanPort = clampPort(nextPort);
@@ -133,7 +142,7 @@ export const OSCSettings: React.FC = () => {
   }, [port]);
 
   useEffect(() => {
-    if (!param && paramOptions.length > 0) {
+    if (paramOptions.length > 0 && (!param || !paramOptions.some((option) => option.value === param))) {
       setParam(paramOptions[0].value);
     }
   }, [paramOptions, param]);
@@ -253,18 +262,21 @@ export const OSCSettings: React.FC = () => {
 
       <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
         <div className="tw-space-y-1">
-          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Map OSC to Layer Sliders</h4>
+          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Map OSC to Selected Cell</h4>
           <p className="tw-text-xs tw-text-neutral-500">
-            Use a Showsync Parameter Forwarder destination like /composition/layers/1/dashboard/link1.
+            Click an effect cell first. OSC mappings are saved to that cell, so the same effect in another column can use its own mappings.
           </p>
         </div>
 
         {!hasOscMessageListener ? (
           <div className="tw-text-sm tw-text-neutral-400">OSC parameter mapping is available in the Electron app.</div>
         ) : !selectedLayer ? (
-          <div className="tw-text-sm tw-text-neutral-400">Select a layer to map its sliders to OSC addresses.</div>
+          <div className="tw-text-sm tw-text-neutral-400">Select an effect cell to map its sliders to OSC addresses.</div>
         ) : (
           <>
+            <div className="tw-text-xs tw-text-neutral-400">
+              Focus: <span className="tw-text-neutral-200">{selectedLayerName}</span>
+            </div>
             <div className="tw-grid tw-grid-cols-2 tw-gap-2">
               <div className="tw-space-y-1">
                 <Label className="tw-text-xs">Parameter</Label>
@@ -295,9 +307,11 @@ export const OSCSettings: React.FC = () => {
       </div>
 
       <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
-        <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Current OSC Layer Mappings</h4>
+        <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Current OSC Cell Mappings</h4>
         {oscLayerMappings.length === 0 ? (
-          <div className="tw-text-sm tw-text-neutral-400">No OSC layer mappings yet.</div>
+          <div className="tw-text-sm tw-text-neutral-400">
+            {selectedLayer ? 'No OSC mappings for this cell yet.' : 'Select a cell to view its OSC mappings.'}
+          </div>
         ) : (
           <div className="tw-space-y-1">
             {oscLayerMappings.map(({ m, i }) => (

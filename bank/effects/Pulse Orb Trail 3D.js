@@ -20,6 +20,7 @@ export const metadata = {
     { name: 'trailLength', type: 'number', value: 90, min: 12, max: 220, step: 1 },
     { name: 'orbSize', type: 'number', value: 0.105, min: 0.02, max: 0.35, step: 0.001 },
     { name: 'bounds', type: 'number', value: 0.82, min: 0.2, max: 1.4, step: 0.01 },
+    { name: 'keepInCanvas', type: 'boolean', value: false, description: 'Keep In Canvas' },
     { name: 'depthAmount', type: 'number', value: 1.0, min: 0.0, max: 1.8, step: 0.01 },
     { name: 'orbColor', type: 'color', value: '#bfffff' },
     { name: 'hotColor', type: 'color', value: '#ffffff' },
@@ -80,6 +81,7 @@ export default function PulseOrbTrail3D({
   trailLength = 90,
   orbSize = 0.105,
   bounds = 0.82,
+  keepInCanvas = false,
   depthAmount = 1.0,
   orbColor = '#bfffff',
   hotColor = '#ffffff',
@@ -185,6 +187,7 @@ export default function PulseOrbTrail3D({
     const depth = Math.max(0, Number(depthAmount) || 0.55);
     const driftAmt = Math.max(0, Number(drift) || 0);
     const damp = clamp(Number(damping) || 0.90, 0.65, 0.995);
+    const stayInsideCanvas = !!keepInCanvas;
 
     vel.x += Math.sin(t * 0.72 + seedRef.current) * driftAmt * dt * 0.18;
     vel.y += Math.cos(t * 0.61 + seedRef.current * 0.7) * driftAmt * dt * 0.18;
@@ -209,9 +212,30 @@ export default function PulseOrbTrail3D({
     const depthNorm = depth > 0 ? (pos.z / depth + 1) * 0.5 : 0.5;
     const perspective = 0.38 + depthNorm * 1.45;
     const parallax = 0.72 + depthNorm * 0.62;
+    const baseSize = Math.max(0.001, Number(orbSize) || 0.105) * perspective;
+    const radiusX = baseSize * aspect * 0.5;
+    const radiusY = baseSize * 0.5;
+
+    if (stayInsideCanvas) {
+      const maxScreenX = Math.max(0.001, aspect - radiusX);
+      const maxScreenY = Math.max(0.001, 1 - radiusY);
+      const maxPosX = maxScreenX / Math.max(0.001, parallax);
+      const minPosY = (-maxScreenY - pos.z * 0.18) / Math.max(0.001, parallax);
+      const maxPosY = (maxScreenY - pos.z * 0.18) / Math.max(0.001, parallax);
+      const nextX = clamp(pos.x, -maxPosX, maxPosX);
+      const nextY = clamp(pos.y, minPosY, maxPosY);
+      if (nextX !== pos.x) {
+        pos.x = nextX;
+        vel.x *= -0.82;
+      }
+      if (nextY !== pos.y) {
+        pos.y = nextY;
+        vel.y *= -0.82;
+      }
+    }
+
     const screenX = pos.x * parallax;
     const screenY = pos.y * parallax + pos.z * 0.18;
-    const baseSize = Math.max(0.001, Number(orbSize) || 0.105) * perspective;
     const sparkleAmt = clamp(Number(sparkle) || 0, 0, 1);
     const flicker = 1 - sparkleAmt + sparkleAmt * (0.65 + 0.35 * Math.abs(Math.sin(t * 14.0 + seedRef.current)));
 
@@ -252,7 +276,17 @@ export default function PulseOrbTrail3D({
       const pointParallax = 0.72 + pointDepthNorm * 0.62;
       const s = Math.max(0.001, Number(orbSize) || 0.105) * (0.18 + fade * 0.72) * pointPerspective;
       const p = point.p;
-      dummy.position.set(p.x * pointParallax, p.y * pointParallax + p.z * 0.18, 0.08 + p.z * 0.16 - n * 0.04);
+      const pointRadiusX = s * aspect * 0.5;
+      const pointRadiusY = s * 0.5;
+      const maxPointX = Math.max(0.001, aspect - pointRadiusX);
+      const maxPointY = Math.max(0.001, 1 - pointRadiusY);
+      const pointX = p.x * pointParallax;
+      const pointY = p.y * pointParallax + p.z * 0.18;
+      dummy.position.set(
+        stayInsideCanvas ? clamp(pointX, -maxPointX, maxPointX) : pointX,
+        stayInsideCanvas ? clamp(pointY, -maxPointY, maxPointY) : pointY,
+        0.08 + p.z * 0.16 - n * 0.04
+      );
       dummy.scale.set(s * aspect, s, s * (0.75 + pointDepthNorm * 0.5));
       dummy.updateMatrix();
       trail.setMatrixAt(i, dummy.matrix);

@@ -127,7 +127,7 @@ VideoThumbnailPreview.displayName = 'VideoThumbnailPreview';
 export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode = false }) => {
   // console.log('LayerManager component rendering');
   
-  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline, columnCrossfadeEnabled, setColumnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeDuration } = useStore() as any;
+  const { scenes, currentSceneId, timelineScenes, currentTimelineSceneId, setCurrentScene, addScene, removeScene, updateScene, duplicateScene, reorderScenes, setCurrentTimelineScene, addTimelineScene, removeTimelineScene, updateTimelineScene, duplicateTimelineScene, reorderTimelineScenes, compositionSettings, bpm, setBpm, playingColumnId, isGlobalPlaying, playColumn, stopColumn, globalPlay, globalPause, globalStop, selectedTimelineClip, setSelectedTimelineClip, selectedLayerId: persistedSelectedLayerId, setSelectedLayer: setSelectedLayerId, activeLayerOverrides, showTimeline, setShowTimeline, columnCrossfadeEnabled, setColumnCrossfadeEnabled, columnCrossfadeDuration, setColumnCrossfadeDuration, midiMappings, setMIDIMappings } = useStore() as any;
 
   // Track transport state to style Play/Pause/Stop buttons with accent for the active control.
   // Derive from store so refresh/rehydrate reliably shows Stop when fully stopped.
@@ -951,6 +951,37 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     data: any;
     sourceSceneId: string;
   } | null>(null);
+
+  const cloneOscMappingsForPastedLayers = useCallback((layerIdMap: Record<string, string>, replacedLayerIds: string[] = []) => {
+    const entries = Object.entries(layerIdMap || {}).filter(([sourceId, targetId]) => sourceId && targetId);
+    if (entries.length === 0 && replacedLayerIds.length === 0) return;
+
+    try {
+      const sourceToTarget = new Map(entries.map(([sourceId, targetId]) => [String(sourceId), String(targetId)]));
+      const replaced = new Set((replacedLayerIds || []).filter(Boolean).map((id) => String(id)));
+      const currentMappings = (((useStore as any).getState?.()?.midiMappings || midiMappings || []) as any[]);
+      const retainedMappings = currentMappings.filter((mapping: any) => {
+        const target = mapping?.target;
+        return !(mapping?.type === 'osc' && target?.type === 'layer' && replaced.has(String(target.id || '')));
+      });
+      const clonedMappings = currentMappings
+        .filter((mapping: any) => {
+          const target = mapping?.target;
+          return mapping?.type === 'osc' && target?.type === 'layer' && sourceToTarget.has(String(target.id || ''));
+        })
+        .map((mapping: any) => ({
+          ...mapping,
+          target: {
+            ...(mapping.target || {}),
+            id: sourceToTarget.get(String(mapping.target?.id || '')),
+          },
+        }));
+
+      if (clonedMappings.length > 0 || retainedMappings.length !== currentMappings.length) {
+        setMIDIMappings?.([...retainedMappings, ...clonedMappings]);
+      }
+    } catch {}
+  }, [midiMappings, setMIDIMappings]);
 
   const handleMediaLibClose = useCallback(() => {}, []);
 
@@ -1809,20 +1840,26 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
     // Insert at the target index (where user right-clicked), not one to the right.
     const insertIndex = targetIndex >= 0 ? targetIndex : currentScene.columns.length;
 
+    const layerIdMap: Record<string, string> = {};
     const pastedColumn = {
       ...clipboard.data,
       id: `column-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: `${clipboard.data.name} (Copy)`,
-      layers: clipboard.data.layers.map((layer: any) => ({
-        ...layer,
-        id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      }))
+      layers: clipboard.data.layers.map((layer: any) => {
+        const pastedLayerId = `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        if (layer?.id) layerIdMap[String(layer.id)] = pastedLayerId;
+        return {
+          ...layer,
+          id: pastedLayerId
+        };
+      })
     };
 
     const updatedColumns = [...currentScene.columns];
     updatedColumns.splice(insertIndex, 0, pastedColumn);
     const { updateScene: updateSceneFn } = getSceneManagementFunctions();
     updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
+    cloneOscMappingsForPastedLayers(layerIdMap);
     if (debugMode) console.log(`Pasted column ${pastedColumn.name} at column index ${insertIndex}`);
 
     handleContextMenuClose();
@@ -1870,6 +1907,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
         const targetColumn = currentScene.columns.find((col: any) => col.id === targetColumnId);
         if (targetColumn && targetLayerNum !== null) {
+          const existingLayer = targetColumn.layers.find((l: any) => l.layerNum === targetLayerNum);
           const pastedCell = {
             ...clipboard.data,
             id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1892,6 +1930,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
           const { updateScene: updateSceneFn } = getSceneManagementFunctions();
           updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
+          cloneOscMappingsForPastedLayers(
+            clipboard.data?.id ? { [String(clipboard.data.id)]: pastedCell.id } : {},
+            existingLayer?.id ? [existingLayer.id] : []
+          );
           if (debugMode) console.log(`Pasted cell ${pastedCell.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
         }
       }
@@ -1941,9 +1983,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
         const targetColumn = currentScene.columns.find((col: any) => col.id === targetColumnId);
         if (targetColumn && targetLayerNum !== null) {
+          const existingLayer = targetColumn.layers.find((l: any) => l.layerNum === targetLayerNum);
           const pastedClip = {
             ...clipboard.data,
-            id: `layer-${Date.now()}-${Math.random().toString(36).substr(36, 9)}`,
+            id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: `${clipboard.data.name} (Copy)`,
             layerNum: targetLayerNum
           };
@@ -1963,6 +2006,10 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
 
         const { updateScene: updateSceneFn } = getSceneManagementFunctions();
         updateSceneFn(getCurrentSceneId(), { columns: updatedColumns });
+        cloneOscMappingsForPastedLayers(
+          clipboard.data?.id ? { [String(clipboard.data.id)]: pastedClip.id } : {},
+          existingLayer?.id ? [existingLayer.id] : []
+        );
         if (debugMode) console.log(`Pasted clip ${pastedClip.name} to column ${targetColumn.name} at row ${targetLayerNum}`);
         }
       }
