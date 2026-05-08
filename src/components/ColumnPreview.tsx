@@ -582,7 +582,8 @@ const ColumnScene: React.FC<{
   isTimelineMode?: boolean;
   timelineTime?: number;
   restartVideosOnRenderKeyChange?: boolean;
-}> = ({ column, renderKey, isPlaying, suppressPause = false, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false, timelineTime, restartVideosOnRenderKeyChange = true }) => {
+  disableStageWarmup?: boolean;
+}> = ({ column, renderKey, isPlaying, suppressPause = false, bpm, globalEffects = [], compositionWidth, compositionHeight, onFirstFrameReady, isTimelineMode = false, timelineTime, restartVideosOnRenderKeyChange = true, disableStageWarmup = false }) => {
   const { camera, gl, scene } = useThree();
   const [assets, setAssets] = useState<{
     images: Map<string, HTMLImageElement>;
@@ -883,7 +884,9 @@ const ColumnScene: React.FC<{
         if (!layer?.asset || layer.asset.type !== 'video') return;
         const video = assets.videos.get(layer.asset.id);
         if (!video) return;
-        if (!isTimelinePreview && justStarted) {
+        // Skip the seek-to-0 restart when crossfade mode is active (restartVideosOnRenderKeyChange=false).
+        // In that case the video is shared with the outgoing slot; seeking to 0 would glitch both canvases.
+        if (!isTimelinePreview && justStarted && restartVideosOnRenderKeyChange) {
           const mode = (layer as any).playMode ?? 'restart';
           if (mode === 'restart') {
             try { video.currentTime = 0; } catch {}
@@ -928,7 +931,7 @@ const ColumnScene: React.FC<{
         pauseVideosTimeoutRef.current = null;
       }
     };
-  }, [isPlaying, suppressPause, assets.videos, column.layers, column?.id]);
+  }, [isPlaying, suppressPause, assets.videos, column.layers, column?.id, restartVideosOnRenderKeyChange]);
 
   // A visible "cell" can change while transport stays playing (row overrides, OSC/sequence
   // triggers). Restart only video rows whose own source changed; persistent rows keep playing.
@@ -1629,6 +1632,7 @@ const ColumnScene: React.FC<{
               compositionHeight={compositionHeight}
               opacity={1}
               baseAssetId={String((chainVideo as any)?.assetId || '')}
+              disableStageWarmup={disableStageWarmup}
             />
           );
         });
@@ -1886,7 +1890,8 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
             >
               <HiddenRenderDriver />
               <ClearOnEmptyColumn isEmpty={!hasAnyLayerAsset} clearTo={'#000000'} />
-              <ClearOnColumnChange columnId={renderKey} />
+              {/* During crossfade warm-up we intentionally keep the previous frame alive. */}
+              {!skipInitialMask && <ClearOnColumnChange columnId={renderKey} />}
               <ColumnScene 
                 // Keep scene stable across row-override changes; props updates handle rerender.
                 key={`scene-${width}x${height}-${column?.id || 'col'}`}
@@ -1901,6 +1906,7 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = React.memo(({
                 isTimelineMode={isTimelineMode}
                 timelineTime={timelineTime}
                 restartVideosOnRenderKeyChange={!skipInitialMask}
+                disableStageWarmup={!skipInitialMask}
                 onFirstFrameReady={() => {
                   setMaskVisible(false);
                   // Unfreeze mirror when first frame is ready

@@ -591,13 +591,12 @@ function normalizeOscClipLaunch(address: string, args: OscArgument[]): OscClipLa
     normalized.match(/^\/composition\/decks\/\d+\/columns\/(\d+)\/connect$/i) ||
     normalized.match(/^\/columns?\/(\d+)\/connect$/i);
   if (columnMatch) {
-    const argColumn = typeof firstArg === 'number' && Number.isFinite(firstArg) && firstArg > 0
-      ? Math.floor(firstArg)
-      : null;
     return {
       address: normalized,
       args,
-      column: argColumn || Number(columnMatch[1]),
+      // Resolume-style connect messages use the first arg as the trigger value
+      // (`/composition/columns/3/connect 1`), not as the column index.
+      column: Number(columnMatch[1]),
       action: 'column-launch',
     };
   }

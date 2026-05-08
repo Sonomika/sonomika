@@ -2246,7 +2246,21 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                 forceAlwaysRender={is360PreviewMode && isEquirectangular}
                 suppressPause={is360PreviewMode && isEquirectangular}
                 hardFreeze={false}
-                skipInitialMask={slotId === 'previous'}
+                // During crossfade the incoming slot must also skip its initial black mask;
+                // otherwise we blend toward black instead of blending old->new content.
+                skipInitialMask={
+                  slotId === 'previous' ||
+                  isCrossfading ||
+                  showPreviousContent ||
+                  (
+                    slotId === 'current' &&
+                    columnCrossfadeEnabled &&
+                    !showTimeline &&
+                    content?.type === 'column' &&
+                    previousPreviewContent?.type === 'column' &&
+                    content?.columnId !== previousPreviewContent?.columnId
+                  )
+                }
               />
             </div>
                      {debugMode && (
@@ -3381,10 +3395,24 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     
                     // Always use crossfade-compatible structure to preserve component instances
                     // This prevents black flash when transitioning from normal to crossfade rendering
-                    const isActivelyCrossfading = (isCrossfading || showPreviousContent) && previousPreviewContent;
-                    const oldOpacity = isActivelyCrossfading ? (1 - crossfadeProgress) : 0;
-                    const newOpacity = isActivelyCrossfading ? crossfadeProgress : 1;
-                    const forcePlaying = isCrossfading && isGlobalPlaying;
+                    const hasPendingColumnSwitch =
+                      Boolean(
+                        columnCrossfadeEnabled &&
+                        !showTimeline &&
+                        previewContent?.type === 'column' &&
+                        previousPreviewContent?.type === 'column' &&
+                        previewContent?.columnId !== previousPreviewContent?.columnId
+                      );
+                    // Pre-arm crossfade for the first render after content swap (before effect flips isCrossfading).
+                    // This avoids a one-frame flash of the incoming slot/mask.
+                    const isPreArmedCrossfade = hasPendingColumnSwitch && !isCrossfading && !showPreviousContent;
+                    const isActivelyCrossfading = (isCrossfading || showPreviousContent || isPreArmedCrossfade) && previousPreviewContent;
+                    // Fade-in-over approach: keep old content at full opacity underneath, fade new in on top.
+                    // This prevents the black-background bleed that occurs when both opacities are < 1 simultaneously
+                    // (CSS compositing: final = t*new + t*(1-t)*black instead of the desired t*new + (1-t)*old).
+                    const oldOpacity = isActivelyCrossfading ? 1 : 0;
+                    const newOpacity = isPreArmedCrossfade ? 0 : (isActivelyCrossfading ? crossfadeProgress : 1);
+                    const forcePlaying = (isCrossfading || isPreArmedCrossfade) && isGlobalPlaying;
                     
                     if (isActivelyCrossfading) {
                       if (debugMode) console.log('Rendering crossfade', { progress: crossfadeProgress, isCrossfading, showPreviousContent });
@@ -3392,20 +3420,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                     
                     return (
                       <div className="tw-relative tw-w-full tw-h-full tw-bg-black">
-                        {/* Current/new content - always rendered in this slot */}
-                        <div
-                          className="tw-absolute tw-inset-0"
-                          data-preview-slot="current"
-                          style={{ 
-                            opacity: newOpacity,
-                            transition: 'none',
-                            zIndex: 1
-                          }}
-                        >
-                          {renderSpecificPreviewContent(previewContent, forcePlaying, 'current')}
-                        </div>
-                        
-                        {/* Previous content - rendered for crossfade, hidden otherwise */}
+                        {/* Previous content - sits below at full opacity; new content fades in on top */}
                         {/* Keep this slot always present to maintain consistent DOM structure */}
                         <div
                           className="tw-absolute tw-inset-0 tw-pointer-events-none"
@@ -3413,12 +3428,25 @@ export const LayerManager: React.FC<LayerManagerProps> = ({ onClose, debugMode =
                           style={{ 
                             opacity: oldOpacity,
                             transition: 'none',
-                            visibility: (isActivelyCrossfading && oldOpacity > 0.01) ? 'visible' : 'hidden',
-                            zIndex: 2
+                            visibility: isActivelyCrossfading ? 'visible' : 'hidden',
+                            zIndex: 1
                           }}
                         >
                           {/* Only render previous content during an actual crossfade. Hidden timelines should not keep videos mounted. */}
                           {isActivelyCrossfading && previousPreviewContent && renderSpecificPreviewContent(previousPreviewContent, forcePlaying, 'previous')}
+                        </div>
+
+                        {/* Current/new content - fades in on top of the previous slot */}
+                        <div
+                          className="tw-absolute tw-inset-0"
+                          data-preview-slot="current"
+                          style={{ 
+                            opacity: newOpacity,
+                            transition: 'none',
+                            zIndex: 2
+                          }}
+                        >
+                          {renderSpecificPreviewContent(previewContent, forcePlaying, 'current')}
                         </div>
                       </div>
                     );

@@ -18,6 +18,7 @@ interface EffectChainProps {
   opacity?: number;
   baseAssetId?: string;
   renderOrder?: number;
+  disableStageWarmup?: boolean;
 }
 
 const shallowEqualParams = (a?: Record<string, any>, b?: Record<string, any>) => {
@@ -64,6 +65,7 @@ const areEffectChainPropsEqual = (prev: EffectChainProps, next: EffectChainProps
     && prev.opacity === next.opacity
     && prev.baseAssetId === next.baseAssetId
     && prev.renderOrder === next.renderOrder
+    && prev.disableStageWarmup === next.disableStageWarmup
     && chainItemsEqual(prev.items, next.items);
 };
 
@@ -73,7 +75,8 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
   compositionHeight = 1080,
   opacity = 1,
   baseAssetId,
-  renderOrder = -1000
+  renderOrder = -1000,
+  disableStageWarmup = false
 }) => {
   const { gl, camera, invalidate } = useThree();
   // Scratch RT used for stage output before mixing
@@ -238,6 +241,7 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
   // the offscreen scene render, so the bad first frame is never displayed.
   const sceneWarmupRef = useRef<Map<string, number>>(new Map());
   const STAGE_WARMUP_FRAMES = 1;
+  const stageWarmupFrames = disableStageWarmup ? 0 : STAGE_WARMUP_FRAMES;
 
   // Offscreen scenes are keyed by layer/global slot identity so effect
   // components can keep their local refs across row changes.
@@ -542,6 +546,8 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
     } catch {}
 
     let currentTexture: THREE.Texture | null = seedTexture || null;
+    let chainOutputReady = true;
+    let allowInitialFallbackPublish = true;
     const nextInputTextures: Array<THREE.Texture | null> = items.map(() => null);
 
     // Step 1: find base as we go bottom->top within this chain
@@ -809,8 +815,8 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
         // render default-identity geometry (often white). Clear the RT but
         // skip the offscreen render, then bump the warm-up counter.
         const sceneKey = sceneKeyForItem(item, idx);
-        const warmupCount = sceneWarmupRef.current.get(sceneKey) ?? STAGE_WARMUP_FRAMES;
-        const inWarmup = warmupCount < STAGE_WARMUP_FRAMES;
+        const warmupCount = sceneWarmupRef.current.get(sceneKey) ?? stageWarmupFrames;
+        const inWarmup = warmupCount < stageWarmupFrames;
 
         // Render source output (no background) either directly or into scratch for mixing
         gl.setClearColor(0x000000, 0);
@@ -880,6 +886,8 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
             // Replacement effects often initialise internal buffers from their
             // `videoTexture` prop, so wait until the portal has the same input
             // texture that this frame's chain computed.
+            chainOutputReady = false;
+            allowInitialFallbackPublish = false;
           } else {
             const stageOpacityRaw = (item as any).opacity;
             const stageOpacity = Number.isFinite(Number(stageOpacityRaw)) ? Math.max(0, Math.min(1, Number(stageOpacityRaw))) : 1;
@@ -895,8 +903,8 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
             // after the first paint can't leak their default-state white
             // geometry onto the canvas.
             const sceneKey = sceneKeyForItem(item, idx);
-            const warmupCount = sceneWarmupRef.current.get(sceneKey) ?? STAGE_WARMUP_FRAMES;
-            const inWarmup = warmupCount < STAGE_WARMUP_FRAMES;
+            const warmupCount = sceneWarmupRef.current.get(sceneKey) ?? stageWarmupFrames;
+            const inWarmup = warmupCount < stageWarmupFrames;
 
             gl.setClearColor(0x000000, 0);
             gl.setRenderTarget(needsMix && scratch ? scratch : rt);
@@ -924,17 +932,26 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
               // During warm-up, don't propagate the cleared RT as the
               // current texture — keep the previous stage's content so a
               // stack of fresh effects doesn't all flush to transparent.
+              chainOutputReady = false;
+              if (replacesVideo) allowInitialFallbackPublish = false;
             } else {
               currentTexture = rt.texture;
             }
           }
+        } else {
+          chainOutputReady = false;
+          allowInitialFallbackPublish = false;
         }
         // If effect not loaded yet, keep previous texture (don't update currentTexture)
       }
     });
 
-    // Keep showing previous final texture until a new one is ready to avoid background showing through
-    if (currentTexture) {
+    // Keep showing previous final texture until a new one is ready to avoid background showing through.
+    // On a fresh chain with a replacement effect (ASCII, chromatic filters, etc.), the first frame can
+    // have only the raw video available while the effect portal receives its input. Do not publish that
+    // fallback as the displayed output, or column changes flash one unfiltered video frame.
+    const canPublishTexture = chainOutputReady || !!finalTextureRef.current || allowInitialFallbackPublish;
+    if (currentTexture && canPublishTexture) {
       finalTextureRef.current = currentTexture;
       setDisplayTexture((prev) => (prev === currentTexture ? prev : currentTexture));
     }
