@@ -215,4 +215,6 @@ export interface AppState {
   // OSC input listener
   oscInputEnabled?: boolean;
   oscInputPort?: number;
+  oscColumnLaunchPath?: string;
+  oscColumnIndexBase?: 0 | 1;
 }

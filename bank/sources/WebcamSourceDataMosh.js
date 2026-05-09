@@ -209,6 +209,7 @@ export default function WebcamSourceWebCodecs({
     if (!isWebCodecsReadyRef.current) {
       // fallback: if no WebCodecs, create/update video texture if not already created
       if (!tex) {
+        if (!(video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0)) return;
         // create THREE.VideoTexture from video element
         try {
           const vtex = new THREE.VideoTexture(video);

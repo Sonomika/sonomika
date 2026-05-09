@@ -27,6 +27,70 @@ import { buildPresetDataFromState } from './utils/presetSanitizer';
 
 // Effects are loaded dynamically - no hardcoded imports needed
 
+const DEFAULT_OSC_COLUMN_LAUNCH_PATH = '/composition/columns/{column}/connect';
+
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const oscColumnFromTemplate = (
+  address: string,
+  args: Array<string | number | boolean | null> | undefined,
+  template: string,
+  indexBase: 0 | 1,
+): number | null => {
+  const cleanTemplate = String(template || DEFAULT_OSC_COLUMN_LAUNCH_PATH).trim();
+  if (!cleanTemplate.includes('{column}')) return null;
+
+  const tokens: Array<'column' | 'value'> = [];
+  let pattern = '^';
+  let lastIndex = 0;
+  cleanTemplate.replace(/\{(column|value)\}/g, (match, token: 'column' | 'value', offset) => {
+    pattern += escapeRegex(cleanTemplate.slice(lastIndex, offset));
+    pattern += token === 'column' ? '(\\d+)' : '([^/]+)';
+    tokens.push(token);
+    lastIndex = offset + match.length;
+    return match;
+  });
+  pattern += escapeRegex(cleanTemplate.slice(lastIndex));
+  pattern += '$';
+
+  const match = String(address || '').trim().match(new RegExp(pattern, 'i'));
+  if (!match) return null;
+
+  const values: Record<string, string> = {};
+  tokens.forEach((token, index) => {
+    values[token] = match[index + 1];
+  });
+
+  if (values.value !== undefined) {
+    const trigger = Number(values.value);
+    if (!Number.isFinite(trigger) || trigger <= 0) return null;
+  } else {
+    const firstArg = Array.isArray(args) ? args[0] : undefined;
+    if (firstArg === false || firstArg === null) return null;
+    if (typeof firstArg === 'number' && firstArg <= 0) return null;
+  }
+
+  const columnNumber = Number(values.column);
+  if (!Number.isFinite(columnNumber)) return null;
+  const columnIndex = columnNumber - indexBase;
+  return columnIndex >= 0 ? columnIndex : null;
+};
+
+const launchColumnByIndex = (columnIndex: number): boolean => {
+  const state: any = useStore.getState();
+  const scene = state.scenes?.find((s: any) => s.id === state.currentSceneId) || state.scenes?.[0];
+  const columns: any[] = scene?.columns || [];
+  const column = columns[Math.floor(columnIndex)];
+  if (!scene || !column) return false;
+
+  if (state.showTimeline && typeof state.setShowTimeline === 'function') {
+    state.setShowTimeline(false);
+  }
+  state.clearActiveLayerOverrides?.();
+  state.playColumn?.(column.id);
+  return true;
+};
+
 // Type declaration for the exposed API
 declare global {
   interface Window {
@@ -231,6 +295,26 @@ function App() {
   useEffect(() => {
     const unsubscribe = window.electron?.onOscMessage?.((payload) => {
       try {
+        try {
+          const oscPayload = {
+            address: String(payload?.address || ''),
+            args: Array.isArray(payload?.args) ? payload.args : [],
+            timestamp: Date.now(),
+          };
+          const win = window as any;
+          const history = Array.isArray(win.__vj_osc_history__) ? win.__vj_osc_history__ : [];
+          history.unshift(oscPayload);
+          win.__vj_osc_history__ = history.slice(0, 64);
+          window.dispatchEvent(new CustomEvent('vj:osc-message', { detail: oscPayload }));
+        } catch {}
+        const state: any = useStore.getState();
+        const columnPath = String(state.oscColumnLaunchPath || DEFAULT_OSC_COLUMN_LAUNCH_PATH).trim();
+        const columnBase = state.oscColumnIndexBase === 0 ? 0 : 1;
+        const useCustomColumnPath = columnPath !== DEFAULT_OSC_COLUMN_LAUNCH_PATH || columnBase !== 1;
+        if (useCustomColumnPath) {
+          const columnIndex = oscColumnFromTemplate(payload?.address || '', payload?.args || [], columnPath, columnBase);
+          if (columnIndex !== null) launchColumnByIndex(columnIndex);
+        }
         MIDIProcessor.getInstance().handleOscMessage(payload?.address || '', payload?.args || []);
       } catch (error) {
         console.warn('OSC parameter mapping failed:', error, payload);
@@ -262,11 +346,12 @@ function App() {
         };
 
         if (payload.action === 'column-launch') {
-          const column = columns[Math.max(0, Number(payload.column || 1) - 1)];
-          if (!column) return;
           // OSC column messages should match the column header/MIDI behavior:
           // launch the full column, even when only one row in that column has a clip.
-          bootstrapColumn(column.id);
+          const columnIndex = Math.max(0, Number(payload.column || 1) - 1);
+          const column = columns[columnIndex];
+          if (!column) return;
+          if (!launchColumnByIndex(columnIndex)) bootstrapColumn(column.id);
           return;
         }
 

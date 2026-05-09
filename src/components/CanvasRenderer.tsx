@@ -9,6 +9,13 @@ import { EffectErrorBoundary } from './EffectErrorBoundary';
 import { VideoLoopManager } from '../utils/VideoLoopManager';
 import { getAssetPath } from '../utils/LayerManagerUtils';
 
+const canUseVideoElement = (video: HTMLVideoElement | null | undefined): boolean => (
+  !!video &&
+  video.readyState >= 2 &&
+  Number(video.videoWidth) > 0 &&
+  Number(video.videoHeight) > 0
+);
+
 interface CanvasRendererProps {
   assets: Array<{
     type: 'image' | 'video' | 'effect';
@@ -35,6 +42,10 @@ const WorkerVideoTexture: React.FC<{
 
   useEffect(() => {
     if (!video) return;
+    if (!canUseVideoElement(video)) {
+      setFallback(true);
+      return;
+    }
     const w = Math.max(1, video.videoWidth || 640);
     const h = Math.max(1, video.videoHeight || 360);
 
@@ -144,6 +155,45 @@ const VideoTexture: React.FC<{
       // Clear any existing transition timeout
       if (transitionTimeoutRef.current) {
         clearTimeout(transitionTimeoutRef.current);
+      }
+
+      if (!canUseVideoElement(video)) {
+        let createdTexture: THREE.VideoTexture | null = null;
+        const onReady = () => {
+          if (canUseVideoElement(video) && !createdTexture) {
+            const videoTexture = new THREE.VideoTexture(video);
+            createdTexture = videoTexture;
+            videoTexture.minFilter = THREE.LinearFilter;
+            videoTexture.magFilter = THREE.LinearFilter;
+            videoTexture.format = THREE.RGBAFormat;
+            videoTexture.generateMipmaps = false;
+            try {
+              (videoTexture as any).colorSpace = (THREE as any).SRGBColorSpace || (videoTexture as any).colorSpace;
+              if (!(videoTexture as any).colorSpace && (THREE as any).sRGBEncoding) {
+                (videoTexture as any).encoding = (THREE as any).sRGBEncoding;
+              }
+            } catch {}
+            if (texture) {
+              setPreviousTexture(texture);
+            }
+            setTexture(videoTexture);
+            setIsTransitioning(false);
+          }
+        };
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('loadeddata', onReady);
+        video.addEventListener('canplay', onReady);
+        video.addEventListener('resize', onReady);
+        return () => {
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('loadeddata', onReady);
+          video.removeEventListener('canplay', onReady);
+          video.removeEventListener('resize', onReady);
+          if (transitionTimeoutRef.current) {
+            clearTimeout(transitionTimeoutRef.current);
+          }
+          try { createdTexture?.dispose(); } catch {}
+        };
       }
       
       const videoTexture = new THREE.VideoTexture(video);
@@ -631,18 +681,19 @@ const CanvasScene: React.FC<{
   if (videoAssets.length > 0) {
     // For now, use the first available video texture
     const firstVideo = loadedAssets.videos.get(videoAssets[0].asset.id);
-    if (firstVideo) {
+    if (canUseVideoElement(firstVideo)) {
+      const readyVideo = firstVideo as HTMLVideoElement;
       // Reuse a cached THREE.VideoTexture for this HTMLVideoElement
       const cache = videoTextureCacheRef.current;
-      let vt = cache.get(firstVideo) || null;
+      let vt = cache.get(readyVideo) || null;
       if (!vt) {
         if ((import.meta as any)?.env?.DEV) console.log('Creating new VideoTexture for:', videoAssets[0].asset.id);
-        vt = new THREE.VideoTexture(firstVideo);
+        vt = new THREE.VideoTexture(readyVideo);
         vt.minFilter = THREE.LinearFilter;
         vt.magFilter = THREE.LinearFilter;
         vt.format = THREE.RGBAFormat;
         vt.generateMipmaps = false;
-        cache.set(firstVideo, vt);
+        cache.set(readyVideo, vt);
       } else {
         // Keep logs dev-only; this can be very chatty while editing.
         if ((import.meta as any)?.env?.DEV) console.log('Reusing cached VideoTexture:', vt.uuid);

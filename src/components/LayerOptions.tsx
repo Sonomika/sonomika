@@ -51,6 +51,16 @@ function midiToNoteLabel(value: number): string {
   return `${names[((midi % 12) + 12) % 12]}${octave}`;
 }
 
+function uniqueParamsByName(params: any[] | undefined): any[] {
+  const seen = new Set<string>();
+  return (Array.isArray(params) ? params : []).filter((param: any) => {
+    const name = String(param?.name || '').trim();
+    if (!name || seen.has(name)) return false;
+    seen.add(name);
+    return true;
+  });
+}
+
 export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpdateLayer }) => {
   const { defaultVideoRenderScale, showTimeline, selectedTimelineClip, setSelectedTimelineClip, bpm, columnCrossfadeDuration } = useStore() as any;
   // Bank discovery is async; when effects finish loading we need to re-run lookups
@@ -232,6 +242,10 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const effectMetadata = React.useMemo(() => {
     return effectComponent ? ((effectComponent as any).metadata || null) : null;
   }, [effectComponent]);
+  const effectParameters = React.useMemo(
+    () => uniqueParamsByName(effectMetadata?.parameters),
+    [effectMetadata?.parameters],
+  );
 
   // Fallback: If effect not found but should exist, periodically re-check
   // This handles cases where effects finish loading after component mounts
@@ -339,7 +353,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
     if (selectedLayer) {
       const params = { ...(selectedLayer.params || {}) } as Record<string, any>;
       if (!params[name]) {
-        const def = (effectMetadata?.parameters || []).find((p: any) => p.name === name);
+        const def = effectParameters.find((p: any) => p.name === name);
         params[name] = { value: def?.value };
       }
       params[name] = { ...(params[name] || {}), locked: nextLocked };
@@ -351,7 +365,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
   const randomizeEffectParams = () => {
     if (!selectedLayer || !hasEffect || !effectMetadata) return;
 
-    const unlockedDefs = (effectMetadata.parameters || []).filter((p: any) => !lockedParams[p.name]);
+    const unlockedDefs = effectParameters.filter((p: any) => !lockedParams[p.name]);
     if (unlockedDefs.length === 0) return;
 
     const randomized = globalRandomize(unlockedDefs, selectedLayer.params);
@@ -484,10 +498,10 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       setLayerOpacity(typeof options.opacity === 'number' ? options.opacity : 1);
       setLocalRenderScale(Number(options.renderScale ?? defaultVideoRenderScale ?? 1));
       
-      if (hasEffect && effectMetadata?.parameters) {
+      if (hasEffect && effectParameters.length > 0) {
         const baseParams = { ...(selectedLayer.params || {}) } as Record<string, any>;
         let needsUpdate = false;
-        (effectMetadata.parameters as any[]).forEach((p: any) => {
+        effectParameters.forEach((p: any) => {
           if (baseParams[p.name] === undefined) {
             baseParams[p.name] = { value: p.value };
             needsUpdate = true;
@@ -499,8 +513,8 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
       }
       
       const initialLocks: Record<string, boolean> = {};
-      if (hasEffect && effectMetadata?.parameters) {
-        (effectMetadata.parameters as any[]).forEach((p: any) => {
+      if (hasEffect && effectParameters.length > 0) {
+        effectParameters.forEach((p: any) => {
           const persisted = (selectedLayer.params as any)?.[p.name]?.locked;
           if (typeof persisted === 'boolean') initialLocks[p.name] = persisted;
           else if (p.lockDefault) initialLocks[p.name] = true;
@@ -534,7 +548,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
         setPlayMode(currentPlayMode);
       }
     }
-  }, [selectedLayer?.id, selectedLayer?.params, hasEffect, effectMetadata?.parameters, showTimeline, ensureVideoOptionsForLayer, getVideoOptionsForLayer, setVideoOptionsForLayerMode]);
+  }, [selectedLayer?.id, selectedLayer?.params, hasEffect, effectParameters, showTimeline, ensureVideoOptionsForLayer, getVideoOptionsForLayer, setVideoOptionsForLayerMode]);
 
   // Timeline-only: sync fade settings from selectedTimelineClip params so Layer Options stays in sync
   React.useEffect(() => {
@@ -912,20 +926,20 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
                   <RandomIcon className="tw-text-foreground" />
                 </button>
                 {(() => {
-                  const total = (effectMetadata?.parameters || []).length;
-                  const lockedCount = (effectMetadata?.parameters || []).reduce((acc: number, p: any) => acc + (lockedParams[p.name] ? 1 : 0), 0);
+                  const total = effectParameters.length;
+                  const lockedCount = effectParameters.reduce((acc: number, p: any) => acc + (lockedParams[p.name] ? 1 : 0), 0);
                   const allLocked = total > 0 && lockedCount === total;
                   const toggleAllLocks = () => {
                     if (!selectedLayer || !effectMetadata) return;
                     const lock = !allLocked;
                     const params = { ...(selectedLayer.params || {}) } as Record<string, any>;
-                    (effectMetadata.parameters as any[]).forEach((p: any) => {
+                    effectParameters.forEach((p: any) => {
                       const prev = params[p.name] || { value: p.value };
                       params[p.name] = { ...prev, locked: lock };
                     });
                     onUpdateLayer(selectedLayer.id, { params });
                     const nextLocks: Record<string, boolean> = {};
-                    (effectMetadata.parameters as any[]).forEach((p: any) => { nextLocks[p.name] = lock; });
+                    effectParameters.forEach((p: any) => { nextLocks[p.name] = lock; });
                     setLockedParams(nextLocks);
                   };
                   return (
@@ -948,7 +962,7 @@ export const LayerOptions: React.FC<LayerOptionsProps> = ({ selectedLayer, onUpd
             </div>
             <div className="tw-space-y-3 tw-pr-0">
               {effectMetadata ? (
-                effectMetadata.parameters?.map((param: any) => {
+                effectParameters.map((param: any) => {
                   const currentValue = selectedLayer.params?.[param.name]?.value ?? param.value;
                   const uiValue = localParamValues[param.name] ?? currentValue;
                   const isLocked = !!lockedParams[param.name];

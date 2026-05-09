@@ -11,6 +11,16 @@ function midiToNoteLabel(value: number): string {
   return `${names[((midi % 12) + 12) % 12]}${octave}`;
 }
 
+function uniqueParamsByName(params: any[] | undefined): any[] {
+  const seen = new Set<string>();
+  return (Array.isArray(params) ? params : []).filter((param: any) => {
+    const name = String(param?.name || '').trim();
+    if (!name || seen.has(name)) return false;
+    seen.add(name);
+    return true;
+  });
+}
+
 interface EffectParamsEditorProps {
   effectId: string;
   params: Record<string, any> | undefined;
@@ -19,7 +29,8 @@ interface EffectParamsEditorProps {
 
 export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId, params, onChange }) => {
   // Be forgiving with effect IDs discovered via dynamic scanning
-  const resolveEffectComponent = (id: string | undefined) => {
+  const effectComponent = React.useMemo(() => {
+    const id = effectId;
     if (!id) return null;
     let comp = getEffect(id);
     if (!comp) {
@@ -38,12 +49,18 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
       }
     }
     return comp;
-  };
-
-  const effectComponent = effectId ? resolveEffectComponent(effectId) : null;
-  const effectMetadata = effectComponent ? (effectComponent as any).metadata : null;
+  }, [effectId]);
+  const effectMetadata = React.useMemo(
+    () => (effectComponent ? ((effectComponent as any).metadata || null) : null),
+    [effectComponent],
+  );
+  const effectParameters = React.useMemo(
+    () => uniqueParamsByName(effectMetadata?.parameters),
+    [effectMetadata?.parameters],
+  );
 
   const currentParams: Record<string, any> = params || {};
+  const currentParamsKey = React.useMemo(() => JSON.stringify(currentParams || {}), [currentParams]);
 
   // Radix wrappers for lock/unlock and dice
   const LockIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -63,8 +80,8 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
   React.useEffect(() => {
     const nextLocks: Record<string, boolean> = {};
     const nextValues: Record<string, any> = {};
-    if (effectMetadata?.parameters) {
-      (effectMetadata.parameters as any[]).forEach((p: any) => {
+    if (effectParameters.length > 0) {
+      effectParameters.forEach((p: any) => {
         const persisted = (currentParams as any)?.[p.name]?.locked;
         if (typeof persisted === 'boolean') nextLocks[p.name] = persisted;
         else if (p.lockDefault) nextLocks[p.name] = true;
@@ -81,7 +98,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
     }
     setLockedParams(nextLocks);
     setLocalParamValues(nextValues);
-  }, [effectId, effectMetadata?.parameters, JSON.stringify(currentParams || {})]);
+  }, [effectId, effectParameters, currentParamsKey]);
 
   const handleParamChange = (paramName: string, value: any, meta?: any) => {
     const updatedParams = { ...currentParams } as Record<string, any>;
@@ -100,7 +117,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
     setLockedParams((prev) => {
       const next = { ...prev, [name]: !prev[name] };
       const updated = { ...currentParams } as Record<string, any>;
-      if (!updated[name]) updated[name] = { value: effectMetadata?.parameters?.find((p: any) => p.name === name)?.value };
+      if (!updated[name]) updated[name] = { value: effectParameters.find((p: any) => p.name === name)?.value };
       updated[name] = { ...(updated[name] || {}), locked: next[name] };
       onChange(updated);
       return next;
@@ -108,8 +125,8 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
   };
 
   const randomizeAll = () => {
-    if (!effectMetadata?.parameters) return;
-    const unlockedDefs = (effectMetadata.parameters as any[]).filter((p: any) => !lockedParams[p.name]);
+    if (effectParameters.length === 0) return;
+    const unlockedDefs = effectParameters.filter((p: any) => !lockedParams[p.name]);
     if (unlockedDefs.length === 0) return;
     const randomized = globalRandomize(unlockedDefs, currentParams);
     if (!randomized || Object.keys(randomized).length === 0) return;
@@ -210,7 +227,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
   const randomizeSingle = (paramDef: any) => {
     const name = paramDef?.name;
     if (!name || lockedParams[name]) return;
-    if (!effectMetadata?.parameters) return;
+    if (effectParameters.length === 0) return;
     const randomized = globalRandomize([paramDef], currentParams);
     if (!randomized || !randomized[name]) return;
     const val = (randomized[name] as any).value;
@@ -308,20 +325,20 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
           <DiceIcon className="tw-text-white" />
         </button>
         {(() => {
-          const total = (effectMetadata?.parameters || []).length;
-          const lockedCount = (effectMetadata?.parameters || []).reduce((acc: number, p: any) => acc + (lockedParams[p.name] ? 1 : 0), 0);
+          const total = effectParameters.length;
+          const lockedCount = effectParameters.reduce((acc: number, p: any) => acc + (lockedParams[p.name] ? 1 : 0), 0);
           const allLocked = total > 0 && lockedCount === total;
           const toggleAllLocks = () => {
-            if (!effectMetadata?.parameters) return;
+            if (effectParameters.length === 0) return;
             const lock = !allLocked;
             const updated = { ...currentParams } as Record<string, any>;
-            (effectMetadata.parameters as any[]).forEach((p: any) => {
+            effectParameters.forEach((p: any) => {
               const prev = updated[p.name] || { value: p.value };
               updated[p.name] = { ...prev, locked: lock };
             });
             onChange(updated);
             const nextLocks: Record<string, boolean> = {};
-            (effectMetadata.parameters as any[]).forEach((p: any) => { nextLocks[p.name] = lock; });
+            effectParameters.forEach((p: any) => { nextLocks[p.name] = lock; });
             setLockedParams(nextLocks);
           };
           return (
@@ -342,7 +359,7 @@ export const EffectParamsEditor: React.FC<EffectParamsEditorProps> = ({ effectId
         })()}
       </div>
 
-      {effectMetadata.parameters?.map((param: any) => {
+      {effectParameters.map((param: any) => {
         const currentValue = currentParams?.[param.name]?.value ?? param.value;
         const uiValue = localParamValues[param.name] ?? currentValue;
         const isLocked = !!lockedParams[param.name];

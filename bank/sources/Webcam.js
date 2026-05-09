@@ -43,11 +43,20 @@ export default function WebcamSource({ deviceId = '', width = 1280, height = 720
         video.autoplay = true; video.muted = true; video.playsInline = true;
         video.srcObject = stream; await video.play().catch(()=>{});
         videoRef.current = video;
-        if (video.videoWidth && video.videoHeight) setVideoAspect(video.videoWidth / video.videoHeight);
-        let tex = new THREE.VideoTexture(video);
-        tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.format = THREE.RGBAFormat; tex.generateMipmaps = false;
-        try { (tex).colorSpace = (THREE).SRGBColorSpace || (tex).colorSpace; if (!(tex).colorSpace && (THREE).sRGBEncoding) { (tex).encoding = (THREE).sRGBEncoding; } } catch {}
-        setVideoTexture(tex);
+        let textureCreated = false;
+        const createTexture = () => {
+          if (textureCreated) return;
+          if (!mounted || !(video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0)) return;
+          textureCreated = true;
+          if (video.videoWidth && video.videoHeight) setVideoAspect(video.videoWidth / video.videoHeight);
+          let tex = new THREE.VideoTexture(video);
+          tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.format = THREE.RGBAFormat; tex.generateMipmaps = false;
+          try { (tex).colorSpace = (THREE).SRGBColorSpace || (tex).colorSpace; if (!(tex).colorSpace && (THREE).sRGBEncoding) { (tex).encoding = (THREE).sRGBEncoding; } } catch {}
+          setVideoTexture(tex);
+        };
+        createTexture();
+        video.addEventListener('loadeddata', createTexture, { once: true });
+        video.addEventListener('canplay', createTexture, { once: true });
       } catch (e) {
         try { console.error('Webcam start failed', e); } catch {}
       }

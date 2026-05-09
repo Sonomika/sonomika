@@ -191,8 +191,23 @@ const VideoTexture: React.FC<{
   }, [video]);
 
   useEffect(() => {
-    if (video) {
-      const videoTexture = new THREE.VideoTexture(video);
+    if (!video) {
+      setTexture(null);
+      return;
+    }
+
+    let disposed = false;
+    let videoTexture: THREE.VideoTexture | null = null;
+
+    const canCreateTexture = () => (
+      video.readyState >= 2 &&
+      Number(video.videoWidth) > 0 &&
+      Number(video.videoHeight) > 0
+    );
+
+    const createTexture = () => {
+      if (disposed || videoTexture || !canCreateTexture()) return;
+      videoTexture = new THREE.VideoTexture(video);
       videoTexture.minFilter = THREE.LinearFilter;
       videoTexture.magFilter = THREE.LinearFilter;
       videoTexture.format = THREE.RGBAFormat;
@@ -206,7 +221,23 @@ const VideoTexture: React.FC<{
         }
       } catch {}
       setTexture(videoTexture);
-    }
+    };
+
+    setTexture(null);
+    createTexture();
+    video.addEventListener('loadedmetadata', createTexture);
+    video.addEventListener('loadeddata', createTexture);
+    video.addEventListener('canplay', createTexture);
+    video.addEventListener('resize', createTexture);
+
+    return () => {
+      disposed = true;
+      video.removeEventListener('loadedmetadata', createTexture);
+      video.removeEventListener('loadeddata', createTexture);
+      video.removeEventListener('canplay', createTexture);
+      video.removeEventListener('resize', createTexture);
+      try { videoTexture?.dispose(); } catch {}
+    };
   }, [video]);
 
   // RVFC-driven invalidation for live texture

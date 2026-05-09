@@ -112,6 +112,13 @@ const clampBpm = (v: number): number => {
   return Math.max(1, Math.min(500, Math.floor(n)));
 };
 
+const canUseVideoElement = (video: HTMLVideoElement | null | undefined): boolean => (
+  !!video &&
+  video.readyState >= 2 &&
+  Number(video.videoWidth) > 0 &&
+  Number(video.videoHeight) > 0
+);
+
 // When there are no active clips, explicitly clear the canvas so the last frame
 // cannot "stick" (R3F renderer has autoClear=false for anti-flash behavior).
 const ClearOnNoActiveClips: React.FC<{ hasActiveClips: boolean }> = ({ hasActiveClips }) => {
@@ -329,6 +336,44 @@ const VideoTexture: React.FC<{
       // Clear any existing transition timeout
       if (transitionTimeoutRef.current) {
         clearTimeout(transitionTimeoutRef.current);
+      }
+
+      if (!canUseVideoElement(video)) {
+        let createdTexture: THREE.VideoTexture | null = null;
+        const onReady = () => {
+          if (!canUseVideoElement(video) || createdTexture) return;
+          const videoTexture = new THREE.VideoTexture(video);
+          createdTexture = videoTexture;
+          videoTexture.minFilter = THREE.LinearFilter;
+          videoTexture.magFilter = THREE.LinearFilter;
+          videoTexture.format = THREE.RGBAFormat;
+          videoTexture.generateMipmaps = false;
+          try {
+            (videoTexture as any).colorSpace = (THREE as any).SRGBColorSpace || (videoTexture as any).colorSpace;
+            if (!(videoTexture as any).colorSpace && (THREE as any).sRGBEncoding) {
+              (videoTexture as any).encoding = (THREE as any).sRGBEncoding;
+            }
+          } catch {}
+          if (texture) {
+            setPreviousTexture(texture);
+          }
+          setTexture(videoTexture);
+          setIsTransitioning(false);
+        };
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('loadeddata', onReady);
+        video.addEventListener('canplay', onReady);
+        video.addEventListener('resize', onReady);
+        return () => {
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('loadeddata', onReady);
+          video.removeEventListener('canplay', onReady);
+          video.removeEventListener('resize', onReady);
+          if (transitionTimeoutRef.current) {
+            clearTimeout(transitionTimeoutRef.current);
+          }
+          try { createdTexture?.dispose(); } catch {}
+        };
       }
       
       const videoTexture = new THREE.VideoTexture(video);

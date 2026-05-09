@@ -5,6 +5,9 @@ import { useStore } from '../store/store';
 import { MIDIMapping } from '../store/types';
 import { getEffectComponentSync } from '../utils/EffectLoader';
 
+const DEFAULT_COLUMN_LAUNCH_PATH = '/composition/columns/{column}/connect';
+const DEFAULT_COLUMN_INDEX_BASE = 1;
+
 const clampPort = (value: unknown): number => {
   return Math.max(1, Math.min(65535, Math.floor(Number(value) || 7000)));
 };
@@ -50,6 +53,10 @@ export const OSCSettings: React.FC = () => {
     oscInputPort,
     setOscInputEnabled,
     setOscInputPort,
+    oscColumnLaunchPath,
+    oscColumnIndexBase,
+    setOscColumnLaunchPath,
+    setOscColumnIndexBase,
     midiMappings,
     setMIDIMappings,
     selectedLayerId,
@@ -59,6 +66,8 @@ export const OSCSettings: React.FC = () => {
 
   const enabled = oscInputEnabled !== false;
   const port = clampPort(oscInputPort);
+  const columnLaunchPath = String(oscColumnLaunchPath || DEFAULT_COLUMN_LAUNCH_PATH);
+  const columnIndexBase = oscColumnIndexBase === 0 ? 0 : 1;
   const [draftPort, setDraftPort] = useState(String(port));
   const [ipAddress, setIpAddress] = useState('127.0.0.1');
   const [status, setStatus] = useState('');
@@ -212,6 +221,11 @@ export const OSCSettings: React.FC = () => {
     setMIDIMappings((mappings || []).filter((_, i) => i !== idx));
   };
 
+  const resetColumnLaunchSettings = () => {
+    setOscColumnLaunchPath?.(DEFAULT_COLUMN_LAUNCH_PATH);
+    setOscColumnIndexBase?.(DEFAULT_COLUMN_INDEX_BASE);
+  };
+
   return (
     <div className="tw-space-y-5 tw-text-neutral-100">
       <div className="tw-text-sm tw-font-semibold">IP Address: {ipAddress}</div>
@@ -259,6 +273,43 @@ export const OSCSettings: React.FC = () => {
       {status && (
         <div className="tw-text-xs tw-text-neutral-400">{status}</div>
       )}
+
+      <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
+        <div className="tw-space-y-1">
+          <h4 className="tw-text-sm tw-font-medium tw-text-neutral-300">Column Launch OSC</h4>
+          <p className="tw-text-xs tw-text-neutral-500">
+            Use {'{column}'} where the column number appears. Add {'{value}'} if the trigger value is part of the address.
+          </p>
+        </div>
+        <div className="tw-grid tw-grid-cols-2 tw-gap-2">
+          <div className="tw-space-y-1">
+            <Label className="tw-text-xs">Address Template</Label>
+            <Input
+              value={columnLaunchPath}
+              onChange={(event) => setOscColumnLaunchPath?.(event.target.value)}
+              className="tw-bg-neutral-800 tw-border-neutral-700"
+              placeholder="/composition/columns/{column}/connect"
+            />
+          </div>
+          <div className="tw-space-y-1">
+            <Label className="tw-text-xs">First Column Number</Label>
+            <Select
+              value={String(columnIndexBase)}
+              onChange={(v) => setOscColumnIndexBase?.(Number(v) === 0 ? 0 : 1)}
+              options={[
+                { value: '1', label: '1 (Resolume default)' },
+                { value: '0', label: '0' },
+              ]}
+            />
+          </div>
+        </div>
+        <div className="tw-text-xs tw-text-neutral-500">
+          For your example, use <span className="tw-text-neutral-300">/composition/columns/{'{column}'}/connect/{'{value}'}</span> and set first column to 0.
+        </div>
+        <Button variant="outline" size="sm" onClick={resetColumnLaunchSettings}>
+          Reset
+        </Button>
+      </div>
 
       <div className="tw-border tw-border-neutral-800 tw-rounded-md tw-bg-neutral-900 tw-p-2 tw-space-y-2">
         <div className="tw-space-y-1">

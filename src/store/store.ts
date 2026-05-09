@@ -247,6 +247,8 @@ const initialState: AppState = {
   columnCrossfadeDuration: 400, // 400ms default (linear fade)
   oscInputEnabled: true,
   oscInputPort: 7000,
+  oscColumnLaunchPath: '/composition/columns/{column}/connect',
+  oscColumnIndexBase: 1 as 0 | 1,
 };
 
 try {
@@ -360,6 +362,8 @@ export const useStore = createWithEqualityFn<AppState & {
   setColumnCrossfadeDuration: (duration: number) => void;
   setOscInputEnabled: (enabled: boolean) => void;
   setOscInputPort: (port: number) => void;
+  setOscColumnLaunchPath: (path: string) => void;
+  setOscColumnIndexBase: (base: 0 | 1) => void;
 }>()(
   persist(
     (set, get) => ({
@@ -432,6 +436,10 @@ export const useStore = createWithEqualityFn<AppState & {
       setColumnCrossfadeDuration: (duration: number) => set({ columnCrossfadeDuration: Math.max(100, Math.min(2000, Math.floor(Number(duration) || 400))) }),
       setOscInputEnabled: (enabled: boolean) => set({ oscInputEnabled: Boolean(enabled) } as any),
       setOscInputPort: (port: number) => set({ oscInputPort: Math.max(1, Math.min(65535, Math.floor(Number(port) || 7000))) } as any),
+      setOscColumnLaunchPath: (path: string) => set({
+        oscColumnLaunchPath: String(path || '').trim() || '/composition/columns/{column}/connect'
+      } as any),
+      setOscColumnIndexBase: (base: 0 | 1) => set({ oscColumnIndexBase: base === 0 ? 0 : 1 } as any),
 
       addScene: () => set((state) => {
         const newScene = createEmptyScene();
@@ -1573,6 +1581,8 @@ export const useStore = createWithEqualityFn<AppState & {
            columnCrossfadeDuration: (state as any).columnCrossfadeDuration,
            oscInputEnabled: (state as any).oscInputEnabled,
            oscInputPort: (state as any).oscInputPort,
+           oscColumnLaunchPath: (state as any).oscColumnLaunchPath,
+           oscColumnIndexBase: (state as any).oscColumnIndexBase,
         };
       },
              onRehydrateStorage: () => (state) => {

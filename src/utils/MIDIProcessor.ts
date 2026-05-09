@@ -2,6 +2,7 @@ import { MIDIMapping, AppState } from '../store/types';
 import { useStore } from '../store/store';
 import { useVideoOptionsStore } from '../store/videoOptionsStore';
 import { getEffect } from '../utils/effectRegistry';
+import { setLiveModulationValue } from '../utils/liveModulation';
 // EffectLoader import removed - using dynamic loading instead
 
 type StoreActions = {
@@ -39,6 +40,10 @@ export class MIDIProcessor {
   private timelineApplyScheduled: boolean = false;
   private settledMidiTimeouts: Map<string, number> = new Map();
   private oscButtonStates: Map<string, boolean> = new Map();
+  private oscButtonLastTriggerMs: Map<string, number> = new Map();
+  private oscButtonCounters: Map<string, number> = new Map();
+  private lastOscStoreCommitMsByParam: Map<string, number> = new Map();
+  private oscStoreCommitThrottleMs: number = 200;
 
   private constructor() {
     this.mappings = [];
@@ -143,13 +148,15 @@ export class MIDIProcessor {
   }
 
   private applyLayerParamUpdateImmediate(layerId: string, paramName: string, value: number) {
-    const state: any = useStore.getState();
-    const layer = this.findLayer(layerId) as any;
-    if (!layer || typeof state.updateLayer !== 'function') return;
-    const currentParams = { ...(layer.params || {}) } as Record<string, any>;
-    const prevObj = currentParams[paramName] || {};
-    currentParams[paramName] = { ...prevObj, value };
-    state.updateLayer(layerId, { params: currentParams });
+    try { setLiveModulationValue(layerId, paramName, value); } catch {}
+
+    const key = `${layerId}:${paramName}`;
+    const now = Date.now();
+    const lastCommit = this.lastOscStoreCommitMsByParam.get(key) || 0;
+    if (now - lastCommit < this.oscStoreCommitThrottleMs) return;
+
+    this.lastOscStoreCommitMsByParam.set(key, now);
+    this.queueLayerParamUpdate(layerId, paramName, value);
   }
 
   private applyTimelineParamUpdate(clipId: string, paramName: string, value: number) {
@@ -182,11 +189,11 @@ export class MIDIProcessor {
     this.queueGlobalParamUpdate(slotId, paramName, value);
   }
 
-  private queueLayerParamUpdate(layerId: string, paramName: string, value: number) {
+  private queueLayerParamUpdate(layerId: string, paramName: string, value: number, force = false) {
     const key = `${layerId}:${paramName}`;
     const prev = this.lastAppliedParamValues.get(key);
     // Skip tiny changes to avoid excessive renders (epsilon ~ 0.002 of range)
-    if (prev !== undefined && Math.abs(prev - value) < 0.002) return;
+    if (!force && prev !== undefined && Math.abs(prev - value) < 0.002) return;
     this.lastAppliedParamValues.set(key, value);
 
     const existing = this.pendingParamUpdates.get(layerId) || {};
@@ -208,14 +215,14 @@ export class MIDIProcessor {
     }
   }
 
-  private queueTimelineUpdate(clipId: string, paramName: string, value: number) {
+  private queueTimelineUpdate(clipId: string, paramName: string, value: number, force = false) {
     // Timeline updates trigger expensive re-renders (syncs to tracks via useEffect)
     // Use slightly higher epsilon to reduce update frequency and match column mode sensitivity
     const key = `timeline:${clipId}:${paramName}`;
     const prev = this.lastAppliedParamValues.get(key);
     // Skip tiny changes - use same epsilon as column mode (0.002 of range)
     // This prevents excessive updates that slow down sliders
-    if (prev !== undefined && Math.abs(prev - value) < 0.002) return;
+    if (!force && prev !== undefined && Math.abs(prev - value) < 0.002) return;
     this.lastAppliedParamValues.set(key, value);
 
     if (paramName === 'opacity') {
@@ -373,10 +380,10 @@ export class MIDIProcessor {
     }
   }
 
-  private queueGlobalParamUpdate(slotId: string, paramName: string, value: number) {
+  private queueGlobalParamUpdate(slotId: string, paramName: string, value: number, force = false) {
     const key = `${slotId}:${paramName}`;
     const prev = this.lastAppliedGlobalValues.get(key);
-    if (prev !== undefined && Math.abs(prev - value) < 0.002) return;
+    if (!force && prev !== undefined && Math.abs(prev - value) < 0.002) return;
     this.lastAppliedGlobalValues.set(key, value);
 
     const existing = this.pendingGlobalUpdates.get(slotId) || {};
@@ -796,7 +803,28 @@ export class MIDIProcessor {
     const isActive = normalizedValue > 0.001;
     const wasActive = this.oscButtonStates.get(key) === true;
     this.oscButtonStates.set(key, isActive);
-    return isActive && !wasActive;
+    if (!isActive) return false;
+
+    const now = Date.now();
+    const lastTrigger = this.oscButtonLastTriggerMs.get(key) || 0;
+    const retriggerDebounceMs = 120;
+    if (!wasActive || now - lastTrigger >= retriggerDebounceMs) {
+      this.oscButtonLastTriggerMs.set(key, now);
+      return true;
+    }
+    return false;
+  }
+
+  private isButtonLikeParamName(paramName: string | undefined): boolean {
+    return /^(pulse|trigger|fire|bang|tap)/i.test(String(paramName || ''));
+  }
+
+  private nextOscButtonValue(counterKey: string, currentValue: number): number {
+    const current = Number.isFinite(currentValue) ? currentValue : 0;
+    const last = this.oscButtonCounters.get(counterKey);
+    const next = Math.max(current, Number.isFinite(last) ? Number(last) : 0) + 1;
+    this.oscButtonCounters.set(counterKey, next);
+    return next;
   }
 
   private applyContinuousMappingTarget(mapping: MIDIMapping, normalizedValue: number): void {
@@ -817,10 +845,15 @@ export class MIDIProcessor {
         const paramName = geTarget.param;
         if (!paramName) break;
         const paramConfig = metadata?.parameters?.find((p: any) => p.name === paramName);
-        if (paramConfig?.type === 'button') {
+        if (paramConfig?.type === 'button' || this.isButtonLikeParamName(paramName)) {
           if (this.shouldTriggerOscButton(mapping, normalizedValue)) {
-            const current = Number((slot.params || {})[paramName]?.value ?? paramConfig.value ?? 0);
-            this.applyGlobalParamUpdateImmediate(slot.id, paramName, (Number.isFinite(current) ? current : 0) + 1);
+            const current = Number((slot.params || {})[paramName]?.value ?? paramConfig?.value ?? 0);
+            this.queueGlobalParamUpdate(
+              slot.id,
+              paramName,
+              this.nextOscButtonValue(`global:${slot.id}:${paramName}`, current),
+              true
+            );
           }
           break;
         }
@@ -852,10 +885,15 @@ export class MIDIProcessor {
               if (metadata?.parameters) {
                 const paramConfig = metadata.parameters.find((p: any) => p.name === layerTarget.param);
                 if (paramConfig) {
-                  if (paramConfig.type === 'button') {
+                  if (paramConfig.type === 'button' || this.isButtonLikeParamName(layerTarget.param)) {
                     if (this.shouldTriggerOscButton(mapping, normalizedValue)) {
-                      const current = Number(selectedClip.data?.params?.[layerTarget.param]?.value ?? paramConfig.value ?? 0);
-                      this.applyTimelineParamUpdateImmediate(selectedClip.id, layerTarget.param, (Number.isFinite(current) ? current : 0) + 1);
+                      const current = Number(selectedClip.data?.params?.[layerTarget.param]?.value ?? paramConfig?.value ?? 0);
+                      this.queueTimelineUpdate(
+                        selectedClip.id,
+                        layerTarget.param,
+                        this.nextOscButtonValue(`timeline:${selectedClip.id}:${layerTarget.param}`, current),
+                        true
+                      );
                     }
                     break;
                   }
@@ -885,10 +923,15 @@ export class MIDIProcessor {
         } else {
           const metadata = this.getEffectMetadataForLayer(layer) as any;
           const paramConfig = metadata?.parameters?.find((p: any) => p.name === layerTarget.param);
-          if (paramConfig?.type === 'button') {
+          if (paramConfig?.type === 'button' || this.isButtonLikeParamName(layerTarget.param)) {
             if (this.shouldTriggerOscButton(mapping, normalizedValue)) {
-              const current = Number(((layer as any).params || {})[layerTarget.param]?.value ?? paramConfig.value ?? 0);
-              this.applyLayerParamUpdateImmediate(effectiveLayerId, layerTarget.param, (Number.isFinite(current) ? current : 0) + 1);
+              const current = Number(((layer as any).params || {})[layerTarget.param]?.value ?? paramConfig?.value ?? 0);
+              this.queueLayerParamUpdate(
+                effectiveLayerId,
+                layerTarget.param,
+                this.nextOscButtonValue(`layer:${effectiveLayerId}:${layerTarget.param}`, current),
+                true
+              );
             }
             break;
           }
@@ -921,6 +964,36 @@ export class MIDIProcessor {
     }
   }
 
+  private isOscButtonMapping(mapping: MIDIMapping): boolean {
+    const target = mapping.target as any;
+    const paramName = target?.param;
+    if (!paramName) return false;
+
+    try {
+      if (target.type === 'global-effect') {
+        const st: any = useStore.getState();
+        const scene = st.showTimeline
+          ? (st.timelineScenes || []).find((s: any) => s.id === st.currentTimelineSceneId)
+          : (st.scenes || []).find((s: any) => s.id === st.currentSceneId);
+        const slot = (scene?.globalEffects || []).find((g: any) => g && g.id === target.id);
+        if (!slot) return false;
+        const metadata = this.getEffectMetadataForLayer({ type: 'effect', asset: { id: slot.effectId }, params: slot.params } as any) as any;
+        return metadata?.parameters?.some((p: any) => p.name === paramName && p.type === 'button') === true
+          || this.isButtonLikeParamName(paramName);
+      }
+
+      if (target.type === 'layer') {
+        const layer = this.findLayer(target.id);
+        if (!layer) return false;
+        const metadata = this.getEffectMetadataForLayer(layer) as any;
+        return metadata?.parameters?.some((p: any) => p.name === paramName && p.type === 'button') === true
+          || this.isButtonLikeParamName(paramName);
+      }
+    } catch {}
+
+    return this.isButtonLikeParamName(paramName);
+  }
+
   handleOscMessage(address: string, args: Array<string | number | boolean | null>): void {
     const normalizedAddress = String(address || '').trim().toLowerCase();
     if (!normalizedAddress) return;
@@ -946,9 +1019,25 @@ export class MIDIProcessor {
       ))
       : [];
 
-    // When the same OSC address is mapped in multiple cells, clicking a cell focuses
-    // that cell's mappings. Unique addresses and non-layer mappings keep old behavior.
-    (focusedAddressMatches.length > 0 ? focusedAddressMatches : addressMatches)
+    const buttonMatches = addressMatches.filter(mapping => this.isOscButtonMapping(mapping));
+    const focusedButtonKeys = new Set(
+      buttonMatches.map(mapping => `${String((mapping.target as any)?.type || '')}:${String((mapping.target as any)?.id || '')}:${String((mapping.target as any)?.param || '')}`)
+    );
+    const continuousMatches = addressMatches.filter(mapping => !focusedButtonKeys.has(
+      `${String((mapping.target as any)?.type || '')}:${String((mapping.target as any)?.id || '')}:${String((mapping.target as any)?.param || '')}`
+    ));
+    const focusedContinuousMatches = focusedLayerId
+      ? continuousMatches.filter(mapping => (
+        (mapping.target as any)?.type === 'layer'
+        && String((mapping.target as any)?.id || '') === focusedLayerId
+      ))
+      : [];
+
+    // When the same OSC address is mapped in multiple cells, continuous controls
+    // can still focus the selected cell. Button pulses are edge-triggered events,
+    // so they should continue reaching their mapped layer after the user clicks
+    // another cell.
+    [...buttonMatches, ...(focusedContinuousMatches.length > 0 ? focusedContinuousMatches : continuousMatches)]
       .forEach(mapping => this.applyContinuousMappingTarget(mapping, normalizedValue));
   }
 

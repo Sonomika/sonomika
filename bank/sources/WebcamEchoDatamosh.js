@@ -268,6 +268,7 @@ export default function WebcamEchoDatamosh({
     // fallback path: if no WebCodecs, use VideoTexture
     if (!isWCRef.current) {
       if (!tex) {
+        if (!(video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0)) return;
         try {
           const vtex = new THREE.VideoTexture(video);
           vtex.minFilter = THREE.LinearFilter; vtex.magFilter = THREE.LinearFilter; vtex.generateMipmaps = false;

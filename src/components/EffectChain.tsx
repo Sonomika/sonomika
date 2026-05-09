@@ -369,7 +369,15 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
     };
   }, []);
 
+  const canUseVideoTexture = (video: HTMLVideoElement | null | undefined) => (
+    !!video &&
+    video.readyState >= 2 &&
+    Number(video.videoWidth) > 0 &&
+    Number(video.videoHeight) > 0
+  );
+
   const getVideoTextureFor = (video: HTMLVideoElement) => {
+    if (!canUseVideoTexture(video)) return null;
     const existing = videoTexMapRef.current.get(video);
     if (existing) return existing;
     const tex = new THREE.VideoTexture(video);
@@ -555,6 +563,11 @@ const EffectChainComponent: React.FC<EffectChainProps> = ({
       if (item.type === 'video') {
         const prevTexture = currentTexture;
         const videoTexture = getVideoTextureFor(item.video);
+        if (!videoTexture) {
+          currentTexture = currentTexture || seedTexture || transparentTexRef.current;
+          nextInputTextures[idx] = currentTexture;
+          return;
+        }
         videoTexture.needsUpdate = true;
           // lazily create scene/mesh/rt for scaling modes
           if (!videoSceneRef.current) {
